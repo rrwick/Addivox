@@ -13,11 +13,17 @@
 *.mode1v3
 *.db
 *.LSOverride
-*.xcuserdata
-*.xcschememanagement.plist
 build-*
 ipch/*
 gui/*
 
 Icon?
 .DS_Stor*
+
+# Xcode files
+xcuserdata/
+*.xcuserdata
+*.xcschememanagement.plist
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
