@@ -42,7 +42,8 @@ def main():
   CFBundleVersion = config['FULL_VER_STR']
   CFBundlePackageType = "BNDL"
   CSResourcesFileMapped = True
-  LSMinimumSystemVersion = xcconfig['DEPLOYMENT_TARGET']
+  # LSMinimumSystemVersion = xcconfig['DEPLOYMENT_TARGET']
+  LSMinimumSystemVersion = "13.0"
 
   print("Copying resources ...")
 
@@ -182,7 +183,7 @@ def main():
   auv3['CFBundleName'] = config['BUNDLE_NAME']
   auv3['CFBundleVersion'] = CFBundleVersion
   auv3['CFBundleShortVersionString'] = CFBundleVersion
-  auv3['LSMinimumSystemVersion'] = "10.12.0"
+  auv3['LSMinimumSystemVersion'] = LSMinimumSystemVersion
   auv3['CFBundlePackageType'] = "XPC!"
   auv3['NSExtension'] = dict(
   NSExtensionAttributes = dict(

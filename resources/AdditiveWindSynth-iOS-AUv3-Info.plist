@@ -34,13 +34,13 @@
 					<key>factoryFunction</key>
 					<string>IPlugAUViewController_vAdditiveWindSynth</string>
 					<key>manufacturer</key>
-					<string>Acme</string>
+					<string>RWic</string>
 					<key>name</key>
 					<string>rrwick: AdditiveWindSynth</string>
 					<key>sandboxSafe</key>
 					<true/>
 					<key>subtype</key>
-					<string>PmBl</string>
+					<string>AdWS</string>
 					<key>tags</key>
 					<array>
 						<string>Synth</string>
