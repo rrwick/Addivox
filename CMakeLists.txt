@@ -13,6 +13,8 @@ iplug_add_plugin(${PROJECT_NAME}
     AdditiveWindSynth.cpp
     AdditiveWindSynth.h
     AdditiveWindSynth_DSP.h
+    Synth/MidiSynth.cpp
+    Synth/VoiceAllocator.cpp
     resources/resource.h
   RESOURCES
     resources/fonts/Roboto-Regular.ttf

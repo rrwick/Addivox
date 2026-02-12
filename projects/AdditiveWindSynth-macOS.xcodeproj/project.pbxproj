@@ -24,6 +24,26 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		0B295F222F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F232F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F242F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F252F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F262F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F272F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F282F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F292F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F2A2F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F2B2F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F2C2F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F2D2F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F2E2F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F2F2F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F302F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
+		0B295F312F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */; };
+		0B295F322F3E62CE004F3229 /* ControlRamp.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F1C2F3E62CE004F3229 /* ControlRamp.h */; };
+		0B295F332F3E62CE004F3229 /* MidiSynth.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F1D2F3E62CE004F3229 /* MidiSynth.h */; };
+		0B295F342F3E62CE004F3229 /* SynthVoice.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F1F2F3E62CE004F3229 /* SynthVoice.h */; };
+		0B295F352F3E62CE004F3229 /* VoiceAllocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F202F3E62CE004F3229 /* VoiceAllocator.h */; };
 		4F03A5AC20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
 		4F03A5AE20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
 		4F03A5AF20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
@@ -232,20 +252,6 @@
 		4FDAC0ED207D76C600299363 /* IPlugTimer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FDAC0E6207D76C600299363 /* IPlugTimer.cpp */; };
 		4FDAC0EE207D76C600299363 /* IPlugTimer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FDAC0E6207D76C600299363 /* IPlugTimer.cpp */; };
 		4FF0A83221BE708700B2C9D1 /* swell-gdi.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FD16D0B13B634BF001D0217 /* swell-gdi.mm */; settings = {COMPILER_FLAGS = "-Wno-unreachable-code"; }; };
-		4FF231B92BFA0B020040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
-		4FF231BA2BFA0B020040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231BD2BFA0B030040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
-		4FF231BE2BFA0B030040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231BF2BFA0B030040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
-		4FF231C02BFA0B030040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231C12BFA0B040040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
-		4FF231C22BFA0B040040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231C92BFA0B070040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
-		4FF231CA2BFA0B070040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231CB2BFA0B080040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
-		4FF231CC2BFA0B080040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231CF2BFA0B260040797B /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674221C5614C005991A9 /* MidiSynth.cpp */; };
-		4FF231D02BFA0B260040797B /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */; };
 		B885CBC52304AE7300D73128 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
 		B8E22A0C220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */; };
 /* End PBXBuildFile section */
@@ -334,6 +340,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0B295F1C2F3E62CE004F3229 /* ControlRamp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ControlRamp.h; path = ../Synth/ControlRamp.h; sourceTree = SOURCE_ROOT; };
+		0B295F1D2F3E62CE004F3229 /* MidiSynth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = MidiSynth.h; path = ../Synth/MidiSynth.h; sourceTree = SOURCE_ROOT; };
+		0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MidiSynth.cpp; path = ../Synth/MidiSynth.cpp; sourceTree = SOURCE_ROOT; };
+		0B295F1F2F3E62CE004F3229 /* SynthVoice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SynthVoice.h; path = ../Synth/SynthVoice.h; sourceTree = SOURCE_ROOT; };
+		0B295F202F3E62CE004F3229 /* VoiceAllocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = VoiceAllocator.h; path = ../Synth/VoiceAllocator.h; sourceTree = SOURCE_ROOT; };
+		0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VoiceAllocator.cpp; path = ../Synth/VoiceAllocator.cpp; sourceTree = SOURCE_ROOT; };
 		4F03A55020A4621000EBDFFB /* IGraphicsNanoVG.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IGraphicsNanoVG.h; sourceTree = "<group>"; };
 		4F03A55420A4621000EBDFFB /* IGraphicsNanoVG.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsNanoVG.cpp; sourceTree = "<group>"; };
 		4F03A55620A4621000EBDFFB /* IGraphicsLiveEdit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IGraphicsLiveEdit.h; path = ../../../IGraphics/IGraphicsLiveEdit.h; sourceTree = "<group>"; };
@@ -430,12 +442,6 @@
 		4F690CA0203A398900A4A13E /* IPlugAPP_host.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugAPP_host.h; path = ../../../IPlug/APP/IPlugAPP_host.h; sourceTree = "<group>"; tabWidth = 2; };
 		4F690CA2203A45C700A4A13E /* IPlugAPP_host.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = IPlugAPP_host.cpp; path = ../../../IPlug/APP/IPlugAPP_host.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		4F6D9DEB2016B7F7009E1E3E /* IPlugPlatform.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugPlatform.h; path = ../../../IPlug/IPlugPlatform.h; sourceTree = "<group>"; tabWidth = 2; };
-		4F6E673D21C5614C005991A9 /* VoiceAllocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VoiceAllocator.h; sourceTree = "<group>"; };
-		4F6E673E21C5614C005991A9 /* SynthVoice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SynthVoice.h; sourceTree = "<group>"; };
-		4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VoiceAllocator.cpp; sourceTree = "<group>"; };
-		4F6E674021C5614C005991A9 /* MidiSynth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MidiSynth.h; sourceTree = "<group>"; };
-		4F6E674121C5614C005991A9 /* ControlRamp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ControlRamp.h; sourceTree = "<group>"; };
-		4F6E674221C5614C005991A9 /* MidiSynth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MidiSynth.cpp; sourceTree = "<group>"; };
 		4F6FD2AD22675B6300FC59E6 /* IGraphicsCoreText.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IGraphicsCoreText.h; path = ../../../IGraphics/Platforms/IGraphicsCoreText.h; sourceTree = "<group>"; };
 		4F6FD2AF22675B6300FC59E6 /* IGraphicsCoreText.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = IGraphicsCoreText.mm; path = ../../../IGraphics/Platforms/IGraphicsCoreText.mm; sourceTree = "<group>"; };
 		4F72201E225C1EB100FF0E7C /* commoniids.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = commoniids.cpp; sourceTree = "<group>"; };
@@ -816,6 +822,12 @@
 		089C166AFE841209C02AAC07 /* IPlugExample */ = {
 			isa = PBXGroup;
 			children = (
+				0B295F1C2F3E62CE004F3229 /* ControlRamp.h */,
+				0B295F1D2F3E62CE004F3229 /* MidiSynth.h */,
+				0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */,
+				0B295F1F2F3E62CE004F3229 /* SynthVoice.h */,
+				0B295F202F3E62CE004F3229 /* VoiceAllocator.h */,
+				0B295F212F3E62CE004F3229 /* VoiceAllocator.cpp */,
 				52FBBED30D0CF143001C8B8A /* config.h */,
 				4F3862EE2014BBEC0009F402 /* AdditiveWindSynth.h */,
 				4F3862ED2014BBEC0009F402 /* AdditiveWindSynth.cpp */,
@@ -1029,7 +1041,6 @@
 		4F5369B820C446430089212E /* Extras */ = {
 			isa = PBXGroup;
 			children = (
-				4F6E673C21C5614C005991A9 /* Synth */,
 				4F5369BC20C446430089212E /* Easing.h */,
 				4F5369BD20C446430089212E /* NChanDelay.h */,
 				4F800152252F0A9F00432412 /* LFO.h */,
@@ -1086,19 +1097,6 @@
 			);
 			name = Controls;
 			path = ../../../IGraphics/Controls;
-			sourceTree = "<group>";
-		};
-		4F6E673C21C5614C005991A9 /* Synth */ = {
-			isa = PBXGroup;
-			children = (
-				4F6E673D21C5614C005991A9 /* VoiceAllocator.h */,
-				4F6E673E21C5614C005991A9 /* SynthVoice.h */,
-				4F6E673F21C5614C005991A9 /* VoiceAllocator.cpp */,
-				4F6E674021C5614C005991A9 /* MidiSynth.h */,
-				4F6E674121C5614C005991A9 /* ControlRamp.h */,
-				4F6E674221C5614C005991A9 /* MidiSynth.cpp */,
-			);
-			path = Synth;
 			sourceTree = "<group>";
 		};
 		4F78D8D013B63B390032E0F3 /* IPlug */ = {
@@ -1701,6 +1699,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F78BE1222E73DD900AD537E /* AUv3Framework.h in Headers */,
+				0B295F322F3E62CE004F3229 /* ControlRamp.h in Headers */,
+				0B295F332F3E62CE004F3229 /* MidiSynth.h in Headers */,
+				0B295F342F3E62CE004F3229 /* SynthVoice.h in Headers */,
+				0B295F352F3E62CE004F3229 /* VoiceAllocator.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2201,6 +2203,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F78BE3222E7429B00AD537E /* IPlugAUv3Appex.m in Sources */,
+				0B295F262F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F272F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2214,6 +2218,8 @@
 				4F1A528C205D916F00CF2908 /* IPlugAU.cpp in Sources */,
 				4F63697020A463090022C370 /* IControls.cpp in Sources */,
 				4FD52131202A5B9B00A4D22A /* IPlugAU_view_factory.mm in Sources */,
+				0B295F242F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F252F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4F993F7423055C96000313AF /* IPlugProcessor.cpp in Sources */,
 				4F8C10E320BA2796006320CD /* IGraphicsEditorDelegate.cpp in Sources */,
 				4F6FD2B422675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
@@ -2228,8 +2234,6 @@
 				4F78D95C13B63BA50032E0F3 /* IPlugParameter.cpp in Sources */,
 				4FB1F58C20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
 				4F3862F22014BBEC0009F402 /* AdditiveWindSynth.cpp in Sources */,
-				4FF231BF2BFA0B030040797B /* VoiceAllocator.cpp in Sources */,
-				4FF231C02BFA0B030040797B /* MidiSynth.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2254,6 +2258,8 @@
 				4F3EE1D2231438D000004786 /* swell-misc.mm in Sources */,
 				4F3EE1D3231438D000004786 /* swell-wnd.mm in Sources */,
 				4F3EE1D4231438D000004786 /* swell.cpp in Sources */,
+				0B295F282F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F292F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4F3EE1D5231438D000004786 /* IPlugAPP_host.cpp in Sources */,
 				4F3EE1D6231438D000004786 /* IPlugAPP.cpp in Sources */,
 				4F3EE1D7231438D000004786 /* IGraphics.cpp in Sources */,
@@ -2264,8 +2270,6 @@
 				4F3EE1DC231438D000004786 /* IControls.cpp in Sources */,
 				4F3EE1DD231438D000004786 /* IGraphicsMac.mm in Sources */,
 				4F3EE1DE231438D000004786 /* AdditiveWindSynth.cpp in Sources */,
-				4FF231C92BFA0B070040797B /* VoiceAllocator.cpp in Sources */,
-				4FF231CA2BFA0B070040797B /* MidiSynth.cpp in Sources */,
 				4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */,
 				4F3EE1E0231438D000004786 /* IPlugAPIBase.cpp in Sources */,
 				4F3EE1E1231438D000004786 /* IPlugPluginBase.cpp in Sources */,
@@ -2289,6 +2293,8 @@
 				4F78BE1922E7406D00AD537E /* ITextEntryControl.cpp in Sources */,
 				4F78BE1A22E7406D00AD537E /* IPopupMenuControl.cpp in Sources */,
 				4F78BE1B22E7406D00AD537E /* IControls.cpp in Sources */,
+				0B295F302F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F312F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4F78BE1E22E7406D00AD537E /* IGraphicsNanoVG_src.m in Sources */,
 				4F78BE1F22E7406D00AD537E /* IGraphics.cpp in Sources */,
 				4F78BE2022E7406D00AD537E /* IGraphicsEditorDelegate.cpp in Sources */,
@@ -2299,8 +2305,6 @@
 				4F78BE2522E7406D00AD537E /* IPlugPluginBase.cpp in Sources */,
 				4F78BE2622E7406D00AD537E /* IPlugAPIBase.cpp in Sources */,
 				4F78BE2822E7406D00AD537E /* IPlugParameter.cpp in Sources */,
-				4FF231CB2BFA0B080040797B /* VoiceAllocator.cpp in Sources */,
-				4FF231CC2BFA0B080040797B /* MidiSynth.cpp in Sources */,
 				4F78BE2922E7406D00AD537E /* IPlugTimer.cpp in Sources */,
 				4F78BE2A22E7406D00AD537E /* IPlugPaths.mm in Sources */,
 			);
@@ -2327,8 +2331,6 @@
 				4F815982205D50EB00393585 /* fstring.cpp in Sources */,
 				4F815995205D51F000393585 /* vstpresetfile.cpp in Sources */,
 				4F815983205D50EB00393585 /* timer.cpp in Sources */,
-				4FF231BD2BFA0B030040797B /* VoiceAllocator.cpp in Sources */,
-				4FF231BE2BFA0B030040797B /* MidiSynth.cpp in Sources */,
 				4F815989205D50EB00393585 /* funknown.cpp in Sources */,
 				4FB1F58B20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
 				4F81598E205D51F000393585 /* vstbus.cpp in Sources */,
@@ -2351,6 +2353,8 @@
 				4F81598D205D51F000393585 /* vstaudioeffect.cpp in Sources */,
 				4F81598C205D51CF00393585 /* vstsinglecomponenteffect.cpp in Sources */,
 				4F815984205D50EB00393585 /* updatehandler.cpp in Sources */,
+				0B295F2C2F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F2D2F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4F815990205D51F000393585 /* vstcomponent.cpp in Sources */,
 				4F815981205D50EB00393585 /* fstreamer.cpp in Sources */,
 				4F815996205D51F000393585 /* vstrepresentation.cpp in Sources */,
@@ -2377,6 +2381,8 @@
 				4FB6001A1567CB0A0020189A /* IPlugAPIBase.cpp in Sources */,
 				4F6369EF20A466470022C370 /* IControl.cpp in Sources */,
 				4F03A5B020A4621100EBDFFB /* IGraphics.cpp in Sources */,
+				0B295F2E2F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F2F2F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4F35DEB1207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
 				4F5F344520C0226200487201 /* IPlugPaths.mm in Sources */,
 				4F1A5285205D914A00CF2908 /* IPlugAAX.cpp in Sources */,
@@ -2387,8 +2393,6 @@
 				4FB600231567CB0A0020189A /* IPlugParameter.cpp in Sources */,
 				4FB600261567CB0A0020189A /* AAX_Exports.cpp in Sources */,
 				4F6FD2B522675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
-				4FF231C12BFA0B040040797B /* VoiceAllocator.cpp in Sources */,
-				4FF231C22BFA0B040040797B /* MidiSynth.cpp in Sources */,
 				4FB600281567CB0A0020189A /* IPlugAAX_Describe.cpp in Sources */,
 				4FB1F58D20E4B007004157C8 /* IGraphicsMac.mm in Sources */,
 			);
@@ -2415,6 +2419,8 @@
 				4FD16D4013B635A0001D0217 /* swell-misc.mm in Sources */,
 				4FD16D4213B635AB001D0217 /* swell-wnd.mm in Sources */,
 				4FD16D4413B635B2001D0217 /* swell.cpp in Sources */,
+				0B295F222F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F232F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4F690CA3203A45C700A4A13E /* IPlugAPP_host.cpp in Sources */,
 				4F1A5282205D913300CF2908 /* IPlugAPP.cpp in Sources */,
 				4F03A5AC20A4621100EBDFFB /* IGraphics.cpp in Sources */,
@@ -2425,8 +2431,6 @@
 				4F63696D20A463090022C370 /* IControls.cpp in Sources */,
 				4FB1F58920E4B004004157C8 /* IGraphicsMac.mm in Sources */,
 				4F3862EF2014BBEC0009F402 /* AdditiveWindSynth.cpp in Sources */,
-				4FF231B92BFA0B020040797B /* VoiceAllocator.cpp in Sources */,
-				4FF231BA2BFA0B020040797B /* MidiSynth.cpp in Sources */,
 				4F9A82F7213DE80400BE63A4 /* IPopupMenuControl.cpp in Sources */,
 				4F78D90B13B63BA50032E0F3 /* IPlugAPIBase.cpp in Sources */,
 				4F35DEAD207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
@@ -2444,11 +2448,11 @@
 				4FD869DA27206169005A5F28 /* IPlugCLAP.cpp in Sources */,
 				4FD8699327206006005A5F28 /* IPlugTimer.cpp in Sources */,
 				4FD8699427206006005A5F28 /* IControls.cpp in Sources */,
+				0B295F2A2F3E62CE004F3229 /* MidiSynth.cpp in Sources */,
+				0B295F2B2F3E62CE004F3229 /* VoiceAllocator.cpp in Sources */,
 				4FD8699527206006005A5F28 /* IGraphics.cpp in Sources */,
 				4FD8699627206006005A5F28 /* IPlugPaths.mm in Sources */,
 				4FD8699727206006005A5F28 /* IControl.cpp in Sources */,
-				4FF231CF2BFA0B260040797B /* MidiSynth.cpp in Sources */,
-				4FF231D02BFA0B260040797B /* VoiceAllocator.cpp in Sources */,
 				4FD8699827206006005A5F28 /* IGraphicsMac.mm in Sources */,
 				4FD8699927206006005A5F28 /* ITextEntryControl.cpp in Sources */,
 				4FD8699A27206006005A5F28 /* IPopupMenuControl.cpp in Sources */,

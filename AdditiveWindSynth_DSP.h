@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MidiSynth.h"
+#include "Synth/MidiSynth.h"
 #include "Oscillator.h"
 #include "ADSREnvelope.h"
 #include "Smoothers.h"
