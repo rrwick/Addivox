@@ -114,13 +114,10 @@ public:
 
 public:
 #pragma mark -
-  AdditiveWindSynthDSP(int nVoices)
+  AdditiveWindSynthDSP()
   {
-    for (auto i = 0; i < nVoices; i++)
-    {
-      // add a voice to Zone 0.
-      mSynth.AddVoice(new Voice(), 0);
-    }
+    // Monosynth: one voice in one zone.
+    mSynth.AddVoice(new Voice(), 0);
 
     // some MidiSynth API examples:
     // mSynth.SetKeyToPitchFn([](int k){return (k - 69.)/24.;}); // quarter-tone scale
@@ -185,9 +182,8 @@ public:
       case kParamRelease:
       {
         EEnvStage stage = static_cast<EEnvStage>(EEnvStage::kAttack + (paramIdx - kParamAttack));
-        mSynth.ForEachVoice([stage, value](SynthVoice& voice) {
-          dynamic_cast<AdditiveWindSynthDSP::Voice&>(voice).mAMPEnv.SetStageTime(stage, value);
-        });
+        auto* voice = static_cast<AdditiveWindSynthDSP::Voice*>(mSynth.GetVoice());
+        voice->mAMPEnv.SetStageTime(stage, value);
         break;
       }
       case kParamLFODepth:
@@ -211,7 +207,7 @@ public:
   }
   
 public:
-  MidiSynth mSynth { VoiceAllocator::kPolyModePoly, MidiSynth::kDefaultBlockSize };
+  MidiSynth mSynth { MidiSynth::kDefaultBlockSize };
   WDL_TypedBuf<T> mModulationsData; // Sample data for global modulations (e.g. smoothed sustain)
   WDL_PtrList<T> mModulations; // Ptrlist for global modulations
   LogParamSmooth<T, kNumModulations> mParamSmoother;

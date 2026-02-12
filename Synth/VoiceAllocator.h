@@ -16,10 +16,9 @@
  */
 
 #include <array>
-#include <vector>
 #include <stdint.h>
 #include <functional>
-#include <bitset>
+#include <memory>
 //#include <iostream>
 
 #include "IPlugLogger.h"
@@ -44,9 +43,7 @@ const uint8_t kAllChannels = UCHAR_MAX;
 const uint8_t kAllKeys = UCHAR_MAX;
 
 // flags
-const uint8_t kVoicesBusy = 1 << 0;
-const uint8_t kVoicesMostRecent = 1 << 1;
-const uint8_t kVoicesAll = 1 << 2;
+const uint8_t kVoiceAll = 1 << 0;
 
 enum EVoiceAction
 {
@@ -56,13 +53,12 @@ enum EVoiceAction
   kPitchBendAction,
   kPressureAction,
   kTimbreAction,
-  kSustainAction,
   kControllerAction,
   kProgramChangeAction
 };
 
-/** A VoiceInputEvent describes a change in input to be applied to one more more voices.
- * mAddress specifies which voices should receive the change.
+/** A VoiceInputEvent describes a change in input to be applied to the voice.
+ * mAddress specifies whether the voice should receive the change.
  * mAction is the type of property change.
  * mControllerNumber is the controller number to change if mAction is kController.
  * mValue is the new value associated with the change.
@@ -88,15 +84,6 @@ public:
     kATModePoly,
     kNumATModes
   };
-
-  enum EPolyMode
-  {
-    kPolyModePoly = 0,
-    kPolyModeMono,
-    kNumPolyModes
-  };
-
-  static constexpr int kVoiceMostRecent = 1 << 7;
 
   // one voice worth of ramp generators
   using VoiceControlRamps = ControlRampProcessor::ProcessorArray<kNumVoiceControlRamps>;
@@ -124,52 +111,40 @@ public:
   /** Process all input events and generate voice outputs. */
   void ProcessEvents(int samples, int64_t sampleTime);
 
-  /** Turn all voice gates off, allowing any voice envelopes to finish. */
-  void SoftKillAllVoices();
+  /** Turn the voice gate off, allowing any envelope to finish. */
+  void SoftKillVoice();
 
-  /** Stop all voices from making sound immdiately. */
-  void HardKillAllVoices();
+  /** Stop the voice from making sound immediately. */
+  void HardKillVoice();
 
   void SetKeyToPitchFunction(const std::function<float(int)>& fn) {mKeyToPitchFn = fn;}
 
-  /** Send the event to the voices matching its address.*/
-  void SendEventToVoices(VoiceInputEvent event);
+  void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int blockSize);
 
-  void ProcessVoices(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int blockSize);
-
-  size_t GetNVoices() const {return mVoicePtrs.size();}
-  SynthVoice* GetVoice(int voiceIndex) const {return mVoicePtrs[voiceIndex];}
+  bool HasVoice() const { return mVoicePtr != nullptr; }
+  SynthVoice* GetVoice() const { return mVoicePtr; }
   void SetPitchOffset(float offset) { mPitchOffset = offset; }
 
 private:
-  using VoiceBitsArray = std::bitset<UCHAR_MAX>;
+  bool VoiceMatchesAddress(VoiceAddress va) const;
 
-  VoiceBitsArray VoicesMatchingAddress(VoiceAddress va);
+  void SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, float val, int glideSamples);
+  void SendControlToVoiceDirect(bool voiceMatched, int ctlIdx, float val);
+  void SendProgramChangeToVoice(bool voiceMatched, int pgm);
 
-  void SendControlToVoiceInputs(VoiceBitsArray v, int ctlIdx, float val, int glideSamples);
-  void SendControlToVoicesDirect(VoiceBitsArray v, int ctlIdx, float val);
-  void SendProgramChangeToVoices(VoiceBitsArray v, int pgm);
-
-  void StartVoice(int voiceIdx, int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
-  void StartVoices(VoiceBitsArray voices, int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
-
-  void StopVoice(int voiceIdx, int sampleOffset);
-  void StopVoices(VoiceBitsArray voices, int sampleOffset);
+  void StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
+  void StopVoice(int sampleOffset);
 
   void CalcGlideTimesInSamples();
   void ClearVoiceInputs(SynthVoice* pVoice);
-  int FindFreeVoiceIndex(int startIndex) const;
-  int FindVoiceIndexToSteal(int64_t sampleTime) const;
 
   void NoteOn(VoiceInputEvent e, int64_t sampleTime);
-  void NoteOff(VoiceInputEvent e, int64_t sampleTime);
+  void NoteOff(VoiceInputEvent e);
 
   IPlugQueue<VoiceInputEvent> mInputQueue{1024};
 
-  std::vector<SynthVoice*> mVoicePtrs;
-  std::vector<std::unique_ptr<VoiceControlRamps>> mVoiceGlides;
-  std::vector<int> mHeldKeys; // The currently physically held keys on the keyboard
-  std::vector<int> mSustainedNotes; // Any notes that are sustained, including those that are physically held
+  SynthVoice* mVoicePtr{nullptr};
+  std::unique_ptr<VoiceControlRamps> mVoiceGlides;
 
   std::function<float(int)> mKeyToPitchFn;
   double mPitchOffset{0.};
@@ -181,14 +156,7 @@ private:
   double mSampleRate;
   int mBlockSize;
 
-  bool mRotateVoices{true};
-  int mVoiceRotateIndex{0};
-  bool mSustainPedalDown{false};
-  float mModWheel{0.f};
-  float mMinHeldVelocity{1.f};
-
 public:
-  EPolyMode mPolyMode {kPolyModePoly};
   EATMode mATMode {kATModeChannel};
 };
 

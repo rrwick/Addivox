@@ -12,11 +12,9 @@
 
 using namespace iplug;
 
-MidiSynth::MidiSynth(VoiceAllocator::EPolyMode mode, int blockSize)
+MidiSynth::MidiSynth(int blockSize)
 : mBlockSize(blockSize)
 {
-  SetPolyMode(mode);
-
   for(int i=0; i<128; i++)
   {
     mVelocityLUT[i] = i / 127.f;
@@ -91,14 +89,9 @@ VoiceInputEvent MidiSynth::MidiMessageToEventBasic(const IMidiMsg& msg)
           event.mAction = kTimbreAction;
           break;
         }
-        case IMidiMsg::kSustainOnOff:
-        {
-          event.mAction = kSustainAction;
-          break;
-        }
         case IMidiMsg::kAllNotesOff:
         {
-          event.mAddress.mFlags = kVoicesAll;
+          event.mAddress.mFlags = kVoiceAll;
           event.mAction = kNoteOffAction;
           break;
         }
@@ -196,7 +189,7 @@ VoiceInputEvent MidiSynth::MidiMessageToEventMPE(const IMidiMsg& msg)
   {
     // program change:
     // we are using MIDI mode 3. A program change sent to a master channel
-    // affects all voices within the zone. Program changes sent to member channels are ignored.
+    // affects the voice in the zone. Program changes sent to member channels are ignored.
     case IMidiMsg::kProgramChange:
     {
       if(IsMasterChannel(event.mAddress.mChannel))
@@ -231,7 +224,7 @@ VoiceInputEvent MidiSynth::MidiMessageToEventMPE(const IMidiMsg& msg)
       {
         case IMidiMsg::kAllNotesOff:
         {
-          event.mAddress.mFlags = kVoicesAll;
+          event.mAddress.mFlags = kVoiceAll;
           event.mAction = kNoteOffAction;
           break;
         }
@@ -401,9 +394,9 @@ void MidiSynth::HandleRPN(IMidiMsg msg)
 
 bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int nOutputs, int nFrames)
 {
-  assert(NVoices());
+  assert(HasVoice());
 
-  if (mVoicesAreActive | !mMidiQueue.Empty())
+  if (mVoiceIsActive || !mMidiQueue.Empty())
   {
     int blockSize = mBlockSize;
     int samplesRemaining = nFrames;
@@ -436,33 +429,15 @@ bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int
       }
 
       mVoiceAllocator.ProcessEvents(blockSize, mSampleTime);
-      mVoiceAllocator.ProcessVoices(inputs, outputs, nInputs, nOutputs, startIndex, blockSize);
+      mVoiceAllocator.ProcessVoice(inputs, outputs, nInputs, nOutputs, startIndex, blockSize);
 
       samplesRemaining -= blockSize;
       startIndex += blockSize;
       mSampleTime += blockSize;
     }
 
-    bool voicesbusy = false;
-    int activeCount = 0;
-
-    for(int v = 0; v < NVoices(); v++)
-    {
-      bool busy = GetVoice(v)->GetBusy();
-      voicesbusy |= busy;
-
-      activeCount += (busy==true);
-#if DEBUG_VOICE_COUNT
-      if(GetVoice(v)->GetBusy()) printf("X");
-      else DBGMSG("_");
-    }
-    DBGMSG("\n");
-    DBGMSG("Num Voices busy %i\n", activeCount);
-#else
-    }
-#endif
-
-    mVoicesAreActive = voicesbusy;
+    auto* voice = GetVoice();
+    mVoiceIsActive = (voice != nullptr) && voice->GetBusy();
 
     mMidiQueue.Flush(nFrames);
   }
@@ -482,8 +457,6 @@ void MidiSynth::SetSampleRateAndBlockSize(double sampleRate, int blockSize)
   mMidiQueue.Resize(blockSize);
   mVoiceAllocator.SetSampleRateAndBlockSize(sampleRate, blockSize);
 
-  for(int v = 0; v < NVoices(); v++)
-  {
-    GetVoice(v)->SetSampleRateAndBlockSize(sampleRate, blockSize);
-  }
+  if (auto* voice = GetVoice())
+    voice->SetSampleRateAndBlockSize(sampleRate, blockSize);
 }

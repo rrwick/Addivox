@@ -28,12 +28,10 @@
 #include "SynthVoice.h"
 #include "VoiceAllocator.h"
 
-#define DEBUG_VOICE_COUNT 0
-
 BEGIN_IPLUG_NAMESPACE
 
-/** A monophonic/polyphonic synthesiser base class which can be supplied with a custom voice.
- *  Supports different kinds of after touch, pitch bend, velocity and after touch curves, unison (currently monophonic mode only) */
+/** A monophonic synthesiser base class which can be supplied with a custom voice.
+ *  Supports different kinds of after touch, pitch bend, velocity and after touch curves. */
 class MidiSynth
 {
 public:
@@ -43,7 +41,7 @@ public:
 
 #pragma mark - MidiSynth class
 
-  MidiSynth(VoiceAllocator::EPolyMode mode, int blockSize = kDefaultBlockSize);
+  MidiSynth(int blockSize = kDefaultBlockSize);
   ~MidiSynth();
 
   MidiSynth(const MidiSynth&) = delete;
@@ -57,12 +55,10 @@ public:
 
   void SetSampleRateAndBlockSize(double sampleRate, int blockSize);
 
-  /** If you are using this class in a non-traditional mode of polyphony (e.g.to stack loads of voices) you might want to manually SetVoicesActive()
-   * usually this would happen when you trigger notes
-   * @param active should the class report that voices are active */
-  void SetVoicesActive(bool active)
+  /** Manually control the active state reported by the synth. */
+  void SetVoiceActive(bool active)
   {
-    mVoicesAreActive = active;
+    mVoiceIsActive = active;
   }
   
   void InitBasicMPE()
@@ -82,11 +78,6 @@ public:
         mChannelStates[i].pitchBendRange = pitchBendRange;
       }
     }
-  }
-
-  void SetPolyMode(VoiceAllocator::EPolyMode mode)
-  {
-    mVoiceAllocator.mPolyMode = mode;
   }
 
   void SetATMode(VoiceAllocator::EATMode mode)
@@ -118,20 +109,20 @@ public:
     mVoiceAllocator.SetControlGlideTime(t);
   }
 
-  SynthVoice* GetVoice(int voiceIdx)
+  SynthVoice* GetVoice()
   {
-    return mVoiceAllocator.GetVoice(voiceIdx);
+    return mVoiceAllocator.GetVoice();
   }
   
-  void ForEachVoice(std::function<void(SynthVoice& voice)> func)
+  void WithVoice(std::function<void(SynthVoice& voice)> func)
   {
-    for (auto v = 0; v < NVoices(); v++)
-      func(*GetVoice(v));
+    if (auto* voice = GetVoice())
+      func(*voice);
   }
   
-  size_t NVoices() const
+  bool HasVoice() const
   {
-    return mVoiceAllocator.GetNVoices();
+    return mVoiceAllocator.HasVoice();
   }
 
   /** adds a SynthVoice to this MidiSynth, taking ownership of the object. */
@@ -194,7 +185,6 @@ private:
 
   // basic MIDI data
   VoiceAllocator mVoiceAllocator;
-  uint16_t mUnisonVoices{1};
   IMidiQueue mMidiQueue;
   float mVelocityLUT[128];
   float mAfterTouchLUT[128];
@@ -202,7 +192,7 @@ private:
   int mBlockSize;
   int64_t mSampleTime{0};
   double mSampleRate = DEFAULT_SAMPLE_RATE;
-  bool mVoicesAreActive = false;
+  bool mVoiceIsActive = false;
   int mNonMPEPitchBendRange = kDefaultPitchBendRange;
   
   // the synth will startup in basic MIDI mode. When an MPE Zone setup message is received, MPE mode is entered.
@@ -215,4 +205,3 @@ private:
 };
 
 END_IPLUG_NAMESPACE
-

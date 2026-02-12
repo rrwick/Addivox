@@ -81,9 +81,28 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 //    }
 //#endif
     
-    pGraphics->SetQwertyMidiKeyHandlerFunc([pGraphics](const IMidiMsg& msg) {
-                                              pGraphics->GetControlWithTag(kCtrlTagKeyboard)->As<IVKeyboardControl>()->SetNoteFromMidi(msg.NoteNumber(), msg.StatusMsg() == IMidiMsg::kNoteOn);
-                                           });
+    pGraphics->SetQwertyMidiKeyHandlerFunc([this, pGraphics](const IMidiMsg& msg) {
+      auto* keyboard = pGraphics->GetControlWithTag(kCtrlTagKeyboard)->As<IVKeyboardControl>();
+      const int note = msg.NoteNumber();
+      const bool noteOn = (msg.StatusMsg() == IMidiMsg::kNoteOn) && (msg.Velocity() > 0);
+
+      if(noteOn)
+      {
+        if(mLastQwertyMIDINote >= 0 && mLastQwertyMIDINote != note)
+          keyboard->SetNoteFromMidi(mLastQwertyMIDINote, false);
+
+        keyboard->SetNoteFromMidi(note, true);
+        mLastQwertyMIDINote = note;
+      }
+      else
+      {
+        if(note == mLastQwertyMIDINote)
+        {
+          keyboard->SetNoteFromMidi(note, false);
+          mLastQwertyMIDINote = -1;
+        }
+      }
+    });
   };
 #endif
 }
@@ -106,6 +125,7 @@ void AdditiveWindSynth::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mMeterSender.Reset(GetSampleRate());
+  mLastQwertyMIDINote = -1;
 }
 
 void AdditiveWindSynth::ProcessMidiMsg(const IMidiMsg& msg)

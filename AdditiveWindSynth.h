@@ -56,8 +56,9 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
-  AdditiveWindSynthDSP<sample> mDSP {16};
+  AdditiveWindSynthDSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
   ISender<1> mLFOVisSender;
+  int mLastQwertyMIDINote{-1};
 #endif
 };

@@ -60,7 +60,8 @@ public:
   /** @return true if voice is generating any audio. */
   virtual bool GetBusy() const = 0;
 
-  /** Trigger is called by the VoiceAllocator when a new voice should start, or if the voice limit has been hit and an existing voice needs to re-trigger. While the VoiceInputs are sufficient to control a voice from the VoiceAllocator, this method can be used to do additional tasks like resetting oscillators.
+  /** Trigger is called by the VoiceAllocator when the voice should start, or re-trigger.
+   * While the VoiceInputs are sufficient to control a voice from the VoiceAllocator, this method can be used to do additional tasks like resetting oscillators.
    * @param level Normalised starting level for this voice, derived from the velocity of the keypress (range 0.0-1.0), or in the case of a re-trigger the existing level
    * @param isRetrigger If this is \c true it means the voice is being re-triggered, and you should accommodate for this in your algorithm */
   virtual void Trigger(double level, bool isRetrigger) {};
@@ -70,7 +71,7 @@ public:
 
   /** Process a block of audio data for the voice
    @param inputs Pointer to input channel arrays. Sometimes synthesisers have audio inputs. Alternatively you can pass in modulation from global LFOs etc here.
-   @param outputs Pointer to output channel arrays. You should add to the existing data in these arrays (so that all the voices get summed)
+   @param outputs Pointer to output channel arrays. Add to the existing data in these arrays.
    @param nInputs The number of input channels that contain valid data
    @param nOutputs The number of output channels that contain valid data
    @param startIdx The start index of the block of samples to process
@@ -81,7 +82,7 @@ public:
     {
       for (auto s = startIdx; s < startIdx + nFrames; s++)
       {
-        outputs[c][s] += 0.; // if you are following this no-op example, remember you need to accumulate the output of all the different voices
+        outputs[c][s] += 0.; // no-op example; a real implementation should accumulate output here
       }
     }
   }
@@ -104,12 +105,10 @@ public:
 protected:
   VoiceInputs mInputs;
   int64_t mLastTriggeredTime{-1};
-  uint8_t mVoiceNumber{0};
   uint8_t mZone{0};
   uint8_t mChannel{0};
   uint8_t mKey{0};
-  double mBasePitch{0.};
-  double mGain{0.}; // used by voice allocator to hard-kill voices.
+  double mGain{0.}; // used by voice allocator to hard-kill the voice.
 
   friend class MidiSynth;
   friend class VoiceAllocator;
