@@ -91,7 +91,7 @@ public:
   ControlRampProcessor(ControlRampProcessor&&) = default;
   ControlRampProcessor& operator=(ControlRampProcessor&&) = delete;
     
-  // process the glide and write changes to the output ramp.
+  // process the queued transition and write changes to the output ramp.
   void Process(int blockSize)
   {
     // always connect with previous block
@@ -99,30 +99,30 @@ public:
 
     if(mSamplesRemaining)
     {
-      if(mSamplesRemaining == mGlideSamples)
+      if(mSamplesRemaining == mTransitionSamples)
       {
-        // start glide
+        // start transition
         if(mSamplesRemaining > blockSize)
         {
           // start with ramp to block end
-          int glideStartSamples = blockSize - mStartOffset;
-          mpOutput.endValue = mpOutput.startValue + glideStartSamples*mChangePerSample;
+          int transitionStartSamples = blockSize - mStartOffset;
+          mpOutput.endValue = mpOutput.startValue + transitionStartSamples*mChangePerSample;
           mpOutput.transitionStart = mStartOffset;
           mpOutput.transitionEnd = blockSize;
-          mSamplesRemaining -= glideStartSamples;
+          mSamplesRemaining -= transitionStartSamples;
         }
         else
         {
-          // glide starts and finishes within block
+          // transition starts and finishes within block
           mpOutput.endValue = mTargetValue;
           mpOutput.transitionStart = mStartOffset;
-          mpOutput.transitionEnd = mStartOffset + mGlideSamples;
+          mpOutput.transitionEnd = mStartOffset + mTransitionSamples;
           mSamplesRemaining = 0;
         }
       }
       else if(mSamplesRemaining > blockSize)
       {
-        // continue glide
+        // continue transition
         mpOutput.endValue = mpOutput.startValue + mChangePerSample*blockSize;
         mpOutput.transitionStart = 0;
         mpOutput.transitionEnd = blockSize;
@@ -130,7 +130,7 @@ public:
       }
       else
       {
-        // finish glide
+        // finish transition
         mpOutput.endValue = mTargetValue;
         mpOutput.transitionStart = 0;
         mpOutput.transitionEnd = mSamplesRemaining;
@@ -139,14 +139,14 @@ public:
     }
   }
 
-  // set the next target for the glide without writing directly to the ramp.
-  void SetTarget(double targetValue, int startOffset, int glideSamples, int blockSize)
+  // set the next target transition without writing directly to the ramp.
+  void SetTarget(double targetValue, int startOffset, int transitionSamples)
   {
     mTargetValue = targetValue;
-    if(glideSamples < 1) glideSamples = 1;
-    mGlideSamples = glideSamples;
-    mSamplesRemaining = glideSamples;
-    mChangePerSample = (targetValue - mpOutput.endValue)/glideSamples;
+    if(transitionSamples < 1) transitionSamples = 1;
+    mTransitionSamples = transitionSamples;
+    mSamplesRemaining = transitionSamples;
+    mChangePerSample = (targetValue - mpOutput.endValue)/transitionSamples;
     mStartOffset = startOffset;
   }
     
@@ -168,7 +168,7 @@ private:
   ControlRamp& mpOutput;
   double mTargetValue {0.};
   double mChangePerSample {0.};
-  int mGlideSamples {0};
+  int mTransitionSamples {0};
   int mSamplesRemaining {0};
   int mStartOffset {0};
 };

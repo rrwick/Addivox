@@ -8,7 +8,6 @@ const int kNumPresets = 1;
 enum EParams
 {
   kParamGain = 0,
-  kParamNoteGlideTime,
   kNumParams
 };
 

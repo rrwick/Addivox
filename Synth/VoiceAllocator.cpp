@@ -53,8 +53,8 @@ void VoiceAllocator::AddVoice(SynthVoice* pVoice, uint8_t zone)
     mVoicePtr->mKey = -1;
     mVoicePtr->mZone = zone;
 
-    // make a glides structures for the control ramps of the voice
-    mVoiceGlides.reset(ControlRampProcessor::Create(mVoicePtr->mInputs));
+    // make ramp processors for the control ramps of the voice
+    mVoiceRamps.reset(ControlRampProcessor::Create(mVoicePtr->mInputs));
     return;
   }
 
@@ -81,10 +81,10 @@ bool VoiceAllocator::VoiceMatchesAddress(VoiceAddress addr) const
   return true;
 }
 
-void VoiceAllocator::SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, float val, int glideSamples)
+void VoiceAllocator::SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, float val, int rampSamples)
 {
-  if(voiceMatched && mVoiceGlides)
-    mVoiceGlides->at(ctlIdx).SetTarget(val, 0, glideSamples, mBlockSize);
+  if(voiceMatched && mVoiceRamps)
+    mVoiceRamps->at(ctlIdx).SetTarget(val, 0, rampSamples);
 }
 
 void VoiceAllocator::SendControlToVoiceDirect(bool voiceMatched, int ctlIdx, float val)
@@ -128,17 +128,17 @@ void VoiceAllocator::ProcessEvents(int blockSize, int64_t sampleTime)
       }
       case kPitchBendAction:
       {
-        SendControlToVoiceInputs(voiceMatched, kVoiceControlPitchBend, event.mValue, mControlGlideSamples);
+        SendControlToVoiceInputs(voiceMatched, kVoiceControlPitchBend, event.mValue, 1);
         break;
       }
       case kPressureAction:
       {
-        SendControlToVoiceInputs(voiceMatched, kVoiceControlPressure, event.mValue, mControlGlideSamples);
+        SendControlToVoiceInputs(voiceMatched, kVoiceControlPressure, event.mValue, 1);
         break;
       }
       case kTimbreAction:
       {
-        SendControlToVoiceInputs(voiceMatched, kVoiceControlTimbre, event.mValue, mControlGlideSamples);
+        SendControlToVoiceInputs(voiceMatched, kVoiceControlTimbre, event.mValue, 1);
         break;
       }
       case kControllerAction:
@@ -160,36 +160,30 @@ void VoiceAllocator::ProcessEvents(int blockSize, int64_t sampleTime)
     }
   }
 
-  // update any glides in progress, writing voice control outputs
-  if(mVoiceGlides)
+  // update control ramps and write voice control outputs
+  if(mVoiceRamps)
   {
     for(int i=0; i<kNumVoiceControlRamps; ++i)
     {
-      mVoiceGlides->at(i).Process(blockSize);
+      mVoiceRamps->at(i).Process(blockSize);
     }
   }
-}
-
-void VoiceAllocator::CalcGlideTimesInSamples()
-{
-  mNoteGlideSamples = static_cast<int>(mNoteGlideTime * mSampleRate);
-  mControlGlideSamples = static_cast<int>(mControlGlideTime * mSampleRate);
 }
 
 // start a single voice and set its current channel and key.
 void VoiceAllocator::StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig)
 {
-  if(!mVoicePtr || !mVoiceGlides)
+  if(!mVoicePtr || !mVoiceRamps)
     return;
 
   if(!retrig)
   {
     // add immediate sample-accurate change for trigger
-    mVoiceGlides->at(kVoiceControlGate).SetTarget(velocity, sampleOffset, 1, mBlockSize);
+    mVoiceRamps->at(kVoiceControlGate).SetTarget(velocity, sampleOffset, 1);
   }
 
-  // add glide for pitch
-  mVoiceGlides->at(kVoiceControlPitch).SetTarget(pitch, sampleOffset, mNoteGlideSamples, mBlockSize);
+  // update pitch immediately for the new note
+  mVoiceRamps->at(kVoiceControlPitch).SetTarget(pitch, sampleOffset, 1);
 
   // set things directly in voice
   mVoicePtr->mLastTriggeredTime = sampleTime;
@@ -203,10 +197,10 @@ void VoiceAllocator::StartVoice(int channel, int key, float pitch, float velocit
 
 void VoiceAllocator::StopVoice(int sampleOffset)
 {
-  if(!mVoicePtr || !mVoiceGlides)
+  if(!mVoicePtr || !mVoiceRamps)
     return;
 
-  mVoiceGlides->at(kVoiceControlGate).SetTarget(0.0, sampleOffset, 1, mBlockSize);
+  mVoiceRamps->at(kVoiceControlGate).SetTarget(0.0, sampleOffset, 1);
   mVoicePtr->mKey = -1;
   mVoicePtr->Release();
 }

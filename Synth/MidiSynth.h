@@ -99,16 +99,6 @@ public:
     mVoiceAllocator.SetPitchOffset(static_cast<float>(offset));
   }
 
-  void SetNoteGlideTime(double t)
-  {
-    mVoiceAllocator.SetNoteGlideTime(t);
-  }
-
-  void SetControlGlideTime(double t)
-  {
-    mVoiceAllocator.SetControlGlideTime(t);
-  }
-
   SynthVoice* GetVoice()
   {
     return mVoiceAllocator.GetVoice();

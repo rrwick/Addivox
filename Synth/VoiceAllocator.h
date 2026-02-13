@@ -96,9 +96,7 @@ public:
 
   void Clear();
 
-  void SetSampleRateAndBlockSize(double sampleRate, int blockSize) { mSampleRate = sampleRate; CalcGlideTimesInSamples(); }
-  void SetNoteGlideTime(double t) { mNoteGlideTime = t; CalcGlideTimesInSamples(); }
-  void SetControlGlideTime(double t) { mControlGlideTime = t; CalcGlideTimesInSamples(); }
+  void SetSampleRateAndBlockSize(double sampleRate, int blockSize) { (void) sampleRate; (void) blockSize; }
 
   /** Add a synth voice to the allocator. We do not take ownership ot the voice.
    @param pv Pointer to the voice to add.
@@ -128,14 +126,13 @@ public:
 private:
   bool VoiceMatchesAddress(VoiceAddress va) const;
 
-  void SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, float val, int glideSamples);
+  void SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, float val, int rampSamples);
   void SendControlToVoiceDirect(bool voiceMatched, int ctlIdx, float val);
   void SendProgramChangeToVoice(bool voiceMatched, int pgm);
 
   void StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
   void StopVoice(int sampleOffset);
 
-  void CalcGlideTimesInSamples();
   void ClearVoiceInputs(SynthVoice* pVoice);
 
   void NoteOn(VoiceInputEvent e, int64_t sampleTime);
@@ -144,17 +141,10 @@ private:
   IPlugQueue<VoiceInputEvent> mInputQueue{1024};
 
   SynthVoice* mVoicePtr{nullptr};
-  std::unique_ptr<VoiceControlRamps> mVoiceGlides;
+  std::unique_ptr<VoiceControlRamps> mVoiceRamps;
 
   std::function<float(int)> mKeyToPitchFn;
   double mPitchOffset{0.};
-
-  double mNoteGlideTime{0.};
-  double mControlGlideTime{0.01};
-  int mNoteGlideSamples{0}; // glide for note-to-note portamento
-  int mControlGlideSamples{0}; // glide for controls including pitch bend
-  double mSampleRate;
-  int mBlockSize;
 
 public:
   EATMode mATMode {kATModeChannel};

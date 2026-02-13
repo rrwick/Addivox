@@ -108,7 +108,6 @@ public:
 
     // some MidiSynth API examples:
     // mSynth.SetKeyToPitchFn([](int k){return (k - 69.)/24.;}); // quarter-tone scale
-    // mSynth.SetNoteGlideTime(0.5); // portamento
   }
 
   void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames)
@@ -151,9 +150,6 @@ public:
   void SetParam(int paramIdx, double value)
   {
     switch (paramIdx) {
-      case kParamNoteGlideTime:
-        mSynth.SetNoteGlideTime(value / 1000.);
-        break;
       case kParamGain:
         mParamsToSmooth[kModGainSmoother] = (T) value / 100.;
         break;
