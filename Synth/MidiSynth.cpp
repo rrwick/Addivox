@@ -18,7 +18,6 @@ MidiSynth::MidiSynth(int blockSize)
   for(int i=0; i<128; i++)
   {
     mVelocityLUT[i] = i / 127.f;
-    mAfterTouchLUT[i] = i / 127.f;
   }
 
   // initialize Channel states
@@ -29,11 +28,7 @@ MidiSynth::MidiSynth(int blockSize)
   }
 }
 
-MidiSynth::~MidiSynth()
-{
-}
-
-VoiceInputEvent MidiSynth::MidiMessageToEventBasic(const IMidiMsg& msg)
+VoiceInputEvent MidiSynth::MidiMessageToEvent(const IMidiMsg& msg)
 {
   VoiceInputEvent event{};
 
@@ -56,18 +51,6 @@ VoiceInputEvent MidiSynth::MidiMessageToEventBasic(const IMidiMsg& msg)
       int v = Clip(msg.Velocity(), 0, 127);
       event.mAction = kNoteOffAction;
       event.mValue = mVelocityLUT[v];
-      break;
-    }
-    case IMidiMsg::kPolyAftertouch:
-    {
-      event.mAction = kPressureAction;
-      event.mValue = mAfterTouchLUT[msg.PolyAfterTouch()];
-      break;
-    }
-    case IMidiMsg::kChannelAftertouch:
-    {
-      event.mAction = kPressureAction;
-      event.mValue = mAfterTouchLUT[msg.ChannelAfterTouch()];
       break;
     }
     case IMidiMsg::kPitchWheel:
@@ -79,28 +62,18 @@ VoiceInputEvent MidiSynth::MidiMessageToEventBasic(const IMidiMsg& msg)
     }
     case IMidiMsg::kControlChange:
     {
-      event.mControllerNumber = msg.ControlChangeIdx();
-      event.mValue = static_cast<float>(msg.ControlChange(msg.ControlChangeIdx()));
-      switch(event.mControllerNumber)
+      switch(msg.ControlChangeIdx())
       {
         case IMidiMsg::kAllNotesOff:
         {
           event.mAddress.mFlags = kVoiceAll;
           event.mAction = kNoteOffAction;
+          event.mValue = 0.f;
           break;
         }
         default:
-        {
-          event.mAction = kControllerAction;
           break;
-        }
       }
-      break;
-    }
-    case IMidiMsg::kProgramChange:
-    {
-      event.mAction = kProgramChangeAction;
-      event.mControllerNumber = msg.Program();
       break;
     }
     default:
@@ -110,209 +83,13 @@ VoiceInputEvent MidiSynth::MidiMessageToEventBasic(const IMidiMsg& msg)
   }
 
   return event;
-}
-
-// Here we handle the MIDI messages used by MPE as listed in the MPE spec, page 7
-VoiceInputEvent MidiSynth::MidiMessageToEventMPE(const IMidiMsg& msg)
-{
-  VoiceInputEvent event{};
-  IMidiMsg::EStatusMsg status = msg.StatusMsg();
-  event.mSampleOffset = msg.mOffset;
-  event.mAddress.mChannel = msg.Channel();
-  event.mAddress.mKey = msg.NoteNumber();
-  event.mAddress.mZone = MasterZoneFor(event.mAddress.mChannel);
-
-  // handle pitch bend and channel pressure in the same way:
-  // sum main and member channel values
-  bool isPitchBend = status == IMidiMsg::kPitchWheel;
-  bool isChannelPressure = status == IMidiMsg::kChannelAftertouch;
-  if(isPitchBend || isChannelPressure)
-  {
-    float* pChannelDestValue{};
-    float masterChannelStoredValue{};
-    if(isPitchBend)
-    {
-      event.mAction = kPitchBendAction;
-      float bendRange = mChannelStates[event.mAddress.mChannel].pitchBendRange;
-      event.mValue = static_cast<float>(msg.PitchWheel()) * bendRange / 12.f;
-
-      pChannelDestValue = &(mChannelStates[event.mAddress.mChannel].pitchBend);
-      masterChannelStoredValue = mChannelStates[MasterChannelFor(event.mAddress.mChannel)].pitchBend;
-    }
-    else if(isChannelPressure)
-    {
-      event.mAction = kPressureAction;
-      event.mValue = mAfterTouchLUT[msg.ChannelAfterTouch()];
-      pChannelDestValue = &(mChannelStates[event.mAddress.mChannel].pressure);
-      masterChannelStoredValue = mChannelStates[MasterChannelFor(event.mAddress.mChannel)].pressure;
-    }
-
-    if(IsMasterChannel(event.mAddress.mChannel))
-    {
-      // store value in master channel
-      *pChannelDestValue = event.mValue;
-
-      // no action needed
-      event.mAction = kNullAction;
-    }
-    else
-    {
-      // add stored master channel value to event value
-      event.mValue += masterChannelStoredValue;
-
-      // store sum in member channel
-      *pChannelDestValue = event.mValue;
-    }
-    return event;
-  }
-
-  // pitch bend sensitiity (RPN 0) is handled in HandleRPN()
-
-  // poly key pressure is ignored in MPE.
-
-  switch (status)
-  {
-    // program change:
-    // we are using MIDI mode 3. A program change sent to a master channel
-    // affects the voice in the zone. Program changes sent to member channels are ignored.
-    case IMidiMsg::kProgramChange:
-    {
-      if(IsMasterChannel(event.mAddress.mChannel))
-      {
-        event.mAction = kProgramChangeAction;
-        event.mControllerNumber = msg.Program();
-        break;
-      }
-      else
-      {
-        event.mAction = kNullAction;
-      }
-    }
-    case IMidiMsg::kNoteOn:
-    {
-      int v = Clip(msg.Velocity(), 0, 127);
-      event.mAction = (v == 0) ? kNoteOffAction : kNoteOnAction;
-      event.mValue = mVelocityLUT[v];
-      break;
-    }
-    case IMidiMsg::kNoteOff:
-    {
-      int v = Clip(msg.Velocity(), 0, 127);
-      event.mAction = kNoteOffAction;
-      event.mValue = mVelocityLUT[v];
-      break;
-    }
-    case IMidiMsg::kControlChange:
-    {
-      event.mControllerNumber = msg.ControlChangeIdx();
-      switch(event.mControllerNumber)
-      {
-        case IMidiMsg::kAllNotesOff:
-        {
-          event.mAddress.mFlags = kVoiceAll;
-          event.mAction = kNoteOffAction;
-          break;
-        }
-
-        default:
-          // send all other controllers to matching channels using the generic control action
-          // note: according to the MPE spec these messages should be sent to all channels in the zone,
-          // but that is less useful IMO - to do so just add the line
-          // event.mAddress.mChannel = kAllChannels;
-          event.mAction = kControllerAction;
-          break;
-      }
-      event.mValue = static_cast<float>(msg.ControlChange(msg.ControlChangeIdx()));
-      break;
-    }
-    default:
-    {
-      break;
-    }
-  }
-
-  return event;
-}
-
-VoiceInputEvent MidiSynth::MidiMessageToEvent(const IMidiMsg& msg)
-{
-  return (mMPEMode ? MidiMessageToEventMPE(msg) : MidiMessageToEventBasic(msg));
-}
-
-// sets the number of channels in the lo or hi MPE zones.
-void MidiSynth::SetMPEZones(int channel, int nChans)
-{
-  // total channels = member channels + the master channel, or 0 if there is no Zone.
-  // totalChannels is never 1.
-  int memberChannels = Clip(nChans, 0, 15);
-  int totalChannels = memberChannels ? (memberChannels + 1) : 0;
-  if(channel == 0)
-  {
-    mMPELowerZoneChannels = totalChannels;
-    mMPEUpperZoneChannels = Clip(mMPEUpperZoneChannels, 0, 16 - mMPELowerZoneChannels);
-  }
-  else if (channel == 15)
-  {
-    mMPEUpperZoneChannels = totalChannels;
-    mMPELowerZoneChannels = Clip(mMPELowerZoneChannels, 0, 16 - mMPEUpperZoneChannels);
-  }
-
-  // activate / deactivate MPE mode if needed
-  bool anyMPEChannelsActive = (mMPELowerZoneChannels || mMPEUpperZoneChannels);
-  if(anyMPEChannelsActive && (!mMPEMode))
-  {
-    mMPEMode = true;
-  }
-  else if ((!anyMPEChannelsActive) && (mMPEMode))
-  {
-    mMPEMode = false;
-  }
-
-  // reset pitch bend ranges as per MPE spec
-  if(mMPEMode)
-  {
-    if(channel == 0)
-    {
-      SetChannelPitchBendRange(kMPELowerZoneMasterChannel, 2);
-      SetChannelPitchBendRange(kMPELowerZoneMasterChannel + 1, 48);
-    }
-    else if (channel == 15)
-    {
-      SetChannelPitchBendRange(kMPEUpperZoneMasterChannel, 2);
-      SetChannelPitchBendRange(kMPEUpperZoneMasterChannel - 1, 48);
-    }
-  }
-  else
-    SetPitchBendRange(mNonMPEPitchBendRange);
-  
-  std::cout << "MPE mode: " << (mMPEMode ? "ON" : "OFF") << "\n";
-  std::cout << "MPE channels: \n    lo: " << mMPELowerZoneChannels << " hi " << mMPEUpperZoneChannels << "\n";
 }
 
 void MidiSynth::SetChannelPitchBendRange(int channelParam, int rangeParam)
 {
-  int channelLo, channelHi;
-  if(IsInLowerZone(channelParam))
-  {
-    channelLo = LowerZoneStart();
-    channelHi = LowerZoneEnd();
-  }
-  else if (IsInUpperZone(channelParam))
-  {
-    channelLo = UpperZoneStart();
-    channelHi = UpperZoneEnd();
-  }
-  else
-  {
-    channelLo = channelHi = Clip(channelParam, 0, 15);
-  }
-
-  int range = Clip(rangeParam, 0, 96);
-
-  for(int i=channelLo; i <= channelHi; ++i)
-  {
-    mChannelStates[i].pitchBendRange = range;
-  }
+  const int channel = Clip(channelParam, 0, 15);
+  const int range = Clip(rangeParam, 0, 96);
+  mChannelStates[channel].pitchBendRange = range;
 }
 
 bool IsRPNMessage(IMidiMsg msg)
@@ -355,17 +132,10 @@ void MidiSynth::HandleRPN(IMidiMsg msg)
       {
         value = state.valueMSB&0xFF;
       }
-      std::cout << "RPN received: channel " << channel << ", param " << param << ", value " << value << "\n";
       switch(param)
       {
         case 0: // RPN 0 : pitch bend range
           SetChannelPitchBendRange(channel, value);
-          break;
-        case 6: // RPN 6 : MPE zone configuration. These messages may turn MPE mode on or off.
-          if(IsMasterChannel(channel))
-          {
-            SetMPEZones(channel, value);
-          }
           break;
         default:
           break;
@@ -381,7 +151,8 @@ bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int
 {
   assert(HasVoice());
 
-  if (mVoiceIsActive || !mMidiQueue.Empty())
+  const auto* voice = GetVoice();
+  if ((voice != nullptr && voice->GetBusy()) || !mMidiQueue.Empty())
   {
     int blockSize = mBlockSize;
     int samplesRemaining = nFrames;
@@ -421,9 +192,6 @@ bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int
       mSampleTime += blockSize;
     }
 
-    auto* voice = GetVoice();
-    mVoiceIsActive = (voice != nullptr) && voice->GetBusy();
-
     mMidiQueue.Flush(nFrames);
   }
   else // empty block
@@ -438,9 +206,8 @@ void MidiSynth::SetSampleRateAndBlockSize(double sampleRate, int blockSize)
 {
   Reset();
 
-  mSampleRate = sampleRate;
+  (void) sampleRate;
   mMidiQueue.Resize(blockSize);
-  mVoiceAllocator.SetSampleRateAndBlockSize(sampleRate, blockSize);
 
   if (auto* voice = GetVoice())
     voice->SetSampleRateAndBlockSize(sampleRate, blockSize);

@@ -10,26 +10,10 @@
 
 #include "VoiceAllocator.h"
 
-#include <iostream>
-
 using namespace iplug;
 
-std::ostream& operator<< (std::ostream& out, const VoiceInputEvent& r)
-{
-  out << "[z" << (int)r.mAddress.mZone << " c" << (int)r.mAddress.mChannel << " k" << (int)r.mAddress.mKey << " f" << (int)r.mAddress.mFlags << "]"  ;
-  out << "[action:" << r.mAction << " ctl:" << r.mControllerNumber << " val:" << r.mValue << " off:" << r.mSampleOffset << "]";
-  return out;
-}
-
 VoiceAllocator::VoiceAllocator()
-{
-  // setup default key->pitch fn
-  mKeyToPitchFn = [](int k){return (k - 69.f)/12.f;};
-}
-
-VoiceAllocator::~VoiceAllocator()
-{
-}
+{}
 
 void VoiceAllocator::Clear()
 {
@@ -87,18 +71,6 @@ void VoiceAllocator::SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, flo
     mVoiceRamps->at(ctlIdx).SetTarget(val, 0, rampSamples);
 }
 
-void VoiceAllocator::SendControlToVoiceDirect(bool voiceMatched, int ctlIdx, float val)
-{
-  if(voiceMatched && mVoicePtr)
-    mVoicePtr->SetControl(ctlIdx, val);
-}
-
-void VoiceAllocator::SendProgramChangeToVoice(bool voiceMatched, int pgm)
-{
-  if(voiceMatched && mVoicePtr)
-    mVoicePtr->SetProgramNumber(pgm);
-}
-
 void VoiceAllocator::ProcessEvents(int blockSize, int64_t sampleTime)
 {
   while(mInputQueue.ElementsAvailable())
@@ -129,22 +101,6 @@ void VoiceAllocator::ProcessEvents(int blockSize, int64_t sampleTime)
       case kPitchBendAction:
       {
         SendControlToVoiceInputs(voiceMatched, kVoiceControlPitchBend, event.mValue, 1);
-        break;
-      }
-      case kPressureAction:
-      {
-        SendControlToVoiceInputs(voiceMatched, kVoiceControlPressure, event.mValue, 1);
-        break;
-      }
-      case kControllerAction:
-      {
-        // called for generic continuous controllers
-        SendControlToVoiceDirect(voiceMatched, event.mControllerNumber, event.mValue);
-        break;
-      }
-      case kProgramChangeAction:
-      {
-        SendProgramChangeToVoice(voiceMatched, event.mControllerNumber);
         break;
       }
       case kNullAction:
@@ -197,7 +153,6 @@ void VoiceAllocator::StopVoice(int sampleOffset)
 
   mVoiceRamps->at(kVoiceControlGate).SetTarget(0.0, sampleOffset, 1);
   mVoicePtr->mKey = -1;
-  mVoicePtr->Release();
 }
 
 void VoiceAllocator::SoftKillVoice()
@@ -218,7 +173,7 @@ void VoiceAllocator::NoteOn(VoiceInputEvent e, int64_t sampleTime)
   int key = e.mAddress.mKey;
   int offset = e.mSampleOffset;
   float velocity = e.mValue;
-  float pitch = mKeyToPitchFn(key + static_cast<int>(mPitchOffset));
+  float pitch = (key - 69.f) / 12.f;
 
   // TODO retrig / legato
   bool retrig = false;

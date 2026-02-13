@@ -6,12 +6,6 @@
 
 using namespace iplug;
 
-enum EModulations
-{
-  kModGainSmoother = 0,
-  kNumModulations,
-};
-
 template<typename T>
 class AdditiveWindSynthDSP
 {
@@ -27,11 +21,17 @@ public:
 
     void Trigger(double level, bool isRetrigger) override
     {
+      (void) level;
+      (void) isRetrigger;
       mOSC.Reset();
     }
     
     void ProcessSamplesAccumulating(T** inputs, T** outputs, int nInputs, int nOutputs, int startIdx, int nFrames) override
     {
+      (void) inputs;
+      (void) nInputs;
+      (void) nOutputs;
+
       // inputs to the synthesizer can just fetch a value every block, like this:
 //      double gate = mInputs[kVoiceControlGate].endValue;
       double pitch = mInputs[kVoiceControlPitch].endValue;
@@ -73,25 +73,23 @@ public:
   {
     // Monosynth: one voice in one zone.
     mSynth.AddVoice(new Voice(), 0);
-
-    // some MidiSynth API examples:
-    // mSynth.SetKeyToPitchFn([](int k){return (k - 69.)/24.;}); // quarter-tone scale
   }
 
-  void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames)
+  void ProcessBlock(T** outputs, int nFrames)
   {
+    constexpr int kNumOutputs = 2;
+
     // clear outputs
-    for(auto i = 0; i < nOutputs; i++)
+    for(auto i = 0; i < kNumOutputs; i++)
     {
       memset(outputs[i], 0, nFrames * sizeof(T));
     }
     
-    mParamSmoother.ProcessBlock(mParamsToSmooth, mModulations.GetList(), nFrames);
-    mSynth.ProcessBlock(mModulations.GetList(), outputs, 0, nOutputs, nFrames);
+    mSynth.ProcessBlock(nullptr, outputs, 0, kNumOutputs, nFrames);
     
     for(int s=0; s < nFrames;s++)
     {
-      T smoothedGain = mModulations.GetList()[kModGainSmoother][s];
+      const T smoothedGain = mParamSmoother.Process(mGainTarget);
       outputs[0][s] *= smoothedGain;
       outputs[1][s] *= smoothedGain;
     }
@@ -101,13 +99,6 @@ public:
   {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
-    mModulationsData.Resize(blockSize * kNumModulations);
-    mModulations.Empty();
-    
-    for(int i = 0; i < kNumModulations; i++)
-    {
-      mModulations.Add(mModulationsData.Get() + (blockSize * i));
-    }
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -119,7 +110,7 @@ public:
   {
     switch (paramIdx) {
       case kParamGain:
-        mParamsToSmooth[kModGainSmoother] = (T) value / 100.;
+        mGainTarget = (T) value / 100.;
         break;
       default:
         break;
@@ -128,8 +119,6 @@ public:
   
 public:
   MidiSynth mSynth { MidiSynth::kDefaultBlockSize };
-  WDL_TypedBuf<T> mModulationsData; // Sample data for global modulations (e.g. smoothed gain)
-  WDL_PtrList<T> mModulations; // Ptrlist for global modulations
-  LogParamSmooth<T, kNumModulations> mParamSmoother;
-  sample mParamsToSmooth[kNumModulations] {1.};
+  LogParamSmooth<T, 1> mParamSmoother;
+  sample mGainTarget{1.};
 };

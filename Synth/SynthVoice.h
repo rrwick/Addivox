@@ -16,10 +16,7 @@
  */
 
 #include <array>
-#include <vector>
 #include <stdint.h>
-
-#include "ptrlist.h"
 
 #include "IPlugConstants.h"
 #include "IPlugMidi.h"
@@ -39,7 +36,6 @@ namespace voiceControlNames
     kVoiceControlGate = 0,
     kVoiceControlPitch,
     kVoiceControlPitchBend,
-    kVoiceControlPressure,
     kNumVoiceControlRamps
   };
 }
@@ -65,9 +61,6 @@ public:
    * @param isRetrigger If this is \c true it means the voice is being re-triggered, and you should accommodate for this in your algorithm */
   virtual void Trigger(double level, bool isRetrigger) {};
 
-  /** As with Trigger, called to do optional tasks when a voice is released. */
-  virtual void Release() {};
-
   /** Process a block of audio data for the voice
    @param inputs Pointer to input channel arrays. Sometimes synthesisers have audio inputs. Alternatively you can pass in modulation from global LFOs etc here.
    @param outputs Pointer to output channel arrays. Add to the existing data in these arrays.
@@ -90,16 +83,6 @@ public:
    * @param sampleRate The new sample rate
    * @param blockSize The new block size in samples */
   virtual void SetSampleRateAndBlockSize(double sampleRate, int blockSize) {};
-
-  /** Implement this to allow picking a sound program from an integer index, as with MIDI.
-   * @param pgm The new program number */
-  virtual void SetProgramNumber(int pgm) {};
-
-  /** Implement this to respond to control numbers for which there are not ramps. A synthesizer could use its own ramps internally if needed. 
-   * @param controlNumber The MIDI controller number
-   * @param value The normalized value
-   */
-  virtual void SetControl(int controlNumber, float value) {};
 
 protected:
   VoiceInputs mInputs;

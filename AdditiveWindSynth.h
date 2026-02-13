@@ -19,8 +19,6 @@ enum EParams
 enum EControlTags
 {
   kCtrlTagMeter = 0,
-  kCtrlTagScope,
-  kCtrlTagRTText,
   kCtrlTagKeyboard,
   kCtrlTagBender,
   kNumCtrlTags

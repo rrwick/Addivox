@@ -17,7 +17,6 @@
 
 #include <array>
 #include <stdint.h>
-#include <functional>
 #include <memory>
 //#include <iostream>
 
@@ -50,23 +49,18 @@ enum EVoiceAction
   kNullAction = 0,
   kNoteOnAction,
   kNoteOffAction,
-  kPitchBendAction,
-  kPressureAction,
-  kControllerAction,
-  kProgramChangeAction
+  kPitchBendAction
 };
 
 /** A VoiceInputEvent describes a change in input to be applied to the voice.
  * mAddress specifies whether the voice should receive the change.
  * mAction is the type of property change.
- * mControllerNumber is the controller number to change if mAction is kController.
  * mValue is the new value associated with the change.
  * mSampleOffset is the number of samples into a processing buffer at which the change should occur.*/
 struct VoiceInputEvent
 {
   VoiceAddress mAddress;
   EVoiceAction mAction;
-  int mControllerNumber;
   float mValue;
   int mSampleOffset;
 };
@@ -76,26 +70,16 @@ struct VoiceInputEvent
 class VoiceAllocator final
 {
 public:
-
-  enum EATMode
-  {
-    kATModeChannel = 0,
-    kATModePoly,
-    kNumATModes
-  };
-
   // one voice worth of ramp generators
   using VoiceControlRamps = ControlRampProcessor::ProcessorArray<kNumVoiceControlRamps>;
 
   VoiceAllocator();
-  ~VoiceAllocator();
+  ~VoiceAllocator() = default;
 
   VoiceAllocator(const VoiceAllocator&) = delete;
   VoiceAllocator& operator=(const VoiceAllocator&) = delete;
 
   void Clear();
-
-  void SetSampleRateAndBlockSize(double sampleRate, int blockSize) { (void) sampleRate; (void) blockSize; }
 
   /** Add a synth voice to the allocator. We do not take ownership ot the voice.
    @param pv Pointer to the voice to add.
@@ -114,20 +98,15 @@ public:
   /** Stop the voice from making sound immediately. */
   void HardKillVoice();
 
-  void SetKeyToPitchFunction(const std::function<float(int)>& fn) {mKeyToPitchFn = fn;}
-
   void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int blockSize);
 
   bool HasVoice() const { return mVoicePtr != nullptr; }
   SynthVoice* GetVoice() const { return mVoicePtr; }
-  void SetPitchOffset(float offset) { mPitchOffset = offset; }
 
 private:
   bool VoiceMatchesAddress(VoiceAddress va) const;
 
   void SendControlToVoiceInputs(bool voiceMatched, int ctlIdx, float val, int rampSamples);
-  void SendControlToVoiceDirect(bool voiceMatched, int ctlIdx, float val);
-  void SendProgramChangeToVoice(bool voiceMatched, int pgm);
 
   void StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
   void StopVoice(int sampleOffset);
@@ -141,12 +120,6 @@ private:
 
   SynthVoice* mVoicePtr{nullptr};
   std::unique_ptr<VoiceControlRamps> mVoiceRamps;
-
-  std::function<float(int)> mKeyToPitchFn;
-  double mPitchOffset{0.};
-
-public:
-  EATMode mATMode {kATModeChannel};
 };
 
 END_IPLUG_NAMESPACE

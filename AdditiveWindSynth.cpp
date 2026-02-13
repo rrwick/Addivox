@@ -82,7 +82,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 #if IPLUG_DSP
 void AdditiveWindSynth::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {
-  mDSP.ProcessBlock(nullptr, outputs, 2, nFrames);
+  (void) inputs;
+  mDSP.ProcessBlock(outputs, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
 }
 
@@ -100,11 +101,7 @@ void AdditiveWindSynth::OnReset()
 
 void AdditiveWindSynth::ProcessMidiMsg(const IMidiMsg& msg)
 {
-  TRACE;
-  
-  int status = msg.StatusMsg();
-  
-  switch (status)
+  switch (msg.StatusMsg())
   {
     case IMidiMsg::kNoteOn:
     case IMidiMsg::kNoteOff:
@@ -113,16 +110,12 @@ void AdditiveWindSynth::ProcessMidiMsg(const IMidiMsg& msg)
     case IMidiMsg::kProgramChange:
     case IMidiMsg::kChannelAftertouch:
     case IMidiMsg::kPitchWheel:
-    {
-      goto handle;
-    }
+      mDSP.ProcessMidiMsg(msg);
+      SendMidiMsg(msg);
+      break;
     default:
-      return;
+      break;
   }
-  
-handle:
-  mDSP.ProcessMidiMsg(msg);
-  SendMidiMsg(msg);
 }
 
 void AdditiveWindSynth::OnParamChange(int paramIdx)
