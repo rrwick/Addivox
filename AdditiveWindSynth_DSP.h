@@ -4,7 +4,6 @@
 #include "Oscillator.h"
 #include "ADSREnvelope.h"
 #include "Smoothers.h"
-#include "LFO.h"
 
 using namespace iplug;
 
@@ -12,7 +11,6 @@ enum EModulations
 {
   kModGainSmoother = 0,
   kModSustainSmoother,
-  kModLFO,
   kNumModulations,
 };
 
@@ -61,7 +59,7 @@ public:
       mInputs[kVoiceControlTimbre].Write(mTimbreBuffer.Get(), startIdx, nFrames);
       
       // convert from "1v/oct" pitch space to frequency in Hertz
-      double osc1Freq = 440. * pow(2., pitch + pitchBend + inputs[kModLFO][0]);
+      double osc1Freq = 440. * pow(2., pitch + pitchBend);
       
       // make sound output for each output channel
       for(auto i = startIdx; i < startIdx + nFrames; i++)
@@ -124,7 +122,7 @@ public:
     // mSynth.SetNoteGlideTime(0.5); // portamento
   }
 
-  void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames, double qnPos = 0., bool transportIsRunning = false, double tempo = 120.)
+  void ProcessBlock(T** inputs, T** outputs, int nOutputs, int nFrames)
   {
     // clear outputs
     for(auto i = 0; i < nOutputs; i++)
@@ -133,7 +131,6 @@ public:
     }
     
     mParamSmoother.ProcessBlock(mParamsToSmooth, mModulations.GetList(), nFrames);
-    mLFO.ProcessBlock(mModulations.GetList()[kModLFO], nFrames, qnPos, transportIsRunning, tempo);
     mSynth.ProcessBlock(mModulations.GetList(), outputs, 0, nOutputs, nFrames);
     
     for(int s=0; s < nFrames;s++)
@@ -148,7 +145,6 @@ public:
   {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
-    mLFO.SetSampleRate(sampleRate);
     mModulationsData.Resize(blockSize * kNumModulations);
     mModulations.Empty();
     
@@ -186,21 +182,6 @@ public:
         voice->mAMPEnv.SetStageTime(stage, value);
         break;
       }
-      case kParamLFODepth:
-        mLFO.SetScalar(value / 100.);
-        break;
-      case kParamLFORateTempo:
-        mLFO.SetQNScalarFromDivision(static_cast<int>(value));
-        break;
-      case kParamLFORateHz:
-        mLFO.SetFreqCPS(value);
-        break;
-      case kParamLFORateMode:
-        mLFO.SetRateMode(value > 0.5);
-        break;
-      case kParamLFOShape:
-        mLFO.SetShape(static_cast<int>(value));
-        break;
       default:
         break;
     }
@@ -212,5 +193,4 @@ public:
   WDL_PtrList<T> mModulations; // Ptrlist for global modulations
   LogParamSmooth<T, kNumModulations> mParamSmoother;
   sample mParamsToSmooth[kNumModulations];
-  LFO<T> mLFO;
 };

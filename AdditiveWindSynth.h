@@ -13,11 +13,6 @@ enum EParams
   kParamDecay,
   kParamSustain,
   kParamRelease,
-  kParamLFOShape,
-  kParamLFORateHz,
-  kParamLFORateTempo,
-  kParamLFORateMode,
-  kParamLFODepth,
   kNumParams
 };
 
@@ -29,7 +24,6 @@ enum EParams
 enum EControlTags
 {
   kCtrlTagMeter = 0,
-  kCtrlTagLFOVis,
   kCtrlTagScope,
   kCtrlTagRTText,
   kCtrlTagKeyboard,
@@ -51,14 +45,12 @@ public:
   void ProcessMidiMsg(const IMidiMsg& msg) override;
   void OnReset() override;
   void OnParamChange(int paramIdx) override;
-  void OnParamChangeUI(int paramIdx, EParamSource source) override;
   void OnIdle() override;
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
   AdditiveWindSynthDSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
-  ISender<1> mLFOVisSender;
   int mLastQwertyMIDINote{-1};
 #endif
 };
