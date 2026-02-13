@@ -147,7 +147,6 @@ private:
     uint8_t pitchBendRange; // in semitones
     float pitchBend;
     float pressure;
-    float timbre;
   };
 
   // MPE helper functions

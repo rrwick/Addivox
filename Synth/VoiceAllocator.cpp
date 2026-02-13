@@ -136,14 +136,9 @@ void VoiceAllocator::ProcessEvents(int blockSize, int64_t sampleTime)
         SendControlToVoiceInputs(voiceMatched, kVoiceControlPressure, event.mValue, 1);
         break;
       }
-      case kTimbreAction:
-      {
-        SendControlToVoiceInputs(voiceMatched, kVoiceControlTimbre, event.mValue, 1);
-        break;
-      }
       case kControllerAction:
       {
-        // called for any continuous controller other than the special #74 specified in MPE
+        // called for generic continuous controllers
         SendControlToVoiceDirect(voiceMatched, event.mControllerNumber, event.mValue);
         break;
       }

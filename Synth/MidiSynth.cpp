@@ -83,19 +83,12 @@ VoiceInputEvent MidiSynth::MidiMessageToEventBasic(const IMidiMsg& msg)
       event.mValue = static_cast<float>(msg.ControlChange(msg.ControlChangeIdx()));
       switch(event.mControllerNumber)
       {
-        // handle special controllers
-        case IMidiMsg::kCutoffFrequency:
-        {
-          event.mAction = kTimbreAction;
-          break;
-        }
         case IMidiMsg::kAllNotesOff:
         {
           event.mAddress.mFlags = kVoiceAll;
           event.mAction = kNoteOffAction;
           break;
         }
-        // handle all other controllers
         default:
         {
           event.mAction = kControllerAction;
@@ -129,12 +122,11 @@ VoiceInputEvent MidiSynth::MidiMessageToEventMPE(const IMidiMsg& msg)
   event.mAddress.mKey = msg.NoteNumber();
   event.mAddress.mZone = MasterZoneFor(event.mAddress.mChannel);
 
-  // handle pitch bend, channel pressure and CC#74 in the same way:
+  // handle pitch bend and channel pressure in the same way:
   // sum main and member channel values
   bool isPitchBend = status == IMidiMsg::kPitchWheel;
   bool isChannelPressure = status == IMidiMsg::kChannelAftertouch;
-  bool isTimbre = (status == IMidiMsg::kControlChange) && (msg.ControlChangeIdx() == IMidiMsg::kCutoffFrequency);
-  if(isPitchBend || isChannelPressure || isTimbre)
+  if(isPitchBend || isChannelPressure)
   {
     float* pChannelDestValue{};
     float masterChannelStoredValue{};
@@ -153,13 +145,6 @@ VoiceInputEvent MidiSynth::MidiMessageToEventMPE(const IMidiMsg& msg)
       event.mValue = mAfterTouchLUT[msg.ChannelAfterTouch()];
       pChannelDestValue = &(mChannelStates[event.mAddress.mChannel].pressure);
       masterChannelStoredValue = mChannelStates[MasterChannelFor(event.mAddress.mChannel)].pressure;
-    }
-    else if(isTimbre)
-    {
-      event.mAction = kTimbreAction;
-      event.mValue = static_cast<float>(msg.ControlChange(msg.ControlChangeIdx()));
-      pChannelDestValue = &(mChannelStates[event.mAddress.mChannel].timbre);
-      masterChannelStoredValue = mChannelStates[MasterChannelFor(event.mAddress.mChannel)].timbre;
     }
 
     if(IsMasterChannel(event.mAddress.mChannel))

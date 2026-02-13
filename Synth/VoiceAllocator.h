@@ -52,7 +52,6 @@ enum EVoiceAction
   kNoteOffAction,
   kPitchBendAction,
   kPressureAction,
-  kTimbreAction,
   kControllerAction,
   kProgramChangeAction
 };

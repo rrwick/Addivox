@@ -40,7 +40,6 @@ namespace voiceControlNames
     kVoiceControlPitch,
     kVoiceControlPitchBend,
     kVoiceControlPressure,
-    kVoiceControlTimbre,
     kNumVoiceControlRamps
   };
 }

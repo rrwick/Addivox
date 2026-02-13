@@ -20,8 +20,6 @@ public:
   class Voice : public SynthVoice
   {
   public:
-    Voice() {}
-
     bool GetBusy() const override
     {
       return mInputs[kVoiceControlGate].endValue > 0.;
@@ -32,10 +30,6 @@ public:
       mOSC.Reset();
     }
     
-    void Release() override
-    {
-    }
-
     void ProcessSamplesAccumulating(T** inputs, T** outputs, int nInputs, int nOutputs, int startIdx, int nFrames) override
     {
       // inputs to the synthesizer can just fetch a value every block, like this:
@@ -45,7 +39,6 @@ public:
 
       // or write the entire control ramp to a buffer, like this, to get sample-accurate ramps:
       mInputs[kVoiceControlGate].Write(mGateBuffer.Get(), startIdx, nFrames);
-      mInputs[kVoiceControlTimbre].Write(mTimbreBuffer.Get(), startIdx, nFrames);
       
       // convert from "1v/oct" pitch space to frequency in Hertz
       double osc1Freq = 440. * pow(2., pitch + pitchBend);
@@ -53,9 +46,8 @@ public:
       // make sound output for each output channel
       for(auto i = startIdx; i < startIdx + nFrames; i++)
       {
-        float noise = mTimbreBuffer.Get()[i] * Rand();
         const T gate = mGateBuffer.Get()[i] > 0. ? 1. : 0.;
-        const T sample = (mOSC.Process(osc1Freq) + noise) * gate * mGain;
+        const T sample = mOSC.Process(osc1Freq) * gate * mGain;
         outputs[0][i] += sample;
         outputs[1][i] += sample;
       }
@@ -65,18 +57,6 @@ public:
     {
       mOSC.SetSampleRate(sampleRate);
       mGateBuffer.Resize(blockSize);
-      mTimbreBuffer.Resize(blockSize);
-    }
-
-    void SetProgramNumber(int pgm) override
-    {
-      //TODO:
-    }
-
-    // this is called by the VoiceAllocator to set generic control values.
-    void SetControl(int controlNumber, float value) override
-    {
-      //TODO:
     }
 
   public:
@@ -84,18 +64,6 @@ public:
 
   private:
     WDL_TypedBuf<float> mGateBuffer;
-    WDL_TypedBuf<float> mTimbreBuffer;
-
-    // noise generator for test
-    uint32_t mRandSeed = 0;
-    
-    // return single-precision floating point number on [-1, 1]
-    float Rand()
-    {
-      mRandSeed = mRandSeed * 0x0019660D + 0x3C6EF35F;
-      uint32_t temp = ((mRandSeed >> 9) & 0x007FFFFF) | 0x3F800000;
-      return (*reinterpret_cast<float*>(&temp))*2.f - 3.f;
-    }
 
   };
 
