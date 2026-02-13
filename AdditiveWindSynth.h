@@ -9,10 +9,6 @@ enum EParams
 {
   kParamGain = 0,
   kParamNoteGlideTime,
-  kParamAttack,
-  kParamDecay,
-  kParamSustain,
-  kParamRelease,
   kNumParams
 };
 

@@ -2,7 +2,6 @@
 
 #include "Synth/MidiSynth.h"
 #include "Oscillator.h"
-#include "ADSREnvelope.h"
 #include "Smoothers.h"
 
 using namespace iplug;
@@ -10,7 +9,6 @@ using namespace iplug;
 enum EModulations
 {
   kModGainSmoother = 0,
-  kModSustainSmoother,
   kNumModulations,
 };
 
@@ -22,30 +20,20 @@ public:
   class Voice : public SynthVoice
   {
   public:
-    Voice()
-    : mAMPEnv("gain", [&](){ mOSC.Reset(); }) // capture ok on RT thread?
-    {
-//      DBGMSG("new Voice: %i control inputs.\n", static_cast<int>(mInputs.size()));
-    }
+    Voice() {}
 
     bool GetBusy() const override
     {
-      return mAMPEnv.GetBusy();
+      return mInputs[kVoiceControlGate].endValue > 0.;
     }
 
     void Trigger(double level, bool isRetrigger) override
     {
       mOSC.Reset();
-      
-      if(isRetrigger)
-        mAMPEnv.Retrigger(level);
-      else
-        mAMPEnv.Start(level);
     }
     
     void Release() override
     {
-      mAMPEnv.Release();
     }
 
     void ProcessSamplesAccumulating(T** inputs, T** outputs, int nInputs, int nOutputs, int startIdx, int nFrames) override
@@ -56,6 +44,7 @@ public:
       double pitchBend = mInputs[kVoiceControlPitchBend].endValue;
 
       // or write the entire control ramp to a buffer, like this, to get sample-accurate ramps:
+      mInputs[kVoiceControlGate].Write(mGateBuffer.Get(), startIdx, nFrames);
       mInputs[kVoiceControlTimbre].Write(mTimbreBuffer.Get(), startIdx, nFrames);
       
       // convert from "1v/oct" pitch space to frequency in Hertz
@@ -65,17 +54,17 @@ public:
       for(auto i = startIdx; i < startIdx + nFrames; i++)
       {
         float noise = mTimbreBuffer.Get()[i] * Rand();
-        // an MPE synth can use pressure here in addition to gain
-        outputs[0][i] += (mOSC.Process(osc1Freq) + noise) * mAMPEnv.Process(inputs[kModSustainSmoother][i]) * mGain;
-        outputs[1][i] = outputs[0][i];
+        const T gate = mGateBuffer.Get()[i] > 0. ? 1. : 0.;
+        const T sample = (mOSC.Process(osc1Freq) + noise) * gate * mGain;
+        outputs[0][i] += sample;
+        outputs[1][i] += sample;
       }
     }
 
     void SetSampleRateAndBlockSize(double sampleRate, int blockSize) override
     {
       mOSC.SetSampleRate(sampleRate);
-      mAMPEnv.SetSampleRate(sampleRate);
-      
+      mGateBuffer.Resize(blockSize);
       mTimbreBuffer.Resize(blockSize);
     }
 
@@ -92,9 +81,9 @@ public:
 
   public:
     FastSinOscillator<T> mOSC;
-    ADSREnvelope<T> mAMPEnv;
 
   private:
+    WDL_TypedBuf<float> mGateBuffer;
     WDL_TypedBuf<float> mTimbreBuffer;
 
     // noise generator for test
@@ -161,8 +150,6 @@ public:
 
   void SetParam(int paramIdx, double value)
   {
-    using EEnvStage = ADSREnvelope<sample>::EStage;
-    
     switch (paramIdx) {
       case kParamNoteGlideTime:
         mSynth.SetNoteGlideTime(value / 1000.);
@@ -170,18 +157,6 @@ public:
       case kParamGain:
         mParamsToSmooth[kModGainSmoother] = (T) value / 100.;
         break;
-      case kParamSustain:
-        mParamsToSmooth[kModSustainSmoother] = (T) value / 100.;
-        break;
-      case kParamAttack:
-      case kParamDecay:
-      case kParamRelease:
-      {
-        EEnvStage stage = static_cast<EEnvStage>(EEnvStage::kAttack + (paramIdx - kParamAttack));
-        auto* voice = static_cast<AdditiveWindSynthDSP::Voice*>(mSynth.GetVoice());
-        voice->mAMPEnv.SetStageTime(stage, value);
-        break;
-      }
       default:
         break;
     }
@@ -189,8 +164,8 @@ public:
   
 public:
   MidiSynth mSynth { MidiSynth::kDefaultBlockSize };
-  WDL_TypedBuf<T> mModulationsData; // Sample data for global modulations (e.g. smoothed sustain)
+  WDL_TypedBuf<T> mModulationsData; // Sample data for global modulations (e.g. smoothed gain)
   WDL_PtrList<T> mModulations; // Ptrlist for global modulations
   LogParamSmooth<T, kNumModulations> mParamSmoother;
-  sample mParamsToSmooth[kNumModulations];
+  sample mParamsToSmooth[kNumModulations] {1.};
 };
