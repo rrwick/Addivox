@@ -8,15 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		0B295F3C2F3E62E3004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F382F3E62E3004F3229 /* MidiSynth.cpp */; };
-		0B295F3D2F3E62E3004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */; };
 		0B295F3E2F3E62E3004F3229 /* ControlRamp.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F362F3E62E3004F3229 /* ControlRamp.h */; };
 		0B295F3F2F3E62E3004F3229 /* MidiSynth.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F372F3E62E3004F3229 /* MidiSynth.h */; };
 		0B295F402F3E62E3004F3229 /* SynthVoice.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F392F3E62E3004F3229 /* SynthVoice.h */; };
-		0B295F412F3E62E3004F3229 /* VoiceAllocator.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F3A2F3E62E3004F3229 /* VoiceAllocator.h */; };
 		0B295F422F3E62E3004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F382F3E62E3004F3229 /* MidiSynth.cpp */; };
-		0B295F432F3E62E3004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */; };
 		0B295F442F3E62E3004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F382F3E62E3004F3229 /* MidiSynth.cpp */; };
-		0B295F452F3E62E3004F3229 /* VoiceAllocator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */; };
 		4F0D965B23099F5A00BFDED0 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF103420A0E55900D3092F /* IPlugProcessor.cpp */; };
 		4F10E7C020B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */; };
 		4F1115CF2296DA95000CFCBF /* AdditiveWindSynth-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */; };
@@ -552,7 +548,6 @@
 				0B295F3E2F3E62E3004F3229 /* ControlRamp.h in Headers */,
 				0B295F3F2F3E62E3004F3229 /* MidiSynth.h in Headers */,
 				0B295F402F3E62E3004F3229 /* SynthVoice.h in Headers */,
-				0B295F412F3E62E3004F3229 /* VoiceAllocator.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -734,7 +729,6 @@
 				4FA61F8F22E89B4300A92C58 /* IGraphicsIOS_view.mm in Sources */,
 				4FA61F8E22E89B4300A92C58 /* IGraphicsIOS.mm in Sources */,
 				0B295F3C2F3E62E3004F3229 /* MidiSynth.cpp in Sources */,
-				0B295F3D2F3E62E3004F3229 /* VoiceAllocator.cpp in Sources */,
 				4FA61F9022E8A1F500A92C58 /* IGraphics.cpp in Sources */,
 				4FA61F7E22E89AFF00A92C58 /* IPlugPluginBase.cpp in Sources */,
 				4FA61F8C22E89B3700A92C58 /* IControl.cpp in Sources */,
@@ -760,7 +754,6 @@
 				4FDF6D7B2267CE540007B686 /* AppDelegate.m in Sources */,
 				4FDF6D772267CE540007B686 /* AppViewController.mm in Sources */,
 				0B295F442F3E62E3004F3229 /* MidiSynth.cpp in Sources */,
-				0B295F452F3E62E3004F3229 /* VoiceAllocator.cpp in Sources */,
 				4FA61F9422E8A71D00A92C58 /* IPlugAUViewController.mm in Sources */,
 				4FDF6D792267CE540007B686 /* main.m in Sources */,
 			);
@@ -771,7 +764,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				0B295F422F3E62E3004F3229 /* MidiSynth.cpp in Sources */,
-				0B295F432F3E62E3004F3229 /* VoiceAllocator.cpp in Sources */,
 				4FA61F9722E8A7E900A92C58 /* IPlugAUViewController.mm in Sources */,
 				4FA61F6822E8996C00A92C58 /* IPlugAUv3Appex.m in Sources */,
 			);

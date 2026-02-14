@@ -71,8 +71,8 @@ public:
 #pragma mark -
   AdditiveWindSynthDSP()
   {
-    // Monosynth: one voice in one zone.
-    mSynth.AddVoice(new Voice(), 0);
+    // Monosynth: one voice.
+    mSynth.AddVoice(new Voice());
   }
 
   void ProcessBlock(T** outputs, int nFrames)

@@ -304,7 +304,6 @@
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\ControlRamp.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugConstants.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugEditorDelegate.h" />
@@ -360,7 +359,6 @@
     <ClCompile Include="..\..\..\IPlug\APP\IPlugAPP_host.cpp" />
     <ClCompile Include="..\..\..\IPlug\APP\IPlugAPP_main.cpp" />
     <ClCompile Include="..\..\..\IPlug\Extras\Synth\MidiSynth.cpp" />
-    <ClCompile Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugParameter.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugPaths.cpp" />

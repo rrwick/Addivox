@@ -72,9 +72,6 @@
     <ClCompile Include="..\..\..\IPlug\Extras\Synth\MidiSynth.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.cpp">
-      <Filter>IPlug\Extras\Synth</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\IGraphics\Controls\ITextEntryControl.cpp">
       <Filter>IGraphics\Controls</Filter>
     </ClCompile>
@@ -257,9 +254,6 @@
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h">
-      <Filter>IPlug\Extras\Synth</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\IGraphics\Controls\ITextEntryControl.h">

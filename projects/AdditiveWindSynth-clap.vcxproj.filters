@@ -54,9 +54,6 @@
     <ClCompile Include="..\..\..\IPlug\Extras\Synth\MidiSynth.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.cpp">
-      <Filter>IPlug\Extras\Synth</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../config.h" />
@@ -200,9 +197,6 @@
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h">
-      <Filter>IPlug\Extras\Synth</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\AdditiveWindSynth_DSP.h" />

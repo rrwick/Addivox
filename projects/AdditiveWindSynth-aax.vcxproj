@@ -404,7 +404,6 @@
     <ClCompile Include="..\..\..\IPlug\AAX\IPlugAAX_Describe.cpp" />
     <ClCompile Include="..\..\..\IPlug\AAX\IPlugAAX.cpp" />
     <ClCompile Include="..\..\..\IPlug\Extras\Synth\MidiSynth.cpp" />
-    <ClCompile Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugParameter.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugPaths.cpp" />
@@ -477,7 +476,6 @@
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\ControlRamp.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\VoiceAllocator.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugConstants.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugDelegate_select.h" />

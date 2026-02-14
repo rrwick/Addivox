@@ -16,13 +16,14 @@
  */
 
 #include <stdint.h>
+#include <array>
+#include <memory>
+#include <stdexcept>
 
 #include "IPlugConstants.h"
 #include "IPlugMidi.h"
-#include "IPlugLogger.h"
 
 #include "SynthVoice.h"
-#include "VoiceAllocator.h"
 
 BEGIN_IPLUG_NAMESPACE
 
@@ -45,7 +46,8 @@ public:
   void Reset()
   {
     mSampleTime = 0;
-    mVoiceAllocator.Clear();
+    KillVoice(0, true);
+    ClearVoiceInputs();
   }
 
   void SetSampleRateAndBlockSize(double sampleRate, int blockSize);
@@ -63,18 +65,24 @@ public:
 
   SynthVoice* GetVoice()
   {
-    return mVoiceAllocator.GetVoice();
+    return mVoicePtr;
   }
   
   bool HasVoice() const
   {
-    return mVoiceAllocator.HasVoice();
+    return mVoicePtr != nullptr;
   }
 
-  /** adds a SynthVoice to this MidiSynth, taking ownership of the object. */
-  void AddVoice(SynthVoice* pVoice, uint8_t zone)
+  /** adds a SynthVoice to this MidiSynth. */
+  void AddVoice(SynthVoice* pVoice)
   {
-    mVoiceAllocator.AddVoice(pVoice, zone);
+    if(mVoicePtr)
+      throw std::runtime_error{"MidiSynth: only one voice is supported"};
+
+    mVoicePtr = pVoice;
+    mVoicePtr->mKey = kNoKey;
+    ClearVoiceInputs();
+    mVoiceRamps.reset(ControlRampProcessor::Create(mVoicePtr->mInputs));
   }
 
   void AddMidiMsgToQueue(const IMidiMsg& msg)
@@ -93,7 +101,7 @@ public:
 
 private:
 
-  // maintain the state for one MIDI channel including RPN receipt state and pitch bend range.
+  // Maintain per-channel state for RPN decoding and pitch bend range.
   struct ChannelState
   {
     uint8_t paramMSB;
@@ -105,14 +113,28 @@ private:
 
   void SetChannelPitchBendRange(int channel, int range);
 
-  VoiceInputEvent MidiMessageToEvent(const IMidiMsg& msg);
+  void HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, int64_t sampleTime);
   void HandleRPN(IMidiMsg msg);
+  void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int blockSize);
+  void StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
+  void StopVoice(int sampleOffset);
+  void KillVoice(int sampleOffset, bool hard);
+  void AllNotesOff();
+  void PitchBend(int channel, float value, int sampleOffset);
+  bool IsActiveChannel(uint8_t channel) const;
+  bool IsActiveNote(uint8_t channel, uint8_t key) const;
+  void SendControlToVoiceInput(int ctlIdx, float val, int sampleOffset, int rampSamples);
+  void ClearVoiceInputs();
+
+  static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);
+  using VoiceControlRamps = ControlRampProcessor::ProcessorArray<kNumVoiceControlRamps>;
 
   // basic MIDI data
-  VoiceAllocator mVoiceAllocator;
   IMidiQueue mMidiQueue;
-  float mVelocityLUT[128];
+  std::array<float, 128> mVelocityLUT{};
   ChannelState mChannelStates[16]{};
+  SynthVoice* mVoicePtr{nullptr};
+  std::unique_ptr<VoiceControlRamps> mVoiceRamps;
   int mBlockSize;
   int64_t mSampleTime{0};
 };
