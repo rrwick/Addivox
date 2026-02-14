@@ -11,22 +11,22 @@ class AdditiveWindSynthDSP
 {
 public:
 #pragma mark - Voice
-  class Voice : public SynthVoice
+  class Voice
   {
   public:
-    bool GetBusy() const override
+    bool GetBusy() const
     {
       return mGate > 0.;
     }
 
-    void Trigger(double level, bool isRetrigger) override
+    void Trigger(double level, bool isRetrigger)
     {
       (void) level;
       (void) isRetrigger;
       mOSC.Reset();
     }
     
-    void ProcessSamplesAccumulating(T** inputs, T** outputs, int nInputs, int nOutputs, int startIdx, int nFrames) override
+    void ProcessSamplesAccumulating(T** inputs, T** outputs, int nInputs, int nOutputs, int startIdx, int nFrames)
     {
       (void) inputs;
       (void) nInputs;
@@ -48,23 +48,28 @@ public:
       }
     }
 
-    void SetSampleRateAndBlockSize(double sampleRate, int blockSize) override
+    void SetSampleRateAndBlockSize(double sampleRate, int blockSize)
     {
       (void) blockSize;
       mOSC.SetSampleRate(sampleRate);
     }
 
-  public:
-    FastSinOscillator<T> mOSC;
+  private:
+    template <typename>
+    friend class iplug::MidiSynth;
 
+    double mGate{0.};
+    double mPitch{0.};
+    double mPitchBend{0.};
+    double mBreath{1.};
+    double mGain{0.};
+    FastSinOscillator<T> mOSC;
   };
 
 public:
 #pragma mark -
   AdditiveWindSynthDSP()
   {
-    // Monosynth: one voice.
-    mSynth.AddVoice(new Voice());
   }
 
   void ProcessBlock(T** outputs, int nFrames)
@@ -105,7 +110,7 @@ public:
   }
   
 public:
-  MidiSynth mSynth { MidiSynth::kDefaultBlockSize };
+  MidiSynth<Voice> mSynth { MidiSynth<Voice>::kDefaultBlockSize };
   LogParamSmooth<T, 1> mParamSmoother;
   sample mGainTarget{1.};
 };

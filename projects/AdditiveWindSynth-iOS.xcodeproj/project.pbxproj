@@ -7,11 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0B295F3C2F3E62E3004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F382F3E62E3004F3229 /* MidiSynth.cpp */; };
 		0B295F3F2F3E62E3004F3229 /* MidiSynth.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F372F3E62E3004F3229 /* MidiSynth.h */; };
-		0B295F402F3E62E3004F3229 /* SynthVoice.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F392F3E62E3004F3229 /* SynthVoice.h */; };
-		0B295F422F3E62E3004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F382F3E62E3004F3229 /* MidiSynth.cpp */; };
-		0B295F442F3E62E3004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F382F3E62E3004F3229 /* MidiSynth.cpp */; };
 		4F0D965B23099F5A00BFDED0 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF103420A0E55900D3092F /* IPlugProcessor.cpp */; };
 		4F10E7C020B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */; };
 		4F1115CF2296DA95000CFCBF /* AdditiveWindSynth-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */; };
@@ -95,8 +91,6 @@
 
 /* Begin PBXFileReference section */
 		0B295F372F3E62E3004F3229 /* MidiSynth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = MidiSynth.h; path = ../Synth/MidiSynth.h; sourceTree = SOURCE_ROOT; };
-		0B295F382F3E62E3004F3229 /* MidiSynth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MidiSynth.cpp; path = ../Synth/MidiSynth.cpp; sourceTree = SOURCE_ROOT; };
-		0B295F392F3E62E3004F3229 /* SynthVoice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SynthVoice.h; path = ../Synth/SynthVoice.h; sourceTree = SOURCE_ROOT; };
 		0B295F3A2F3E62E3004F3229 /* VoiceAllocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = VoiceAllocator.h; path = ../Synth/VoiceAllocator.h; sourceTree = SOURCE_ROOT; };
 		0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VoiceAllocator.cpp; path = ../Synth/VoiceAllocator.cpp; sourceTree = SOURCE_ROOT; };
 		4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = "AdditiveWindSynth-iOS-MainInterface.storyboard"; path = "../resources/AdditiveWindSynth-iOS-MainInterface.storyboard"; sourceTree = "<group>"; };
@@ -508,8 +502,6 @@
 			isa = PBXGroup;
 			children = (
 				0B295F372F3E62E3004F3229 /* MidiSynth.h */,
-				0B295F382F3E62E3004F3229 /* MidiSynth.cpp */,
-				0B295F392F3E62E3004F3229 /* SynthVoice.h */,
 				0B295F3A2F3E62E3004F3229 /* VoiceAllocator.h */,
 				0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */,
 				4FFF108420A1036200D3092F /* config.h */,
@@ -543,7 +535,6 @@
 			files = (
 				4FA61F7C22E89A5900A92C58 /* AUv3Framework.h in Headers */,
 				0B295F3F2F3E62E3004F3229 /* MidiSynth.h in Headers */,
-				0B295F402F3E62E3004F3229 /* SynthVoice.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -724,7 +715,6 @@
 				4FA61F8522E89B2000A92C58 /* IPlugAUAudioUnit.mm in Sources */,
 				4FA61F8F22E89B4300A92C58 /* IGraphicsIOS_view.mm in Sources */,
 				4FA61F8E22E89B4300A92C58 /* IGraphicsIOS.mm in Sources */,
-				0B295F3C2F3E62E3004F3229 /* MidiSynth.cpp in Sources */,
 				4FA61F9022E8A1F500A92C58 /* IGraphics.cpp in Sources */,
 				4FA61F7E22E89AFF00A92C58 /* IPlugPluginBase.cpp in Sources */,
 				4FA61F8C22E89B3700A92C58 /* IControl.cpp in Sources */,
@@ -749,7 +739,6 @@
 				4FDF6D7F2267CEBA0007B686 /* IPlugAUPlayer.mm in Sources */,
 				4FDF6D7B2267CE540007B686 /* AppDelegate.m in Sources */,
 				4FDF6D772267CE540007B686 /* AppViewController.mm in Sources */,
-				0B295F442F3E62E3004F3229 /* MidiSynth.cpp in Sources */,
 				4FA61F9422E8A71D00A92C58 /* IPlugAUViewController.mm in Sources */,
 				4FDF6D792267CE540007B686 /* main.m in Sources */,
 			);
@@ -759,7 +748,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0B295F422F3E62E3004F3229 /* MidiSynth.cpp in Sources */,
 				4FA61F9722E8A7E900A92C58 /* IPlugAUViewController.mm in Sources */,
 				4FA61F6822E8996C00A92C58 /* IPlugAUv3Appex.m in Sources */,
 			);
