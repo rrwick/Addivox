@@ -21,33 +21,26 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     pGraphics->AttachPopupMenuControl();
 #endif
 
-//    pGraphics->EnableLiveEdit(true);
+    // pGraphics->EnableLiveEdit(true);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
-    const IRECT b = pGraphics->GetBounds().GetPadded(-20.f);
-    IRECT keyboardBounds = b.GetFromBottom(300);
-    IRECT wheelsBounds = keyboardBounds.ReduceFromLeft(100.f).GetPadded(-10.f);
-    pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds), kCtrlTagKeyboard);
+
+    // Full UI: 1000 x 500
+    const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 370.f, 35.f, 120.f);
+    const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 370.f, 945.f, 120.f);
+    const IRECT breathMeterBounds = IRECT::MakeXYWH(900.f, 10.f, 40.f, 200.f);
+    const IRECT outMeterBounds = IRECT::MakeXYWH(950.f, 10.f, 40.f, 200.f);
+    const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
+
+    pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), kCtrlTagKeyboard);
     pGraphics->AttachControl(new IWheelControl(wheelsBounds), kCtrlTagBender);
-    const IRECT controls = b.GetGridCell(1, 2, 2);
-    const IRECT meterColumn = controls.GetFromRight(190).GetPadded(-20.f);
-    pGraphics->AttachControl(new IVKnobControl(controls.GetGridCell(0, 2, 6).GetCentredInside(90), kParamGain, "Gain"));
-    pGraphics->AttachControl(new IVLEDMeterControl<2>(meterColumn.GetFromLeft(90).GetPadded(-10.f), "Out"), kCtrlTagMeter);
-    pGraphics->AttachControl(new IVMeterControl<1>(meterColumn.GetFromRight(90).GetPadded(-10.f), "Breath"), kCtrlTagBreathMeter);
-    
-#ifndef AUv3_API
-    pGraphics->AttachControl(new IVButtonControl(keyboardBounds.GetFromTRHC(200, 30).GetTranslated(0, -30), SplashClickActionFunc,
-      "Show/Hide Keyboard", DEFAULT_STYLE.WithColor(kFG, COLOR_WHITE).WithLabelText({15.f, EVAlign::Middle})))->SetAnimationEndActionFunction(
-      [pGraphics](IControl* pCaller) {
-        static bool hide = false;
-        pGraphics->GetControlWithTag(kCtrlTagKeyboard)->Hide(hide = !hide);
-        pGraphics->Resize(PLUG_WIDTH, hide ? PLUG_HEIGHT / 2 : PLUG_HEIGHT, pGraphics->GetDrawScale());
-    });
-#endif
+    pGraphics->AttachControl(new IVKnobControl(gainKnobBounds, kParamGain, "Gain"));
+    pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "Breath"), kCtrlTagBreathMeter);
+    pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "Out"), kCtrlTagMeter);
     
 //#ifdef OS_IOS
 //    if(!IsOOPAuv3AppExtension())
 //    {
-//      pGraphics->AttachControl(new IVButtonControl(b.GetFromTRHC(100, 100), [pGraphics](IControl* pCaller) {
+//      pGraphics->AttachControl(new IVButtonControl(XYWH(uiBounds.R - 110.f, 10.f, 100.f, 100.f), [pGraphics](IControl* pCaller) {
 //                               dynamic_cast<IGraphicsIOS*>(pGraphics)->LaunchBluetoothMidiDialog(pCaller->GetRECT().L, pCaller->GetRECT().MH());
 //                               SplashClickActionFunc(pCaller);
 //                             }, "BTMIDI"));
