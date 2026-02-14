@@ -20,7 +20,7 @@ MidiSynth::MidiSynth(int blockSize)
     mVelocityLUT[i] = i / 127.f;
   }
 
-  mMidiState = MonoMidiState{0, 0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f};
+  mMidiState = MonoMidiState{0, 0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f, 1.f};
 }
 
 void MidiSynth::ClearVoiceControls()
@@ -31,6 +31,7 @@ void MidiSynth::ClearVoiceControls()
   mVoicePtr->mGate = 0.;
   mVoicePtr->mPitch = 0.;
   mVoicePtr->mPitchBend = 0.;
+  mVoicePtr->mBreath = mMidiState.currentBreath;
 }
 
 bool MidiSynth::IsActiveChannel(uint8_t channel) const
@@ -51,6 +52,7 @@ void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, bo
   mVoicePtr->mGate = retrig ? mVoicePtr->mGate : velocity;
   mVoicePtr->mPitch = pitch;
   mVoicePtr->mPitchBend = mMidiState.currentPitchBend;
+  mVoicePtr->mBreath = mMidiState.currentBreath;
   mActiveChannel = static_cast<uint8_t>(channel);
   mActiveKey = static_cast<uint8_t>(key);
   mMidiState.activeChannel = static_cast<uint8_t>(channel);
@@ -92,6 +94,20 @@ void MidiSynth::PitchBend(int channel, float value)
 
   if(mVoicePtr && mActiveKey != kNoKey)
     mVoicePtr->mPitchBend = value;
+}
+
+void MidiSynth::Breath(int channel, float value)
+{
+  const uint8_t breathChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+
+  if(mVoicePtr && mActiveKey != kNoKey && !IsActiveChannel(breathChannel))
+    return;
+
+  mMidiState.activeChannel = breathChannel;
+  mMidiState.currentBreath = value;
+
+  if(mVoicePtr && mActiveKey != kNoKey)
+    mVoicePtr->mBreath = value;
 }
 
 void MidiSynth::ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int numFrames)
@@ -140,6 +156,11 @@ void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg)
     {
       switch(msg.ControlChangeIdx())
       {
+        case IMidiMsg::kBreathController:
+        {
+          Breath(channel, static_cast<float>(msg.ControlChange(IMidiMsg::kBreathController)));
+          break;
+        }
         case IMidiMsg::kAllNotesOff:
         {
           AllNotesOff();

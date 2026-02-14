@@ -42,7 +42,7 @@ public:
       // make sound output for each output channel
       for(auto i = startIdx; i < startIdx + nFrames; i++)
       {
-        const T sample = mOSC.Process(osc1Freq) * gate * mGain;
+        const T sample = mOSC.Process(osc1Freq) * gate * mGain * mBreath;
         outputs[0][i] += sample;
         outputs[1][i] += sample;
       }
@@ -79,7 +79,7 @@ public:
     
     mSynth.ProcessBlock(nullptr, outputs, 0, kNumOutputs, nFrames);
     
-    for(int s=0; s < nFrames;s++)
+    for(int s = 0; s < nFrames; s++)
     {
       const T smoothedGain = mParamSmoother.Process(mGainTarget);
       outputs[0][s] *= smoothedGain;

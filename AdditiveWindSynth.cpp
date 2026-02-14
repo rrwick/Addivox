@@ -104,7 +104,7 @@ void AdditiveWindSynth::OnReset()
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mMeterSender.Reset(GetSampleRate());
   mLastQwertyMIDINote = -1;
-  mBreathLevel.store(0.f, std::memory_order_relaxed);
+  mBreathLevel.store(1.f, std::memory_order_relaxed);
   mLastSentBreathLevel = -1.;
 }
 

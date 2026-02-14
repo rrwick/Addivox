@@ -45,6 +45,7 @@ public:
   void Reset()
   {
     mMidiState.currentPitchBend = 0.f;
+    mMidiState.currentBreath = 1.f;
     mActiveChannel = 0;
     mActiveKey = kNoKey;
     KillVoice(true);
@@ -105,6 +106,7 @@ private:
     uint8_t valueLSB;
     uint8_t pitchBendRange; // in semitones
     float currentPitchBend;
+    float currentBreath;
   };
 
   void SetPitchBendRangeFromRPN(int channel, int range);
@@ -117,6 +119,7 @@ private:
   void KillVoice(bool hard);
   void AllNotesOff();
   void PitchBend(int channel, float value);
+  void Breath(int channel, float value);
   bool IsActiveChannel(uint8_t channel) const;
   bool IsActiveNote(uint8_t channel, uint8_t key) const;
   void ClearVoiceControls();

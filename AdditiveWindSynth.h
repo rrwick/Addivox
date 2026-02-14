@@ -47,7 +47,7 @@ private:
   AdditiveWindSynthDSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
   int mLastQwertyMIDINote{-1};
-  std::atomic<float> mBreathLevel{0.f};
+  std::atomic<float> mBreathLevel{1.f};
   double mLastSentBreathLevel{-1.};
 #endif
 };
