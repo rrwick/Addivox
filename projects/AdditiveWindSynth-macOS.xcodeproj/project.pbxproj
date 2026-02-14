@@ -32,7 +32,6 @@
 		0B295F2C2F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
 		0B295F2E2F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
 		0B295F302F3E62CE004F3229 /* MidiSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */; };
-		0B295F322F3E62CE004F3229 /* ControlRamp.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F1C2F3E62CE004F3229 /* ControlRamp.h */; };
 		0B295F332F3E62CE004F3229 /* MidiSynth.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F1D2F3E62CE004F3229 /* MidiSynth.h */; };
 		0B295F342F3E62CE004F3229 /* SynthVoice.h in Headers */ = {isa = PBXBuildFile; fileRef = 0B295F1F2F3E62CE004F3229 /* SynthVoice.h */; };
 		4F03A5AC20A4621100EBDFFB /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F03A55820A4621000EBDFFB /* IGraphics.cpp */; };
@@ -331,7 +330,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0B295F1C2F3E62CE004F3229 /* ControlRamp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ControlRamp.h; path = ../Synth/ControlRamp.h; sourceTree = SOURCE_ROOT; };
 		0B295F1D2F3E62CE004F3229 /* MidiSynth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = MidiSynth.h; path = ../Synth/MidiSynth.h; sourceTree = SOURCE_ROOT; };
 		0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MidiSynth.cpp; path = ../Synth/MidiSynth.cpp; sourceTree = SOURCE_ROOT; };
 		0B295F1F2F3E62CE004F3229 /* SynthVoice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SynthVoice.h; path = ../Synth/SynthVoice.h; sourceTree = SOURCE_ROOT; };
@@ -813,7 +811,6 @@
 		089C166AFE841209C02AAC07 /* IPlugExample */ = {
 			isa = PBXGroup;
 			children = (
-				0B295F1C2F3E62CE004F3229 /* ControlRamp.h */,
 				0B295F1D2F3E62CE004F3229 /* MidiSynth.h */,
 				0B295F1E2F3E62CE004F3229 /* MidiSynth.cpp */,
 				0B295F1F2F3E62CE004F3229 /* SynthVoice.h */,
@@ -1690,7 +1687,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F78BE1222E73DD900AD537E /* AUv3Framework.h in Headers */,
-				0B295F322F3E62CE004F3229 /* ControlRamp.h in Headers */,
 				0B295F332F3E62CE004F3229 /* MidiSynth.h in Headers */,
 				0B295F342F3E62CE004F3229 /* SynthVoice.h in Headers */,
 			);

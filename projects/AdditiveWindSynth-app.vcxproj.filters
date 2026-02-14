@@ -246,11 +246,7 @@
     </ClInclude>
     <ClInclude Include="..\..\..\IGraphics\Controls\IVScopeControl.h">
       <Filter>IGraphics\Controls</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\ControlRamp.h">
-      <Filter>IPlug\Extras\Synth</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h">
+    </ClInclude>    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h">

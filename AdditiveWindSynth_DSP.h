@@ -16,7 +16,7 @@ public:
   public:
     bool GetBusy() const override
     {
-      return mInputs[kVoiceControlGate].endValue > 0.;
+      return mGate > 0.;
     }
 
     void Trigger(double level, bool isRetrigger) override
@@ -32,13 +32,9 @@ public:
       (void) nInputs;
       (void) nOutputs;
 
-      // inputs to the synthesizer can just fetch a value every block, like this:
-//      double gate = mInputs[kVoiceControlGate].endValue;
-      double pitch = mInputs[kVoiceControlPitch].endValue;
-      double pitchBend = mInputs[kVoiceControlPitchBend].endValue;
-
-      // or write the entire control ramp to a buffer, like this, to get sample-accurate ramps:
-      mInputs[kVoiceControlGate].Write(mGateBuffer.Get(), startIdx, nFrames);
+      const T gate = mGate > 0. ? 1. : 0.;
+      double pitch = mPitch;
+      double pitchBend = mPitchBend;
       
       // convert from "1v/oct" pitch space to frequency in Hertz
       double osc1Freq = 440. * pow(2., pitch + pitchBend);
@@ -46,7 +42,6 @@ public:
       // make sound output for each output channel
       for(auto i = startIdx; i < startIdx + nFrames; i++)
       {
-        const T gate = mGateBuffer.Get()[i] > 0. ? 1. : 0.;
         const T sample = mOSC.Process(osc1Freq) * gate * mGain;
         outputs[0][i] += sample;
         outputs[1][i] += sample;
@@ -55,15 +50,12 @@ public:
 
     void SetSampleRateAndBlockSize(double sampleRate, int blockSize) override
     {
+      (void) blockSize;
       mOSC.SetSampleRate(sampleRate);
-      mGateBuffer.Resize(blockSize);
     }
 
   public:
     FastSinOscillator<T> mOSC;
-
-  private:
-    WDL_TypedBuf<float> mGateBuffer;
 
   };
 

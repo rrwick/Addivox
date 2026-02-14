@@ -210,11 +210,7 @@
     </ClInclude>
     <ClInclude Include="..\..\..\IPlug\IPlugUtilities.h">
       <Filter>IPlug</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\ControlRamp.h">
-      <Filter>IPlug\Extras\Synth</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h">
+    </ClInclude>    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h">

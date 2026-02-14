@@ -473,7 +473,6 @@
     <ClInclude Include="..\..\..\IPlug\AAX\IPlugAAX_Parameters.h" />
     <ClInclude Include="..\..\..\IPlug\AAX\IPlugAAX_TaperDelegate.h" />
     <ClInclude Include="..\..\..\IPlug\AAX\IPlugAAX.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\ControlRamp.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />

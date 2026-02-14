@@ -15,31 +15,13 @@
  * @copydoc SynthVoice
  */
 
-#include <array>
 #include <stdint.h>
 
 #include "IPlugConstants.h"
-#include "ControlRamp.h"
 
 BEGIN_IPLUG_NAMESPACE
 
 /** A generic synthesizer voice to be controlled by MidiSynth. */
-namespace voiceControlNames
-{
-  /** This enum names the control ramps by which we connect a controller to a synth voice. */
-  enum eControlNames
-  {
-    kVoiceControlGate = 0,
-    kVoiceControlPitch,
-    kVoiceControlPitchBend,
-    kNumVoiceControlRamps
-  };
-}
-
-using namespace voiceControlNames;
-
-using VoiceInputs = ControlRamp::RampArray<kNumVoiceControlRamps>;
-
 #pragma mark - Voice class
 
 class SynthVoice
@@ -52,7 +34,7 @@ public:
   virtual bool GetBusy() const = 0;
 
   /** Trigger is called when the voice should start, or re-trigger.
-   * While the VoiceInputs are sufficient to control a voice, this method can be used to do additional tasks like resetting oscillators.
+   * While the shared control values are sufficient to control a voice, this method can be used to do additional tasks like resetting oscillators.
    * @param level Normalised starting level for this voice, derived from the velocity of the keypress (range 0.0-1.0), or in the case of a re-trigger the existing level
    * @param isRetrigger If this is \c true it means the voice is being re-triggered, and you should accommodate for this in your algorithm */
   virtual void Trigger(double level, bool isRetrigger) {};
@@ -81,7 +63,9 @@ public:
   virtual void SetSampleRateAndBlockSize(double sampleRate, int blockSize) {};
 
 protected:
-  VoiceInputs mInputs;
+  double mGate{0.};
+  double mPitch{0.};
+  double mPitchBend{0.};
   int64_t mLastTriggeredTime{-1};
   uint8_t mChannel{0};
   uint8_t mKey{0};

@@ -13,7 +13,7 @@
 using namespace iplug;
 
 MidiSynth::MidiSynth(int blockSize)
-: mBlockSize(blockSize)
+: mMidiQueue(blockSize)
 {
   for(size_t i = 0; i < mVelocityLUT.size(); ++i)
   {
@@ -23,13 +23,14 @@ MidiSynth::MidiSynth(int blockSize)
   mMidiState = MonoMidiState{0, 0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f};
 }
 
-void MidiSynth::ClearVoiceInputs()
+void MidiSynth::ClearVoiceControls()
 {
   if(!mVoicePtr)
     return;
 
-  for(int i = 0; i < kNumVoiceControlRamps; ++i)
-    mVoicePtr->mInputs[i].Clear();
+  mVoicePtr->mGate = 0.;
+  mVoicePtr->mPitch = 0.;
+  mVoicePtr->mPitchBend = 0.;
 }
 
 bool MidiSynth::IsActiveChannel(uint8_t channel) const
@@ -42,22 +43,14 @@ bool MidiSynth::IsActiveNote(uint8_t channel, uint8_t key) const
   return IsActiveChannel(channel) && mVoicePtr->mKey == key;
 }
 
-void MidiSynth::SendControlToVoiceInput(int ctlIdx, float val, int sampleOffset, int rampSamples)
+void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, int64_t sampleTime, bool retrig)
 {
-  if(mVoiceRamps)
-    mVoiceRamps->at(ctlIdx).SetTarget(val, sampleOffset, rampSamples);
-}
-
-void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig)
-{
-  if(!mVoicePtr || !mVoiceRamps)
+  if(!mVoicePtr)
     return;
 
-  if(!retrig)
-    SendControlToVoiceInput(kVoiceControlGate, velocity, sampleOffset, 1);
-
-  SendControlToVoiceInput(kVoiceControlPitch, pitch, sampleOffset, 1);
-  SendControlToVoiceInput(kVoiceControlPitchBend, mMidiState.currentPitchBend, sampleOffset, 1);
+  mVoicePtr->mGate = retrig ? mVoicePtr->mGate : velocity;
+  mVoicePtr->mPitch = pitch;
+  mVoicePtr->mPitchBend = mMidiState.currentPitchBend;
   mMidiState.activeChannel = static_cast<uint8_t>(channel);
   mVoicePtr->mLastTriggeredTime = sampleTime;
   mVoicePtr->mChannel = channel;
@@ -66,18 +59,18 @@ void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, in
   mVoicePtr->Trigger(velocity, retrig);
 }
 
-void MidiSynth::StopVoice(int sampleOffset)
+void MidiSynth::StopVoice()
 {
-  if(!mVoicePtr || !mVoiceRamps)
+  if(!mVoicePtr)
     return;
 
-  SendControlToVoiceInput(kVoiceControlGate, 0.f, sampleOffset, 1);
+  mVoicePtr->mGate = 0.;
   mVoicePtr->mKey = kNoKey;
 }
 
-void MidiSynth::KillVoice(int sampleOffset, bool hard)
+void MidiSynth::KillVoice(bool hard)
 {
-  StopVoice(sampleOffset);
+  StopVoice();
 
   if(hard && mVoicePtr)
     mVoicePtr->mGain = 0.;
@@ -85,10 +78,10 @@ void MidiSynth::KillVoice(int sampleOffset, bool hard)
 
 void MidiSynth::AllNotesOff()
 {
-  KillVoice(0, false);
+  KillVoice(false);
 }
 
-void MidiSynth::PitchBend(int channel, float value, int sampleOffset)
+void MidiSynth::PitchBend(int channel, float value)
 {
   const uint8_t bendChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
@@ -99,29 +92,22 @@ void MidiSynth::PitchBend(int channel, float value, int sampleOffset)
   mMidiState.currentPitchBend = value;
 
   if(mVoicePtr && mVoicePtr->mKey != kNoKey)
-    SendControlToVoiceInput(kVoiceControlPitchBend, value, sampleOffset, 1);
+    mVoicePtr->mPitchBend = value;
 }
 
-void MidiSynth::ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int blockSize)
+void MidiSynth::ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int numFrames)
 {
-  if(mVoiceRamps)
-  {
-    for(int i = 0; i < kNumVoiceControlRamps; ++i)
-      mVoiceRamps->at(i).Process(blockSize);
-  }
-
   if(mVoicePtr && mVoicePtr->GetBusy())
   {
     // TODO distribute processing across cores
-    mVoicePtr->ProcessSamplesAccumulating(inputs, outputs, nInputs, nOutputs, startIndex, blockSize);
+    mVoicePtr->ProcessSamplesAccumulating(inputs, outputs, nInputs, nOutputs, startIndex, numFrames);
   }
 }
 
-void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, int64_t sampleTime)
+void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int64_t sampleTime)
 {
   const int channel = msg.Channel();
   const int key = msg.NoteNumber();
-  const int sampleOffset = msg.mOffset - blockStart;
   IMidiMsg::EStatusMsg status = msg.StatusMsg();
 
   switch (status)
@@ -132,23 +118,23 @@ void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, in
       if(v == 0)
       {
         if(IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key)))
-          StopVoice(sampleOffset);
+          StopVoice();
       }
       else
-        StartVoice(channel, key, (key - 69.f) / 12.f, mVelocityLUT[v], sampleOffset, sampleTime, false);
+        StartVoice(channel, key, (key - 69.f) / 12.f, mVelocityLUT[v], sampleTime, false);
       break;
     }
     case IMidiMsg::kNoteOff:
     {
       if(IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key)))
-        StopVoice(sampleOffset);
+        StopVoice();
       break;
     }
     case IMidiMsg::kPitchWheel:
     {
       const float bendRange = mMidiState.pitchBendRange;
       const float bend = static_cast<float>(msg.PitchWheel()) * bendRange / 12.f;
-      PitchBend(channel, bend, sampleOffset);
+      PitchBend(channel, bend);
       break;
     }
     case IMidiMsg::kControlChange:
@@ -244,39 +230,38 @@ bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int
   const auto* voice = GetVoice();
   if ((voice != nullptr && voice->GetBusy()) || !mMidiQueue.Empty())
   {
-    int blockSize = mBlockSize;
-    int samplesRemaining = nFrames;
     int startIndex = 0;
 
-    while(samplesRemaining > 0)
+    while(startIndex < nFrames)
     {
-      if(samplesRemaining < blockSize)
-        blockSize = samplesRemaining;
-
-      while (!mMidiQueue.Empty())
+      // Apply any events scheduled for the current sample before rendering audio.
+      while(!mMidiQueue.Empty())
       {
         IMidiMsg msg = mMidiQueue.Peek();
-
-        // we assume the messages are in chronological order. If we find one later than the current block we are done.
-        if (msg.mOffset > startIndex + blockSize) break;
+        if(msg.mOffset > startIndex)
+          break;
 
         if(IsRPNMessage(msg))
-        {
           HandleRPN(msg);
-        }
         else
-        {
-          // message offset is relative to the start of this process block
-          HandlePerformanceMessage(msg, startIndex, mSampleTime);
-        }
+          HandlePerformanceMessage(msg, mSampleTime);
+
         mMidiQueue.Remove();
       }
 
-      ProcessVoice(inputs, outputs, nInputs, nOutputs, startIndex, blockSize);
+      int renderEnd = nFrames;
+      if(!mMidiQueue.Empty())
+      {
+        renderEnd = Clip(static_cast<int>(mMidiQueue.Peek().mOffset), startIndex, nFrames);
+      }
 
-      samplesRemaining -= blockSize;
-      startIndex += blockSize;
-      mSampleTime += blockSize;
+      const int numFrames = renderEnd - startIndex;
+      if(numFrames <= 0)
+        continue;
+
+      ProcessVoice(inputs, outputs, nInputs, nOutputs, startIndex, numFrames);
+      startIndex = renderEnd;
+      mSampleTime += numFrames;
     }
 
     mMidiQueue.Flush(nFrames);

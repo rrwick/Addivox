@@ -17,7 +17,6 @@
 
 #include <stdint.h>
 #include <array>
-#include <memory>
 #include <stdexcept>
 
 #include "IPlugConstants.h"
@@ -47,8 +46,8 @@ public:
   {
     mSampleTime = 0;
     mMidiState.currentPitchBend = 0.f;
-    KillVoice(0, true);
-    ClearVoiceInputs();
+    KillVoice(true);
+    ClearVoiceControls();
   }
 
   void SetSampleRateAndBlockSize(double sampleRate, int blockSize);
@@ -77,8 +76,7 @@ public:
 
     mVoicePtr = pVoice;
     mVoicePtr->mKey = kNoKey;
-    ClearVoiceInputs();
-    mVoiceRamps.reset(ControlRampProcessor::Create(mVoicePtr->mInputs));
+    ClearVoiceControls();
   }
 
   void AddMidiMsgToQueue(const IMidiMsg& msg)
@@ -109,29 +107,25 @@ private:
 
   void SetPitchBendRangeFromRPN(int channel, int range);
 
-  void HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, int64_t sampleTime);
+  void HandlePerformanceMessage(const IMidiMsg& msg, int64_t sampleTime);
   void HandleRPN(IMidiMsg msg);
-  void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int blockSize);
-  void StartVoice(int channel, int key, float pitch, float velocity, int sampleOffset, int64_t sampleTime, bool retrig);
-  void StopVoice(int sampleOffset);
-  void KillVoice(int sampleOffset, bool hard);
+  void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int numFrames);
+  void StartVoice(int channel, int key, float pitch, float velocity, int64_t sampleTime, bool retrig);
+  void StopVoice();
+  void KillVoice(bool hard);
   void AllNotesOff();
-  void PitchBend(int channel, float value, int sampleOffset);
+  void PitchBend(int channel, float value);
   bool IsActiveChannel(uint8_t channel) const;
   bool IsActiveNote(uint8_t channel, uint8_t key) const;
-  void SendControlToVoiceInput(int ctlIdx, float val, int sampleOffset, int rampSamples);
-  void ClearVoiceInputs();
+  void ClearVoiceControls();
 
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);
-  using VoiceControlRamps = ControlRampProcessor::ProcessorArray<kNumVoiceControlRamps>;
 
   // basic MIDI data
   IMidiQueue mMidiQueue;
   std::array<float, 128> mVelocityLUT{};
   MonoMidiState mMidiState{};
   SynthVoice* mVoicePtr{nullptr};
-  std::unique_ptr<VoiceControlRamps> mVoiceRamps;
-  int mBlockSize;
   int64_t mSampleTime{0};
 };
 

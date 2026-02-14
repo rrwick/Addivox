@@ -282,7 +282,6 @@
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsWeb.h" />
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsWin.h" />
     <ClInclude Include="..\..\..\IPlug\CLAP\IPlugCLAP.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\ControlRamp.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />
