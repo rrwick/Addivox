@@ -10,9 +10,12 @@ find_package(iPlug2 REQUIRED)
 
 iplug_add_plugin(${PROJECT_NAME}
   SOURCES
-    AdditiveWindSynth.cpp
-    AdditiveWindSynth.h
-    AdditiveWindSynth_DSP.h
+    src/plugin.cpp
+    src/plugin.h
+    src/ui_layout.h
+    src/synth_engine.h
+    src/voice.h
+    src/midi_synth.h
     resources/resource.h
   RESOURCES
     resources/fonts/Roboto-Regular.ttf

@@ -1,5 +1,6 @@
-#include "AdditiveWindSynth.h"
+#include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
+#include "ui_layout.h"
 
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
@@ -23,51 +24,10 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 
     // pGraphics->EnableLiveEdit(true);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
-
-    // Full UI: 1000 x 500
-    const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 370.f, 35.f, 120.f);
-    const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 370.f, 945.f, 120.f);
-    const IRECT breathMeterBounds = IRECT::MakeXYWH(900.f, 10.f, 40.f, 200.f);
-    const IRECT outMeterBounds = IRECT::MakeXYWH(950.f, 10.f, 40.f, 200.f);
-    const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
-
-    pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), kCtrlTagKeyboard);
-    pGraphics->AttachControl(new IWheelControl(wheelsBounds), kCtrlTagBender);
-    pGraphics->AttachControl(new IVKnobControl(gainKnobBounds, kParamGain, "Gain"));
-    pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "Breath"), kCtrlTagBreathMeter);
-    pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "Out"), kCtrlTagMeter);
-    
-//#ifdef OS_IOS
-//    if(!IsOOPAuv3AppExtension())
-//    {
-//      pGraphics->AttachControl(new IVButtonControl(XYWH(uiBounds.R - 110.f, 10.f, 100.f, 100.f), [pGraphics](IControl* pCaller) {
-//                               dynamic_cast<IGraphicsIOS*>(pGraphics)->LaunchBluetoothMidiDialog(pCaller->GetRECT().L, pCaller->GetRECT().MH());
-//                               SplashClickActionFunc(pCaller);
-//                             }, "BTMIDI"));
-//    }
-//#endif
+    plugin_ui::AttachMainControls(pGraphics, kParamGain, kCtrlTagKeyboard, kCtrlTagBender, kCtrlTagBreathMeter, kCtrlTagMeter);
     
     pGraphics->SetQwertyMidiKeyHandlerFunc([this, pGraphics](const IMidiMsg& msg) {
-      auto* keyboard = pGraphics->GetControlWithTag(kCtrlTagKeyboard)->As<IVKeyboardControl>();
-      const int note = msg.NoteNumber();
-      const bool noteOn = (msg.StatusMsg() == IMidiMsg::kNoteOn) && (msg.Velocity() > 0);
-
-      if(noteOn)
-      {
-        if(mLastQwertyMIDINote >= 0 && mLastQwertyMIDINote != note)
-          keyboard->SetNoteFromMidi(mLastQwertyMIDINote, false);
-
-        keyboard->SetNoteFromMidi(note, true);
-        mLastQwertyMIDINote = note;
-      }
-      else
-      {
-        if(note == mLastQwertyMIDINote)
-        {
-          keyboard->SetNoteFromMidi(note, false);
-          mLastQwertyMIDINote = -1;
-        }
-      }
+      plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
     });
   };
 #endif

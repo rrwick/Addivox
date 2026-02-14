@@ -13,8 +13,8 @@ enum EParams
 };
 
 #if IPLUG_DSP
-// will use EParams in AdditiveWindSynth_DSP.h
-#include "AdditiveWindSynth_DSP.h"
+// will use EParams in synth_engine.h
+#include "synth_engine.h"
 #endif
 
 enum EControlTags
@@ -44,7 +44,7 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
-  AdditiveWindSynthDSP<sample> mDSP;
+  SynthEngine<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
   int mLastQwertyMIDINote{-1};
   std::atomic<float> mBreathLevel{1.f};

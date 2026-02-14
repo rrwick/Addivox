@@ -36,7 +36,7 @@
 		4FA61F8F22E89B4300A92C58 /* IGraphicsIOS_view.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4F63699120A463AF0022C370 /* IGraphicsIOS_view.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		4FA61F9022E8A1F500A92C58 /* IGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F63699420A463AF0022C370 /* IGraphics.cpp */; };
 		4FA61F9122E8A2A700A92C58 /* IGraphicsNanoVG_src.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F8D7DCB224AE821002A1A2A /* IGraphicsNanoVG_src.m */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
-		4FA61F9222E8A2B500A92C58 /* AdditiveWindSynth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF108720A1036200D3092F /* AdditiveWindSynth.cpp */; };
+		4FA61F9222E8A2B500A92C58 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF108720A1036200D3092F /* src/plugin.cpp */; };
 		4FA61F9422E8A71D00A92C58 /* IPlugAUViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF105A20A0E57100D3092F /* IPlugAUViewController.mm */; };
 		4FA61F9722E8A7E900A92C58 /* IPlugAUViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF105A20A0E57100D3092F /* IPlugAUViewController.mm */; };
 		4FB2269720A0D3A800614769 /* AdditiveWindSynth-iOS-LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FB2269620A0D3A800614769 /* AdditiveWindSynth-iOS-LaunchScreen.storyboard */; };
@@ -90,12 +90,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0B295F372F3E62E3004F3229 /* MidiSynth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = MidiSynth.h; path = ../Synth/MidiSynth.h; sourceTree = SOURCE_ROOT; };
-		0B295F3A2F3E62E3004F3229 /* VoiceAllocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = VoiceAllocator.h; path = ../Synth/VoiceAllocator.h; sourceTree = SOURCE_ROOT; };
-		0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VoiceAllocator.cpp; path = ../Synth/VoiceAllocator.cpp; sourceTree = SOURCE_ROOT; };
+		0B295F372F3E62E3004F3229 /* MidiSynth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = MidiSynth.h; path = ../src/midi_synth.h; sourceTree = SOURCE_ROOT; };
 		4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = "AdditiveWindSynth-iOS-MainInterface.storyboard"; path = "../resources/AdditiveWindSynth-iOS-MainInterface.storyboard"; sourceTree = "<group>"; };
 		4F10E7C520B189DD00F5B09B /* AdditiveWindSynth-iOS.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = "AdditiveWindSynth-iOS.entitlements"; sourceTree = "<group>"; };
-		4F11D40623201452003E1647 /* AdditiveWindSynth_DSP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = AdditiveWindSynth_DSP.h; path = ../AdditiveWindSynth_DSP.h; sourceTree = "<group>"; };
+		4F11D40623201452003E1647 /* src/synth_engine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = src/synth_engine.h; path = ../src/synth_engine.h; sourceTree = "<group>"; };
 		4F2020F620A1B2B500F22200 /* scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = scripts; path = ../scripts; sourceTree = "<group>"; };
 		4F2602DB2269F79200C7E97E /* tex */ = {isa = PBXFileReference; lastKnownFileType = folder; name = tex; path = ../resources/tex; sourceTree = "<group>"; };
 		4F3E0F6420A0BC1C00A9C2BE /* AdditiveWindSynth-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "AdditiveWindSynth-iOS-Info.plist"; path = "../resources/AdditiveWindSynth-iOS-Info.plist"; sourceTree = "<group>"; };
@@ -225,8 +223,8 @@
 		4FFF107720A0E5A500D3092F /* wdlendian.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wdlendian.h; path = ../../../WDL/wdlendian.h; sourceTree = "<group>"; };
 		4FFF108220A0FB1400D3092F /* common-ios.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "common-ios.xcconfig"; path = "../../../common-ios.xcconfig"; sourceTree = "<group>"; };
 		4FFF108420A1036200D3092F /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = config.h; path = ../config.h; sourceTree = "<group>"; };
-		4FFF108720A1036200D3092F /* AdditiveWindSynth.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AdditiveWindSynth.cpp; path = ../AdditiveWindSynth.cpp; sourceTree = "<group>"; };
-		4FFF108820A1036200D3092F /* AdditiveWindSynth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AdditiveWindSynth.h; path = ../AdditiveWindSynth.h; sourceTree = "<group>"; };
+		4FFF108720A1036200D3092F /* src/plugin.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/plugin.cpp; path = ../src/plugin.cpp; sourceTree = "<group>"; };
+		4FFF108820A1036200D3092F /* src/plugin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = src/plugin.h; path = ../src/plugin.h; sourceTree = "<group>"; };
 		91236D0D1B08F42B00734C5E /* AdditiveWindSynth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AdditiveWindSynth.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		91236D771B08F59300734C5E /* AdditiveWindSynthAppExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AdditiveWindSynthAppExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -502,12 +500,10 @@
 			isa = PBXGroup;
 			children = (
 				0B295F372F3E62E3004F3229 /* MidiSynth.h */,
-				0B295F3A2F3E62E3004F3229 /* VoiceAllocator.h */,
-				0B295F3B2F3E62E3004F3229 /* VoiceAllocator.cpp */,
 				4FFF108420A1036200D3092F /* config.h */,
-				4FFF108820A1036200D3092F /* AdditiveWindSynth.h */,
-				4FFF108720A1036200D3092F /* AdditiveWindSynth.cpp */,
-				4F11D40623201452003E1647 /* AdditiveWindSynth_DSP.h */,
+				4FFF108820A1036200D3092F /* src/plugin.h */,
+				4FFF108720A1036200D3092F /* src/plugin.cpp */,
+				4F11D40623201452003E1647 /* src/synth_engine.h */,
 				4F8D8BD82316701900EFA1FB /* README.md */,
 				4F8BF48D20A12D2E0081DF0A /* Resources */,
 				4F67D51620A121F60061FB8E /* Other Sources */,
@@ -727,7 +723,7 @@
 				4FA61F8122E89AFF00A92C58 /* IPlugParameter.cpp in Sources */,
 				4F0D965B23099F5A00BFDED0 /* IPlugProcessor.cpp in Sources */,
 				4FA61F7F22E89AFF00A92C58 /* IPlugAPIBase.cpp in Sources */,
-				4FA61F9222E8A2B500A92C58 /* AdditiveWindSynth.cpp in Sources */,
+				4FA61F9222E8A2B500A92C58 /* src/plugin.cpp in Sources */,
 				4FA61F8A22E89B3700A92C58 /* IPopupMenuControl.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

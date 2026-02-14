@@ -4,7 +4,7 @@ IPLUG2_ROOT = ../../..
 
 include ../../../common-wasm.mk
 
-SRC += $(PROJECT_ROOT)/AdditiveWindSynth.cpp
+SRC += $(PROJECT_ROOT)/src/plugin.cpp
 WASM_DSP_SRC += $(IPLUG_EXTRAS_PATH)/Synth/*.cpp
 
 INCLUDE_PATHS += -I$(IPLUG_SYNTH_PATH)

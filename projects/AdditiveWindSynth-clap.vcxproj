@@ -282,7 +282,7 @@
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsWeb.h" />
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsWin.h" />
     <ClInclude Include="..\..\..\IPlug\CLAP\IPlugCLAP.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
+    <ClInclude Include="..\src\midi_synth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugConstants.h" />
@@ -299,8 +299,8 @@
     <ClInclude Include="..\..\..\IPlug\IPlugUtilities.h" />
     <ClInclude Include="..\..\..\IPlug\IPlug_include_in_plug_hdr.h" />
     <ClInclude Include="..\..\..\IPlug\IPlug_include_in_plug_src.h" />
-    <ClInclude Include="..\AdditiveWindSynth.h" />
-    <ClInclude Include="..\AdditiveWindSynth_DSP.h" />
+    <ClInclude Include="..\src/plugin.h" />
+    <ClInclude Include="..\src/synth_engine.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -335,7 +335,7 @@
     <ClCompile Include="..\..\..\IPlug\IPlugPluginBase.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugProcessor.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugTimer.cpp" />
-    <ClCompile Include="..\AdditiveWindSynth.cpp" />
+    <ClCompile Include="..\src/plugin.cpp" />
     <ClCompile Include="..\..\..\WDL\win32_utf8.c" />
   </ItemGroup>
   <ItemGroup>

@@ -303,7 +303,7 @@
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsMac_view.h" />
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsWeb.h" />
     <ClInclude Include="..\..\..\IGraphics\Platforms\IGraphicsWin.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
+    <ClInclude Include="..\src\midi_synth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugConstants.h" />
@@ -328,8 +328,8 @@
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_Parameter.h" />
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_ProcessorBase.h" />
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_View.h" />
-    <ClInclude Include="..\AdditiveWindSynth.h" />
-    <ClInclude Include="..\AdditiveWindSynth_DSP.h" />
+    <ClInclude Include="..\src/plugin.h" />
+    <ClInclude Include="..\src/synth_engine.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -392,7 +392,7 @@
     <ClCompile Include="..\..\..\IPlug\IPlugTimer.cpp" />
     <ClCompile Include="..\..\..\IPlug\VST3\IPlugVST3.cpp" />
     <ClCompile Include="..\..\..\IPlug\VST3\IPlugVST3_ProcessorBase.cpp" />
-    <ClCompile Include="..\AdditiveWindSynth.cpp" />
+    <ClCompile Include="..\src/plugin.cpp" />
     <ClCompile Include="..\..\..\WDL\win32_utf8.c" />
   </ItemGroup>
   <ItemGroup>

@@ -410,7 +410,7 @@
     <ClCompile Include="..\..\..\IPlug\IPlugPluginBase.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugProcessor.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugTimer.cpp" />
-    <ClCompile Include="..\AdditiveWindSynth.cpp" />
+    <ClCompile Include="..\src/plugin.cpp" />
     <ClCompile Include="..\..\..\WDL\win32_utf8.c" />
   </ItemGroup>
   <ItemGroup>
@@ -473,7 +473,7 @@
     <ClInclude Include="..\..\..\IPlug\AAX\IPlugAAX_Parameters.h" />
     <ClInclude Include="..\..\..\IPlug\AAX\IPlugAAX_TaperDelegate.h" />
     <ClInclude Include="..\..\..\IPlug\AAX\IPlugAAX.h" />
-    <ClInclude Include="..\..\..\IPlug\Extras\Synth\MidiSynth.h" />
+    <ClInclude Include="..\src\midi_synth.h" />
     <ClInclude Include="..\..\..\IPlug\Extras\Synth\SynthVoice.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\..\IPlug\IPlugConstants.h" />
@@ -494,8 +494,8 @@
     <ClInclude Include="..\..\..\IPlug\IPlug_include_in_plug_src.h" />
     <ClInclude Include="..\..\..\IPlug\ISender.h" />
     <ClInclude Include="..\config.h" />
-    <ClInclude Include="..\AdditiveWindSynth.h" />
-    <ClInclude Include="..\AdditiveWindSynth_DSP.h" />
+    <ClInclude Include="..\src/plugin.h" />
+    <ClInclude Include="..\src/synth_engine.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>

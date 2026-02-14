@@ -3,7 +3,7 @@
 IPLUG2_ROOT = ../../..
 include ../../../common-web.mk
 
-SRC += $(PROJECT_ROOT)/AdditiveWindSynth.cpp
+SRC += $(PROJECT_ROOT)/src/plugin.cpp
 
 WAM_SRC += $(IPLUG_EXTRAS_PATH)/Synth/*.cpp
 
