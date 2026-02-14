@@ -2,6 +2,7 @@
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "IControls.h"
+#include <atomic>
 
 const int kNumPresets = 1;
 
@@ -19,6 +20,7 @@ enum EParams
 enum EControlTags
 {
   kCtrlTagMeter = 0,
+  kCtrlTagBreathMeter,
   kCtrlTagKeyboard,
   kCtrlTagBender,
   kNumCtrlTags
@@ -45,5 +47,7 @@ private:
   AdditiveWindSynthDSP<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
   int mLastQwertyMIDINote{-1};
+  std::atomic<float> mBreathLevel{0.f};
+  double mLastSentBreathLevel{-1.};
 #endif
 };

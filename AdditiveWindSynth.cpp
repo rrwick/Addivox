@@ -29,8 +29,10 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds), kCtrlTagKeyboard);
     pGraphics->AttachControl(new IWheelControl(wheelsBounds), kCtrlTagBender);
     const IRECT controls = b.GetGridCell(1, 2, 2);
+    const IRECT meterColumn = controls.GetFromRight(190).GetPadded(-20.f);
     pGraphics->AttachControl(new IVKnobControl(controls.GetGridCell(0, 2, 6).GetCentredInside(90), kParamGain, "Gain"));
-    pGraphics->AttachControl(new IVLEDMeterControl<2>(controls.GetFromRight(100).GetPadded(-30)), kCtrlTagMeter);
+    pGraphics->AttachControl(new IVLEDMeterControl<2>(meterColumn.GetFromLeft(90).GetPadded(-10.f), "Out"), kCtrlTagMeter);
+    pGraphics->AttachControl(new IVMeterControl<1>(meterColumn.GetFromRight(90).GetPadded(-10.f), "Breath"), kCtrlTagBreathMeter);
     
 #ifndef AUv3_API
     pGraphics->AttachControl(new IVButtonControl(keyboardBounds.GetFromTRHC(200, 30).GetTranslated(0, -30), SplashClickActionFunc,
@@ -89,6 +91,12 @@ void AdditiveWindSynth::ProcessBlock(sample** inputs, sample** outputs, int nFra
 void AdditiveWindSynth::OnIdle()
 {
   mMeterSender.TransmitData(*this);
+  const double breathLevel = mBreathLevel.load(std::memory_order_relaxed);
+  if(breathLevel != mLastSentBreathLevel)
+  {
+    SendControlValueFromDelegate(kCtrlTagBreathMeter, breathLevel);
+    mLastSentBreathLevel = breathLevel;
+  }
 }
 
 void AdditiveWindSynth::OnReset()
@@ -96,10 +104,17 @@ void AdditiveWindSynth::OnReset()
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mMeterSender.Reset(GetSampleRate());
   mLastQwertyMIDINote = -1;
+  mBreathLevel.store(0.f, std::memory_order_relaxed);
+  mLastSentBreathLevel = -1.;
 }
 
 void AdditiveWindSynth::ProcessMidiMsg(const IMidiMsg& msg)
 {
+  if(msg.StatusMsg() == IMidiMsg::kControlChange && msg.ControlChangeIdx() == IMidiMsg::kBreathController)
+  {
+    mBreathLevel.store(static_cast<float>(msg.ControlChange(IMidiMsg::kBreathController)), std::memory_order_relaxed);
+  }
+
   mDSP.ProcessMidiMsg(msg);
   SendMidiMsg(msg);
 }
