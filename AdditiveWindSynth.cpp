@@ -100,21 +100,8 @@ void AdditiveWindSynth::OnReset()
 
 void AdditiveWindSynth::ProcessMidiMsg(const IMidiMsg& msg)
 {
-  switch (msg.StatusMsg())
-  {
-    case IMidiMsg::kNoteOn:
-    case IMidiMsg::kNoteOff:
-    case IMidiMsg::kPolyAftertouch:
-    case IMidiMsg::kControlChange:
-    case IMidiMsg::kProgramChange:
-    case IMidiMsg::kChannelAftertouch:
-    case IMidiMsg::kPitchWheel:
-      mDSP.ProcessMidiMsg(msg);
-      SendMidiMsg(msg);
-      break;
-    default:
-      break;
-  }
+  mDSP.ProcessMidiMsg(msg);
+  SendMidiMsg(msg);
 }
 
 void AdditiveWindSynth::OnParamChange(int paramIdx)

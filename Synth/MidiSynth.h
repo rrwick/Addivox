@@ -44,8 +44,9 @@ public:
     
   void Reset()
   {
-    mSampleTime = 0;
     mMidiState.currentPitchBend = 0.f;
+    mActiveChannel = 0;
+    mActiveKey = kNoKey;
     KillVoice(true);
     ClearVoiceControls();
   }
@@ -75,7 +76,8 @@ public:
       throw std::runtime_error{"MidiSynth: only one voice is supported"};
 
     mVoicePtr = pVoice;
-    mVoicePtr->mKey = kNoKey;
+    mActiveChannel = 0;
+    mActiveKey = kNoKey;
     ClearVoiceControls();
   }
 
@@ -107,10 +109,10 @@ private:
 
   void SetPitchBendRangeFromRPN(int channel, int range);
 
-  void HandlePerformanceMessage(const IMidiMsg& msg, int64_t sampleTime);
+  void HandlePerformanceMessage(const IMidiMsg& msg);
   void HandleRPN(IMidiMsg msg);
   void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int numFrames);
-  void StartVoice(int channel, int key, float pitch, float velocity, int64_t sampleTime, bool retrig);
+  void StartVoice(int channel, int key, float pitch, float velocity, bool retrig);
   void StopVoice();
   void KillVoice(bool hard);
   void AllNotesOff();
@@ -126,7 +128,8 @@ private:
   std::array<float, 128> mVelocityLUT{};
   MonoMidiState mMidiState{};
   SynthVoice* mVoicePtr{nullptr};
-  int64_t mSampleTime{0};
+  uint8_t mActiveChannel{0};
+  uint8_t mActiveKey{kNoKey};
 };
 
 END_IPLUG_NAMESPACE

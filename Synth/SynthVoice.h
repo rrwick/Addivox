@@ -66,9 +66,6 @@ protected:
   double mGate{0.};
   double mPitch{0.};
   double mPitchBend{0.};
-  int64_t mLastTriggeredTime{-1};
-  uint8_t mChannel{0};
-  uint8_t mKey{0};
   double mGain{0.}; // used by MidiSynth to hard-kill the voice.
 
   friend class MidiSynth;

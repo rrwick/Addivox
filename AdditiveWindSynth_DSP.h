@@ -100,13 +100,8 @@ public:
 
   void SetParam(int paramIdx, double value)
   {
-    switch (paramIdx) {
-      case kParamGain:
-        mGainTarget = (T) value / 100.;
-        break;
-      default:
-        break;
-    }
+    (void) paramIdx;
+    mGainTarget = (T) value / 100.;
   }
   
 public:

@@ -35,15 +35,15 @@ void MidiSynth::ClearVoiceControls()
 
 bool MidiSynth::IsActiveChannel(uint8_t channel) const
 {
-  return mVoicePtr && mVoicePtr->mKey != kNoKey && mMidiState.activeChannel == channel;
+  return mVoicePtr && mActiveKey != kNoKey && mActiveChannel == channel;
 }
 
 bool MidiSynth::IsActiveNote(uint8_t channel, uint8_t key) const
 {
-  return IsActiveChannel(channel) && mVoicePtr->mKey == key;
+  return IsActiveChannel(channel) && mActiveKey == key;
 }
 
-void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, int64_t sampleTime, bool retrig)
+void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, bool retrig)
 {
   if(!mVoicePtr)
     return;
@@ -51,10 +51,9 @@ void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, in
   mVoicePtr->mGate = retrig ? mVoicePtr->mGate : velocity;
   mVoicePtr->mPitch = pitch;
   mVoicePtr->mPitchBend = mMidiState.currentPitchBend;
+  mActiveChannel = static_cast<uint8_t>(channel);
+  mActiveKey = static_cast<uint8_t>(key);
   mMidiState.activeChannel = static_cast<uint8_t>(channel);
-  mVoicePtr->mLastTriggeredTime = sampleTime;
-  mVoicePtr->mChannel = channel;
-  mVoicePtr->mKey = key;
   mVoicePtr->mGain = 1.;
   mVoicePtr->Trigger(velocity, retrig);
 }
@@ -65,7 +64,7 @@ void MidiSynth::StopVoice()
     return;
 
   mVoicePtr->mGate = 0.;
-  mVoicePtr->mKey = kNoKey;
+  mActiveKey = kNoKey;
 }
 
 void MidiSynth::KillVoice(bool hard)
@@ -85,13 +84,13 @@ void MidiSynth::PitchBend(int channel, float value)
 {
   const uint8_t bendChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
-  if(mVoicePtr && mVoicePtr->mKey != kNoKey && !IsActiveChannel(bendChannel))
+  if(mVoicePtr && mActiveKey != kNoKey && !IsActiveChannel(bendChannel))
     return;
 
   mMidiState.activeChannel = bendChannel;
   mMidiState.currentPitchBend = value;
 
-  if(mVoicePtr && mVoicePtr->mKey != kNoKey)
+  if(mVoicePtr && mActiveKey != kNoKey)
     mVoicePtr->mPitchBend = value;
 }
 
@@ -104,7 +103,7 @@ void MidiSynth::ProcessVoice(sample** inputs, sample** outputs, int nInputs, int
   }
 }
 
-void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int64_t sampleTime)
+void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg)
 {
   const int channel = msg.Channel();
   const int key = msg.NoteNumber();
@@ -121,7 +120,7 @@ void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int64_t sampleTime
           StopVoice();
       }
       else
-        StartVoice(channel, key, (key - 69.f) / 12.f, mVelocityLUT[v], sampleTime, false);
+        StartVoice(channel, key, (key - 69.f) / 12.f, mVelocityLUT[v], false);
       break;
     }
     case IMidiMsg::kNoteOff:
@@ -174,7 +173,7 @@ bool IsRPNMessage(IMidiMsg msg)
 void MidiSynth::HandleRPN(IMidiMsg msg)
 {
   int channel = msg.Channel();
-  if(mVoicePtr && mVoicePtr->mKey != kNoKey && channel != mVoicePtr->mChannel)
+  if(mVoicePtr && mActiveKey != kNoKey && channel != mActiveChannel)
     return;
 
   MonoMidiState& state = mMidiState;
@@ -244,7 +243,7 @@ bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int
         if(IsRPNMessage(msg))
           HandleRPN(msg);
         else
-          HandlePerformanceMessage(msg, mSampleTime);
+          HandlePerformanceMessage(msg);
 
         mMidiQueue.Remove();
       }
@@ -261,7 +260,6 @@ bool MidiSynth::ProcessBlock(sample** inputs, sample** outputs, int nInputs, int
 
       ProcessVoice(inputs, outputs, nInputs, nOutputs, startIndex, numFrames);
       startIndex = renderEnd;
-      mSampleTime += numFrames;
     }
 
     mMidiQueue.Flush(nFrames);
