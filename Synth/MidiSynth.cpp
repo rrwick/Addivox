@@ -20,12 +20,7 @@ MidiSynth::MidiSynth(int blockSize)
     mVelocityLUT[i] = i / 127.f;
   }
 
-  // initialize Channel states
-  for(int i=0; i<16; ++i)
-  {
-    mChannelStates[i] = ChannelState{0};
-    mChannelStates[i].pitchBendRange = kDefaultPitchBendRange;
-  }
+  mMidiState = MonoMidiState{0, 0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f};
 }
 
 void MidiSynth::ClearVoiceInputs()
@@ -39,7 +34,7 @@ void MidiSynth::ClearVoiceInputs()
 
 bool MidiSynth::IsActiveChannel(uint8_t channel) const
 {
-  return mVoicePtr && mVoicePtr->mKey != kNoKey && mVoicePtr->mChannel == channel;
+  return mVoicePtr && mVoicePtr->mKey != kNoKey && mMidiState.activeChannel == channel;
 }
 
 bool MidiSynth::IsActiveNote(uint8_t channel, uint8_t key) const
@@ -62,6 +57,8 @@ void MidiSynth::StartVoice(int channel, int key, float pitch, float velocity, in
     SendControlToVoiceInput(kVoiceControlGate, velocity, sampleOffset, 1);
 
   SendControlToVoiceInput(kVoiceControlPitch, pitch, sampleOffset, 1);
+  SendControlToVoiceInput(kVoiceControlPitchBend, mMidiState.currentPitchBend, sampleOffset, 1);
+  mMidiState.activeChannel = static_cast<uint8_t>(channel);
   mVoicePtr->mLastTriggeredTime = sampleTime;
   mVoicePtr->mChannel = channel;
   mVoicePtr->mKey = key;
@@ -93,7 +90,15 @@ void MidiSynth::AllNotesOff()
 
 void MidiSynth::PitchBend(int channel, float value, int sampleOffset)
 {
-  if(IsActiveChannel(static_cast<uint8_t>(channel)))
+  const uint8_t bendChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+
+  if(mVoicePtr && mVoicePtr->mKey != kNoKey && !IsActiveChannel(bendChannel))
+    return;
+
+  mMidiState.activeChannel = bendChannel;
+  mMidiState.currentPitchBend = value;
+
+  if(mVoicePtr && mVoicePtr->mKey != kNoKey)
     SendControlToVoiceInput(kVoiceControlPitchBend, value, sampleOffset, 1);
 }
 
@@ -141,7 +146,7 @@ void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, in
     }
     case IMidiMsg::kPitchWheel:
     {
-      const float bendRange = mChannelStates[channel].pitchBendRange;
+      const float bendRange = mMidiState.pitchBendRange;
       const float bend = static_cast<float>(msg.PitchWheel()) * bendRange / 12.f;
       PitchBend(channel, bend, sampleOffset);
       break;
@@ -167,11 +172,10 @@ void MidiSynth::HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, in
   }
 }
 
-void MidiSynth::SetChannelPitchBendRange(int channelParam, int rangeParam)
+void MidiSynth::SetPitchBendRangeFromRPN(int channel, int rangeParam)
 {
-  const int channel = Clip(channelParam, 0, 15);
-  const int range = Clip(rangeParam, 0, 96);
-  mChannelStates[channel].pitchBendRange = range;
+  mMidiState.activeChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+  mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(rangeParam, 0, 96));
 }
 
 bool IsRPNMessage(IMidiMsg msg)
@@ -184,7 +188,11 @@ bool IsRPNMessage(IMidiMsg msg)
 void MidiSynth::HandleRPN(IMidiMsg msg)
 {
   int channel = msg.Channel();
-  ChannelState& state = mChannelStates[channel];
+  if(mVoicePtr && mVoicePtr->mKey != kNoKey && channel != mVoicePtr->mChannel)
+    return;
+
+  MonoMidiState& state = mMidiState;
+  state.activeChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
   uint8_t valueByte = msg.mData2;
   int param, value;
@@ -217,7 +225,7 @@ void MidiSynth::HandleRPN(IMidiMsg msg)
       switch(param)
       {
         case 0: // RPN 0 : pitch bend range
-          SetChannelPitchBendRange(channel, value);
+          SetPitchBendRangeFromRPN(channel, value);
           break;
         default:
           break;

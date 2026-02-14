@@ -33,7 +33,7 @@ class MidiSynth
 public:
   /** This defines the size in samples of a single block of processing that will be done by the synth. */
   static constexpr int kDefaultBlockSize = 32;
-  static constexpr int kDefaultPitchBendRange = 12;
+  static constexpr int kDefaultPitchBendRange = 2;
 
 #pragma mark - MidiSynth class
 
@@ -46,21 +46,17 @@ public:
   void Reset()
   {
     mSampleTime = 0;
+    mMidiState.currentPitchBend = 0.f;
     KillVoice(0, true);
     ClearVoiceInputs();
   }
 
   void SetSampleRateAndBlockSize(double sampleRate, int blockSize);
 
-  /** Set the pitch bend range in semitones for all channels. */
+  /** Set the pitch bend range in semitones for the active mono channel state. */
   void SetPitchBendRange(int pitchBendRange)
   {
-    const int clipped = Clip(pitchBendRange, 0, 96);
-
-    for(int i=0; i<16; ++i)
-    {
-      mChannelStates[i].pitchBendRange = clipped;
-    }
+    mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(pitchBendRange, 0, 96));
   }
 
   SynthVoice* GetVoice()
@@ -100,18 +96,18 @@ public:
   bool ProcessBlock(sample** inputs, sample** outputs, int nInputs, int nOutputs, int nFrames);
 
 private:
-
-  // Maintain per-channel state for RPN decoding and pitch bend range.
-  struct ChannelState
+  struct MonoMidiState
   {
+    uint8_t activeChannel{0};
     uint8_t paramMSB;
     uint8_t paramLSB;
     uint8_t valueMSB;
     uint8_t valueLSB;
     uint8_t pitchBendRange; // in semitones
+    float currentPitchBend;
   };
 
-  void SetChannelPitchBendRange(int channel, int range);
+  void SetPitchBendRangeFromRPN(int channel, int range);
 
   void HandlePerformanceMessage(const IMidiMsg& msg, int blockStart, int64_t sampleTime);
   void HandleRPN(IMidiMsg msg);
@@ -132,7 +128,7 @@ private:
   // basic MIDI data
   IMidiQueue mMidiQueue;
   std::array<float, 128> mVelocityLUT{};
-  ChannelState mChannelStates[16]{};
+  MonoMidiState mMidiState{};
   SynthVoice* mVoicePtr{nullptr};
   std::unique_ptr<VoiceControlRamps> mVoiceRamps;
   int mBlockSize;
