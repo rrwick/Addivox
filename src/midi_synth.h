@@ -5,8 +5,6 @@
  * @copydoc MidiSynth
  */
 
-#include <array>
-#include <cassert>
 #include <stdint.h>
 
 #include "IPlugConstants.h"
@@ -27,10 +25,7 @@ public:
   MidiSynth(int blockSize = kDefaultBlockSize)
   : mMidiQueue(blockSize)
   {
-    for(size_t i = 0; i < mVelocityLUT.size(); ++i)
-      mVelocityLUT[i] = i / 127.f;
-
-    mMidiState = MonoMidiState{0, 0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f, 1.f};
+    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f, 1.f};
     ClearVoiceControls();
   }
 
@@ -43,7 +38,7 @@ public:
     mMidiState.currentBreath = 1.f;
     mActiveChannel = 0;
     mActiveKey = kNoKey;
-    KillVoice(true);
+    StopVoice();
     ClearVoiceControls();
   }
 
@@ -51,7 +46,7 @@ public:
   {
     Reset();
     mMidiQueue.Resize(blockSize);
-    mVoice.SetSampleRateAndBlockSize(sampleRate, blockSize);
+    mVoice.SetSampleRate(sampleRate);
   }
 
   /** Set the pitch bend range in semitones for the active mono channel state. */
@@ -66,13 +61,9 @@ public:
   }
 
   /** Processes a block of audio samples
-   * @param inputs Pointer to input Arrays
    * @param outputs Pointer to output Arrays
-   * @param nInputs The number of input channels that contain valid data
-   * @param nOutputs input channels that contain valid data
-   * @param nFrames The number of sample frames to process
-   * @return \c true if the synth is silent */
-  bool ProcessBlock(sample** inputs, sample** outputs, int nInputs, int nOutputs, int nFrames)
+   * @param nFrames The number of sample frames to process */
+  void ProcessBlock(sample** outputs, int nFrames)
   {
     if(mVoice.GetBusy() || !mMidiQueue.Empty())
     {
@@ -103,24 +94,18 @@ public:
         if(numFrames <= 0)
           continue;
 
-        ProcessVoice(inputs, outputs, nInputs, nOutputs, startIndex, numFrames);
+        if(mVoice.GetBusy())
+          mVoice.ProcessSamplesAccumulating(outputs, startIndex, numFrames);
         startIndex = renderEnd;
       }
 
       mMidiQueue.Flush(nFrames);
     }
-    else // empty block
-    {
-      return true;
-    }
-
-    return false; // made some noise
   }
 
 private:
   struct MonoMidiState
   {
-    uint8_t activeChannel{0};
     uint8_t paramMSB;
     uint8_t paramLSB;
     uint8_t valueMSB;
@@ -139,12 +124,6 @@ private:
     return (cc == 0x64) || (cc == 0x65) || (cc == 0x26) || (cc == 0x06);
   }
 
-  void SetPitchBendRangeFromRPN(int channel, int rangeParam)
-  {
-    mMidiState.activeChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
-    mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(rangeParam, 0, 96));
-  }
-
   void HandlePerformanceMessage(const IMidiMsg& msg)
   {
     const int channel = msg.Channel();
@@ -155,15 +134,14 @@ private:
     {
       case IMidiMsg::kNoteOn:
       {
-        const int v = Clip(msg.Velocity(), 0, 127);
-        if(v == 0)
+        if(msg.Velocity() == 0)
         {
           if(IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key)))
             StopVoice();
         }
         else
         {
-          StartVoice(channel, key, (key - 69.f) / 12.f, mVelocityLUT[v], false);
+          StartVoice(channel, key, (key - 69.f) / 12.f);
         }
         break;
       }
@@ -188,7 +166,7 @@ private:
             Breath(channel, static_cast<float>(msg.ControlChange(IMidiMsg::kBreathController)));
             break;
           case IMidiMsg::kAllNotesOff:
-            AllNotesOff();
+            StopVoice();
             break;
           default:
             break;
@@ -207,7 +185,6 @@ private:
       return;
 
     MonoMidiState& state = mMidiState;
-    state.activeChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
     const uint8_t valueByte = msg.mData2;
     int param = 0;
@@ -237,7 +214,7 @@ private:
           value = state.valueMSB & 0xFF;
 
         if(param == 0) // RPN 0 : pitch bend range
-          SetPitchBendRangeFromRPN(channel, value);
+          mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(value, 0, 96));
 
         break;
       }
@@ -246,41 +223,21 @@ private:
     }
   }
 
-  void ProcessVoice(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIndex, int numFrames)
+  void StartVoice(int channel, int key, float pitch)
   {
-    if(mVoice.GetBusy())
-      mVoice.ProcessSamplesAccumulating(inputs, outputs, nInputs, nOutputs, startIndex, numFrames);
-  }
-
-  void StartVoice(int channel, int key, float pitch, float velocity, bool retrig)
-  {
-    mVoice.mGate = retrig ? mVoice.mGate : velocity;
+    mVoice.mNoteOn = true;
     mVoice.mPitch = pitch;
     mVoice.mPitchBend = mMidiState.currentPitchBend;
     mVoice.mBreath = mMidiState.currentBreath;
     mActiveChannel = static_cast<uint8_t>(channel);
     mActiveKey = static_cast<uint8_t>(key);
-    mMidiState.activeChannel = static_cast<uint8_t>(channel);
-    mVoice.mGain = 1.;
-    mVoice.Trigger(velocity, retrig);
+    mVoice.Trigger();
   }
 
   void StopVoice()
   {
-    mVoice.mGate = 0.;
+    mVoice.mNoteOn = false;
     mActiveKey = kNoKey;
-  }
-
-  void KillVoice(bool hard)
-  {
-    StopVoice();
-    if(hard)
-      mVoice.mGain = 0.;
-  }
-
-  void AllNotesOff()
-  {
-    KillVoice(false);
   }
 
   void PitchBend(int channel, float value)
@@ -290,7 +247,6 @@ private:
     if(mActiveKey != kNoKey && !IsActiveChannel(bendChannel))
       return;
 
-    mMidiState.activeChannel = bendChannel;
     mMidiState.currentPitchBend = value;
 
     if(mActiveKey != kNoKey)
@@ -304,7 +260,6 @@ private:
     if(mActiveKey != kNoKey && !IsActiveChannel(breathChannel))
       return;
 
-    mMidiState.activeChannel = breathChannel;
     mMidiState.currentBreath = value;
 
     if(mActiveKey != kNoKey)
@@ -323,7 +278,7 @@ private:
 
   void ClearVoiceControls()
   {
-    mVoice.mGate = 0.;
+    mVoice.mNoteOn = false;
     mVoice.mPitch = 0.;
     mVoice.mPitchBend = 0.;
     mVoice.mBreath = mMidiState.currentBreath;
@@ -332,7 +287,6 @@ private:
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);
 
   IMidiQueue mMidiQueue;
-  std::array<float, 128> mVelocityLUT{};
   MonoMidiState mMidiState{};
   VoiceT mVoice{};
   uint8_t mActiveChannel{0};

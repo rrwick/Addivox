@@ -18,7 +18,7 @@ public:
     for(int i = 0; i < kNumOutputs; i++)
       memset(outputs[i], 0, nFrames * sizeof(T));
 
-    mSynth.ProcessBlock(nullptr, outputs, 0, kNumOutputs, nFrames);
+    mSynth.ProcessBlock(outputs, nFrames);
 
     for(int s = 0; s < nFrames; s++)
     {
