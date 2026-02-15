@@ -6,6 +6,7 @@ void Oscillator::SetSampleRate(double sampleRate)
 {
   mSampleRate = (sampleRate > 0.0) ? static_cast<float>(sampleRate) : 44100.f;
   UpdatePhaseIncrement();
+  mBreathSmoothingCoeff = 1.f - std::exp(-1.f / (kBreathSmoothingTimeSec * mSampleRate));
 }
 
 void Oscillator::SetFrequency(float frequencyHz)
@@ -27,13 +28,10 @@ void Oscillator::Reset(float phase01)
 
 float Oscillator::Process()
 {
+  mLevel += (mBreath - mLevel) * mBreathSmoothingCoeff;
   const float out = std::sin(kTwoPi * mPhase) * mLevel;
 
-  const float newPhase = mPhase + mPhaseIncrement;
-  if ((mPhase < 0.5f && newPhase >= 0.5f) || (mPhase < 1.f && newPhase >= 1.f))
-    mLevel = mBreath;
-
-  mPhase = newPhase;
+  mPhase += mPhaseIncrement;
   if(mPhase >= 1.f)
     mPhase -= 1.f;
 
