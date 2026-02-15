@@ -14,16 +14,26 @@ void Oscillator::SetFrequency(float frequencyHz)
   UpdatePhaseIncrement();
 }
 
+void Oscillator::SetBreath(float breath)
+{
+  mBreath = breath;
+}
+
 void Oscillator::Reset(float phase01)
 {
   mPhase = phase01 - std::floor(phase01);
+  mLevel = mBreath;
 }
 
 float Oscillator::Process()
 {
-  const float out = std::sin(kTwoPi * mPhase);
+  const float out = std::sin(kTwoPi * mPhase) * mLevel;
 
-  mPhase += mPhaseIncrement;
+  const float newPhase = mPhase + mPhaseIncrement;
+  if ((mPhase < 0.5f && newPhase >= 0.5f) || (mPhase < 1.f && newPhase >= 1.f))
+    mLevel = mBreath;
+
+  mPhase = newPhase;
   if(mPhase >= 1.f)
     mPhase -= 1.f;
 

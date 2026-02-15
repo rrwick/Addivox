@@ -27,7 +27,7 @@ private:
   float mPitch{0.f};
   float mPitchBend{0.f};
   float mBreath{1.f};
-  Oscillator mOSC;
+  Oscillator mOsc;
 };
 
 extern template class SynthVoice<float>;
