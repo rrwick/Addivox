@@ -10,8 +10,11 @@ find_package(iPlug2 REQUIRED)
 
 iplug_add_plugin(${PROJECT_NAME}
   SOURCES
+    src/oscillator.cpp
+    src/oscillator.h
     src/plugin.cpp
     src/plugin.h
+    src/voice.cpp
     src/ui_layout.h
     src/synth_engine.h
     src/voice.h

@@ -44,9 +44,17 @@
 		4F35DEB0207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */; };
 		4F35DEB1207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */; };
 		4F3862EF2014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110011 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110021 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4F3862F12014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110012 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110022 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4F3862F22014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110013 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110023 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4F3862F32014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110014 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110024 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4F3EE1BF231438D000004786 /* AdditiveWindSynth.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4FD290A8137C34D700CEBE7E /* AdditiveWindSynth.icns */; };
 		4F3EE1C0231438D000004786 /* AdditiveWindSynth-macOS-MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 4F1B4AE32014D33600BC64D4 /* AdditiveWindSynth-macOS-MainMenu.xib */; };
 		4F3EE1C2231438D000004786 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
@@ -76,6 +84,8 @@
 		4F3EE1DC231438D000004786 /* IControls.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F63695920A463090022C370 /* IControls.cpp */; };
 		4F3EE1DD231438D000004786 /* IGraphicsMac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58120E4AFEE004157C8 /* IGraphicsMac.mm */; };
 		4F3EE1DE231438D000004786 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110015 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110025 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9A82F5213DE80300BE63A4 /* IPopupMenuControl.cpp */; };
 		4F3EE1E0231438D000004786 /* IPlugAPIBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F78D8ED13B63BA40032E0F3 /* IPlugAPIBase.cpp */; };
 		4F3EE1E1231438D000004786 /* IPlugPluginBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */; };
@@ -114,6 +124,8 @@
 		4F78BE1222E73DD900AD537E /* AUv3Framework.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F78BE1022E73DD900AD537E /* AUv3Framework.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4F78BE1422E7406D00AD537E /* src/plugin.h in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862EE2014BBEC0009F402 /* src/plugin.h */; };
 		4F78BE1522E7406D00AD537E /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110016 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110026 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4F78BE1622E7406D00AD537E /* IGraphicsMac_view.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58620E4AFEF004157C8 /* IGraphicsMac_view.mm */; };
 		4F78BE1722E7406D00AD537E /* IGraphicsMac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58120E4AFEE004157C8 /* IGraphicsMac.mm */; };
 		4F78BE1822E7406D00AD537E /* IGraphicsCoreText.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4F6FD2AF22675B6300FC59E6 /* IGraphicsCoreText.mm */; };
@@ -221,6 +233,8 @@
 		4FD8699C27206006005A5F28 /* IGraphicsEditorDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8C10DE20BA2796006320CD /* IGraphicsEditorDelegate.cpp */; };
 		4FD8699D27206006005A5F28 /* IGraphicsNanoVG_src.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6369DC20A464BB0022C370 /* IGraphicsNanoVG_src.m */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		4FD8699E27206006005A5F28 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
+		E1A1D0019D4E4FA8A1110017 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
+		E1A1D0019D4E4FA8A1110027 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
 		4FD8699F27206006005A5F28 /* IPlugAPIBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F78D8ED13B63BA40032E0F3 /* IPlugAPIBase.cpp */; };
 		4FD869A027206006005A5F28 /* IGraphicsMac_view.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58620E4AFEF004157C8 /* IGraphicsMac_view.mm */; };
 		4FD869A127206006005A5F28 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
@@ -366,6 +380,10 @@
 		4F35DEAC207E5C5A00867D8F /* IPlugPluginBase.h */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugPluginBase.h; path = ../../../IPlug/IPlugPluginBase.h; sourceTree = "<group>"; tabWidth = 2; };
 		4F3862ED2014BBEC0009F402 /* src/plugin.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/plugin.cpp; path = ../src/plugin.cpp; sourceTree = "<group>"; };
 		4F3862EE2014BBEC0009F402 /* src/plugin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = src/plugin.h; path = ../src/plugin.h; sourceTree = "<group>"; };
+		E1A1D0019D4E4FA8A1110001 /* src/oscillator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = src/oscillator.h; path = ../src/oscillator.h; sourceTree = "<group>"; };
+		E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/oscillator.cpp; path = ../src/oscillator.cpp; sourceTree = "<group>"; };
+		E1A1D0019D4E4FA8A1110003 /* src/voice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = src/voice.h; path = ../src/voice.h; sourceTree = "<group>"; };
+		E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/voice.cpp; path = ../src/voice.cpp; sourceTree = "<group>"; };
 		4F3862FF2014BCC70009F402 /* scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = scripts; path = ../scripts; sourceTree = "<group>"; };
 		4F3907602013EBA300DDA490 /* AdditiveWindSynth.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AdditiveWindSynth.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F3907772013EC0400DDA490 /* IPlugAUViewController.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; name = IPlugAUViewController.mm; path = ../../../IPlug/AUv3/IPlugAUViewController.mm; sourceTree = "<group>"; };
@@ -800,8 +818,12 @@
 			children = (
 				0B295F1D2F3E62CE004F3229 /* MidiSynth.h */,
 				52FBBED30D0CF143001C8B8A /* config.h */,
+				E1A1D0019D4E4FA8A1110001 /* src/oscillator.h */,
+				E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */,
 				4F3862EE2014BBEC0009F402 /* src/plugin.h */,
 				4F3862ED2014BBEC0009F402 /* src/plugin.cpp */,
+				E1A1D0019D4E4FA8A1110003 /* src/voice.h */,
+				E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */,
 				4F9313232315CA1100DB2383 /* README.md */,
 				089C167CFE841241C02AAC07 /* Resources */,
 				32C88E010371C26100C91783 /* Other Sources */,
@@ -2198,6 +2220,8 @@
 				4F78D95C13B63BA50032E0F3 /* IPlugParameter.cpp in Sources */,
 				4FB1F58C20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
 				4F3862F22014BBEC0009F402 /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110013 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110023 /* src/voice.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2232,6 +2256,8 @@
 				4F3EE1DC231438D000004786 /* IControls.cpp in Sources */,
 				4F3EE1DD231438D000004786 /* IGraphicsMac.mm in Sources */,
 				4F3EE1DE231438D000004786 /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110015 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110025 /* src/voice.cpp in Sources */,
 				4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */,
 				4F3EE1E0231438D000004786 /* IPlugAPIBase.cpp in Sources */,
 				4F3EE1E1231438D000004786 /* IPlugPluginBase.cpp in Sources */,
@@ -2249,6 +2275,8 @@
 				4F78BE1422E7406D00AD537E /* src/plugin.h in Sources */,
 				4F0D965C23099F6900BFDED0 /* IPlugProcessor.cpp in Sources */,
 				4F78BE1522E7406D00AD537E /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110016 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110026 /* src/voice.cpp in Sources */,
 				4F78BE1622E7406D00AD537E /* IGraphicsMac_view.mm in Sources */,
 				4F78BE1722E7406D00AD537E /* IGraphicsMac.mm in Sources */,
 				4F78BE1822E7406D00AD537E /* IGraphicsCoreText.mm in Sources */,
@@ -2278,6 +2306,8 @@
 				4FDAC0EC207D76C600299363 /* IPlugTimer.cpp in Sources */,
 				B8E22A0C220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */,
 				4F3862F12014BBEC0009F402 /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110012 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110022 /* src/voice.cpp in Sources */,
 				4F81591F205D50EB00393585 /* pluginfactory.cpp in Sources */,
 				4F63696F20A463090022C370 /* IControls.cpp in Sources */,
 				4F6FD2B322675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
@@ -2345,6 +2375,8 @@
 				4F0848292015129A00F9E881 /* IPlugAAX_Parameters.cpp in Sources */,
 				4FB1F59420E4B014004157C8 /* IGraphicsMac_view.mm in Sources */,
 				4F3862F32014BBEC0009F402 /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110014 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110024 /* src/voice.cpp in Sources */,
 				4FCE29DB21D6ED70004BCBA1 /* ITextEntryControl.cpp in Sources */,
 				4FB600231567CB0A0020189A /* IPlugParameter.cpp in Sources */,
 				4FB600261567CB0A0020189A /* AAX_Exports.cpp in Sources */,
@@ -2385,6 +2417,8 @@
 				4F63696D20A463090022C370 /* IControls.cpp in Sources */,
 				4FB1F58920E4B004004157C8 /* IGraphicsMac.mm in Sources */,
 				4F3862EF2014BBEC0009F402 /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110011 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110021 /* src/voice.cpp in Sources */,
 				4F9A82F7213DE80400BE63A4 /* IPopupMenuControl.cpp in Sources */,
 				4F78D90B13B63BA50032E0F3 /* IPlugAPIBase.cpp in Sources */,
 				4F35DEAD207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
@@ -2411,6 +2445,8 @@
 				4FD8699C27206006005A5F28 /* IGraphicsEditorDelegate.cpp in Sources */,
 				4FD8699D27206006005A5F28 /* IGraphicsNanoVG_src.m in Sources */,
 				4FD8699E27206006005A5F28 /* src/plugin.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110017 /* src/oscillator.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110027 /* src/voice.cpp in Sources */,
 				4FD8699F27206006005A5F28 /* IPlugAPIBase.cpp in Sources */,
 				4FD869A027206006005A5F28 /* IGraphicsMac_view.mm in Sources */,
 				4FD869A127206006005A5F28 /* IPlugProcessor.cpp in Sources */,
