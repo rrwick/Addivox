@@ -5,14 +5,14 @@
 template<typename T>
 bool SynthVoice<T>::GetBusy() const
 {
-  return mNoteOn;
+  return mOsc.IsActive();
 }
 
 template<typename T>
 void SynthVoice<T>::Trigger()
 {
-  mOsc.SetBreath(mBreath);
   mOsc.Reset();
+  mOsc.SetLevel(mBreath);
 }
 
 template<typename T>
@@ -20,7 +20,7 @@ void SynthVoice<T>::ProcessSamplesAccumulating(T** outputs, int startIdx, int nF
 {
   const float osc1Freq = 440.f * std::pow(2.f, mPitch + mPitchBend);
   mOsc.SetFrequency(osc1Freq);
-  mOsc.SetBreath(mBreath);
+  mOsc.SetLevel(mBreath);
 
   for(int i = startIdx; i < startIdx + nFrames; i++)
   {

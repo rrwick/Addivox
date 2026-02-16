@@ -225,18 +225,20 @@ private:
 
   void StartVoice(int channel, int key, float pitch)
   {
-    mVoice.mNoteOn = true;
+    const bool wasBusy = mVoice.GetBusy();
     mVoice.mPitch = pitch;
     mVoice.mPitchBend = mMidiState.currentPitchBend;
     mVoice.mBreath = mMidiState.currentBreath;
     mActiveChannel = static_cast<uint8_t>(channel);
     mActiveKey = static_cast<uint8_t>(key);
-    mVoice.Trigger();
+    if(!wasBusy)
+      mVoice.Trigger();
   }
 
   void StopVoice()
   {
-    mVoice.mNoteOn = false;
+    mVoice.mBreath = 0.f;
+    mVoice.mOsc.SetLevel(0.f);
     mActiveKey = kNoKey;
   }
 
@@ -278,10 +280,10 @@ private:
 
   void ClearVoiceControls()
   {
-    mVoice.mNoteOn = false;
     mVoice.mPitch = 0.;
     mVoice.mPitchBend = 0.;
-    mVoice.mBreath = mMidiState.currentBreath;
+    mVoice.mBreath = 0.f;
+    mVoice.mOsc.SetLevel(0.f);
   }
 
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);

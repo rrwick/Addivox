@@ -23,10 +23,9 @@ private:
   template <typename>
   friend class iplug::MidiSynth;
 
-  bool mNoteOn{false};
   float mPitch{0.f};
   float mPitchBend{0.f};
-  float mBreath{1.f};
+  float mBreath{0.f};
   Oscillator mOsc;
 };
 
