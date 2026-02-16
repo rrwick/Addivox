@@ -20,9 +20,9 @@ void Oscillator::SetLevel(float level)
   mTargetLevel = (level >= 0.f) ? level : 0.f;
 }
 
-void Oscillator::Reset(float phase01)
+void Oscillator::Reset()
 {
-  mPhase = phase01 - std::floor(phase01);
+  mPhase = 0.f;
   mLevel = 0.f;
 }
 
@@ -55,6 +55,11 @@ void Oscillator::UpdatePhaseIncrement()
 
 void Oscillator::UpdateLevelRates()
 {
-  mAttackRate = 1.f - std::exp(-1.f / (kAttackTimeSec * mSampleRate));
-  mReleaseRate = 1.f - std::exp(-1.f / (kReleaseTimeSec * mSampleRate));
+  mAttackRate = TimeToRate(kAttackTimeSec, mSampleRate);
+  mReleaseRate = TimeToRate(kReleaseTimeSec, mSampleRate);
+}
+
+float Oscillator::TimeToRate(float timeSec, float sampleRate)
+{
+  return 1.f - std::exp(-1.f / (timeSec * sampleRate));
 }

@@ -6,13 +6,14 @@ public:
   void SetSampleRate(double sampleRate);
   void SetFrequency(float frequencyHz);
   void SetLevel(float level);
-  void Reset(float phase01 = 0.f);
+  void Reset();
   float Process();
   bool IsActive() const;
 
 private:
   void UpdatePhaseIncrement();
   void UpdateLevelRates();
+  static float TimeToRate(float timeSec, float sampleRate);
 
   static constexpr float kTwoPi = 6.28318530717958647692f;
   static constexpr float kAttackTimeSec = 0.002f;

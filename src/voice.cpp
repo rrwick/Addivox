@@ -3,26 +3,63 @@
 #include <cmath>
 
 template<typename T>
-bool SynthVoice<T>::GetBusy() const
+bool SynthVoice<T>::IsActive() const
 {
   return mOsc.IsActive();
 }
 
 template<typename T>
-void SynthVoice<T>::Trigger()
+void SynthVoice<T>::Start(float pitch, float pitchBend, float breath)
 {
-  mOsc.Reset();
-  mOsc.SetLevel(mBreath);
+  const bool retrigger = !IsActive();
+  mPitch = pitch;
+  mPitchBend = pitchBend;
+  UpdateFrequency();
+  SetBreath(breath);
+
+  if(retrigger)
+    mOsc.Reset();
+}
+
+template<typename T>
+void SynthVoice<T>::Stop()
+{
+  SetBreath(0.f);
+}
+
+template<typename T>
+void SynthVoice<T>::SetPitchBend(float pitchBend)
+{
+  mPitchBend = pitchBend;
+  UpdateFrequency();
+}
+
+template<typename T>
+void SynthVoice<T>::SetBreath(float breath)
+{
+  mOsc.SetLevel(breath);
+}
+
+template<typename T>
+void SynthVoice<T>::Clear()
+{
+  mPitch = 0.f;
+  mPitchBend = 0.f;
+  Stop();
+}
+
+template<typename T>
+void SynthVoice<T>::UpdateFrequency()
+{
+  const float fundamentalFreq = 440.f * std::exp2(mPitch + mPitchBend);
+  mOsc.SetFrequency(fundamentalFreq);
 }
 
 template<typename T>
 void SynthVoice<T>::ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames)
 {
-  const float osc1Freq = 440.f * std::pow(2.f, mPitch + mPitchBend);
-  mOsc.SetFrequency(osc1Freq);
-  mOsc.SetLevel(mBreath);
-
-  for(int i = startIdx; i < startIdx + nFrames; i++)
+  const int endIdx = startIdx + nFrames;
+  for(int i = startIdx; i < endIdx; i++)
   {
     const T sample = static_cast<T>(mOsc.Process());
     outputs[0][i] += sample;

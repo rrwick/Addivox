@@ -1,31 +1,25 @@
 #pragma once
 
-#include "IPlugConstants.h"
 #include "oscillator.h"
-
-namespace iplug {
-template<typename VoiceT>
-class MidiSynth;
-}
-
-using namespace iplug;
 
 template<typename T>
 class SynthVoice
 {
 public:
-  bool GetBusy() const;
-  void Trigger();
+  bool IsActive() const;
+  void Start(float pitch, float pitchBend, float breath);
+  void Stop();
+  void SetPitchBend(float pitchBend);
+  void SetBreath(float breath);
+  void Clear();
   void ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
 
 private:
-  template <typename>
-  friend class iplug::MidiSynth;
+  void UpdateFrequency();
 
   float mPitch{0.f};
   float mPitchBend{0.f};
-  float mBreath{0.f};
   Oscillator mOsc;
 };
 

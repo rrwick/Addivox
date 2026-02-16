@@ -65,7 +65,7 @@ public:
    * @param nFrames The number of sample frames to process */
   void ProcessBlock(sample** outputs, int nFrames)
   {
-    if(mVoice.GetBusy() || !mMidiQueue.Empty())
+    if(mVoice.IsActive() || !mMidiQueue.Empty())
     {
       int startIndex = 0;
 
@@ -94,7 +94,7 @@ public:
         if(numFrames <= 0)
           continue;
 
-        if(mVoice.GetBusy())
+        if(mVoice.IsActive())
           mVoice.ProcessSamplesAccumulating(outputs, startIndex, numFrames);
         startIndex = renderEnd;
       }
@@ -225,20 +225,14 @@ private:
 
   void StartVoice(int channel, int key, float pitch)
   {
-    const bool wasBusy = mVoice.GetBusy();
-    mVoice.mPitch = pitch;
-    mVoice.mPitchBend = mMidiState.currentPitchBend;
-    mVoice.mBreath = mMidiState.currentBreath;
+    mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath);
     mActiveChannel = static_cast<uint8_t>(channel);
     mActiveKey = static_cast<uint8_t>(key);
-    if(!wasBusy)
-      mVoice.Trigger();
   }
 
   void StopVoice()
   {
-    mVoice.mBreath = 0.f;
-    mVoice.mOsc.SetLevel(0.f);
+    mVoice.Stop();
     mActiveKey = kNoKey;
   }
 
@@ -252,7 +246,7 @@ private:
     mMidiState.currentPitchBend = value;
 
     if(mActiveKey != kNoKey)
-      mVoice.mPitchBend = value;
+      mVoice.SetPitchBend(value);
   }
 
   void Breath(int channel, float value)
@@ -265,7 +259,7 @@ private:
     mMidiState.currentBreath = value;
 
     if(mActiveKey != kNoKey)
-      mVoice.mBreath = value;
+      mVoice.SetBreath(value);
   }
 
   bool IsActiveChannel(uint8_t channel) const
@@ -280,10 +274,7 @@ private:
 
   void ClearVoiceControls()
   {
-    mVoice.mPitch = 0.;
-    mVoice.mPitchBend = 0.;
-    mVoice.mBreath = 0.f;
-    mVoice.mOsc.SetLevel(0.f);
+    mVoice.Clear();
   }
 
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);
