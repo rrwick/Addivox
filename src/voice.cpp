@@ -5,7 +5,12 @@
 template<typename T>
 bool SynthVoice<T>::IsActive() const
 {
-  return mOsc.IsActive();
+  for(const auto& osc : mOscs)
+  {
+    if(osc.IsActive())
+      return true;
+  }
+  return false;
 }
 
 template<typename T>
@@ -18,7 +23,10 @@ void SynthVoice<T>::Start(float pitch, float pitchBend, float breath)
   SetBreath(breath);
 
   if(retrigger)
-    mOsc.Reset();
+  {
+    for(auto& osc : mOscs)
+      osc.Reset();
+  }
 }
 
 template<typename T>
@@ -37,7 +45,8 @@ void SynthVoice<T>::SetPitchBend(float pitchBend)
 template<typename T>
 void SynthVoice<T>::SetBreath(float breath)
 {
-  mOsc.SetLevel(breath);
+  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
+    mOscs[harmonic].SetLevel(breath * kHarmonicIntensities[harmonic]);
 }
 
 template<typename T>
@@ -52,7 +61,8 @@ template<typename T>
 void SynthVoice<T>::UpdateFrequency()
 {
   const float fundamentalFreq = 440.f * std::exp2(mPitch + mPitchBend);
-  mOsc.SetFrequency(fundamentalFreq);
+  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
+    mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
 }
 
 template<typename T>
@@ -61,7 +71,9 @@ void SynthVoice<T>::ProcessSamplesAccumulating(T** outputs, int startIdx, int nF
   const int endIdx = startIdx + nFrames;
   for(int i = startIdx; i < endIdx; i++)
   {
-    const T sample = static_cast<T>(mOsc.Process());
+    T sample = 0;
+    for(auto& osc : mOscs)
+      sample += static_cast<T>(osc.Process());
     outputs[0][i] += sample;
     outputs[1][i] += sample;
   }
@@ -70,7 +82,8 @@ void SynthVoice<T>::ProcessSamplesAccumulating(T** outputs, int startIdx, int nF
 template<typename T>
 void SynthVoice<T>::SetSampleRate(double sampleRate)
 {
-  mOsc.SetSampleRate(sampleRate);
+  for(auto& osc : mOscs)
+    osc.SetSampleRate(sampleRate);
 }
 
 template class SynthVoice<float>;
