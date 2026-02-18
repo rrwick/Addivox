@@ -2,6 +2,15 @@
 
 #include <cmath>
 
+namespace
+{
+const HarmonicIntensities& GetHarmonicIntensities()
+{
+  static const HarmonicIntensities sHarmonicIntensities;
+  return sHarmonicIntensities;
+}
+} // namespace
+
 template<typename T>
 bool SynthVoice<T>::IsActive() const
 {
@@ -19,8 +28,8 @@ void SynthVoice<T>::Start(float pitch, float pitchBend, float breath)
   const bool retrigger = !IsActive();
   mPitch = pitch;
   mPitchBend = pitchBend;
+  mBreath = breath;
   UpdateFrequency();
-  SetBreath(breath);
 
   if(retrigger)
   {
@@ -45,12 +54,8 @@ void SynthVoice<T>::SetPitchBend(float pitchBend)
 template<typename T>
 void SynthVoice<T>::SetBreath(float breath)
 {
-  float breathPower = breath;
-  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
-  {
-    mOscs[harmonic].SetLevel(kHarmonicIntensities[harmonic] * breathPower);
-    breathPower *= breath;
-  }
+  mBreath = breath;
+  UpdateLevels();
 }
 
 template<typename T>
@@ -58,15 +63,31 @@ void SynthVoice<T>::Clear()
 {
   mPitch = 0.f;
   mPitchBend = 0.f;
+  mBreath = 0.f;
   Stop();
 }
 
 template<typename T>
 void SynthVoice<T>::UpdateFrequency()
 {
-  const float fundamentalFreq = 440.f * std::exp2(mPitch + mPitchBend);
+  const float midiPitch = mPitch + mPitchBend;
+  const float fundamentalFreq = 440.f * std::exp2((midiPitch - 69.f) / 12.f);
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
     mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+
+  mHarmonicIntensities = GetHarmonicIntensities().GetIntensities(midiPitch);
+  UpdateLevels();
+}
+
+template<typename T>
+void SynthVoice<T>::UpdateLevels()
+{
+  float breathPower = mBreath;
+  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
+  {
+    mOscs[harmonic].SetLevel(mHarmonicIntensities[harmonic] * breathPower);
+    breathPower *= mBreath;
+  }
 }
 
 template<typename T>

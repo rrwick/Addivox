@@ -46,15 +46,19 @@
 		4F3862EF2014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110011 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110021 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110031 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4F3862F12014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110012 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110022 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110032 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4F3862F22014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110013 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110023 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110033 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4F3862F32014BBEC0009F402 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110014 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110024 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110034 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4F3EE1BF231438D000004786 /* AdditiveWindSynth.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4FD290A8137C34D700CEBE7E /* AdditiveWindSynth.icns */; };
 		4F3EE1C0231438D000004786 /* AdditiveWindSynth-macOS-MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 4F1B4AE32014D33600BC64D4 /* AdditiveWindSynth-macOS-MainMenu.xib */; };
 		4F3EE1C2231438D000004786 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
@@ -86,6 +90,7 @@
 		4F3EE1DE231438D000004786 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110015 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110025 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110035 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F9A82F5213DE80300BE63A4 /* IPopupMenuControl.cpp */; };
 		4F3EE1E0231438D000004786 /* IPlugAPIBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F78D8ED13B63BA40032E0F3 /* IPlugAPIBase.cpp */; };
 		4F3EE1E1231438D000004786 /* IPlugPluginBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F35DEAB207E5C5A00867D8F /* IPlugPluginBase.cpp */; };
@@ -126,6 +131,7 @@
 		4F78BE1522E7406D00AD537E /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110016 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110026 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110036 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4F78BE1622E7406D00AD537E /* IGraphicsMac_view.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58620E4AFEF004157C8 /* IGraphicsMac_view.mm */; };
 		4F78BE1722E7406D00AD537E /* IGraphicsMac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58120E4AFEE004157C8 /* IGraphicsMac.mm */; };
 		4F78BE1822E7406D00AD537E /* IGraphicsCoreText.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4F6FD2AF22675B6300FC59E6 /* IGraphicsCoreText.mm */; };
@@ -235,6 +241,7 @@
 		4FD8699E27206006005A5F28 /* src/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F3862ED2014BBEC0009F402 /* src/plugin.cpp */; };
 		E1A1D0019D4E4FA8A1110017 /* src/oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */; };
 		E1A1D0019D4E4FA8A1110027 /* src/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */; };
+		E1A1D0019D4E4FA8A1110037 /* src/harmonics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */; };
 		4FD8699F27206006005A5F28 /* IPlugAPIBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F78D8ED13B63BA40032E0F3 /* IPlugAPIBase.cpp */; };
 		4FD869A027206006005A5F28 /* IGraphicsMac_view.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1F58620E4AFEF004157C8 /* IGraphicsMac_view.mm */; };
 		4FD869A127206006005A5F28 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
@@ -384,6 +391,8 @@
 		E1A1D0019D4E4FA8A1110002 /* src/oscillator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/oscillator.cpp; path = ../src/oscillator.cpp; sourceTree = "<group>"; };
 		E1A1D0019D4E4FA8A1110003 /* src/voice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = src/voice.h; path = ../src/voice.h; sourceTree = "<group>"; };
 		E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/voice.cpp; path = ../src/voice.cpp; sourceTree = "<group>"; };
+		E1A1D0019D4E4FA8A1110005 /* src/harmonics.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = src/harmonics.h; path = ../src/harmonics.h; sourceTree = "<group>"; };
+		E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = src/harmonics.cpp; path = ../src/harmonics.cpp; sourceTree = "<group>"; };
 		4F3862FF2014BCC70009F402 /* scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = scripts; path = ../scripts; sourceTree = "<group>"; };
 		4F3907602013EBA300DDA490 /* AdditiveWindSynth.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AdditiveWindSynth.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F3907772013EC0400DDA490 /* IPlugAUViewController.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; name = IPlugAUViewController.mm; path = ../../../IPlug/AUv3/IPlugAUViewController.mm; sourceTree = "<group>"; };
@@ -824,6 +833,8 @@
 				4F3862ED2014BBEC0009F402 /* src/plugin.cpp */,
 				E1A1D0019D4E4FA8A1110003 /* src/voice.h */,
 				E1A1D0019D4E4FA8A1110004 /* src/voice.cpp */,
+				E1A1D0019D4E4FA8A1110005 /* src/harmonics.h */,
+				E1A1D0019D4E4FA8A1110006 /* src/harmonics.cpp */,
 				4F9313232315CA1100DB2383 /* README.md */,
 				089C167CFE841241C02AAC07 /* Resources */,
 				32C88E010371C26100C91783 /* Other Sources */,
@@ -2222,6 +2233,7 @@
 				4F3862F22014BBEC0009F402 /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110013 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110023 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110033 /* src/harmonics.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2258,6 +2270,7 @@
 				4F3EE1DE231438D000004786 /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110015 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110025 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110035 /* src/harmonics.cpp in Sources */,
 				4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */,
 				4F3EE1E0231438D000004786 /* IPlugAPIBase.cpp in Sources */,
 				4F3EE1E1231438D000004786 /* IPlugPluginBase.cpp in Sources */,
@@ -2277,6 +2290,7 @@
 				4F78BE1522E7406D00AD537E /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110016 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110026 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110036 /* src/harmonics.cpp in Sources */,
 				4F78BE1622E7406D00AD537E /* IGraphicsMac_view.mm in Sources */,
 				4F78BE1722E7406D00AD537E /* IGraphicsMac.mm in Sources */,
 				4F78BE1822E7406D00AD537E /* IGraphicsCoreText.mm in Sources */,
@@ -2308,6 +2322,7 @@
 				4F3862F12014BBEC0009F402 /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110012 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110022 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110032 /* src/harmonics.cpp in Sources */,
 				4F81591F205D50EB00393585 /* pluginfactory.cpp in Sources */,
 				4F63696F20A463090022C370 /* IControls.cpp in Sources */,
 				4F6FD2B322675B6300FC59E6 /* IGraphicsCoreText.mm in Sources */,
@@ -2377,6 +2392,7 @@
 				4F3862F32014BBEC0009F402 /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110014 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110024 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110034 /* src/harmonics.cpp in Sources */,
 				4FCE29DB21D6ED70004BCBA1 /* ITextEntryControl.cpp in Sources */,
 				4FB600231567CB0A0020189A /* IPlugParameter.cpp in Sources */,
 				4FB600261567CB0A0020189A /* AAX_Exports.cpp in Sources */,
@@ -2419,6 +2435,7 @@
 				4F3862EF2014BBEC0009F402 /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110011 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110021 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110031 /* src/harmonics.cpp in Sources */,
 				4F9A82F7213DE80400BE63A4 /* IPopupMenuControl.cpp in Sources */,
 				4F78D90B13B63BA50032E0F3 /* IPlugAPIBase.cpp in Sources */,
 				4F35DEAD207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
@@ -2447,6 +2464,7 @@
 				4FD8699E27206006005A5F28 /* src/plugin.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110017 /* src/oscillator.cpp in Sources */,
 				E1A1D0019D4E4FA8A1110027 /* src/voice.cpp in Sources */,
+				E1A1D0019D4E4FA8A1110037 /* src/harmonics.cpp in Sources */,
 				4FD8699F27206006005A5F28 /* IPlugAPIBase.cpp in Sources */,
 				4FD869A027206006005A5F28 /* IGraphicsMac_view.mm in Sources */,
 				4FD869A127206006005A5F28 /* IPlugProcessor.cpp in Sources */,

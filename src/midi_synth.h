@@ -141,7 +141,7 @@ private:
         }
         else
         {
-          StartVoice(channel, key, (key - 69.f) / 12.f);
+          StartVoice(channel, key, static_cast<float>(key));
         }
         break;
       }
@@ -154,7 +154,7 @@ private:
       case IMidiMsg::kPitchWheel:
       {
         const float bendRange = mMidiState.pitchBendRange;
-        const float bend = static_cast<float>(msg.PitchWheel()) * bendRange / 12.f;
+        const float bend = static_cast<float>(msg.PitchWheel()) * bendRange;
         PitchBend(channel, bend);
         break;
       }
