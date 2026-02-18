@@ -82,11 +82,18 @@ void SynthVoice<T>::UpdateFrequency()
 template<typename T>
 void SynthVoice<T>::UpdateLevels()
 {
-  float breathPower = mBreath;
+  // Cap breath at 97% to avoid ringing tone from brick wall at top of harmonic series.
+  // TODO: this is a bit of a hack - would be better to use a more gradual roll-off of the highest
+  //       harmonic intensities.
+  float breath = std::min(mBreath, 0.97f);
+
+  // Levels are scaled by breath ^ harmonicNumber, which dampens higher harmonics more than lower
+  // ones, giving a bit of a low-pass filter effect as breath is reduced.
+  float breathPower = breath;
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     mOscs[harmonic].SetLevel(mHarmonicIntensities[harmonic] * breathPower);
-    breathPower *= mBreath;
+    breathPower *= breath;
   }
 }
 
