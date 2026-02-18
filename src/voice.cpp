@@ -45,8 +45,12 @@ void SynthVoice<T>::SetPitchBend(float pitchBend)
 template<typename T>
 void SynthVoice<T>::SetBreath(float breath)
 {
+  float breathPower = breath;
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
-    mOscs[harmonic].SetLevel(breath * kHarmonicIntensities[harmonic]);
+  {
+    mOscs[harmonic].SetLevel(kHarmonicIntensities[harmonic] * breathPower);
+    breathPower *= breath;
+  }
 }
 
 template<typename T>
