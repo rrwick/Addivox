@@ -141,7 +141,20 @@ private:
         }
         else
         {
-          StartVoice(channel, key, static_cast<float>(key));
+          mActiveChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+          mActiveKey = static_cast<uint8_t>(Clip(key, 0, 127));
+
+          if(mMidiState.currentBreath >= kBreathGateOnThreshold)
+          {
+            mBreathGateOpen = true;
+            StartVoice(channel, key, static_cast<float>(key));
+          }
+          else
+          {
+            // Keep note assignment active so breath can trigger the note later.
+            mBreathGateOpen = false;
+            mVoice.Stop();
+          }
         }
         break;
       }
@@ -232,6 +245,7 @@ private:
 
   void StopVoice()
   {
+    mBreathGateOpen = false;
     mVoice.Stop();
     mActiveKey = kNoKey;
   }
@@ -258,8 +272,26 @@ private:
 
     mMidiState.currentBreath = value;
 
-    if(mActiveKey != kNoKey)
-      mVoice.SetBreath(value);
+    if(mActiveKey == kNoKey)
+      return;
+
+    if(mBreathGateOpen)
+    {
+      if(value <= kBreathGateOffThreshold)
+      {
+        mBreathGateOpen = false;
+        mVoice.Stop();
+      }
+      else
+      {
+        mVoice.SetBreath(value);
+      }
+    }
+    else if(value >= kBreathGateOnThreshold)
+    {
+      mBreathGateOpen = true;
+      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(mActiveKey), static_cast<float>(mActiveKey));
+    }
   }
 
   bool IsActiveChannel(uint8_t channel) const
@@ -278,12 +310,15 @@ private:
   }
 
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);
+  static constexpr float kBreathGateOnThreshold = 2.f / 127.f;
+  static constexpr float kBreathGateOffThreshold = 0.f;
 
   IMidiQueue mMidiQueue;
   MonoMidiState mMidiState{};
   VoiceT mVoice{};
   uint8_t mActiveChannel{0};
   uint8_t mActiveKey{kNoKey};
+  bool mBreathGateOpen{false};
 };
 
 END_IPLUG_NAMESPACE
