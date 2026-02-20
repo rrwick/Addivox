@@ -1,5 +1,6 @@
 #include "oscillator.h"
 
+#include <algorithm>
 #include <cmath>
 
 void Oscillator::SetSampleRate(double sampleRate)
@@ -13,6 +14,18 @@ void Oscillator::SetFrequency(float frequencyHz)
 {
   mFrequencyHz = (frequencyHz >= 0.f) ? frequencyHz : 0.f;
   UpdatePhaseIncrement();
+}
+
+void Oscillator::SetAttackTime(float attackTimeSec)
+{
+  mAttackTimeSec = std::max(0.f, attackTimeSec);
+  UpdateLevelRates();
+}
+
+void Oscillator::SetReleaseTime(float releaseTimeSec)
+{
+  mReleaseTimeSec = std::max(0.f, releaseTimeSec);
+  UpdateLevelRates();
 }
 
 void Oscillator::SetLevel(float level)
@@ -59,11 +72,14 @@ void Oscillator::UpdatePhaseIncrement()
 
 void Oscillator::UpdateLevelRates()
 {
-  mAttackRate = TimeToRate(kAttackTimeSec, mSampleRate);
-  mReleaseRate = TimeToRate(kReleaseTimeSec, mSampleRate);
+  mAttackRate = TimeToRate(mAttackTimeSec, mSampleRate);
+  mReleaseRate = TimeToRate(mReleaseTimeSec, mSampleRate);
 }
 
 float Oscillator::TimeToRate(float timeSec, float sampleRate)
 {
+  if(timeSec <= 0.f || sampleRate <= 0.f)
+    return 1.f;
+
   return 1.f - std::exp(-1.f / (timeSec * sampleRate));
 }

@@ -12,8 +12,9 @@ iplug_add_plugin(${PROJECT_NAME}
   SOURCES
     src/oscillator.cpp
     src/oscillator.h
-    src/harmonics.cpp
-    src/harmonics.h
+    src/settings.cpp
+    src/settings.h
+    src/presets.h
     src/plugin.cpp
     src/plugin.h
     src/voice.cpp

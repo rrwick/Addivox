@@ -1,15 +1,14 @@
 #include "voice.h"
 
+#include "presets.h"
+
 #include <cmath>
 
-namespace
+template<typename T>
+SynthVoice<T>::SynthVoice()
+: mCompoundPreset(presets::MakeBrassCompoundPreset())
 {
-const HarmonicIntensities& GetHarmonicIntensities()
-{
-  static const HarmonicIntensities sHarmonicIntensities;
-  return sHarmonicIntensities;
 }
-} // namespace
 
 template<typename T>
 bool SynthVoice<T>::IsActive() const
@@ -96,22 +95,32 @@ void SynthVoice<T>::UpdateFrequency()
 {
   const float midiPitch = mPitch + mPitchBend;
   const float fundamentalFreq = 440.f * std::exp2((midiPitch - 69.f) / 12.f);
-  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
-    mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+  const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
-  mHarmonicIntensities = GetHarmonicIntensities().GetIntensities(midiPitch);
+  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
+  {
+    const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
+    mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+    mOscs[harmonic].SetAttackTime(settings.attack);
+    mOscs[harmonic].SetReleaseTime(settings.release);
+  }
+
   UpdateLevels();
 }
 
 template<typename T>
 void SynthVoice<T>::UpdateLevels()
 {
+  const float midiPitch = mPitch + mPitchBend;
+  const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
+
   // Levels are scaled by breath ^ harmonicNumber, which dampens higher harmonics more than lower
   // ones, giving a bit of a low-pass filter effect as breath is reduced.
   float breathPower = mBreath;
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
-    mOscs[harmonic].SetLevel(mHarmonicIntensities[harmonic] * breathPower);
+    const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
+    mOscs[harmonic].SetLevel(settings.intensity * breathPower);
     breathPower *= mBreath;
   }
 }

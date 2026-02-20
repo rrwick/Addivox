@@ -2,13 +2,14 @@
 
 #include <array>
 
-#include "harmonics.h"
 #include "oscillator.h"
+#include "settings.h"
 
 template<typename T>
 class SynthVoice
 {
 public:
+  SynthVoice();
   bool IsActive() const;
   void Start(float pitch, float pitchBend, float breath);
   void Stop();
@@ -23,7 +24,7 @@ private:
   void UpdateLevels();
   float SmoothBreath(float breath);
 
-  static constexpr int kNumHarmonics = HarmonicIntensities::kNumHarmonics;
+  static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
   float mPitch{0.f};
@@ -35,7 +36,7 @@ private:
   float mBreath{0.f};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
-  HarmonicIntensities::Spectrum mHarmonicIntensities{};
+  CompoundPreset mCompoundPreset;
 };
 
 extern template class SynthVoice<float>;
