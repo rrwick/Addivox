@@ -28,10 +28,6 @@ void Oscillator::Reset()
 
 float Oscillator::Process()
 {
-  // Deactivate oscillator if frequency is out of range - saves CPU and prevents aliasing
-  if (mFrequencyHz > 20000.f)
-    return 0.f;
-
   const float rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
 
@@ -43,6 +39,10 @@ float Oscillator::Process()
   mPhase += mPhaseIncrement;
   if(mPhase >= 1.f)
     mPhase -= std::floor(mPhase);
+
+  // Deactivate oscillator if frequency is out of range - prevents aliasing
+  if (mFrequencyHz > 20000.f)
+    return 0.f;
 
   return out;
 }
