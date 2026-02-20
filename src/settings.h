@@ -9,14 +9,15 @@ class OscillatorSettings
 {
 public:
   OscillatorSettings() = default;
-  constexpr OscillatorSettings(float intensityIn, float attackIn, float releaseIn)
-  : intensity(intensityIn), attack(attackIn), release(releaseIn)
+  constexpr OscillatorSettings(float intensityIn, float attackIn, float releaseIn, float panIn)
+  : intensity(intensityIn), attack(attackIn), release(releaseIn), pan(panIn)
   {
   }
 
   float intensity{0.f};
   float attack{0.f};
   float release{0.f};
+  float pan{0.f};
 
   static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t);
 };

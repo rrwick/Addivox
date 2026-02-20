@@ -103,6 +103,7 @@ void SynthVoice<T>::UpdateFrequency()
     mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
     mOscs[harmonic].SetAttackTime(settings.attack);
     mOscs[harmonic].SetReleaseTime(settings.release);
+    mOscs[harmonic].SetPan(settings.pan);
   }
 
   UpdateLevels();
@@ -131,11 +132,16 @@ void SynthVoice<T>::ProcessSamplesAccumulating(T** outputs, int startIdx, int nF
   const int endIdx = startIdx + nFrames;
   for(int i = startIdx; i < endIdx; i++)
   {
-    T sample = 0;
+    T leftSample = 0;
+    T rightSample = 0;
     for(auto& osc : mOscs)
-      sample += static_cast<T>(osc.Process());
-    outputs[0][i] += sample;
-    outputs[1][i] += sample;
+    {
+      const auto sample = osc.Process();
+      leftSample += static_cast<T>(sample[0]);
+      rightSample += static_cast<T>(sample[1]);
+    }
+    outputs[0][i] += leftSample;
+    outputs[1][i] += rightSample;
   }
 }
 
