@@ -28,7 +28,7 @@ void SynthVoice<T>::Start(float pitch, float pitchBend, float breath)
   const bool retrigger = !IsActive();
   mPitch = pitch;
   mPitchBend = pitchBend;
-  mBreath = breath;
+  mBreath = SmoothBreath(breath);
   UpdateFrequency();
 
   if(retrigger)
@@ -54,8 +54,32 @@ void SynthVoice<T>::SetPitchBend(float pitchBend)
 template<typename T>
 void SynthVoice<T>::SetBreath(float breath)
 {
-  mBreath = breath;
+  const float smoothedBreath = SmoothBreath(breath);
+  if(smoothedBreath == mBreath)
+    return;
+
+  mBreath = smoothedBreath;
   UpdateLevels();
+}
+
+template<typename T>
+float SynthVoice<T>::SmoothBreath(float breath)
+{
+  // Input and output breath are in the range [0, 1].
+
+  // Breath is smoothed near zero to avoid obvious note-on at low breath values, but is near-linear
+  // for the upper part of the range.
+  // https://www.desmos.com/calculator/ntwh4mbkwn
+  constexpr float k = 5.0f;
+  static const float inv_denom = 1.0f / (k - 1.0f + std::exp(-k));
+  breath = (k * breath - 1.0f + std::exp(-k * breath)) * inv_denom;
+
+  // Cap breath at 97% to avoid ringing tone from brick wall at top of harmonic series.
+  // TODO: this is a bit of a hack - would be better to use a more gradual roll-off of the highest
+  //       harmonic intensities.
+  breath *= 0.97f;
+
+  return breath;
 }
 
 template<typename T>
@@ -82,18 +106,13 @@ void SynthVoice<T>::UpdateFrequency()
 template<typename T>
 void SynthVoice<T>::UpdateLevels()
 {
-  // Cap breath at 97% to avoid ringing tone from brick wall at top of harmonic series.
-  // TODO: this is a bit of a hack - would be better to use a more gradual roll-off of the highest
-  //       harmonic intensities.
-  float breath = std::min(mBreath, 0.97f);
-
   // Levels are scaled by breath ^ harmonicNumber, which dampens higher harmonics more than lower
   // ones, giving a bit of a low-pass filter effect as breath is reduced.
-  float breathPower = breath;
+  float breathPower = mBreath;
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     mOscs[harmonic].SetLevel(mHarmonicIntensities[harmonic] * breathPower);
-    breathPower *= breath;
+    breathPower *= mBreath;
   }
 }
 

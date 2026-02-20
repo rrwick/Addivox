@@ -21,6 +21,7 @@ public:
 private:
   void UpdateFrequency();
   void UpdateLevels();
+  float SmoothBreath(float breath);
 
   static constexpr int kNumHarmonics = HarmonicIntensities::kNumHarmonics;
 
