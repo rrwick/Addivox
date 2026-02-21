@@ -2,12 +2,19 @@
 
 #include "presets.h"
 
+#include <cstdint>
 #include <cmath>
 
 template<typename T>
 SynthVoice<T>::SynthVoice()
 : mCompoundPreset(presets::MakeBrassCompoundPreset())
 {
+  const uint32_t voiceSeed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
+  for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
+  {
+    const uint32_t harmonicSeed = voiceSeed ^ (0x9E3779B9u * static_cast<uint32_t>(harmonic + 1));
+    mOscs[harmonic].SetVariationSeed(harmonicSeed);
+  }
 }
 
 template<typename T>
@@ -101,9 +108,12 @@ void SynthVoice<T>::UpdateFrequency()
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
     mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+    mOscs[harmonic].SetPitchVariation(settings.pitch_variation_amplitude, settings.pitch_variation_rate);
     mOscs[harmonic].SetAttackTime(settings.attack);
     mOscs[harmonic].SetReleaseTime(settings.release);
     mOscs[harmonic].SetPan(settings.pan);
+    mOscs[harmonic].SetPanVariation(settings.pan_variation_amplitude, settings.pan_variation_rate);
+    mOscs[harmonic].SetIntensityVariation(settings.intensity_variation_amplitude, settings.intensity_variation_rate);
   }
 
   UpdateLevels();

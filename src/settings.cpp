@@ -13,6 +13,24 @@ OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo,
   out.attack = lo.attack + (hi.attack - lo.attack) * clampedT;
   out.release = lo.release + (hi.release - lo.release) * clampedT;
   out.pan = lo.pan + (hi.pan - lo.pan) * clampedT;
+  out.intensity_variation_amplitude =
+    lo.intensity_variation_amplitude +
+    (hi.intensity_variation_amplitude - lo.intensity_variation_amplitude) * clampedT;
+  out.intensity_variation_rate =
+    lo.intensity_variation_rate +
+    (hi.intensity_variation_rate - lo.intensity_variation_rate) * clampedT;
+  out.pitch_variation_amplitude =
+    lo.pitch_variation_amplitude +
+    (hi.pitch_variation_amplitude - lo.pitch_variation_amplitude) * clampedT;
+  out.pitch_variation_rate =
+    lo.pitch_variation_rate +
+    (hi.pitch_variation_rate - lo.pitch_variation_rate) * clampedT;
+  out.pan_variation_amplitude =
+    lo.pan_variation_amplitude +
+    (hi.pan_variation_amplitude - lo.pan_variation_amplitude) * clampedT;
+  out.pan_variation_rate =
+    lo.pan_variation_rate +
+    (hi.pan_variation_rate - lo.pan_variation_rate) * clampedT;
   return out;
 }
 

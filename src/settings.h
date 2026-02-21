@@ -9,8 +9,26 @@ class OscillatorSettings
 {
 public:
   OscillatorSettings() = default;
-  constexpr OscillatorSettings(float intensityIn, float attackIn, float releaseIn, float panIn)
-  : intensity(intensityIn), attack(attackIn), release(releaseIn), pan(panIn)
+  constexpr OscillatorSettings(float intensityIn,
+                               float attackIn = 0.01f,
+                               float releaseIn = 0.01f,
+                               float panIn = 0.f,
+                               float intensityVariationAmplitudeIn = 0.25f,
+                               float intensityVariationRateIn = 1.f,
+                               float pitchVariationAmplitudeIn = 0.f,
+                               float pitchVariationRateIn = 0.f,
+                               float panVariationAmplitudeIn = 0.25f,
+                               float panVariationRateIn = 1.f)
+  : intensity(intensityIn)
+  , attack(attackIn)
+  , release(releaseIn)
+  , pan(panIn)
+  , intensity_variation_amplitude(intensityVariationAmplitudeIn)
+  , intensity_variation_rate(intensityVariationRateIn)
+  , pitch_variation_amplitude(pitchVariationAmplitudeIn)
+  , pitch_variation_rate(pitchVariationRateIn)
+  , pan_variation_amplitude(panVariationAmplitudeIn)
+  , pan_variation_rate(panVariationRateIn)
   {
   }
 
@@ -18,6 +36,12 @@ public:
   float attack{0.f};
   float release{0.f};
   float pan{0.f};
+  float intensity_variation_amplitude{0.f};
+  float intensity_variation_rate{0.f};
+  float pitch_variation_amplitude{0.f};
+  float pitch_variation_rate{0.f};
+  float pan_variation_amplitude{0.f};
+  float pan_variation_rate{0.f};
 
   static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t);
 };
