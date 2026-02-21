@@ -18,15 +18,8 @@ inline float MapPseudoLog(float level)
 {
   // Isolated intensity mapping so this can be swapped easily.
   constexpr float kShape = 64.f;
-
-  const float safeLevel = std::max(0.f, level);
-  const float numerator = std::log1pf(kShape * safeLevel);
-  const float denominator = std::log1pf(kShape);
-
-  if(denominator <= 0.f)
-    return 0.f;
-
-  return std::clamp(numerator / denominator, 0.f, 1.f);
+  static const float kInvDenominator = 1.f / std::log1pf(kShape);
+  return std::clamp(std::log1pf(kShape * std::max(0.f, level)) * kInvDenominator, 0.f, 1.f);
 }
 } // namespace harmonic_visualizer_level
 
@@ -59,12 +52,31 @@ public:
     const IRECT barPlot{plot.L, plot.T, plot.R, plot.B - kLabelAreaHeight};
     const IRECT labelArea{plot.L, barPlot.B, plot.R, plot.B};
     const IText labelText{11.f, kLabelColor, "Roboto-Regular", EAlign::Center, EVAlign::Bottom};
+    const auto& xMapping = XFrequencyMapping();
+    const auto& colorMapping = ColorFrequencyMapping();
     const float baseBlendWeight = BlendWeight(&mBlend);
+    const float centerY = barPlot.MH();
+    const float channelHeight = (barPlot.H() * 0.5f) - 1.f;
+
+    auto drawBarSegment = [&](float x, float y0, float y1, const IColor& harmonicColor, float height) {
+      if(height <= 0.f)
+        return;
+
+      DrawGlowingVerticalLine(
+        g,
+        x,
+        y0,
+        y1,
+        harmonicColor,
+        kWhite,
+        baseBlendWeight,
+        VisibilityForHeightPixels(height));
+    };
 
     for(const float frequencyHz : kGridFrequenciesHz)
     {
-      const float x = FrequencyToX(frequencyHz, barPlot);
-      const bool major = IsLabelFrequency(frequencyHz);
+      const float x = LerpXFromNormalized(xMapping.Normalize(frequencyHz), barPlot);
+      const bool major = IsMajorGridFrequency(frequencyHz);
       g.DrawLine(
         major ? kGridLineColorMajor : kGridLineColorMinor,
         x,
@@ -75,8 +87,6 @@ public:
         major ? 1.1f : 1.f);
     }
 
-    const float centerY = barPlot.MH();
-    const float channelHeight = (barPlot.H() * 0.5f) - 1.f;
     constexpr float kYAxisBoost = 1.5f;
 
     g.DrawLine(kCenterLineColor, barPlot.L, centerY, barPlot.R, centerY, &mBlend, 1.f);
@@ -86,48 +96,25 @@ public:
       if(osc.frequencyHz < kMinFrequencyHzX || osc.frequencyHz > kMaxFrequencyHzX || osc.level <= 0.f)
         continue;
 
-      const float colorT = FrequencyToNormalizedLogColorPosition(osc.frequencyHz);
+      const float clampedFrequencyHz = std::clamp(osc.frequencyHz, kMinFrequencyHzX, kMaxFrequencyHzX);
+      const float logFrequency = std::log(clampedFrequencyHz);
+      const float xNorm = xMapping.NormalizeFromLog(logFrequency);
+      const float colorT = colorMapping.NormalizeFromLog(logFrequency);
       const IColor harmonicColor = LerpColor(kHarmonicColorStart, kHarmonicColorEnd, colorT);
-      const IColor coreLineColor = kWhite;
-
-      const float x = FrequencyToX(osc.frequencyHz, barPlot);
+      const float x = LerpXFromNormalized(xNorm, barPlot);
       const float mappedLevel = harmonic_visualizer_level::MapPseudoLog(osc.level);
 
-      const float leftNormHeight = std::min(1.f, mappedLevel * std::clamp(osc.panLeftGain, 0.f, 1.f) * kYAxisBoost);
-      const float rightNormHeight = std::min(1.f, mappedLevel * std::clamp(osc.panRightGain, 0.f, 1.f) * kYAxisBoost);
+      const float leftNormHeight = std::min(1.f, mappedLevel * osc.panLeftGain * kYAxisBoost);
+      const float rightNormHeight = std::min(1.f, mappedLevel * osc.panRightGain * kYAxisBoost);
       const float leftHeight = leftNormHeight * channelHeight;
       const float rightHeight = rightNormHeight * channelHeight;
 
-      if(leftHeight > 0.f)
-      {
-        DrawGlowingVerticalLine(
-          g,
-          x,
-          centerY - leftHeight,
-          centerY,
-          harmonicColor,
-          coreLineColor,
-          baseBlendWeight,
-          VisibilityForHeightPixels(leftHeight));
-      }
-
-      if(rightHeight > 0.f)
-      {
-        DrawGlowingVerticalLine(
-          g,
-          x,
-          centerY,
-          centerY + rightHeight,
-          harmonicColor,
-          coreLineColor,
-          baseBlendWeight,
-          VisibilityForHeightPixels(rightHeight));
-      }
+      drawBarSegment(x, centerY - leftHeight, centerY, harmonicColor, leftHeight);
+      drawBarSegment(x, centerY, centerY + rightHeight, harmonicColor, rightHeight);
     }
 
-    DrawFrequencyLabel(g, labelText, "100 Hz", 100.f, labelArea, barPlot);
-    DrawFrequencyLabel(g, labelText, "1 kHz", 1000.f, labelArea, barPlot);
-    DrawFrequencyLabel(g, labelText, "10 kHz", 10000.f, labelArea, barPlot);
+    for(std::size_t i = 0; i < kAxisLabelFrequenciesHz.size(); ++i)
+      DrawFrequencyLabel(g, labelText, kAxisLabelStrings[i], kAxisLabelFrequenciesHz[i], labelArea, barPlot, xMapping);
   }
 
   void OnMsgFromDelegate(int msgTag, int dataSize, const void* pData) override
@@ -148,6 +135,49 @@ public:
   }
 
 private:
+  struct LogFrequencyMapping
+  {
+    float minHz;
+    float maxHz;
+    float logMin;
+    float invLogSpan;
+
+    float Normalize(float frequencyHz) const
+    {
+      return NormalizeFromLog(std::log(std::clamp(frequencyHz, minHz, maxHz)));
+    }
+
+    float NormalizeFromLog(float logFrequency) const
+    {
+      return std::clamp((logFrequency - logMin) * invLogSpan, 0.f, 1.f);
+    }
+  };
+
+  static const LogFrequencyMapping& XFrequencyMapping()
+  {
+    static const LogFrequencyMapping mapping = [] {
+      const float logMin = std::log(kMinFrequencyHzX);
+      const float logMax = std::log(kMaxFrequencyHzX);
+      return LogFrequencyMapping{kMinFrequencyHzX, kMaxFrequencyHzX, logMin, 1.f / (logMax - logMin)};
+    }();
+    return mapping;
+  }
+
+  static const LogFrequencyMapping& ColorFrequencyMapping()
+  {
+    static const LogFrequencyMapping mapping = [] {
+      const float logMin = std::log(kMinFrequencyHzColor);
+      const float logMax = std::log(kMaxFrequencyHzColor);
+      return LogFrequencyMapping{kMinFrequencyHzColor, kMaxFrequencyHzColor, logMin, 1.f / (logMax - logMin)};
+    }();
+    return mapping;
+  }
+
+  static float LerpXFromNormalized(float xNorm, const IRECT& bounds)
+  {
+    return bounds.L + (xNorm * bounds.W());
+  }
+
   static IColor LerpColor(const IColor& a, const IColor& b, float t)
   {
     const float clampedT = std::clamp(t, 0.f, 1.f);
@@ -196,7 +226,13 @@ private:
     // Very short lines fade out to reduce clutter in dense high-harmonic tails.
     constexpr float kFadeStartPx = 0.f;
     constexpr float kFadeEndPx = 5.f;
-    return Smoothstep(kFadeStartPx, kFadeEndPx, std::max(0.f, heightPixels));
+    const float h = std::max(0.f, heightPixels);
+    if(h <= kFadeStartPx)
+      return 0.f;
+    if(h >= kFadeEndPx)
+      return 1.f;
+
+    return Smoothstep(kFadeStartPx, kFadeEndPx, h);
   }
 
   static void DrawGlowingVerticalLine(
@@ -217,11 +253,6 @@ private:
       return;
 
     // 5-pass stack: 4 additive glow layers + 1 bright core.
-    constexpr std::array<float, 4> kGlowThicknesses{12.f, 8.f, 5.f, 3.0f};
-    constexpr std::array<float, 4> kGlowOpacities{0.5f, 0.7f, 0.9f, 1.0f};
-    constexpr std::array<float, 4> kGlowBlendWeights{0.5f, 0.7f, 0.9f, 1.0f};
-    constexpr float kCoreThickness = 1.0f;
-
     for(std::size_t pass = 0; pass < kGlowThicknesses.size(); ++pass)
     {
       const IColor passColor = glowColor.WithOpacity(kGlowOpacities[pass] * clampedVisibility);
@@ -231,19 +262,31 @@ private:
 
     const IColor coreColorScaled = coreColor.WithOpacity(clampedVisibility);
     const IBlend coreBlend{EBlend::SrcOver, baseBlendWeight * clampedVisibility};
-    DrawRoundedVerticalStroke(g, x, y0, y1, coreColorScaled, kCoreThickness, coreBlend);
+    DrawRoundedVerticalStroke(g, x, y0, y1, coreColorScaled, kCoreThicknessPx, coreBlend);
   }
 
-  static bool IsLabelFrequency(float frequencyHz)
+  static bool IsMajorGridFrequency(float frequencyHz)
   {
-    return frequencyHz == 100.f || frequencyHz == 1000.f || frequencyHz == 10000.f;
+    for(float majorFrequency : kAxisLabelFrequenciesHz)
+    {
+      if(majorFrequency == frequencyHz)
+        return true;
+    }
+    return false;
   }
 
-  static void DrawFrequencyLabel(IGraphics& g, const IText& text, const char* label, float frequencyHz, const IRECT& labelArea, const IRECT& plotArea)
+  static void DrawFrequencyLabel(
+    IGraphics& g,
+    const IText& text,
+    const char* label,
+    float frequencyHz,
+    const IRECT& labelArea,
+    const IRECT& plotArea,
+    const LogFrequencyMapping& xMapping)
   {
     constexpr float kLabelWidth = 68.f;
 
-    const float x = FrequencyToX(frequencyHz, plotArea);
+    const float x = LerpXFromNormalized(xMapping.Normalize(frequencyHz), plotArea);
     const IRECT labelBounds{
       x - (kLabelWidth * 0.5f),
       labelArea.T,
@@ -253,32 +296,16 @@ private:
     g.DrawText(text, label, labelBounds, nullptr);
   }
 
-  static float FrequencyToX(float frequencyHz, const IRECT& bounds)
-  {
-    const float xNorm = FrequencyToNormalizedLogXPosition(frequencyHz);
-    return bounds.L + (xNorm * bounds.W());
-  }
-
-  static float FrequencyToNormalizedLogXPosition(float frequencyHz)
-  {
-    const float clampedFrequency = std::clamp(frequencyHz, kMinFrequencyHzX, kMaxFrequencyHzX);
-    const float logMin = std::log(kMinFrequencyHzX);
-    const float logMax = std::log(kMaxFrequencyHzX);
-    return (std::log(clampedFrequency) - logMin) / (logMax - logMin);
-  }
-
-  static float FrequencyToNormalizedLogColorPosition(float frequencyHz)
-  {
-    const float clampedFrequency = std::clamp(frequencyHz, kMinFrequencyHzColor, kMaxFrequencyHzColor);
-    const float logMin = std::log(kMinFrequencyHzColor);
-    const float logMax = std::log(kMaxFrequencyHzColor);
-    return (std::log(clampedFrequency) - logMin) / (logMax - logMin);
-  }
-
   static constexpr float kMinFrequencyHzX = 20.f;
   static constexpr float kMaxFrequencyHzX = 20000.f;
   static constexpr float kMinFrequencyHzColor = 100.f;
   static constexpr float kMaxFrequencyHzColor = 10000.f;
+  static constexpr float kCoreThicknessPx = 1.0f;
+  static constexpr std::array<float, 3> kAxisLabelFrequenciesHz{100.f, 1000.f, 10000.f};
+  static constexpr std::array<const char*, 3> kAxisLabelStrings{"100 Hz", "1 kHz", "10 kHz"};
+  static constexpr std::array<float, 4> kGlowThicknesses{12.f, 8.f, 5.f, 3.0f};
+  static constexpr std::array<float, 4> kGlowOpacities{0.5f, 0.7f, 0.9f, 1.0f};
+  static constexpr std::array<float, 4> kGlowBlendWeights{0.5f, 0.7f, 0.9f, 1.0f};
   static constexpr std::array<float, 28> kGridFrequenciesHz{
     20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f, 90.f, 100.f,
     200.f, 300.f, 400.f, 500.f, 600.f, 700.f, 800.f, 900.f, 1000.f,
