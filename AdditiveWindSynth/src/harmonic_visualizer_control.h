@@ -46,11 +46,14 @@ public:
     const IColor kGridLineColorMinor{75, 70, 78, 88};
     const IColor kGridLineColorMajor{130, 92, 102, 118};
     const IColor kLabelColor{220, 172, 186, 206};
-    const IColor kBarColor{220, 160, 188, 230};
+    const IColor kGlowOuterColor{160, 104, 132, 214};
+    const IColor kGlowInnerColor{220, 150, 190, 244};
+    const IColor kCoreLineColor{255, 224, 240, 255};
     constexpr float kCornerRadius = 7.f;
-    constexpr float kBarWidthPixels = 4.f;
-    constexpr float kHalfBarWidth = kBarWidthPixels * 0.5f;
     constexpr float kLabelAreaHeight = 18.f;
+    constexpr float kGlowOuterThickness = 8.f;
+    constexpr float kGlowInnerThickness = 4.f;
+    constexpr float kCoreThickness = 1.2f;
 
     g.FillRoundRect(kBackgroundColor, mRECT, kCornerRadius, &mBlend);
     g.DrawRoundRect(kFrameColor, mRECT, kCornerRadius, &mBlend, 1.f);
@@ -59,6 +62,10 @@ public:
     const IRECT barPlot{plot.L, plot.T, plot.R, plot.B - kLabelAreaHeight};
     const IRECT labelArea{plot.L, barPlot.B, plot.R, plot.B};
     const IText labelText{11.f, kLabelColor, "Roboto-Regular", EAlign::Center, EVAlign::Bottom};
+    const float blendWeight = BlendWeight(&mBlend);
+    const IBlend glowOuterBlend{EBlend::Add, 0.34f * blendWeight};
+    const IBlend glowInnerBlend{EBlend::Add, 0.52f * blendWeight};
+    const IBlend coreBlend{EBlend::SrcOver, blendWeight};
 
     for(const float frequencyHz : kGridFrequenciesHz)
     {
@@ -92,12 +99,38 @@ public:
 
       if(leftHeight > 0.f)
       {
-        g.FillRect(kBarColor, IRECT(x - kHalfBarWidth, centerY - leftHeight, x + kHalfBarWidth, centerY), &mBlend);
+        DrawGlowingVerticalLine(
+          g,
+          x,
+          centerY - leftHeight,
+          centerY,
+          kGlowOuterColor,
+          kGlowInnerColor,
+          kCoreLineColor,
+          glowOuterBlend,
+          glowInnerBlend,
+          coreBlend,
+          kGlowOuterThickness,
+          kGlowInnerThickness,
+          kCoreThickness);
       }
 
       if(rightHeight > 0.f)
       {
-        g.FillRect(kBarColor, IRECT(x - kHalfBarWidth, centerY, x + kHalfBarWidth, centerY + rightHeight), &mBlend);
+        DrawGlowingVerticalLine(
+          g,
+          x,
+          centerY,
+          centerY + rightHeight,
+          kGlowOuterColor,
+          kGlowInnerColor,
+          kCoreLineColor,
+          glowOuterBlend,
+          glowInnerBlend,
+          coreBlend,
+          kGlowOuterThickness,
+          kGlowInnerThickness,
+          kCoreThickness);
       }
     }
 
@@ -124,6 +157,29 @@ public:
   }
 
 private:
+  static void DrawGlowingVerticalLine(
+    IGraphics& g,
+    float x,
+    float y0,
+    float y1,
+    const IColor& glowOuterColor,
+    const IColor& glowInnerColor,
+    const IColor& coreColor,
+    const IBlend& glowOuterBlend,
+    const IBlend& glowInnerBlend,
+    const IBlend& coreBlend,
+    float glowOuterThickness,
+    float glowInnerThickness,
+    float coreThickness)
+  {
+    if(std::fabs(y1 - y0) <= 0.1f)
+      return;
+
+    g.DrawLine(glowOuterColor, x, y0, x, y1, &glowOuterBlend, glowOuterThickness);
+    g.DrawLine(glowInnerColor, x, y0, x, y1, &glowInnerBlend, glowInnerThickness);
+    g.DrawLine(coreColor, x, y0, x, y1, &coreBlend, coreThickness);
+  }
+
   static bool IsLabelFrequency(float frequencyHz)
   {
     return frequencyHz == 100.f || frequencyHz == 1000.f || frequencyHz == 10000.f;
