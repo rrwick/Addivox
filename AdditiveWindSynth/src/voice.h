@@ -9,6 +9,8 @@ template<typename T>
 class SynthVoice
 {
 public:
+  using VisualizerFrame = HarmonicVisualizerFrame;
+
   SynthVoice();
   bool IsActive() const;
   void Start(float pitch, float pitchBend, float breath);
@@ -18,6 +20,7 @@ public:
   void Clear();
   void ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
+  void GetVisualizerFrame(VisualizerFrame& frame) const;
 
 private:
   void UpdateFrequency();

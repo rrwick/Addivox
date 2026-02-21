@@ -11,6 +11,8 @@ template<typename T>
 class SynthEngine
 {
 public:
+  using VisualizerFrame = typename SynthVoice<T>::VisualizerFrame;
+
   void ProcessBlock(T** outputs, int nFrames)
   {
     constexpr int kNumOutputs = 2;
@@ -43,6 +45,11 @@ public:
   {
     (void) paramIdx;
     mGainTarget = static_cast<T>(value / 100.);
+  }
+
+  void GetVisualizerFrame(VisualizerFrame& frame) const
+  {
+    mSynth.GetVoice().GetVisualizerFrame(frame);
   }
 
 public:

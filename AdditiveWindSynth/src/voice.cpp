@@ -175,5 +175,12 @@ void SynthVoice<T>::SetSampleRate(double sampleRate)
     osc.SetSampleRate(sampleRate);
 }
 
+template<typename T>
+void SynthVoice<T>::GetVisualizerFrame(VisualizerFrame& frame) const
+{
+  for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
+    frame.harmonics[harmonic] = mOscs[harmonic].GetVisualizerState();
+}
+
 template class SynthVoice<float>;
 template class SynthVoice<double>;

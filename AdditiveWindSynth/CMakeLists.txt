@@ -16,6 +16,9 @@ iplug_add_plugin(${PROJECT_NAME}
     src/voice.h
     src/oscillator.cpp
     src/oscillator.h
+    src/harmonic_visualizer_frame.h
+    src/harmonic_visualizer_sender.h
+    src/harmonic_visualizer_control.h
     src/settings.cpp
     src/settings.h
     src/midi_synth.h

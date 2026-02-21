@@ -24,7 +24,14 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 
     // pGraphics->EnableLiveEdit(true);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
-    plugin_ui::AttachMainControls(pGraphics, kParamGain, kCtrlTagKeyboard, kCtrlTagBender, kCtrlTagBreathMeter, kCtrlTagMeter);
+    plugin_ui::AttachMainControls(
+      pGraphics,
+      kParamGain,
+      kCtrlTagHarmonicVisualizer,
+      kCtrlTagKeyboard,
+      kCtrlTagBender,
+      kCtrlTagBreathMeter,
+      kCtrlTagMeter);
     
     pGraphics->SetQwertyMidiKeyHandlerFunc([this, pGraphics](const IMidiMsg& msg) {
       plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
@@ -39,11 +46,16 @@ void AdditiveWindSynth::ProcessBlock(sample** inputs, sample** outputs, int nFra
   (void) inputs;
   mDSP.ProcessBlock(outputs, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
+  mHarmonicVisualizerSender.ProcessBlock(
+    nFrames,
+    kCtrlTagHarmonicVisualizer,
+    [this](VisualizerFrame& frame) { mDSP.GetVisualizerFrame(frame); });
 }
 
 void AdditiveWindSynth::OnIdle()
 {
   mMeterSender.TransmitData(*this);
+  mHarmonicVisualizerSender.TransmitData(*this);
   const double breathLevel = mBreathLevel.load(std::memory_order_relaxed);
   if(breathLevel != mLastSentBreathLevel)
   {
@@ -56,6 +68,7 @@ void AdditiveWindSynth::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mMeterSender.Reset(GetSampleRate());
+  mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
   mLastQwertyMIDINote = -1;
   mBreathLevel.store(1.f, std::memory_order_relaxed);
   mLastSentBreathLevel = -1.;

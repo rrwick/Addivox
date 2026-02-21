@@ -125,6 +125,11 @@ bool Oscillator::IsActive() const
   return (mTargetLevel > kLevelEpsilon) || (mLevel > kLevelEpsilon);
 }
 
+HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const
+{
+  return HarmonicVisualizerOscillator{mFrequencyHz, mLevel, mPanLeftGain, mPanRightGain};
+}
+
 void Oscillator::UpdatePhaseIncrement()
 {
   mPhaseIncrement = mFrequencyHz / mSampleRate;

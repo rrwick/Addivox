@@ -103,6 +103,11 @@ public:
     }
   }
 
+  const VoiceT& GetVoice() const
+  {
+    return mVoice;
+  }
+
 private:
   struct MonoMidiState
   {

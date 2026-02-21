@@ -4,6 +4,8 @@
 #include "IControls.h"
 #include <atomic>
 
+#include "harmonic_visualizer_sender.h"
+
 const int kNumPresets = 1;
 
 enum EParams
@@ -21,6 +23,7 @@ enum EControlTags
 {
   kCtrlTagMeter = 0,
   kCtrlTagBreathMeter,
+  kCtrlTagHarmonicVisualizer,
   kCtrlTagKeyboard,
   kCtrlTagBender,
   kNumCtrlTags
@@ -44,8 +47,11 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
+  using VisualizerFrame = SynthEngine<sample>::VisualizerFrame;
+
   SynthEngine<sample> mDSP;
   IPeakAvgSender<2> mMeterSender;
+  HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
   int mLastQwertyMIDINote{-1};
   std::atomic<float> mBreathLevel{1.f};
   double mLastSentBreathLevel{-1.};

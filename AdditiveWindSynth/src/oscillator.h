@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 
+#include "harmonic_visualizer_frame.h"
+
 class Oscillator
 {
 public:
@@ -20,6 +22,7 @@ public:
   void Reset();
   std::array<float, 2> Process();
   bool IsActive() const;
+  HarmonicVisualizerOscillator GetVisualizerState() const;
 
 private:
   void UpdatePhaseIncrement();
