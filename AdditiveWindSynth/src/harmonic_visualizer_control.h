@@ -17,7 +17,7 @@ namespace harmonic_visualizer_level
 inline float MapPseudoLog(float level)
 {
   // Isolated intensity mapping so this can be swapped easily.
-  constexpr float kShape = 32.f;
+  constexpr float kShape = 64.f;
 
   const float safeLevel = std::max(0.f, level);
   const float numerator = std::log1pf(kShape * safeLevel);
@@ -83,6 +83,7 @@ public:
 
     const float centerY = barPlot.MH();
     const float channelHeight = (barPlot.H() * 0.5f) - 1.f;
+    constexpr float kYAxisBoost = 1.5f;
 
     g.DrawLine(kCenterLineColor, barPlot.L, centerY, barPlot.R, centerY, &mBlend, 1.f);
 
@@ -100,8 +101,10 @@ public:
       const float x = FrequencyToX(osc.frequencyHz, barPlot);
       const float mappedLevel = harmonic_visualizer_level::MapPseudoLog(osc.level);
 
-      const float leftHeight = mappedLevel * std::clamp(osc.panLeftGain, 0.f, 1.f) * channelHeight;
-      const float rightHeight = mappedLevel * std::clamp(osc.panRightGain, 0.f, 1.f) * channelHeight;
+      const float leftNormHeight = std::min(1.f, mappedLevel * std::clamp(osc.panLeftGain, 0.f, 1.f) * kYAxisBoost);
+      const float rightNormHeight = std::min(1.f, mappedLevel * std::clamp(osc.panRightGain, 0.f, 1.f) * kYAxisBoost);
+      const float leftHeight = leftNormHeight * channelHeight;
+      const float rightHeight = rightNormHeight * channelHeight;
 
       if(leftHeight > 0.f)
       {
