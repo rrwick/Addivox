@@ -12,6 +12,7 @@ OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo,
   out.intensity = lo.intensity + (hi.intensity - lo.intensity) * clampedT;
   out.attack = lo.attack + (hi.attack - lo.attack) * clampedT;
   out.release = lo.release + (hi.release - lo.release) * clampedT;
+  out.pitch = lo.pitch + (hi.pitch - lo.pitch) * clampedT;
   out.pan = lo.pan + (hi.pan - lo.pan) * clampedT;
   out.intensity_variation_amplitude =
     lo.intensity_variation_amplitude +

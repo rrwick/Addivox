@@ -9,6 +9,7 @@ public:
   void SetSampleRate(double sampleRate);
   void SetVariationSeed(uint32_t seed);
   void SetFrequency(float frequencyHz);
+  void SetPitch(float pitchCents);
   void SetPitchVariation(float amplitudeCents, float rateHz);
   void SetAttackTime(float attackTimeSec);
   void SetReleaseTime(float releaseTimeSec);
@@ -45,6 +46,7 @@ private:
   float mSampleRate = 44100.f;
   float mFrequencyHz = 440.f;
   float mBaseFrequencyHz = 440.f;
+  float mBasePitchCents = 0.f;
   float mTargetLevel = 0.f;
   float mBaseLevel = 0.f;
   float mLevel = 0.f;

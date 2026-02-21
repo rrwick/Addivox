@@ -108,6 +108,7 @@ void SynthVoice<T>::UpdateFrequency()
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
     mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+    mOscs[harmonic].SetPitch(settings.pitch);
     mOscs[harmonic].SetPitchVariation(settings.pitch_variation_amplitude, settings.pitch_variation_rate);
     mOscs[harmonic].SetAttackTime(settings.attack);
     mOscs[harmonic].SetReleaseTime(settings.release);

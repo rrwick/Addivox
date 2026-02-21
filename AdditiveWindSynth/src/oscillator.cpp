@@ -30,6 +30,12 @@ void Oscillator::SetFrequency(float frequencyHz)
   UpdateVariationTargets();
 }
 
+void Oscillator::SetPitch(float pitchCents)
+{
+  mBasePitchCents = pitchCents;
+  UpdateVariationTargets();
+}
+
 void Oscillator::SetPitchVariation(float amplitudeCents, float rateHz)
 {
   mPitchVariationAmplitudeCents = ClampNonNegative(amplitudeCents);
@@ -148,7 +154,7 @@ void Oscillator::UpdateVariationTargets()
     (mPitchVariationAmplitudeCents > 0.f && mPitchVariationRateHz > 0.f)
       ? GradientNoise1D(mPitchVariationPosition, mVariationSeed ^ 0x17D39EF5u)
       : 0.f;
-  const float pitchCents = mPitchVariationAmplitudeCents * pitchNoise;
+  const float pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
   mFrequencyHz = mBaseFrequencyHz * std::exp2(pitchCents / 1200.f);
   UpdatePhaseIncrement();
 

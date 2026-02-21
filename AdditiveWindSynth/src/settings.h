@@ -10,8 +10,9 @@ class OscillatorSettings
 public:
   OscillatorSettings() = default;
   constexpr OscillatorSettings(float intensityIn,
-                               float attackIn = 0.01f,
+                               float attackIn = 0.005f,
                                float releaseIn = 0.01f,
+                               float pitchIn = 0.f,
                                float panIn = 0.f,
                                float intensityVariationAmplitudeIn = 0.25f,
                                float intensityVariationRateIn = 1.f,
@@ -22,6 +23,7 @@ public:
   : intensity(intensityIn)
   , attack(attackIn)
   , release(releaseIn)
+  , pitch(pitchIn)
   , pan(panIn)
   , intensity_variation_amplitude(intensityVariationAmplitudeIn)
   , intensity_variation_rate(intensityVariationRateIn)
@@ -35,6 +37,7 @@ public:
   float intensity{0.f};
   float attack{0.f};
   float release{0.f};
+  float pitch{0.f};
   float pan{0.f};
   float intensity_variation_amplitude{0.f};
   float intensity_variation_rate{0.f};
