@@ -107,7 +107,8 @@ public:
           centerY,
           harmonicColor,
           coreLineColor,
-          baseBlendWeight);
+          baseBlendWeight,
+          VisibilityForHeightPixels(leftHeight));
       }
 
       if(rightHeight > 0.f)
@@ -119,7 +120,8 @@ public:
           centerY + rightHeight,
           harmonicColor,
           coreLineColor,
-          baseBlendWeight);
+          baseBlendWeight,
+          VisibilityForHeightPixels(rightHeight));
       }
     }
 
@@ -179,6 +181,24 @@ private:
     g.PathStroke(color, thickness, RoundCapStrokeOptions(), &blend);
   }
 
+  static float Smoothstep(float edge0, float edge1, float x)
+  {
+    if(edge1 <= edge0)
+      return (x >= edge1) ? 1.f : 0.f;
+
+    float t = std::clamp((x - edge0) / (edge1 - edge0), 0.f, 1.f);
+    t = std::sqrt(t);
+    return t * t * (3.f - 2.f * t);
+  }
+
+  static float VisibilityForHeightPixels(float heightPixels)
+  {
+    // Very short lines fade out to reduce clutter in dense high-harmonic tails.
+    constexpr float kFadeStartPx = 0.f;
+    constexpr float kFadeEndPx = 5.f;
+    return Smoothstep(kFadeStartPx, kFadeEndPx, std::max(0.f, heightPixels));
+  }
+
   static void DrawGlowingVerticalLine(
     IGraphics& g,
     float x,
@@ -186,9 +206,14 @@ private:
     float y1,
     const IColor& glowColor,
     const IColor& coreColor,
-    float baseBlendWeight)
+    float baseBlendWeight,
+    float visibility)
   {
     if(std::fabs(y1 - y0) <= 0.1f)
+      return;
+
+    const float clampedVisibility = std::clamp(visibility, 0.f, 1.f);
+    if(clampedVisibility <= 0.f)
       return;
 
     // 5-pass stack: 4 additive glow layers + 1 bright core.
@@ -199,13 +224,14 @@ private:
 
     for(std::size_t pass = 0; pass < kGlowThicknesses.size(); ++pass)
     {
-      const IColor passColor = glowColor.WithOpacity(kGlowOpacities[pass]);
-      const IBlend passBlend{EBlend::Add, kGlowBlendWeights[pass] * baseBlendWeight};
+      const IColor passColor = glowColor.WithOpacity(kGlowOpacities[pass] * clampedVisibility);
+      const IBlend passBlend{EBlend::Add, kGlowBlendWeights[pass] * baseBlendWeight * clampedVisibility};
       DrawRoundedVerticalStroke(g, x, y0, y1, passColor, kGlowThicknesses[pass], passBlend);
     }
 
-    const IBlend coreBlend{EBlend::SrcOver, baseBlendWeight};
-    DrawRoundedVerticalStroke(g, x, y0, y1, coreColor, kCoreThickness, coreBlend);
+    const IColor coreColorScaled = coreColor.WithOpacity(clampedVisibility);
+    const IBlend coreBlend{EBlend::SrcOver, baseBlendWeight * clampedVisibility};
+    DrawRoundedVerticalStroke(g, x, y0, y1, coreColorScaled, kCoreThickness, coreBlend);
   }
 
   static bool IsLabelFrequency(float frequencyHz)
