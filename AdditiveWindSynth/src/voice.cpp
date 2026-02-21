@@ -58,6 +58,25 @@ void SynthVoice<T>::SetPitchBend(float pitchBend)
 }
 
 template<typename T>
+float SynthVoice<T>::MidiPitchToFrequency(float midiPitch)
+{
+  return 440.f * std::exp2((midiPitch - 69.f) / 12.f);
+}
+
+template<typename T>
+void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq)
+{
+  mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+  mOscs[harmonic].SetPitch(settings.pitch);
+  mOscs[harmonic].SetPitchVariation(settings.pitch_variation_amplitude, settings.pitch_variation_rate);
+  mOscs[harmonic].SetAttackTime(settings.attack);
+  mOscs[harmonic].SetReleaseTime(settings.release);
+  mOscs[harmonic].SetPan(settings.pan);
+  mOscs[harmonic].SetPanVariation(settings.pan_variation_amplitude, settings.pan_variation_rate);
+  mOscs[harmonic].SetIntensityVariation(settings.intensity_variation_amplitude, settings.intensity_variation_rate);
+}
+
+template<typename T>
 void SynthVoice<T>::SetBreath(float breath)
 {
   const float smoothedBreath = SmoothBreath(breath);
@@ -101,20 +120,13 @@ template<typename T>
 void SynthVoice<T>::UpdateFrequency()
 {
   const float midiPitch = mPitch + mPitchBend;
-  const float fundamentalFreq = 440.f * std::exp2((midiPitch - 69.f) / 12.f);
+  const float fundamentalFreq = MidiPitchToFrequency(midiPitch);
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
-    mOscs[harmonic].SetPitch(settings.pitch);
-    mOscs[harmonic].SetPitchVariation(settings.pitch_variation_amplitude, settings.pitch_variation_rate);
-    mOscs[harmonic].SetAttackTime(settings.attack);
-    mOscs[harmonic].SetReleaseTime(settings.release);
-    mOscs[harmonic].SetPan(settings.pan);
-    mOscs[harmonic].SetPanVariation(settings.pan_variation_amplitude, settings.pan_variation_rate);
-    mOscs[harmonic].SetIntensityVariation(settings.intensity_variation_amplitude, settings.intensity_variation_rate);
+    ApplyOscillatorSettings(harmonic, settings, fundamentalFreq);
   }
 
   UpdateLevels();

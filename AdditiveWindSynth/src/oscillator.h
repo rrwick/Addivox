@@ -31,6 +31,8 @@ private:
   static float ClampPan(float pan);
   static std::array<float, 2> PanToGains(float pan);
   static float ClampNonNegative(float value);
+  static float CentsToRatio(float cents);
+  static float VariationNoise(float amplitude, float rateHz, float position, uint32_t seed);
   static float Quintic(float t);
   static uint32_t HashUint32(uint32_t x);
   static float HashToSignedUnitFloat(uint32_t x);

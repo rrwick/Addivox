@@ -8,6 +8,24 @@
 class OscillatorSettings
 {
 public:
+  enum class Parameter : int
+  {
+    intensity = 0,
+    attack,
+    release,
+    pitch,
+    pan,
+    intensity_variation_amplitude,
+    intensity_variation_rate,
+    pitch_variation_amplitude,
+    pitch_variation_rate,
+    pan_variation_amplitude,
+    pan_variation_rate,
+    count
+  };
+
+  static constexpr int kNumParameters = static_cast<int>(Parameter::count);
+
   OscillatorSettings() = default;
   constexpr OscillatorSettings(float intensityIn,
                                float attackIn = 0.005f,
@@ -46,6 +64,20 @@ public:
   float pan_variation_amplitude{0.f};
   float pan_variation_rate{0.f};
 
+  static constexpr std::array<Parameter, kNumParameters> AllParameters()
+  {
+    std::array<Parameter, kNumParameters> parameters{};
+    for(int i = 0; i < kNumParameters; ++i)
+      parameters[static_cast<std::size_t>(i)] = static_cast<Parameter>(i);
+
+    return parameters;
+  }
+
+  static const char* GetParameterName(Parameter parameter);
+  static const char* GetParameterUnit(Parameter parameter);
+  float GetParameter(Parameter parameter) const;
+  void SetParameter(Parameter parameter, float value);
+
   static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t);
 };
 
@@ -60,6 +92,7 @@ public:
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
+  void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, float value);
 
   static SimplePreset Interpolate(const SimplePreset& lo, const SimplePreset& hi, float t);
 

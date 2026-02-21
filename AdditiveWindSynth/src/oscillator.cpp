@@ -143,25 +143,28 @@ void Oscillator::UpdatePanSlewRate()
 
 void Oscillator::UpdateVariationTargets()
 {
-  const float intensityNoise =
-    (mIntensityVariationAmplitude > 0.f && mIntensityVariationRateHz > 0.f)
-      ? GradientNoise1D(mIntensityVariationPosition, mVariationSeed ^ 0xF1023A17u)
-      : 0.f;
+  const float intensityNoise = VariationNoise(
+    mIntensityVariationAmplitude,
+    mIntensityVariationRateHz,
+    mIntensityVariationPosition,
+    mVariationSeed ^ 0xF1023A17u);
   const float levelScale = std::max(0.f, 1.f + mIntensityVariationAmplitude * intensityNoise);
   mTargetLevel = mBaseLevel * levelScale;
 
-  const float pitchNoise =
-    (mPitchVariationAmplitudeCents > 0.f && mPitchVariationRateHz > 0.f)
-      ? GradientNoise1D(mPitchVariationPosition, mVariationSeed ^ 0x17D39EF5u)
-      : 0.f;
+  const float pitchNoise = VariationNoise(
+    mPitchVariationAmplitudeCents,
+    mPitchVariationRateHz,
+    mPitchVariationPosition,
+    mVariationSeed ^ 0x17D39EF5u);
   const float pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
-  mFrequencyHz = mBaseFrequencyHz * std::exp2(pitchCents / 1200.f);
+  mFrequencyHz = mBaseFrequencyHz * CentsToRatio(pitchCents);
   UpdatePhaseIncrement();
 
-  const float panNoise =
-    (mPanVariationAmplitude > 0.f && mPanVariationRateHz > 0.f)
-      ? GradientNoise1D(mPanVariationPosition, mVariationSeed ^ 0xC29B3F4Bu)
-      : 0.f;
+  const float panNoise = VariationNoise(
+    mPanVariationAmplitude,
+    mPanVariationRateHz,
+    mPanVariationPosition,
+    mVariationSeed ^ 0xC29B3F4Bu);
   const float modulatedPan = ClampPan(mBasePan + mPanVariationAmplitude * panNoise);
   const auto panGains = PanToGains(modulatedPan);
   mTargetPanLeftGain = panGains[0];
@@ -210,6 +213,19 @@ std::array<float, 2> Oscillator::PanToGains(float pan)
 float Oscillator::ClampNonNegative(float value)
 {
   return std::max(0.f, value);
+}
+
+float Oscillator::CentsToRatio(float cents)
+{
+  return std::exp2(cents / 1200.f);
+}
+
+float Oscillator::VariationNoise(float amplitude, float rateHz, float position, uint32_t seed)
+{
+  if(amplitude <= 0.f || rateHz <= 0.f)
+    return 0.f;
+
+  return GradientNoise1D(position, seed);
 }
 
 float Oscillator::Quintic(float t)

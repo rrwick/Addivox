@@ -5,33 +5,80 @@
 #include <algorithm>
 #include <cmath>
 
+namespace
+{
+using Parameter = OscillatorSettings::Parameter;
+using MemberPtr = float OscillatorSettings::*;
+
+struct ParameterDescriptor
+{
+  const char* name;
+  const char* unit;
+  MemberPtr member;
+};
+
+constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{{
+  {"Intensity", "", &OscillatorSettings::intensity},
+  {"Attack", "s", &OscillatorSettings::attack},
+  {"Release", "s", &OscillatorSettings::release},
+  {"Pitch", "cents", &OscillatorSettings::pitch},
+  {"Pan", "", &OscillatorSettings::pan},
+  {"Intensity Variation Amount", "", &OscillatorSettings::intensity_variation_amplitude},
+  {"Intensity Variation Rate", "Hz", &OscillatorSettings::intensity_variation_rate},
+  {"Pitch Variation Amount", "cents", &OscillatorSettings::pitch_variation_amplitude},
+  {"Pitch Variation Rate", "Hz", &OscillatorSettings::pitch_variation_rate},
+  {"Pan Variation Amount", "", &OscillatorSettings::pan_variation_amplitude},
+  {"Pan Variation Rate", "Hz", &OscillatorSettings::pan_variation_rate}
+}};
+
+const ParameterDescriptor* GetDescriptor(Parameter parameter)
+{
+  const int index = static_cast<int>(parameter);
+  if(index < 0 || index >= OscillatorSettings::kNumParameters)
+    return nullptr;
+
+  return &kParameterDescriptors[static_cast<std::size_t>(index)];
+}
+
+float Lerp(float lo, float hi, float t)
+{
+  return lo + (hi - lo) * t;
+}
+} // namespace
+
+const char* OscillatorSettings::GetParameterName(Parameter parameter)
+{
+  const auto* descriptor = GetDescriptor(parameter);
+  return descriptor ? descriptor->name : "";
+}
+
+const char* OscillatorSettings::GetParameterUnit(Parameter parameter)
+{
+  const auto* descriptor = GetDescriptor(parameter);
+  return descriptor ? descriptor->unit : "";
+}
+
+float OscillatorSettings::GetParameter(Parameter parameter) const
+{
+  const auto* descriptor = GetDescriptor(parameter);
+  return descriptor ? this->*(descriptor->member) : 0.f;
+}
+
+void OscillatorSettings::SetParameter(Parameter parameter, float value)
+{
+  const auto* descriptor = GetDescriptor(parameter);
+  if(descriptor)
+    this->*(descriptor->member) = value;
+}
+
 OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t)
 {
   const float clampedT = std::clamp(t, 0.f, 1.f);
   OscillatorSettings out{};
-  out.intensity = lo.intensity + (hi.intensity - lo.intensity) * clampedT;
-  out.attack = lo.attack + (hi.attack - lo.attack) * clampedT;
-  out.release = lo.release + (hi.release - lo.release) * clampedT;
-  out.pitch = lo.pitch + (hi.pitch - lo.pitch) * clampedT;
-  out.pan = lo.pan + (hi.pan - lo.pan) * clampedT;
-  out.intensity_variation_amplitude =
-    lo.intensity_variation_amplitude +
-    (hi.intensity_variation_amplitude - lo.intensity_variation_amplitude) * clampedT;
-  out.intensity_variation_rate =
-    lo.intensity_variation_rate +
-    (hi.intensity_variation_rate - lo.intensity_variation_rate) * clampedT;
-  out.pitch_variation_amplitude =
-    lo.pitch_variation_amplitude +
-    (hi.pitch_variation_amplitude - lo.pitch_variation_amplitude) * clampedT;
-  out.pitch_variation_rate =
-    lo.pitch_variation_rate +
-    (hi.pitch_variation_rate - lo.pitch_variation_rate) * clampedT;
-  out.pan_variation_amplitude =
-    lo.pan_variation_amplitude +
-    (hi.pan_variation_amplitude - lo.pan_variation_amplitude) * clampedT;
-  out.pan_variation_rate =
-    lo.pan_variation_rate +
-    (hi.pan_variation_rate - lo.pan_variation_rate) * clampedT;
+  for(const auto& descriptor : kParameterDescriptors)
+  {
+    out.*(descriptor.member) = Lerp(lo.*(descriptor.member), hi.*(descriptor.member), clampedT);
+  }
   return out;
 }
 
@@ -53,6 +100,11 @@ const OscillatorSettings& SimplePreset::GetOscillatorSettings(int oscillatorInde
 void SimplePreset::SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings)
 {
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)] = settings;
+}
+
+void SimplePreset::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, float value)
+{
+  mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)].SetParameter(parameter, value);
 }
 
 SimplePreset SimplePreset::Interpolate(const SimplePreset& lo, const SimplePreset& hi, float t)

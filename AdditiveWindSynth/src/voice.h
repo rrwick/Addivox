@@ -23,6 +23,8 @@ private:
   void UpdateFrequency();
   void UpdateLevels();
   float SmoothBreath(float breath);
+  static float MidiPitchToFrequency(float midiPitch);
+  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
 
