@@ -46,14 +46,11 @@ public:
     const IColor kGridLineColorMinor{75, 70, 78, 88};
     const IColor kGridLineColorMajor{130, 92, 102, 118};
     const IColor kLabelColor{220, 172, 186, 206};
-    const IColor kHarmonicColorStart{255, 0, 245, 255};  // bright cyan
-    const IColor kHarmonicColorEnd{255, 255, 0, 190};    // hot pink
+    const IColor kHarmonicColorStart{255, 0, 255, 255};  // bright cyan
+    const IColor kHarmonicColorEnd{255, 255, 0, 255};    // hot pink
     const IColor kWhite{255, 255, 255, 255};
     constexpr float kCornerRadius = 7.f;
     constexpr float kLabelAreaHeight = 18.f;
-    constexpr float kGlowOuterThickness = 8.f;
-    constexpr float kGlowInnerThickness = 4.f;
-    constexpr float kCoreThickness = 1.2f;
 
     g.FillRoundRect(kBackgroundColor, mRECT, kCornerRadius, &mBlend);
     g.DrawRoundRect(kFrameColor, mRECT, kCornerRadius, &mBlend, 1.f);
@@ -62,10 +59,7 @@ public:
     const IRECT barPlot{plot.L, plot.T, plot.R, plot.B - kLabelAreaHeight};
     const IRECT labelArea{plot.L, barPlot.B, plot.R, plot.B};
     const IText labelText{11.f, kLabelColor, "Roboto-Regular", EAlign::Center, EVAlign::Bottom};
-    const float blendWeight = BlendWeight(&mBlend);
-    const IBlend glowOuterBlend{EBlend::Add, 0.34f * blendWeight};
-    const IBlend glowInnerBlend{EBlend::Add, 0.80f * blendWeight};
-    const IBlend coreBlend{EBlend::SrcOver, blendWeight};
+    const float baseBlendWeight = BlendWeight(&mBlend);
 
     for(const float frequencyHz : kGridFrequenciesHz)
     {
@@ -94,8 +88,6 @@ public:
 
       const float colorT = FrequencyToNormalizedLogColorPosition(osc.frequencyHz);
       const IColor harmonicColor = LerpColor(kHarmonicColorStart, kHarmonicColorEnd, colorT);
-      const IColor glowOuterColor = harmonicColor.WithOpacity(0.40f);
-      const IColor glowInnerColor = harmonicColor.WithOpacity(1.0f);
       const IColor coreLineColor = kWhite;
 
       const float x = FrequencyToX(osc.frequencyHz, barPlot);
@@ -113,15 +105,9 @@ public:
           x,
           centerY - leftHeight,
           centerY,
-          glowOuterColor,
-          glowInnerColor,
+          harmonicColor,
           coreLineColor,
-          glowOuterBlend,
-          glowInnerBlend,
-          coreBlend,
-          kGlowOuterThickness,
-          kGlowInnerThickness,
-          kCoreThickness);
+          baseBlendWeight);
       }
 
       if(rightHeight > 0.f)
@@ -131,15 +117,9 @@ public:
           x,
           centerY,
           centerY + rightHeight,
-          glowOuterColor,
-          glowInnerColor,
+          harmonicColor,
           coreLineColor,
-          glowOuterBlend,
-          glowInnerBlend,
-          coreBlend,
-          kGlowOuterThickness,
-          kGlowInnerThickness,
-          kCoreThickness);
+          baseBlendWeight);
       }
     }
 
@@ -181,27 +161,51 @@ private:
       lerpChannel(a.B, b.B));
   }
 
+  static const IStrokeOptions& RoundCapStrokeOptions()
+  {
+    static const IStrokeOptions options = [] {
+      IStrokeOptions strokeOptions;
+      strokeOptions.mCapOption = ELineCap::Round;
+      strokeOptions.mJoinOption = ELineJoin::Round;
+      return strokeOptions;
+    }();
+    return options;
+  }
+
+  static void DrawRoundedVerticalStroke(IGraphics& g, float x, float y0, float y1, const IColor& color, float thickness, const IBlend& blend)
+  {
+    g.PathMoveTo(x, y0);
+    g.PathLineTo(x, y1);
+    g.PathStroke(color, thickness, RoundCapStrokeOptions(), &blend);
+  }
+
   static void DrawGlowingVerticalLine(
     IGraphics& g,
     float x,
     float y0,
     float y1,
-    const IColor& glowOuterColor,
-    const IColor& glowInnerColor,
+    const IColor& glowColor,
     const IColor& coreColor,
-    const IBlend& glowOuterBlend,
-    const IBlend& glowInnerBlend,
-    const IBlend& coreBlend,
-    float glowOuterThickness,
-    float glowInnerThickness,
-    float coreThickness)
+    float baseBlendWeight)
   {
     if(std::fabs(y1 - y0) <= 0.1f)
       return;
 
-    g.DrawLine(glowOuterColor, x, y0, x, y1, &glowOuterBlend, glowOuterThickness);
-    g.DrawLine(glowInnerColor, x, y0, x, y1, &glowInnerBlend, glowInnerThickness);
-    g.DrawLine(coreColor, x, y0, x, y1, &coreBlend, coreThickness);
+    // 5-pass stack: 4 additive glow layers + 1 bright core.
+    constexpr std::array<float, 4> kGlowThicknesses{12.f, 8.f, 5.f, 3.0f};
+    constexpr std::array<float, 4> kGlowOpacities{0.5f, 0.7f, 0.9f, 1.0f};
+    constexpr std::array<float, 4> kGlowBlendWeights{0.5f, 0.7f, 0.9f, 1.0f};
+    constexpr float kCoreThickness = 1.0f;
+
+    for(std::size_t pass = 0; pass < kGlowThicknesses.size(); ++pass)
+    {
+      const IColor passColor = glowColor.WithOpacity(kGlowOpacities[pass]);
+      const IBlend passBlend{EBlend::Add, kGlowBlendWeights[pass] * baseBlendWeight};
+      DrawRoundedVerticalStroke(g, x, y0, y1, passColor, kGlowThicknesses[pass], passBlend);
+    }
+
+    const IBlend coreBlend{EBlend::SrcOver, baseBlendWeight};
+    DrawRoundedVerticalStroke(g, x, y0, y1, coreColor, kCoreThickness, coreBlend);
   }
 
   static bool IsLabelFrequency(float frequencyHz)
