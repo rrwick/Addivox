@@ -14,7 +14,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   
   mLayoutFunc = [&](IGraphics* pGraphics) {
     pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
-    pGraphics->AttachPanelBackground(COLOR_GRAY);
+    pGraphics->AttachPanelBackground(plugin_ui::colour::ui::kPanelBackground);
     pGraphics->EnableMouseOver(true);
     pGraphics->EnableMultiTouch(true);
     

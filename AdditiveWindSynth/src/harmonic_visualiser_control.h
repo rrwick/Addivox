@@ -3,6 +3,7 @@
 #include "IControl.h"
 #include "IPlugStructs.h"
 #include "ISender.h"
+#include "colour.h"
 #include "harmonic_visualiser_frame.h"
 
 #include <algorithm>
@@ -39,22 +40,18 @@ public:
 
   void Draw(IGraphics& g) override
   {
-    const IColor kBackgroundColor{255, 8, 10, 12};
-    const IColor kFrameColor{255, 42, 48, 56};
-    const IColor kCenterLineColor{255, 74, 82, 92};
-    const IColor kBarColor{220, 160, 188, 230};
     constexpr float kCornerRadius = 7.f;
     constexpr float kBarWidthPixels = 4.f;
     constexpr float kHalfBarWidth = kBarWidthPixels * 0.5f;
 
-    g.FillRoundRect(kBackgroundColor, mRECT, kCornerRadius, &mBlend);
-    g.DrawRoundRect(kFrameColor, mRECT, kCornerRadius, &mBlend, 1.f);
+    g.FillRoundRect(plugin_ui::colour::visualizer::kBackground, mRECT, kCornerRadius, &mBlend);
+    g.DrawRoundRect(plugin_ui::colour::visualizer::kFrame, mRECT, kCornerRadius, &mBlend, 1.f);
 
     const IRECT plot = mRECT.GetPadded(-2.f);
     const float centerY = plot.MH();
     const float channelHeight = (plot.H() * 0.5f) - 1.f;
 
-    g.DrawLine(kCenterLineColor, plot.L, centerY, plot.R, centerY, &mBlend, 1.f);
+    g.DrawLine(plugin_ui::colour::visualizer::kCenterLine, plot.L, centerY, plot.R, centerY, &mBlend, 1.f);
 
     for(const auto& osc : mFrame.harmonics)
     {
@@ -69,12 +66,12 @@ public:
 
       if(leftHeight > 0.f)
       {
-        g.FillRect(kBarColor, IRECT(x - kHalfBarWidth, centerY - leftHeight, x + kHalfBarWidth, centerY), &mBlend);
+        g.FillRect(plugin_ui::colour::visualizer::kLegacyBar, IRECT(x - kHalfBarWidth, centerY - leftHeight, x + kHalfBarWidth, centerY), &mBlend);
       }
 
       if(rightHeight > 0.f)
       {
-        g.FillRect(kBarColor, IRECT(x - kHalfBarWidth, centerY, x + kHalfBarWidth, centerY + rightHeight), &mBlend);
+        g.FillRect(plugin_ui::colour::visualizer::kLegacyBar, IRECT(x - kHalfBarWidth, centerY, x + kHalfBarWidth, centerY + rightHeight), &mBlend);
       }
     }
   }

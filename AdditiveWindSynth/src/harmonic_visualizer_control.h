@@ -3,6 +3,7 @@
 #include "IControl.h"
 #include "IPlugStructs.h"
 #include "ISender.h"
+#include "colour.h"
 #include "harmonic_visualizer_frame.h"
 
 #include <algorithm>
@@ -33,25 +34,16 @@ public:
 
   void Draw(IGraphics& g) override
   {
-    const IColor kBackgroundColor{255, 8, 10, 12};
-    const IColor kFrameColor{255, 42, 48, 56};
-    const IColor kCenterLineColor{255, 74, 82, 92};
-    const IColor kGridLineColorMinor{75, 70, 78, 88};
-    const IColor kGridLineColorMajor{130, 92, 102, 118};
-    const IColor kLabelColor{220, 172, 186, 206};
-    const IColor kHarmonicColorStart{255, 0, 255, 255};  // bright cyan
-    const IColor kHarmonicColorEnd{255, 255, 0, 255};    // hot pink
-    const IColor kWhite{255, 255, 255, 255};
     constexpr float kCornerRadius = 7.f;
     constexpr float kLabelAreaHeight = 18.f;
 
-    g.FillRoundRect(kBackgroundColor, mRECT, kCornerRadius, &mBlend);
-    g.DrawRoundRect(kFrameColor, mRECT, kCornerRadius, &mBlend, 1.f);
+    g.FillRoundRect(plugin_ui::colour::visualizer::kBackground, mRECT, kCornerRadius, &mBlend);
+    g.DrawRoundRect(plugin_ui::colour::visualizer::kFrame, mRECT, kCornerRadius, &mBlend, 1.f);
 
     const IRECT plot = mRECT.GetPadded(-2.f);
     const IRECT barPlot{plot.L, plot.T, plot.R, plot.B - kLabelAreaHeight};
     const IRECT labelArea{plot.L, barPlot.B, plot.R, plot.B};
-    const IText labelText{11.f, kLabelColor, "Roboto-Regular", EAlign::Center, EVAlign::Bottom};
+    const IText labelText{11.f, plugin_ui::colour::visualizer::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Bottom};
     const auto& xMapping = XFrequencyMapping();
     const auto& colorMapping = ColorFrequencyMapping();
     const float baseBlendWeight = BlendWeight(&mBlend);
@@ -68,7 +60,7 @@ public:
         y0,
         y1,
         harmonicColor,
-        kWhite,
+        plugin_ui::colour::visualizer::kHarmonicCore,
         baseBlendWeight,
         VisibilityForHeightPixels(height));
     };
@@ -78,7 +70,7 @@ public:
       const float x = LerpXFromNormalized(xMapping.Normalize(frequencyHz), barPlot);
       const bool major = IsMajorGridFrequency(frequencyHz);
       g.DrawLine(
-        major ? kGridLineColorMajor : kGridLineColorMinor,
+        major ? plugin_ui::colour::visualizer::kGridMajor : plugin_ui::colour::visualizer::kGridMinor,
         x,
         barPlot.T,
         x,
@@ -89,7 +81,7 @@ public:
 
     constexpr float kYAxisBoost = 1.5f;
 
-    g.DrawLine(kCenterLineColor, barPlot.L, centerY, barPlot.R, centerY, &mBlend, 1.f);
+    g.DrawLine(plugin_ui::colour::visualizer::kCenterLine, barPlot.L, centerY, barPlot.R, centerY, &mBlend, 1.f);
 
     for(const auto& osc : mFrame.harmonics)
     {
@@ -100,7 +92,7 @@ public:
       const float logFrequency = std::log(clampedFrequencyHz);
       const float xNorm = xMapping.NormalizeFromLog(logFrequency);
       const float colorT = colorMapping.NormalizeFromLog(logFrequency);
-      const IColor harmonicColor = LerpColor(kHarmonicColorStart, kHarmonicColorEnd, colorT);
+      const IColor harmonicColor = LerpColor(plugin_ui::colour::visualizer::kHarmonicGradientStart, plugin_ui::colour::visualizer::kHarmonicGradientEnd, colorT);
       const float x = LerpXFromNormalized(xNorm, barPlot);
       const float mappedLevel = harmonic_visualizer_level::MapPseudoLog(osc.level);
 
