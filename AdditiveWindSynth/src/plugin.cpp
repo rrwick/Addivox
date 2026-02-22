@@ -92,6 +92,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Global Pitch Variation Rate");
   initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Global Pan Variation Amount");
   initPseudoLogScale(kParamGlobalPanVariationRateScale, "Global Pan Variation Rate");
+  GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (CC5=0)", 0., 0., 2.0, 0.001, "s");
+  GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (CC5=127)", 0., 0., 2.0, 0.001, "s");
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -126,6 +128,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
       pGraphics,
       kParamGain,
       globalModifierParamIdxs,
+      kParamPortamentoAtCC5Min,
+      kParamPortamentoAtCC5Max,
       kCtrlTagHarmonicVisualizer,
       kCtrlTagKeyboard,
       kCtrlTagBender,

@@ -81,6 +81,12 @@ public:
       case kParamGlobalPanVariationRateScale:
         mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, static_cast<float>(value));
         break;
+      case kParamPortamentoAtCC5Min:
+        mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamPortamentoAtCC5Max:
+        mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.f, static_cast<float>(value));
+        break;
       default:
         return;
     }

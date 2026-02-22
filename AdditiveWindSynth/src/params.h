@@ -13,5 +13,7 @@ enum EParams
   kParamGlobalPitchVariationRateScale,
   kParamGlobalPanVariationAmplitudeScale,
   kParamGlobalPanVariationRateScale,
+  kParamPortamentoAtCC5Min,
+  kParamPortamentoAtCC5Max,
   kNumParams
 };

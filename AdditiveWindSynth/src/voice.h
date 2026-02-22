@@ -17,6 +17,8 @@ struct GlobalOscillatorModifiers
   float pitchVariationRateScale{1.f};
   float panVariationAmplitudeScale{1.f};
   float panVariationRateScale{1.f};
+  float portamentoTimeAtCC5MinSec{0.f};
+  float portamentoTimeAtCC5MaxSec{0.f};
 };
 
 template<typename T>
@@ -31,6 +33,7 @@ public:
   void Stop();
   void SetPitchBend(float pitchBend);
   void SetBreath(float breath);
+  void SetPortamentoControl(float control);
   void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
   void Clear();
   void ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames);
@@ -40,6 +43,7 @@ public:
 private:
   void UpdateFrequency();
   void UpdateLevels();
+  float GetPortamentoTimeSec() const;
   float SmoothBreath(float breath);
   static float MidiPitchToFrequency(float midiPitch);
   void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq);
@@ -54,6 +58,7 @@ private:
 
   // Breath is a linear value from 0 to 1.
   float mBreath{0.f};
+  float mPortamentoControl{0.f};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
   CompoundPreset mCompoundPreset;

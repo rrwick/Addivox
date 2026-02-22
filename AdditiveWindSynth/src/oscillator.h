@@ -12,6 +12,7 @@ public:
   void SetVariationSeed(uint32_t seed);
   void SetFrequency(float frequencyHz);
   void SetPitch(float pitchCents);
+  void SetPitchTime(float pitchTimeSec);
   void SetPitchVariation(float amplitudeCents, float rateHz);
   void SetAttackTime(float attackTimeSec);
   void SetReleaseTime(float releaseTimeSec);
@@ -26,6 +27,7 @@ public:
 
 private:
   void UpdatePhaseIncrement();
+  void UpdatePitchRate();
   void UpdateLevelRates();
   void UpdatePanSlewRate();
   void UpdateVariationTargets();
@@ -43,6 +45,7 @@ private:
 
   static constexpr float kTwoPi = 6.28318530717958647692f;
   static constexpr float kPi = 3.14159265358979323846f;
+  static constexpr float kMinFrequencyHz = 0.000001f;
   static constexpr float kLevelEpsilon = 0.00001f;
   static constexpr float kPanSlewTimeSec = 0.005f;
   static constexpr int kVariationControlIntervalSamples = 16;
@@ -52,11 +55,14 @@ private:
   float mFrequencyHz = 440.f;
   float mBaseFrequencyHz = 440.f;
   float mBasePitchCents = 0.f;
+  float mPitch = 8.7813597135f;
+  float mTargetPitch = 8.7813597135f;
   float mTargetLevel = 0.f;
   float mBaseLevel = 0.f;
   float mLevel = 0.f;
   float mAttackTimeSec = 0.f;
   float mReleaseTimeSec = 0.f;
+  float mPitchTimeSec = 0.f;
   float mBasePan = 0.f;
   float mPanLeftGain = 0.70710678f;
   float mPanRightGain = 0.70710678f;
@@ -76,6 +82,7 @@ private:
   int mVariationSamplesUntilUpdate = 0;
   float mAttackRate = 1.f;
   float mReleaseRate = 1.f;
+  float mPitchRate = 1.f;
   float mPhase = 0.f;
   float mPhaseIncrement = 440.f / 44100.f;
 };

@@ -47,6 +47,8 @@ inline void AttachMainControls(
   IGraphics* pGraphics,
   int gainParamIdx,
   const std::array<int, 10>& globalModifierParamIdxs,
+  int portamentoAtCC5MinParamIdx,
+  int portamentoAtCC5MaxParamIdx,
   int harmonicVisualizerTag,
   int keyboardTag,
   int benderTag,
@@ -58,6 +60,12 @@ inline void AttachMainControls(
   const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 420.f, 35.f, 120.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 430.f, 945.f, 110.f);
   const IRECT globalKnobGridBounds = IRECT::MakeXYWH(50.f, 240.f, 400.f, 160.f);
+
+  const IRECT portamentoGroupBounds = IRECT::MakeXYWH(480.f, 240.f, 160.f, 30.f);
+  const IRECT portamentoSliderBounds = IRECT::MakeXYWH(480.f, 240.f, 160.f, 30.f);
+  const IRECT portamentoMinValueBounds = IRECT::MakeXYWH(480.f, 260.f, 50.f, 20.f);
+  const IRECT portamentoMaxValueBounds = IRECT::MakeXYWH(590.f, 260.f, 50.f, 20.f);
+
   const IRECT breathMeterBounds = IRECT::MakeXYWH(10.f, 8.f, 30.f, 200.f);
   const IRECT outMeterBounds = IRECT::MakeXYWH(960.f, 10.f, 30.f, 200.f);
   const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
@@ -65,6 +73,7 @@ inline void AttachMainControls(
   const IVStyle compactKnobStyle = knobStyle
     .WithLabelText(IText(10.5f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Top))
     .WithValueText(IText(10.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Bottom));
+  const IText portamentoValueText = IText(12.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
   const IVStyle groupStyle = theme::BaseStyle(true, false);
   const IVStyle meterStyle = theme::MeterStyle();
   constexpr int kGlobalKnobCols = 5;
@@ -88,6 +97,8 @@ inline void AttachMainControls(
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
   pGraphics->AttachControl(
     new IVGroupControl(globalKnobGridBounds.GetPadded(8.f, 16.f, 8.f, 8.f), "Global settings", 6.f, groupStyle));
+  pGraphics->AttachControl(
+    new IVGroupControl(portamentoGroupBounds.GetPadded(8.f, 16.f, 8.f, 8.f), "Portamento", 6.f, groupStyle));
   const float globalCellWidth = globalKnobGridBounds.W() / static_cast<float>(kGlobalKnobCols);
   const float globalCellHeight = globalKnobGridBounds.H() / static_cast<float>(kGlobalKnobRows);
   for(size_t i = 0; i < globalModifierParamIdxs.size(); ++i)
@@ -101,6 +112,27 @@ inline void AttachMainControls(
       globalCellHeight);
     pGraphics->AttachControl(new IVKnobControl(knobBounds, globalModifierParamIdxs[i], kGlobalKnobLabels[i], compactKnobStyle));
   }
+  pGraphics->AttachControl(
+    new IVRangeSliderControl(
+      portamentoSliderBounds.GetPadded(8.f, 8.f, 8.f, 8.f),
+      {portamentoAtCC5MinParamIdx, portamentoAtCC5MaxParamIdx},
+      "",
+      knobStyle,
+      EDirection::Horizontal,
+      true,
+      9.f,
+      3.f));
+  auto* portamentoMinValueControl =
+    new ICaptionControl(portamentoMinValueBounds, portamentoAtCC5MinParamIdx, portamentoValueText, COLOR_TRANSPARENT, true);
+  portamentoMinValueControl->SetIgnoreMouse(true);
+  portamentoMinValueControl->DisablePrompt(true);
+  pGraphics->AttachControl(portamentoMinValueControl);
+
+  auto* portamentoMaxValueControl =
+    new ICaptionControl(portamentoMaxValueBounds, portamentoAtCC5MaxParamIdx, portamentoValueText, COLOR_TRANSPARENT, true);
+  portamentoMaxValueControl->SetIgnoreMouse(true);
+  portamentoMaxValueControl->DisablePrompt(true);
+  pGraphics->AttachControl(portamentoMaxValueControl);
   pGraphics->AttachControl(new IVKnobControl(gainKnobBounds, gainParamIdx, "Gain", knobStyle));
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "Breath", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "Out", meterStyle), outMeterTag);

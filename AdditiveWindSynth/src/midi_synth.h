@@ -25,7 +25,7 @@ public:
   MidiSynth(int blockSize = kDefaultBlockSize)
   : mMidiQueue(blockSize)
   {
-    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f, 1.f};
+    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f, 1.f, 0.f};
     ClearVoiceControls();
   }
 
@@ -36,6 +36,7 @@ public:
   {
     mMidiState.currentPitchBend = 0.f;
     mMidiState.currentBreath = 1.f;
+    mMidiState.currentPortamento = 0.f;
     mActiveChannel = 0;
     mActiveKey = kNoKey;
     StopVoice();
@@ -123,6 +124,7 @@ private:
     uint8_t pitchBendRange; // in semitones
     float currentPitchBend;
     float currentBreath;
+    float currentPortamento;
   };
 
   static bool IsRPNMessage(const IMidiMsg& msg)
@@ -188,6 +190,9 @@ private:
           case IMidiMsg::kBreathController:
             Breath(channel, static_cast<float>(msg.ControlChange(IMidiMsg::kBreathController)));
             break;
+          case IMidiMsg::kPortamentoTime:
+            Portamento(channel, static_cast<float>(msg.ControlChange(IMidiMsg::kPortamentoTime)));
+            break;
           case IMidiMsg::kAllNotesOff:
             StopVoice();
             break;
@@ -248,6 +253,7 @@ private:
 
   void StartVoice(int channel, int key, float pitch)
   {
+    mVoice.SetPortamentoControl(mMidiState.currentPortamento);
     mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath);
     mActiveChannel = static_cast<uint8_t>(channel);
     mActiveKey = static_cast<uint8_t>(key);
@@ -304,6 +310,17 @@ private:
     }
   }
 
+  void Portamento(int channel, float value)
+  {
+    const uint8_t portamentoChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+
+    if(mActiveKey != kNoKey && !IsActiveChannel(portamentoChannel))
+      return;
+
+    mMidiState.currentPortamento = Clip(value, 0.f, 1.f);
+    mVoice.SetPortamentoControl(mMidiState.currentPortamento);
+  }
+
   bool IsActiveChannel(uint8_t channel) const
   {
     return mActiveKey != kNoKey && mActiveChannel == channel;
@@ -317,6 +334,7 @@ private:
   void ClearVoiceControls()
   {
     mVoice.Clear();
+    mVoice.SetPortamentoControl(mMidiState.currentPortamento);
   }
 
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);

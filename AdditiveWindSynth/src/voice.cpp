@@ -68,6 +68,7 @@ template<typename T>
 void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq)
 {
   mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+  mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
   mOscs[harmonic].SetPitch(settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents);
   mOscs[harmonic].SetPitchVariation(
     settings.pitch_variation_amplitude * mGlobalOscillatorModifiers.pitchVariationAmplitudeScale,
@@ -95,6 +96,16 @@ void SynthVoice<T>::SetBreath(float breath)
 }
 
 template<typename T>
+void SynthVoice<T>::SetPortamentoControl(float control)
+{
+  const float clampedControl = std::clamp(control, 0.f, 1.f);
+  mPortamentoControl = clampedControl;
+  const float pitchTimeSec = GetPortamentoTimeSec();
+  for(auto& osc : mOscs)
+    osc.SetPitchTime(pitchTimeSec);
+}
+
+template<typename T>
 void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
 {
   mGlobalOscillatorModifiers.attackScale = std::max(0.f, modifiers.attackScale);
@@ -107,6 +118,8 @@ void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers
   mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.f, modifiers.pitchVariationRateScale);
   mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, modifiers.panVariationAmplitudeScale);
   mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, modifiers.panVariationRateScale);
+  mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.f, modifiers.portamentoTimeAtCC5MinSec);
+  mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.f, modifiers.portamentoTimeAtCC5MaxSec);
 
   UpdateFrequency();
 }
@@ -137,7 +150,16 @@ void SynthVoice<T>::Clear()
   mPitch = 0.f;
   mPitchBend = 0.f;
   mBreath = 0.f;
+  mPortamentoControl = 0.f;
   Stop();
+}
+
+template<typename T>
+float SynthVoice<T>::GetPortamentoTimeSec() const
+{
+  return mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec
+    + (mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec - mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec)
+      * mPortamentoControl;
 }
 
 template<typename T>

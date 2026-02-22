@@ -7,6 +7,7 @@ void Oscillator::SetSampleRate(double sampleRate)
 {
   mSampleRate = (sampleRate > 0.0) ? static_cast<float>(sampleRate) : 44100.f;
   UpdatePhaseIncrement();
+  UpdatePitchRate();
   UpdateLevelRates();
   UpdatePanSlewRate();
   UpdateVariationTargets();
@@ -34,6 +35,12 @@ void Oscillator::SetPitch(float pitchCents)
 {
   mBasePitchCents = pitchCents;
   UpdateVariationTargets();
+}
+
+void Oscillator::SetPitchTime(float pitchTimeSec)
+{
+  mPitchTimeSec = std::max(0.f, pitchTimeSec);
+  UpdatePitchRate();
 }
 
 void Oscillator::SetPitchVariation(float amplitudeCents, float rateHz)
@@ -85,6 +92,9 @@ void Oscillator::Reset()
 {
   mPhase = 0.f;
   mLevel = 0.f;
+  mPitch = mTargetPitch;
+  mFrequencyHz = std::exp2(mPitch);
+  UpdatePhaseIncrement();
   mVariationSamplesUntilUpdate = 0;
 }
 
@@ -103,6 +113,10 @@ std::array<float, 2> Oscillator::Process()
 
   mPanLeftGain += (mTargetPanLeftGain - mPanLeftGain) * mPanSlewRate;
   mPanRightGain += (mTargetPanRightGain - mPanRightGain) * mPanSlewRate;
+
+  mPitch += (mTargetPitch - mPitch) * mPitchRate;
+  mFrequencyHz = std::exp2(mPitch);
+  UpdatePhaseIncrement();
 
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
     mLevel = 0.f;
@@ -135,6 +149,11 @@ void Oscillator::UpdatePhaseIncrement()
   mPhaseIncrement = mFrequencyHz / mSampleRate;
 }
 
+void Oscillator::UpdatePitchRate()
+{
+  mPitchRate = TimeToRate(mPitchTimeSec, mSampleRate);
+}
+
 void Oscillator::UpdateLevelRates()
 {
   mAttackRate = TimeToRate(mAttackTimeSec, mSampleRate);
@@ -162,8 +181,8 @@ void Oscillator::UpdateVariationTargets()
     mPitchVariationPosition,
     mVariationSeed ^ 0x17D39EF5u);
   const float pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
-  mFrequencyHz = mBaseFrequencyHz * CentsToRatio(pitchCents);
-  UpdatePhaseIncrement();
+  const float targetFrequencyHz = std::max(kMinFrequencyHz, mBaseFrequencyHz * CentsToRatio(pitchCents));
+  mTargetPitch = std::log2(targetFrequencyHz);
 
   const float panNoise = VariationNoise(
     mPanVariationAmplitude,
@@ -178,6 +197,9 @@ void Oscillator::UpdateVariationTargets()
   // Apply pan instantly when silent; slew only during active output.
   if(!IsActive())
   {
+    mPitch = mTargetPitch;
+    mFrequencyHz = std::exp2(mPitch);
+    UpdatePhaseIncrement();
     mPanLeftGain = mTargetPanLeftGain;
     mPanRightGain = mTargetPanRightGain;
   }
