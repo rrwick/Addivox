@@ -53,11 +53,11 @@ inline void AttachMainControls(
   int outMeterTag)
 {
   // Full UI: 1000 x 500
-  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(45.f, 20.f, 845.f, 280.f);
+  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(50.f, 20.f, 900.f, 190.f);
   const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 370.f, 35.f, 120.f);
-  const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 370.f, 945.f, 120.f);
-  const IRECT breathMeterBounds = IRECT::MakeXYWH(900.f, 10.f, 40.f, 200.f);
-  const IRECT outMeterBounds = IRECT::MakeXYWH(950.f, 10.f, 40.f, 200.f);
+  const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 380.f, 945.f, 110.f);
+  const IRECT breathMeterBounds = IRECT::MakeXYWH(10.f, 8.f, 30.f, 200.f);
+  const IRECT outMeterBounds = IRECT::MakeXYWH(960.f, 10.f, 30.f, 200.f);
   const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
   const IVStyle knobStyle = theme::BaseStyle();
   const IVStyle meterStyle = theme::MeterStyle();
