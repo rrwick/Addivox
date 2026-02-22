@@ -1,8 +1,10 @@
 #pragma once
 
 #include "midi_synth.h"
+#include "params.h"
 #include "Smoothers.h"
 #include "voice.h"
+#include <algorithm>
 #include <cstring>
 
 using namespace iplug;
@@ -34,6 +36,7 @@ public:
   {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
+    mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -43,8 +46,46 @@ public:
 
   void SetParam(int paramIdx, double value)
   {
-    (void) paramIdx;
-    mGainTarget = static_cast<T>(value / 100.);
+    switch(paramIdx)
+    {
+      case kParamGain:
+        mGainTarget = static_cast<T>(value / 100.);
+        return;
+      case kParamGlobalAttackScale:
+        mGlobalOscillatorModifiers.attackScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalReleaseScale:
+        mGlobalOscillatorModifiers.releaseScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalPitchShift:
+        mGlobalOscillatorModifiers.pitchOffsetCents = static_cast<float>(value);
+        break;
+      case kParamGlobalPanShift:
+        mGlobalOscillatorModifiers.panOffset = std::clamp(static_cast<float>(value), -1.f, 1.f);
+        break;
+      case kParamGlobalIntensityVariationAmplitudeScale:
+        mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalIntensityVariationRateScale:
+        mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalPitchVariationAmplitudeScale:
+        mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalPitchVariationRateScale:
+        mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalPanVariationAmplitudeScale:
+        mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));
+        break;
+      case kParamGlobalPanVariationRateScale:
+        mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, static_cast<float>(value));
+        break;
+      default:
+        return;
+    }
+
+    mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
   }
 
   void GetVisualizerFrame(VisualizerFrame& frame) const
@@ -56,4 +97,5 @@ public:
   MidiSynth<SynthVoice<T>> mSynth { MidiSynth<SynthVoice<T>>::kDefaultBlockSize };
   LogParamSmooth<T, 1> mParamSmoother;
   sample mGainTarget{1.};
+  GlobalOscillatorModifiers mGlobalOscillatorModifiers{};
 };

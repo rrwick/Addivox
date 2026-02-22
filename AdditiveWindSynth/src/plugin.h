@@ -5,14 +5,9 @@
 #include <atomic>
 
 #include "harmonic_visualizer_sender.h"
+#include "params.h"
 
 const int kNumPresets = 1;
-
-enum EParams
-{
-  kParamGain = 0,
-  kNumParams
-};
 
 #if IPLUG_DSP
 // will use EParams in synth_engine.h

@@ -5,6 +5,20 @@
 #include "oscillator.h"
 #include "settings.h"
 
+struct GlobalOscillatorModifiers
+{
+  float attackScale{1.f};
+  float releaseScale{1.f};
+  float pitchOffsetCents{0.f};
+  float panOffset{0.f};
+  float intensityVariationAmplitudeScale{1.f};
+  float intensityVariationRateScale{1.f};
+  float pitchVariationAmplitudeScale{1.f};
+  float pitchVariationRateScale{1.f};
+  float panVariationAmplitudeScale{1.f};
+  float panVariationRateScale{1.f};
+};
+
 template<typename T>
 class SynthVoice
 {
@@ -17,6 +31,7 @@ public:
   void Stop();
   void SetPitchBend(float pitchBend);
   void SetBreath(float breath);
+  void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
   void Clear();
   void ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
@@ -42,6 +57,7 @@ private:
 
   std::array<Oscillator, kNumHarmonics> mOscs;
   CompoundPreset mCompoundPreset;
+  GlobalOscillatorModifiers mGlobalOscillatorModifiers;
 };
 
 extern template class SynthVoice<float>;

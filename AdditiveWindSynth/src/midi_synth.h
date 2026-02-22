@@ -108,6 +108,11 @@ public:
     return mVoice;
   }
 
+  VoiceT& GetVoice()
+  {
+    return mVoice;
+  }
+
 private:
   struct MonoMidiState
   {

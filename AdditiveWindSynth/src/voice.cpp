@@ -2,6 +2,7 @@
 
 #include "presets.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cmath>
 
@@ -67,13 +68,19 @@ template<typename T>
 void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq)
 {
   mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
-  mOscs[harmonic].SetPitch(settings.pitch);
-  mOscs[harmonic].SetPitchVariation(settings.pitch_variation_amplitude, settings.pitch_variation_rate);
-  mOscs[harmonic].SetAttackTime(settings.attack);
-  mOscs[harmonic].SetReleaseTime(settings.release);
-  mOscs[harmonic].SetPan(settings.pan);
-  mOscs[harmonic].SetPanVariation(settings.pan_variation_amplitude, settings.pan_variation_rate);
-  mOscs[harmonic].SetIntensityVariation(settings.intensity_variation_amplitude, settings.intensity_variation_rate);
+  mOscs[harmonic].SetPitch(settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents);
+  mOscs[harmonic].SetPitchVariation(
+    settings.pitch_variation_amplitude * mGlobalOscillatorModifiers.pitchVariationAmplitudeScale,
+    settings.pitch_variation_rate * mGlobalOscillatorModifiers.pitchVariationRateScale);
+  mOscs[harmonic].SetAttackTime(settings.attack * mGlobalOscillatorModifiers.attackScale);
+  mOscs[harmonic].SetReleaseTime(settings.release * mGlobalOscillatorModifiers.releaseScale);
+  mOscs[harmonic].SetPan(std::clamp(settings.pan + mGlobalOscillatorModifiers.panOffset, -1.f, 1.f));
+  mOscs[harmonic].SetPanVariation(
+    settings.pan_variation_amplitude * mGlobalOscillatorModifiers.panVariationAmplitudeScale,
+    settings.pan_variation_rate * mGlobalOscillatorModifiers.panVariationRateScale);
+  mOscs[harmonic].SetIntensityVariation(
+    settings.intensity_variation_amplitude * mGlobalOscillatorModifiers.intensityVariationAmplitudeScale,
+    settings.intensity_variation_rate * mGlobalOscillatorModifiers.intensityVariationRateScale);
 }
 
 template<typename T>
@@ -85,6 +92,23 @@ void SynthVoice<T>::SetBreath(float breath)
 
   mBreath = smoothedBreath;
   UpdateLevels();
+}
+
+template<typename T>
+void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
+{
+  mGlobalOscillatorModifiers.attackScale = std::max(0.f, modifiers.attackScale);
+  mGlobalOscillatorModifiers.releaseScale = std::max(0.f, modifiers.releaseScale);
+  mGlobalOscillatorModifiers.pitchOffsetCents = modifiers.pitchOffsetCents;
+  mGlobalOscillatorModifiers.panOffset = std::clamp(modifiers.panOffset, -1.f, 1.f);
+  mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.f, modifiers.intensityVariationAmplitudeScale);
+  mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.f, modifiers.intensityVariationRateScale);
+  mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.f, modifiers.pitchVariationAmplitudeScale);
+  mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.f, modifiers.pitchVariationRateScale);
+  mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, modifiers.panVariationAmplitudeScale);
+  mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, modifiers.panVariationRateScale);
+
+  UpdateFrequency();
 }
 
 template<typename T>

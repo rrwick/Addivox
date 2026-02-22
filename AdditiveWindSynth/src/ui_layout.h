@@ -46,26 +46,61 @@ inline IVStyle MeterStyle()
 inline void AttachMainControls(
   IGraphics* pGraphics,
   int gainParamIdx,
+  const std::array<int, 10>& globalModifierParamIdxs,
   int harmonicVisualizerTag,
   int keyboardTag,
   int benderTag,
   int breathMeterTag,
   int outMeterTag)
 {
-  // Full UI: 1000 x 500
+  // Full UI: 1000 x 550
   const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(50.f, 20.f, 900.f, 190.f);
-  const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 370.f, 35.f, 120.f);
-  const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 380.f, 945.f, 110.f);
+  const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 420.f, 35.f, 120.f);
+  const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 430.f, 945.f, 110.f);
+  const IRECT globalKnobGridBounds = IRECT::MakeXYWH(50.f, 240.f, 400.f, 160.f);
   const IRECT breathMeterBounds = IRECT::MakeXYWH(10.f, 8.f, 30.f, 200.f);
   const IRECT outMeterBounds = IRECT::MakeXYWH(960.f, 10.f, 30.f, 200.f);
   const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
   const IVStyle knobStyle = theme::BaseStyle();
+  const IVStyle compactKnobStyle = knobStyle
+    .WithLabelText(IText(10.5f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Top))
+    .WithValueText(IText(10.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Bottom));
+  const IVStyle groupStyle = theme::BaseStyle(true, false);
   const IVStyle meterStyle = theme::MeterStyle();
+  constexpr int kGlobalKnobCols = 5;
+  constexpr int kGlobalKnobRows = 2;
+  constexpr std::array<const char*, 10> kGlobalKnobLabels{{
+    "Attack",
+    "Pitch",
+    "Int Var Amt",
+    "Pitch Var Amt",
+    "Pan Var Amt",
+    "Release",
+    "Pan",
+    "Int Var Rate",
+    "Pitch Var Rate",
+    "Pan Var Rate"
+  }};
 
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
   // Keep keyboard in standard white/black colors for readability.
   pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), keyboardTag);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
+  pGraphics->AttachControl(
+    new IVGroupControl(globalKnobGridBounds.GetPadded(8.f, 16.f, 8.f, 8.f), "Global settings", 6.f, groupStyle));
+  const float globalCellWidth = globalKnobGridBounds.W() / static_cast<float>(kGlobalKnobCols);
+  const float globalCellHeight = globalKnobGridBounds.H() / static_cast<float>(kGlobalKnobRows);
+  for(size_t i = 0; i < globalModifierParamIdxs.size(); ++i)
+  {
+    const int col = static_cast<int>(i % kGlobalKnobCols);
+    const int row = static_cast<int>(i / kGlobalKnobCols);
+    const IRECT knobBounds = IRECT::MakeXYWH(
+      globalKnobGridBounds.L + static_cast<float>(col) * globalCellWidth,
+      globalKnobGridBounds.T + static_cast<float>(row) * globalCellHeight,
+      globalCellWidth,
+      globalCellHeight);
+    pGraphics->AttachControl(new IVKnobControl(knobBounds, globalModifierParamIdxs[i], kGlobalKnobLabels[i], compactKnobStyle));
+  }
   pGraphics->AttachControl(new IVKnobControl(gainKnobBounds, gainParamIdx, "Gain", knobStyle));
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "Breath", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "Out", meterStyle), outMeterTag);

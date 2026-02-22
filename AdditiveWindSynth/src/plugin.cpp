@@ -2,10 +2,29 @@
 #include "IPlug_include_in_plug_src.h"
 #include "ui_layout.h"
 
+namespace
+{
+constexpr double kPseudoLogScaleShape = 6.643856189774724;
+}
+
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
   GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.01, "%");
+
+  const auto initPseudoLogScale = [this](int paramIdx, const char* name) {
+    GetParam(paramIdx)->InitDouble(name, 1., 0., 100., 0.01, "x", 0, "", IParam::ShapePowCurve(kPseudoLogScaleShape));
+  };
+  initPseudoLogScale(kParamGlobalAttackScale, "Global Attack");
+  initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
+  GetParam(kParamGlobalPitchShift)->InitDouble("Global Pitch Shift", 0., -50., 50., 0.01, "cents");
+  GetParam(kParamGlobalPanShift)->InitDouble("Global Pan Shift", 0., -1., 1., 0.01);
+  initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Global Intensity Variation Amount");
+  initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Global Intensity Variation Rate");
+  initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Global Pitch Variation Amount");
+  initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Global Pitch Variation Rate");
+  initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Global Pan Variation Amount");
+  initPseudoLogScale(kParamGlobalPanVariationRateScale, "Global Pan Variation Rate");
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -24,9 +43,22 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 
     // pGraphics->EnableLiveEdit(true);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
+    const std::array<int, 10> globalModifierParamIdxs{{
+      kParamGlobalAttackScale,
+      kParamGlobalPitchShift,
+      kParamGlobalIntensityVariationAmplitudeScale,
+      kParamGlobalPitchVariationAmplitudeScale,
+      kParamGlobalPanVariationAmplitudeScale,
+      kParamGlobalReleaseScale,
+      kParamGlobalPanShift,
+      kParamGlobalIntensityVariationRateScale,
+      kParamGlobalPitchVariationRateScale,
+      kParamGlobalPanVariationRateScale
+    }};
     plugin_ui::AttachMainControls(
       pGraphics,
       kParamGain,
+      globalModifierParamIdxs,
       kCtrlTagHarmonicVisualizer,
       kCtrlTagKeyboard,
       kCtrlTagBender,
