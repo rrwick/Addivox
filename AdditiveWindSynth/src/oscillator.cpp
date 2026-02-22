@@ -25,12 +25,6 @@ void Oscillator::SetVariationSeed(uint32_t seed)
   UpdateVariationTargets();
 }
 
-void Oscillator::SetFrequency(float frequencyHz)
-{
-  mBaseFrequencyHz = (frequencyHz >= 0.f) ? frequencyHz : 0.f;
-  UpdateVariationTargets();
-}
-
 void Oscillator::SetPitch(float pitchCents)
 {
   mBasePitchCents = pitchCents;
@@ -184,8 +178,8 @@ void Oscillator::UpdateVariationTargets()
     mPitchVariationPosition,
     mVariationSeed ^ 0x17D39EF5u);
   const float pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
-  const float targetFrequencyHz = std::max(kMinFrequencyHz, mBaseFrequencyHz * CentsToRatio(pitchCents));
-  mTargetPitch = std::log2(targetFrequencyHz);
+  const float minPitch = std::log2(kMinFrequencyHz);
+  mTargetPitch = std::max(minPitch, kLog2A4 + pitchCents / 1200.f);
 
   const float panNoise = VariationNoise(
     mPanVariationAmplitude,
@@ -234,11 +228,6 @@ std::array<float, 2> Oscillator::PanToGains(float pan)
 float Oscillator::ClampNonNegative(float value)
 {
   return std::max(0.f, value);
-}
-
-float Oscillator::CentsToRatio(float cents)
-{
-  return std::exp2(cents / 1200.f);
 }
 
 float Oscillator::VariationNoise(float amplitude, float rateHz, float position, uint32_t seed)

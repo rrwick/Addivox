@@ -36,7 +36,7 @@ void SynthVoice<T>::Start(float pitch, float pitchBend, float breath)
   mPitch = pitch;
   mPitchBend = pitchBend;
   mBreath = SmoothBreath(breath);
-  UpdateFrequency();
+  UpdatePitch();
 
   if(retrigger)
   {
@@ -55,21 +55,17 @@ template<typename T>
 void SynthVoice<T>::SetPitchBend(float pitchBend)
 {
   mPitchBend = pitchBend;
-  UpdateFrequency();
+  UpdatePitch();
 }
 
 template<typename T>
-float SynthVoice<T>::MidiPitchToFrequency(float midiPitch)
+void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalPitchCents)
 {
-  return 440.f * std::exp2((midiPitch - 69.f) / 12.f);
-}
-
-template<typename T>
-void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq)
-{
-  mOscs[harmonic].SetFrequency(fundamentalFreq * static_cast<float>(harmonic + 1));
+  const float harmonicPitchOffsetCents = 1200.f * std::log2(static_cast<float>(harmonic + 1));
+  const float totalPitchCents = fundamentalPitchCents + harmonicPitchOffsetCents
+    + settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents;
+  mOscs[harmonic].SetPitch(totalPitchCents);
   mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
-  mOscs[harmonic].SetPitch(settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents);
   mOscs[harmonic].SetPitchVariation(
     settings.pitch_variation_amplitude * mGlobalOscillatorModifiers.pitchVariationAmplitudeScale,
     settings.pitch_variation_rate * mGlobalOscillatorModifiers.pitchVariationRateScale);
@@ -121,7 +117,7 @@ void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers
   mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.f, modifiers.portamentoTimeAtCC5MinSec);
   mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.f, modifiers.portamentoTimeAtCC5MaxSec);
 
-  UpdateFrequency();
+  UpdatePitch();
 }
 
 template<typename T>
@@ -163,16 +159,16 @@ float SynthVoice<T>::GetPortamentoTimeSec() const
 }
 
 template<typename T>
-void SynthVoice<T>::UpdateFrequency()
+void SynthVoice<T>::UpdatePitch()
 {
   const float midiPitch = mPitch + mPitchBend;
-  const float fundamentalFreq = MidiPitchToFrequency(midiPitch);
+  const float fundamentalPitchCents = (midiPitch - 69.f) * 100.f;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    ApplyOscillatorSettings(harmonic, settings, fundamentalFreq);
+    ApplyOscillatorSettings(harmonic, settings, fundamentalPitchCents);
   }
 
   UpdateLevels();

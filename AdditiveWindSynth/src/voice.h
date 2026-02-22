@@ -41,12 +41,11 @@ public:
   void GetVisualizerFrame(VisualizerFrame& frame) const;
 
 private:
-  void UpdateFrequency();
+  void UpdatePitch();
   void UpdateLevels();
   float GetPortamentoTimeSec() const;
   float SmoothBreath(float breath);
-  static float MidiPitchToFrequency(float midiPitch);
-  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalFreq);
+  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalPitchCents);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
 

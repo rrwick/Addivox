@@ -10,7 +10,6 @@ class Oscillator
 public:
   void SetSampleRate(double sampleRate);
   void SetVariationSeed(uint32_t seed);
-  void SetFrequency(float frequencyHz);
   void SetPitch(float pitchCents);
   void SetPitchTime(float pitchTimeSec);
   void SetPitchVariation(float amplitudeCents, float rateHz);
@@ -36,7 +35,6 @@ private:
   static float ClampPan(float pan);
   static std::array<float, 2> PanToGains(float pan);
   static float ClampNonNegative(float value);
-  static float CentsToRatio(float cents);
   static float VariationNoise(float amplitude, float rateHz, float position, uint32_t seed);
   static float Quintic(float t);
   static uint32_t HashUint32(uint32_t x);
@@ -45,6 +43,7 @@ private:
 
   static constexpr float kTwoPi = 6.28318530717958647692f;
   static constexpr float kPi = 3.14159265358979323846f;
+  static constexpr float kLog2A4 = 8.7813597135f;
   static constexpr float kMinFrequencyHz = 0.000001f;
   static constexpr float kLevelEpsilon = 0.00001f;
   static constexpr float kPanSlewTimeSec = 0.005f;
@@ -53,10 +52,10 @@ private:
 
   float mSampleRate = 44100.f;
   float mFrequencyHz = 440.f;
-  float mBaseFrequencyHz = 440.f;
+  // Absolute pitch in cents relative to A4 (440 Hz).
   float mBasePitchCents = 0.f;
-  float mPitch = 8.7813597135f;
-  float mTargetPitch = 8.7813597135f;
+  float mPitch = kLog2A4;
+  float mTargetPitch = kLog2A4;
   float mTargetLevel = 0.f;
   float mBaseLevel = 0.f;
   float mLevel = 0.f;
