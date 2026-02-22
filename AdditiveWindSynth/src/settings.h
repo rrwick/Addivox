@@ -34,8 +34,8 @@ public:
                                float panIn = 0.f,
                                float intensityVariationAmplitudeIn = 0.25f,
                                float intensityVariationRateIn = 1.f,
-                               float pitchVariationAmplitudeIn = 0.f,
-                               float pitchVariationRateIn = 0.f,
+                               float pitchVariationAmplitudeIn = 5.f,
+                               float pitchVariationRateIn = 1.f,
                                float panVariationAmplitudeIn = 0.25f,
                                float panVariationRateIn = 1.f)
   : intensity(intensityIn)
