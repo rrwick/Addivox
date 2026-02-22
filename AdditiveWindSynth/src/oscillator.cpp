@@ -94,6 +94,9 @@ void Oscillator::Reset()
   mLevel = 0.f;
   mPitch = mTargetPitch;
   mFrequencyHz = std::exp2(mPitch);
+  // On full retrigger, start from the current pan target.
+  mPanLeftGain = mTargetPanLeftGain;
+  mPanRightGain = mTargetPanRightGain;
   UpdatePhaseIncrement();
   mVariationSamplesUntilUpdate = 0;
 }
@@ -194,15 +197,6 @@ void Oscillator::UpdateVariationTargets()
   mTargetPanLeftGain = panGains[0];
   mTargetPanRightGain = panGains[1];
 
-  // Apply pan instantly when silent; slew only during active output.
-  if(!IsActive())
-  {
-    mPitch = mTargetPitch;
-    mFrequencyHz = std::exp2(mPitch);
-    UpdatePhaseIncrement();
-    mPanLeftGain = mTargetPanLeftGain;
-    mPanRightGain = mTargetPanRightGain;
-  }
 }
 
 void Oscillator::AdvanceVariationPositions(int numSamples)
