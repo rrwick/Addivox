@@ -27,17 +27,17 @@ public:
   static constexpr int kNumParameters = static_cast<int>(Parameter::count);
 
   OscillatorSettings() = default;
-  constexpr OscillatorSettings(float intensityIn,
-                               float attackIn = 0.005f,
-                               float releaseIn = 0.01f,
-                               float pitchIn = 0.f,
-                               float panIn = 0.f,
-                               float intensityVariationAmplitudeIn = 0.25f,
-                               float intensityVariationRateIn = 1.f,
-                               float pitchVariationAmplitudeIn = 5.f,
-                               float pitchVariationRateIn = 1.f,
-                               float panVariationAmplitudeIn = 0.25f,
-                               float panVariationRateIn = 1.f)
+  constexpr OscillatorSettings(double intensityIn,
+                               double attackIn = 0.005,
+                               double releaseIn = 0.01,
+                               double pitchIn = 0.0,
+                               double panIn = 0.0,
+                               double intensityVariationAmplitudeIn = 0.25,
+                               double intensityVariationRateIn = 1.0,
+                               double pitchVariationAmplitudeIn = 5.0,
+                               double pitchVariationRateIn = 1.0,
+                               double panVariationAmplitudeIn = 0.25,
+                               double panVariationRateIn = 1.0)
   : intensity(intensityIn)
   , attack(attackIn)
   , release(releaseIn)
@@ -52,17 +52,17 @@ public:
   {
   }
 
-  float intensity{0.f};
-  float attack{0.f};
-  float release{0.f};
-  float pitch{0.f};
-  float pan{0.f};
-  float intensity_variation_amplitude{0.f};
-  float intensity_variation_rate{0.f};
-  float pitch_variation_amplitude{0.f};
-  float pitch_variation_rate{0.f};
-  float pan_variation_amplitude{0.f};
-  float pan_variation_rate{0.f};
+  double intensity{0.0};
+  double attack{0.0};
+  double release{0.0};
+  double pitch{0.0};
+  double pan{0.0};
+  double intensity_variation_amplitude{0.0};
+  double intensity_variation_rate{0.0};
+  double pitch_variation_amplitude{0.0};
+  double pitch_variation_rate{0.0};
+  double pan_variation_amplitude{0.0};
+  double pan_variation_rate{0.0};
 
   static constexpr std::array<Parameter, kNumParameters> AllParameters()
   {
@@ -114,8 +114,8 @@ public:
   CompoundPreset();
   explicit CompoundPreset(std::initializer_list<KeyNotePreset> keyNotePresets);
 
-  const OscillatorSettings& GetOscillatorSettings(float midiNote, int oscillatorIndex) const;
-  const SimplePreset& GetPresetForMidiNote(float midiNote) const;
+  const OscillatorSettings& GetOscillatorSettings(double midiNote, int oscillatorIndex) const;
+  const SimplePreset& GetPresetForMidiNote(double midiNote) const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
   bool RemoveKeyNotePreset(int midiNote);
@@ -123,7 +123,7 @@ public:
 
 private:
   static int ClampMidiNote(int midiNote);
-  static int RoundAndClampMidiNote(float midiNote);
+  static int RoundAndClampMidiNote(double midiNote);
   void RebuildInterpolatedPresets();
 
   std::map<int, SimplePreset> mKeyNotePresets{};

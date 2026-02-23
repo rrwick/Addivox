@@ -8,7 +8,7 @@
 namespace
 {
 using Parameter = OscillatorSettings::Parameter;
-using MemberPtr = float OscillatorSettings::*;
+using MemberPtr = double OscillatorSettings::*;
 
 struct ParameterDescriptor
 {
@@ -40,7 +40,7 @@ const ParameterDescriptor* GetDescriptor(Parameter parameter)
   return &kParameterDescriptors[static_cast<std::size_t>(index)];
 }
 
-float Lerp(float lo, float hi, float t)
+double Lerp(double lo, double hi, double t)
 {
   return lo + (hi - lo) * t;
 }
@@ -61,7 +61,7 @@ const char* OscillatorSettings::GetParameterUnit(Parameter parameter)
 float OscillatorSettings::GetParameter(Parameter parameter) const
 {
   const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? this->*(descriptor->member) : 0.f;
+  return descriptor ? static_cast<float>(this->*(descriptor->member)) : 0.f;
 }
 
 void OscillatorSettings::SetParameter(Parameter parameter, float value)
@@ -73,7 +73,7 @@ void OscillatorSettings::SetParameter(Parameter parameter, float value)
 
 OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t)
 {
-  const float clampedT = std::clamp(t, 0.f, 1.f);
+  const double clampedT = std::clamp(static_cast<double>(t), 0.0, 1.0);
   OscillatorSettings out{};
   for(const auto& descriptor : kParameterDescriptors)
   {
@@ -125,7 +125,7 @@ int CompoundPreset::ClampMidiNote(int midiNote)
   return std::clamp(midiNote, kMinMidiNote, kMaxMidiNote);
 }
 
-int CompoundPreset::RoundAndClampMidiNote(float midiNote)
+int CompoundPreset::RoundAndClampMidiNote(double midiNote)
 {
   return ClampMidiNote(static_cast<int>(std::lround(midiNote)));
 }
@@ -143,12 +143,12 @@ CompoundPreset::CompoundPreset(std::initializer_list<KeyNotePreset> keyNotePrese
   RebuildInterpolatedPresets();
 }
 
-const OscillatorSettings& CompoundPreset::GetOscillatorSettings(float midiNote, int oscillatorIndex) const
+const OscillatorSettings& CompoundPreset::GetOscillatorSettings(double midiNote, int oscillatorIndex) const
 {
   return GetPresetForMidiNote(midiNote).GetOscillatorSettings(oscillatorIndex);
 }
 
-const SimplePreset& CompoundPreset::GetPresetForMidiNote(float midiNote) const
+const SimplePreset& CompoundPreset::GetPresetForMidiNote(double midiNote) const
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
   return mInterpolatedPresets[clampedNote - kMinMidiNote];
@@ -216,7 +216,7 @@ void CompoundPreset::RebuildInterpolatedPresets()
     }
 
     auto lower = std::prev(upper);
-    const float t = static_cast<float>(midiNote - lower->first) / static_cast<float>(upper->first - lower->first);
+    const double t = static_cast<double>(midiNote - lower->first) / static_cast<double>(upper->first - lower->first);
     mInterpolatedPresets[index] = SimplePreset::Interpolate(lower->second, upper->second, t);
   }
 }

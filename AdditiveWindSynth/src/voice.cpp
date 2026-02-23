@@ -30,7 +30,7 @@ bool SynthVoice<T>::IsActive() const
 }
 
 template<typename T>
-void SynthVoice<T>::Start(float pitch, float pitchBend, float breath)
+void SynthVoice<T>::Start(double pitch, double pitchBend, float breath)
 {
   const bool retrigger = !IsActive();
   mPitch = pitch;
@@ -52,17 +52,17 @@ void SynthVoice<T>::Stop()
 }
 
 template<typename T>
-void SynthVoice<T>::SetPitchBend(float pitchBend)
+void SynthVoice<T>::SetPitchBend(double pitchBend)
 {
   mPitchBend = pitchBend;
   UpdatePitch();
 }
 
 template<typename T>
-void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, float fundamentalPitchCents)
+void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchCents)
 {
-  const float harmonicPitchOffsetCents = 1200.f * std::log2(static_cast<float>(harmonic + 1));
-  const float totalPitchCents = fundamentalPitchCents + harmonicPitchOffsetCents
+  const double harmonicPitchOffsetCents = 1200.0 * std::log2(static_cast<double>(harmonic + 1));
+  const double totalPitchCents = fundamentalPitchCents + harmonicPitchOffsetCents
     + settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents;
   mOscs[harmonic].SetPitch(totalPitchCents);
   mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
@@ -71,7 +71,8 @@ void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettin
     settings.pitch_variation_rate * mGlobalOscillatorModifiers.pitchVariationRateScale);
   mOscs[harmonic].SetAttackTime(settings.attack * mGlobalOscillatorModifiers.attackScale);
   mOscs[harmonic].SetReleaseTime(settings.release * mGlobalOscillatorModifiers.releaseScale);
-  mOscs[harmonic].SetPan(std::clamp(settings.pan + mGlobalOscillatorModifiers.panOffset, -1.f, 1.f));
+  mOscs[harmonic].SetPan(static_cast<float>(
+    std::clamp(settings.pan + static_cast<double>(mGlobalOscillatorModifiers.panOffset), -1.0, 1.0)));
   mOscs[harmonic].SetPanVariation(
     settings.pan_variation_amplitude * mGlobalOscillatorModifiers.panVariationAmplitudeScale,
     settings.pan_variation_rate * mGlobalOscillatorModifiers.panVariationRateScale);
@@ -96,7 +97,7 @@ void SynthVoice<T>::SetPortamentoControl(float control)
 {
   const float clampedControl = std::clamp(control, 0.f, 1.f);
   mPortamentoControl = clampedControl;
-  const float pitchTimeSec = GetPortamentoTimeSec();
+  const double pitchTimeSec = GetPortamentoTimeSec();
   for(auto& osc : mOscs)
     osc.SetPitchTime(pitchTimeSec);
 }
@@ -110,8 +111,8 @@ void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers
   mGlobalOscillatorModifiers.panOffset = std::clamp(modifiers.panOffset, -1.f, 1.f);
   mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.f, modifiers.intensityVariationAmplitudeScale);
   mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.f, modifiers.intensityVariationRateScale);
-  mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.f, modifiers.pitchVariationAmplitudeScale);
-  mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.f, modifiers.pitchVariationRateScale);
+  mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.0, modifiers.pitchVariationAmplitudeScale);
+  mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.0, modifiers.pitchVariationRateScale);
   mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, modifiers.panVariationAmplitudeScale);
   mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, modifiers.panVariationRateScale);
   mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.f, modifiers.portamentoTimeAtCC5MinSec);
@@ -143,15 +144,15 @@ float SynthVoice<T>::SmoothBreath(float breath)
 template<typename T>
 void SynthVoice<T>::Clear()
 {
-  mPitch = 0.f;
-  mPitchBend = 0.f;
+  mPitch = 0.0;
+  mPitchBend = 0.0;
   mBreath = 0.f;
   mPortamentoControl = 0.f;
   Stop();
 }
 
 template<typename T>
-float SynthVoice<T>::GetPortamentoTimeSec() const
+double SynthVoice<T>::GetPortamentoTimeSec() const
 {
   return mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec
     + (mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec - mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec)
@@ -161,8 +162,8 @@ float SynthVoice<T>::GetPortamentoTimeSec() const
 template<typename T>
 void SynthVoice<T>::UpdatePitch()
 {
-  const float midiPitch = mPitch + mPitchBend;
-  const float fundamentalPitchCents = (midiPitch - 69.f) * 100.f;
+  const double midiPitch = mPitch + mPitchBend;
+  const double fundamentalPitchCents = (midiPitch - 69.0) * 100.0;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
@@ -177,7 +178,7 @@ void SynthVoice<T>::UpdatePitch()
 template<typename T>
 void SynthVoice<T>::UpdateLevels()
 {
-  const float midiPitch = mPitch + mPitchBend;
+  const double midiPitch = mPitch + mPitchBend;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
   // Levels are scaled by breath ^ harmonicNumber, which dampens higher harmonics more than lower

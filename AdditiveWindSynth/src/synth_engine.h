@@ -58,7 +58,7 @@ public:
         mGlobalOscillatorModifiers.releaseScale = std::max(0.f, static_cast<float>(value));
         break;
       case kParamGlobalPitchShift:
-        mGlobalOscillatorModifiers.pitchOffsetCents = static_cast<float>(value);
+        mGlobalOscillatorModifiers.pitchOffsetCents = value;
         break;
       case kParamGlobalPanShift:
         mGlobalOscillatorModifiers.panOffset = std::clamp(static_cast<float>(value), -1.f, 1.f);
@@ -70,10 +70,10 @@ public:
         mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.f, static_cast<float>(value));
         break;
       case kParamGlobalPitchVariationAmplitudeScale:
-        mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.0, value);
         break;
       case kParamGlobalPitchVariationRateScale:
-        mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.0, value);
         break;
       case kParamGlobalPanVariationAmplitudeScale:
         mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));

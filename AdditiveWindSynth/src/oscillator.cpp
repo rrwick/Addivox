@@ -5,7 +5,7 @@
 
 void Oscillator::SetSampleRate(double sampleRate)
 {
-  mSampleRate = (sampleRate > 0.0) ? static_cast<float>(sampleRate) : 44100.f;
+  mSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
   UpdatePhaseIncrement();
   UpdatePitchRate();
   UpdateLevelRates();
@@ -25,22 +25,22 @@ void Oscillator::SetVariationSeed(uint32_t seed)
   UpdateVariationTargets();
 }
 
-void Oscillator::SetPitch(float pitchCents)
+void Oscillator::SetPitch(double pitchCents)
 {
   mBasePitchCents = pitchCents;
   UpdateVariationTargets();
 }
 
-void Oscillator::SetPitchTime(float pitchTimeSec)
+void Oscillator::SetPitchTime(double pitchTimeSec)
 {
-  mPitchTimeSec = std::max(0.f, pitchTimeSec);
+  mPitchTimeSec = std::max(0.0, pitchTimeSec);
   UpdatePitchRate();
 }
 
-void Oscillator::SetPitchVariation(float amplitudeCents, float rateHz)
+void Oscillator::SetPitchVariation(double amplitudeCents, double rateHz)
 {
-  mPitchVariationAmplitudeCents = ClampNonNegative(amplitudeCents);
-  mPitchVariationRateHz = ClampNonNegative(rateHz);
+  mPitchVariationAmplitudeCents = std::max(0.0, amplitudeCents);
+  mPitchVariationRateHz = std::max(0.0, rateHz);
   UpdateVariationTargets();
 }
 
@@ -84,7 +84,7 @@ void Oscillator::SetLevel(float level)
 
 void Oscillator::Reset()
 {
-  mPhase = 0.f;
+  mPhase = 0.0;
   mLevel = 0.f;
   mPitch = mTargetPitch;
   mFrequencyHz = std::exp2(mPitch);
@@ -118,14 +118,14 @@ std::array<float, 2> Oscillator::Process()
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
     mLevel = 0.f;
 
-  const float out = std::sin(kTwoPi * mPhase) * mLevel;
+  const float out = static_cast<float>(std::sin(kTwoPi * mPhase) * static_cast<double>(mLevel));
 
   mPhase += mPhaseIncrement;
-  if(mPhase >= 1.f)
+  if(mPhase >= 1.0)
     mPhase -= std::floor(mPhase);
 
   // Deactivate oscillator if frequency is out of range - prevents aliasing
-  if(mFrequencyHz > 20000.f)
+  if(mFrequencyHz > 20000.0)
     return {0.f, 0.f};
 
   return {out * mPanLeftGain, out * mPanRightGain};
@@ -138,7 +138,7 @@ bool Oscillator::IsActive() const
 
 HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const
 {
-  return HarmonicVisualizerOscillator{mFrequencyHz, mLevel, mPanLeftGain, mPanRightGain};
+  return HarmonicVisualizerOscillator{static_cast<float>(mFrequencyHz), mLevel, mPanLeftGain, mPanRightGain};
 }
 
 void Oscillator::UpdatePhaseIncrement()
@@ -153,13 +153,13 @@ void Oscillator::UpdatePitchRate()
 
 void Oscillator::UpdateLevelRates()
 {
-  mAttackRate = TimeToRate(mAttackTimeSec, mSampleRate);
-  mReleaseRate = TimeToRate(mReleaseTimeSec, mSampleRate);
+  mAttackRate = static_cast<float>(TimeToRate(mAttackTimeSec, mSampleRate));
+  mReleaseRate = static_cast<float>(TimeToRate(mReleaseTimeSec, mSampleRate));
 }
 
 void Oscillator::UpdatePanSlewRate()
 {
-  mPanSlewRate = TimeToRate(kPanSlewTimeSec, mSampleRate);
+  mPanSlewRate = static_cast<float>(TimeToRate(kPanSlewTimeSec, mSampleRate));
 }
 
 void Oscillator::UpdateVariationTargets()
@@ -172,14 +172,14 @@ void Oscillator::UpdateVariationTargets()
   const float levelScale = std::max(0.f, 1.f + mIntensityVariationAmplitude * intensityNoise);
   mTargetLevel = mBaseLevel * levelScale;
 
-  const float pitchNoise = VariationNoise(
+  const double pitchNoise = VariationNoise(
     mPitchVariationAmplitudeCents,
     mPitchVariationRateHz,
     mPitchVariationPosition,
     mVariationSeed ^ 0x17D39EF5u);
-  const float pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
-  const float minPitch = std::log2(kMinFrequencyHz);
-  mTargetPitch = std::max(minPitch, kLog2A4 + pitchCents / 1200.f);
+  const double pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
+  const double minPitch = std::log2(kMinFrequencyHz);
+  mTargetPitch = std::max(minPitch, kLog2A4 + pitchCents / 1200.0);
 
   const float panNoise = VariationNoise(
     mPanVariationAmplitude,
@@ -195,21 +195,21 @@ void Oscillator::UpdateVariationTargets()
 
 void Oscillator::AdvanceVariationPositions(int numSamples)
 {
-  if(numSamples <= 0 || mSampleRate <= 0.f)
+  if(numSamples <= 0 || mSampleRate <= 0.0)
     return;
 
-  const float deltaTimeSec = static_cast<float>(numSamples) / mSampleRate;
+  const double deltaTimeSec = static_cast<double>(numSamples) / mSampleRate;
   mIntensityVariationPosition += mIntensityVariationRateHz * deltaTimeSec;
   mPitchVariationPosition += mPitchVariationRateHz * deltaTimeSec;
   mPanVariationPosition += mPanVariationRateHz * deltaTimeSec;
 }
 
-float Oscillator::TimeToRate(float timeSec, float sampleRate)
+double Oscillator::TimeToRate(double timeSec, double sampleRate)
 {
-  if(timeSec <= 0.f || sampleRate <= 0.f)
-    return 1.f;
+  if(timeSec <= 0.0 || sampleRate <= 0.0)
+    return 1.0;
 
-  return 1.f - std::exp(-1.f / (timeSec * sampleRate));
+  return 1.0 - std::exp(-1.0 / (timeSec * sampleRate));
 }
 
 float Oscillator::ClampPan(float pan)
@@ -230,18 +230,18 @@ float Oscillator::ClampNonNegative(float value)
   return std::max(0.f, value);
 }
 
-float Oscillator::VariationNoise(float amplitude, float rateHz, float position, uint32_t seed)
+double Oscillator::VariationNoise(double amplitude, double rateHz, double position, uint32_t seed)
 {
-  if(amplitude <= 0.f || rateHz <= 0.f)
-    return 0.f;
+  if(amplitude <= 0.0 || rateHz <= 0.0)
+    return 0.0;
 
   return GradientNoise1D(position, seed);
 }
 
-float Oscillator::Quintic(float t)
+double Oscillator::Quintic(double t)
 {
   // Perlin fade curve for smooth interpolation.
-  return t * t * t * (t * (t * 6.f - 15.f) + 10.f);
+  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 }
 
 uint32_t Oscillator::HashUint32(uint32_t x)
@@ -254,22 +254,22 @@ uint32_t Oscillator::HashUint32(uint32_t x)
   return x;
 }
 
-float Oscillator::HashToSignedUnitFloat(uint32_t x)
+double Oscillator::HashToSignedUnitFloat(uint32_t x)
 {
-  return (static_cast<float>(x) / 4294967295.f) * 2.f - 1.f;
+  return (static_cast<double>(x) / 4294967295.0) * 2.0 - 1.0;
 }
 
-float Oscillator::GradientNoise1D(float position, uint32_t seed)
+double Oscillator::GradientNoise1D(double position, uint32_t seed)
 {
   const int lattice0 = static_cast<int>(std::floor(position));
-  const float t = position - static_cast<float>(lattice0);
-  const float fade = Quintic(t);
+  const double t = position - static_cast<double>(lattice0);
+  const double fade = Quintic(t);
 
-  const float gradient0 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0) ^ seed));
-  const float gradient1 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0 + 1) ^ seed));
+  const double gradient0 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0) ^ seed));
+  const double gradient1 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0 + 1) ^ seed));
 
-  const float value0 = gradient0 * t;
-  const float value1 = gradient1 * (t - 1.f);
-  const float blended = value0 + (value1 - value0) * fade;
-  return std::clamp(blended * 1.8f, -1.f, 1.f);
+  const double value0 = gradient0 * t;
+  const double value1 = gradient1 * (t - 1.0);
+  const double blended = value0 + (value1 - value0) * fade;
+  return std::clamp(blended * 1.8, -1.0, 1.0);
 }

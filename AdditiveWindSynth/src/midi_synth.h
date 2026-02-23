@@ -25,7 +25,7 @@ public:
   MidiSynth(int blockSize = kDefaultBlockSize)
   : mMidiQueue(blockSize)
   {
-    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.f, 1.f, 0.f};
+    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.f, 0.f};
     ClearVoiceControls();
   }
 
@@ -34,7 +34,7 @@ public:
 
   void Reset()
   {
-    mMidiState.currentPitchBend = 0.f;
+    mMidiState.currentPitchBend = 0.0;
     mMidiState.currentBreath = 1.f;
     mMidiState.currentPortamento = 0.f;
     mActiveChannel = 0;
@@ -122,7 +122,7 @@ private:
     uint8_t valueMSB;
     uint8_t valueLSB;
     uint8_t pitchBendRange; // in semitones
-    float currentPitchBend;
+    double currentPitchBend;
     float currentBreath;
     float currentPortamento;
   };
@@ -159,7 +159,7 @@ private:
           if(mMidiState.currentBreath >= kBreathGateOnThreshold)
           {
             mBreathGateOpen = true;
-            StartVoice(channel, key, static_cast<float>(key));
+            StartVoice(channel, key, static_cast<double>(key));
           }
           else
           {
@@ -178,8 +178,8 @@ private:
       }
       case IMidiMsg::kPitchWheel:
       {
-        const float bendRange = mMidiState.pitchBendRange;
-        const float bend = static_cast<float>(msg.PitchWheel()) * bendRange;
+        const double bendRange = static_cast<double>(mMidiState.pitchBendRange);
+        const double bend = static_cast<double>(msg.PitchWheel()) * bendRange;
         PitchBend(channel, bend);
         break;
       }
@@ -251,7 +251,7 @@ private:
     }
   }
 
-  void StartVoice(int channel, int key, float pitch)
+  void StartVoice(int channel, int key, double pitch)
   {
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
     mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath);
@@ -266,7 +266,7 @@ private:
     mActiveKey = kNoKey;
   }
 
-  void PitchBend(int channel, float value)
+  void PitchBend(int channel, double value)
   {
     const uint8_t bendChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
@@ -306,7 +306,7 @@ private:
     else if(value >= kBreathGateOnThreshold)
     {
       mBreathGateOpen = true;
-      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(mActiveKey), static_cast<float>(mActiveKey));
+      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(mActiveKey), static_cast<double>(mActiveKey));
     }
   }
 
