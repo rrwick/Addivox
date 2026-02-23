@@ -5,12 +5,10 @@
 #include <atomic>
 
 #include "harmonic_visualizer_sender.h"
-#include "params.h"
 
 const int kNumPresets = 1;
 
 #if IPLUG_DSP
-// will use EParams in synth_engine.h
 #include "synth_engine.h"
 #endif
 
@@ -48,7 +46,7 @@ private:
   IPeakAvgSender<2> mMeterSender;
   HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
   int mLastQwertyMIDINote{-1};
-  std::atomic<float> mBreathLevel{1.f};
+  std::atomic<double> mBreathLevel{1.0};
   double mLastSentBreathLevel{-1.};
 #endif
 };

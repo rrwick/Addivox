@@ -18,9 +18,9 @@ void Oscillator::SetVariationSeed(uint32_t seed)
   mVariationSeed = (seed != 0u) ? seed : kDefaultVariationSeed;
 
   // Give each variation stream its own deterministic starting point.
-  mIntensityVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0x68E31DA4u) + 1.f) * 100.f;
-  mPitchVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0xB5297A4Du) + 1.f) * 100.f;
-  mPanVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0x1B56C4E9u) + 1.f) * 100.f;
+  mIntensityVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0x68E31DA4u) + 1.0) * 100.0;
+  mPitchVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0xB5297A4Du) + 1.0) * 100.0;
+  mPanVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0x1B56C4E9u) + 1.0) * 100.0;
 
   UpdateVariationTargets();
 }
@@ -44,48 +44,48 @@ void Oscillator::SetPitchVariation(double amplitudeCents, double rateHz)
   UpdateVariationTargets();
 }
 
-void Oscillator::SetAttackTime(float attackTimeSec)
+void Oscillator::SetAttackTime(double attackTimeSec)
 {
-  mAttackTimeSec = std::max(0.f, attackTimeSec);
+  mAttackTimeSec = std::max(0.0, attackTimeSec);
   UpdateLevelRates();
 }
 
-void Oscillator::SetReleaseTime(float releaseTimeSec)
+void Oscillator::SetReleaseTime(double releaseTimeSec)
 {
-  mReleaseTimeSec = std::max(0.f, releaseTimeSec);
+  mReleaseTimeSec = std::max(0.0, releaseTimeSec);
   UpdateLevelRates();
 }
 
-void Oscillator::SetIntensityVariation(float amplitude, float rateHz)
+void Oscillator::SetIntensityVariation(double amplitude, double rateHz)
 {
   mIntensityVariationAmplitude = ClampNonNegative(amplitude);
   mIntensityVariationRateHz = ClampNonNegative(rateHz);
   UpdateVariationTargets();
 }
 
-void Oscillator::SetPan(float pan)
+void Oscillator::SetPan(double pan)
 {
   mBasePan = ClampPan(pan);
   UpdateVariationTargets();
 }
 
-void Oscillator::SetPanVariation(float amplitude, float rateHz)
+void Oscillator::SetPanVariation(double amplitude, double rateHz)
 {
   mPanVariationAmplitude = ClampNonNegative(amplitude);
   mPanVariationRateHz = ClampNonNegative(rateHz);
   UpdateVariationTargets();
 }
 
-void Oscillator::SetLevel(float level)
+void Oscillator::SetLevel(double level)
 {
-  mBaseLevel = (level >= 0.f) ? level : 0.f;
+  mBaseLevel = (level >= 0.0) ? level : 0.0;
   UpdateVariationTargets();
 }
 
 void Oscillator::Reset()
 {
   mPhase = 0.0;
-  mLevel = 0.f;
+  mLevel = 0.0;
   mPitch = mTargetPitch;
   mFrequencyHz = std::exp2(mPitch);
   // On full retrigger, start from the current pan target.
@@ -105,7 +105,7 @@ std::array<iplug::sample, 2> Oscillator::Process()
   }
   --mVariationSamplesUntilUpdate;
 
-  const float rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
+  const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
 
   mPanLeftGain += (mTargetPanLeftGain - mPanLeftGain) * mPanSlewRate;
@@ -116,9 +116,9 @@ std::array<iplug::sample, 2> Oscillator::Process()
   UpdatePhaseIncrement();
 
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
-    mLevel = 0.f;
+    mLevel = 0.0;
 
-  const iplug::sample out = static_cast<iplug::sample>(std::sin(kTwoPi * mPhase) * static_cast<double>(mLevel));
+  const iplug::sample out = static_cast<iplug::sample>(std::sin(kTwoPi * mPhase) * mLevel);
 
   mPhase += mPhaseIncrement;
   if(mPhase >= 1.0)
@@ -140,7 +140,11 @@ bool Oscillator::IsActive() const
 
 HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const
 {
-  return HarmonicVisualizerOscillator{static_cast<float>(mFrequencyHz), mLevel, mPanLeftGain, mPanRightGain};
+  return HarmonicVisualizerOscillator{
+    static_cast<float>(mFrequencyHz),
+    static_cast<float>(mLevel),
+    static_cast<float>(mPanLeftGain),
+    static_cast<float>(mPanRightGain)};
 }
 
 void Oscillator::UpdatePhaseIncrement()
@@ -155,23 +159,23 @@ void Oscillator::UpdatePitchRate()
 
 void Oscillator::UpdateLevelRates()
 {
-  mAttackRate = static_cast<float>(TimeToRate(mAttackTimeSec, mSampleRate));
-  mReleaseRate = static_cast<float>(TimeToRate(mReleaseTimeSec, mSampleRate));
+  mAttackRate = TimeToRate(mAttackTimeSec, mSampleRate);
+  mReleaseRate = TimeToRate(mReleaseTimeSec, mSampleRate);
 }
 
 void Oscillator::UpdatePanSlewRate()
 {
-  mPanSlewRate = static_cast<float>(TimeToRate(kPanSlewTimeSec, mSampleRate));
+  mPanSlewRate = TimeToRate(kPanSlewTimeSec, mSampleRate);
 }
 
 void Oscillator::UpdateVariationTargets()
 {
-  const float intensityNoise = VariationNoise(
+  const double intensityNoise = VariationNoise(
     mIntensityVariationAmplitude,
     mIntensityVariationRateHz,
     mIntensityVariationPosition,
     mVariationSeed ^ 0xF1023A17u);
-  const float levelScale = std::max(0.f, 1.f + mIntensityVariationAmplitude * intensityNoise);
+  const double levelScale = std::max(0.0, 1.0 + mIntensityVariationAmplitude * intensityNoise);
   mTargetLevel = mBaseLevel * levelScale;
 
   const double pitchNoise = VariationNoise(
@@ -183,12 +187,12 @@ void Oscillator::UpdateVariationTargets()
   const double minPitch = std::log2(kMinFrequencyHz);
   mTargetPitch = std::max(minPitch, kLog2A4 + pitchCents / 1200.0);
 
-  const float panNoise = VariationNoise(
+  const double panNoise = VariationNoise(
     mPanVariationAmplitude,
     mPanVariationRateHz,
     mPanVariationPosition,
     mVariationSeed ^ 0xC29B3F4Bu);
-  const float modulatedPan = ClampPan(mBasePan + mPanVariationAmplitude * panNoise);
+  const double modulatedPan = ClampPan(mBasePan + mPanVariationAmplitude * panNoise);
   const auto panGains = PanToGains(modulatedPan);
   mTargetPanLeftGain = panGains[0];
   mTargetPanRightGain = panGains[1];
@@ -214,22 +218,22 @@ double Oscillator::TimeToRate(double timeSec, double sampleRate)
   return 1.0 - std::exp(-1.0 / (timeSec * sampleRate));
 }
 
-float Oscillator::ClampPan(float pan)
+double Oscillator::ClampPan(double pan)
 {
-  return std::clamp(pan, -1.f, 1.f);
+  return std::clamp(pan, -1.0, 1.0);
 }
 
-std::array<float, 2> Oscillator::PanToGains(float pan)
+std::array<double, 2> Oscillator::PanToGains(double pan)
 {
   // Equal-power pan law keeps perceived loudness stable across stereo position.
-  const float clampedPan = ClampPan(pan);
-  const float angle = (clampedPan + 1.f) * (kPi * 0.25f);
-  return {static_cast<float>(std::cos(angle)), static_cast<float>(std::sin(angle))};
+  const double clampedPan = ClampPan(pan);
+  const double angle = (clampedPan + 1.0) * (kPi * 0.25);
+  return {std::cos(angle), std::sin(angle)};
 }
 
-float Oscillator::ClampNonNegative(float value)
+double Oscillator::ClampNonNegative(double value)
 {
-  return std::max(0.f, value);
+  return std::max(0.0, value);
 }
 
 double Oscillator::VariationNoise(double amplitude, double rateHz, double position, uint32_t seed)

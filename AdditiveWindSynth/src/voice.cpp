@@ -27,7 +27,7 @@ bool SynthVoice::IsActive() const
   return false;
 }
 
-void SynthVoice::Start(double pitch, double pitchBend, float breath)
+void SynthVoice::Start(double pitch, double pitchBend, double breath)
 {
   const bool retrigger = !IsActive();
   mPitch = pitch;
@@ -44,7 +44,7 @@ void SynthVoice::Start(double pitch, double pitchBend, float breath)
 
 void SynthVoice::Stop()
 {
-  SetBreath(0.f);
+  SetBreath(0.0);
 }
 
 void SynthVoice::SetPitchBend(double pitchBend)
@@ -65,8 +65,7 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings&
     settings.pitch_variation_rate * mGlobalOscillatorModifiers.pitchVariationRateScale);
   mOscs[harmonic].SetAttackTime(settings.attack * mGlobalOscillatorModifiers.attackScale);
   mOscs[harmonic].SetReleaseTime(settings.release * mGlobalOscillatorModifiers.releaseScale);
-  mOscs[harmonic].SetPan(static_cast<float>(
-    std::clamp(settings.pan + static_cast<double>(mGlobalOscillatorModifiers.panOffset), -1.0, 1.0)));
+  mOscs[harmonic].SetPan(std::clamp(settings.pan + mGlobalOscillatorModifiers.panOffset, -1.0, 1.0));
   mOscs[harmonic].SetPanVariation(
     settings.pan_variation_amplitude * mGlobalOscillatorModifiers.panVariationAmplitudeScale,
     settings.pan_variation_rate * mGlobalOscillatorModifiers.panVariationRateScale);
@@ -75,9 +74,9 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings&
     settings.intensity_variation_rate * mGlobalOscillatorModifiers.intensityVariationRateScale);
 }
 
-void SynthVoice::SetBreath(float breath)
+void SynthVoice::SetBreath(double breath)
 {
-  const float smoothedBreath = SmoothBreath(breath);
+  const double smoothedBreath = SmoothBreath(breath);
   if(smoothedBreath == mBreath)
     return;
 
@@ -85,9 +84,9 @@ void SynthVoice::SetBreath(float breath)
   UpdateLevels();
 }
 
-void SynthVoice::SetPortamentoControl(float control)
+void SynthVoice::SetPortamentoControl(double control)
 {
-  const float clampedControl = std::clamp(control, 0.f, 1.f);
+  const double clampedControl = std::clamp(control, 0.0, 1.0);
   mPortamentoControl = clampedControl;
   const double pitchTimeSec = GetPortamentoTimeSec();
   for(auto& osc : mOscs)
@@ -96,37 +95,37 @@ void SynthVoice::SetPortamentoControl(float control)
 
 void SynthVoice::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
 {
-  mGlobalOscillatorModifiers.attackScale = std::max(0.f, modifiers.attackScale);
-  mGlobalOscillatorModifiers.releaseScale = std::max(0.f, modifiers.releaseScale);
+  mGlobalOscillatorModifiers.attackScale = std::max(0.0, modifiers.attackScale);
+  mGlobalOscillatorModifiers.releaseScale = std::max(0.0, modifiers.releaseScale);
   mGlobalOscillatorModifiers.pitchOffsetCents = modifiers.pitchOffsetCents;
-  mGlobalOscillatorModifiers.panOffset = std::clamp(modifiers.panOffset, -1.f, 1.f);
-  mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.f, modifiers.intensityVariationAmplitudeScale);
-  mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.f, modifiers.intensityVariationRateScale);
+  mGlobalOscillatorModifiers.panOffset = std::clamp(modifiers.panOffset, -1.0, 1.0);
+  mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.0, modifiers.intensityVariationAmplitudeScale);
+  mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.0, modifiers.intensityVariationRateScale);
   mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.0, modifiers.pitchVariationAmplitudeScale);
   mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.0, modifiers.pitchVariationRateScale);
-  mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, modifiers.panVariationAmplitudeScale);
-  mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, modifiers.panVariationRateScale);
-  mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.f, modifiers.portamentoTimeAtCC5MinSec);
-  mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.f, modifiers.portamentoTimeAtCC5MaxSec);
+  mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.0, modifiers.panVariationAmplitudeScale);
+  mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.0, modifiers.panVariationRateScale);
+  mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.0, modifiers.portamentoTimeAtCC5MinSec);
+  mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.0, modifiers.portamentoTimeAtCC5MaxSec);
 
   UpdatePitch();
 }
 
-float SynthVoice::SmoothBreath(float breath)
+double SynthVoice::SmoothBreath(double breath)
 {
   // Input and output breath are in the range [0, 1].
 
   // Breath is smoothed near zero to avoid obvious note-on at low breath values, but is near-linear
   // for the upper part of the range.
   // https://www.desmos.com/calculator/ntwh4mbkwn
-  constexpr float k = 5.0f;
-  static const float inv_denom = 1.0f / (k - 1.0f + std::exp(-k));
-  breath = (k * breath - 1.0f + std::exp(-k * breath)) * inv_denom;
+  constexpr double k = 5.0;
+  static const double invDenominator = 1.0 / (k - 1.0 + std::exp(-k));
+  breath = (k * breath - 1.0 + std::exp(-k * breath)) * invDenominator;
 
   // Cap breath at 97% to avoid ringing tone from brick wall at top of harmonic series.
   // TODO: this is a bit of a hack - would be better to use a more gradual roll-off of the highest
   //       harmonic intensities.
-  breath *= 0.97f;
+  breath *= 0.97;
 
   return breath;
 }
@@ -135,8 +134,8 @@ void SynthVoice::Clear()
 {
   mPitch = 0.0;
   mPitchBend = 0.0;
-  mBreath = 0.f;
-  mPortamentoControl = 0.f;
+  mBreath = 0.0;
+  mPortamentoControl = 0.0;
   Stop();
 }
 
@@ -169,7 +168,7 @@ void SynthVoice::UpdateLevels()
 
   // Levels are scaled by breath ^ harmonicNumber, which dampens higher harmonics more than lower
   // ones, giving a bit of a low-pass filter effect as breath is reduced.
-  float breathPower = mBreath;
+  double breathPower = mBreath;
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);

@@ -58,22 +58,22 @@ const char* OscillatorSettings::GetParameterUnit(Parameter parameter)
   return descriptor ? descriptor->unit : "";
 }
 
-float OscillatorSettings::GetParameter(Parameter parameter) const
+double OscillatorSettings::GetParameter(Parameter parameter) const
 {
   const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? static_cast<float>(this->*(descriptor->member)) : 0.f;
+  return descriptor ? this->*(descriptor->member) : 0.0;
 }
 
-void OscillatorSettings::SetParameter(Parameter parameter, float value)
+void OscillatorSettings::SetParameter(Parameter parameter, double value)
 {
   const auto* descriptor = GetDescriptor(parameter);
   if(descriptor)
     this->*(descriptor->member) = value;
 }
 
-OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t)
+OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t)
 {
-  const double clampedT = std::clamp(static_cast<double>(t), 0.0, 1.0);
+  const double clampedT = std::clamp(t, 0.0, 1.0);
   OscillatorSettings out{};
   for(const auto& descriptor : kParameterDescriptors)
   {
@@ -102,12 +102,12 @@ void SimplePreset::SetOscillatorSettings(int oscillatorIndex, const OscillatorSe
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)] = settings;
 }
 
-void SimplePreset::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, float value)
+void SimplePreset::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value)
 {
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)].SetParameter(parameter, value);
 }
 
-SimplePreset SimplePreset::Interpolate(const SimplePreset& lo, const SimplePreset& hi, float t)
+SimplePreset SimplePreset::Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t)
 {
   OscillatorArray out{};
   for(int oscillator = 0; oscillator < kNumOscillators; ++oscillator)

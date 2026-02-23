@@ -51,22 +51,22 @@ public:
         mGainTarget = static_cast<sample>(value / 100.);
         return;
       case kParamGlobalAttackScale:
-        mGlobalOscillatorModifiers.attackScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.attackScale = std::max(0.0, value);
         break;
       case kParamGlobalReleaseScale:
-        mGlobalOscillatorModifiers.releaseScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.releaseScale = std::max(0.0, value);
         break;
       case kParamGlobalPitchShift:
         mGlobalOscillatorModifiers.pitchOffsetCents = value;
         break;
       case kParamGlobalPanShift:
-        mGlobalOscillatorModifiers.panOffset = std::clamp(static_cast<float>(value), -1.f, 1.f);
+        mGlobalOscillatorModifiers.panOffset = std::clamp(value, -1.0, 1.0);
         break;
       case kParamGlobalIntensityVariationAmplitudeScale:
-        mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.0, value);
         break;
       case kParamGlobalIntensityVariationRateScale:
-        mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.0, value);
         break;
       case kParamGlobalPitchVariationAmplitudeScale:
         mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.0, value);
@@ -75,16 +75,16 @@ public:
         mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.0, value);
         break;
       case kParamGlobalPanVariationAmplitudeScale:
-        mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.0, value);
         break;
       case kParamGlobalPanVariationRateScale:
-        mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.0, value);
         break;
       case kParamPortamentoAtCC5Min:
-        mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.0, value);
         break;
       case kParamPortamentoAtCC5Max:
-        mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.f, static_cast<float>(value));
+        mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.0, value);
         break;
       default:
         return;

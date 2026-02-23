@@ -75,10 +75,10 @@ public:
 
   static const char* GetParameterName(Parameter parameter);
   static const char* GetParameterUnit(Parameter parameter);
-  float GetParameter(Parameter parameter) const;
-  void SetParameter(Parameter parameter, float value);
+  double GetParameter(Parameter parameter) const;
+  void SetParameter(Parameter parameter, double value);
 
-  static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, float t);
+  static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t);
 };
 
 class SimplePreset
@@ -92,9 +92,9 @@ public:
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
-  void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, float value);
+  void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
 
-  static SimplePreset Interpolate(const SimplePreset& lo, const SimplePreset& hi, float t);
+  static SimplePreset Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t);
 
 private:
   static int ClampOscillatorIndex(int oscillatorIndex);

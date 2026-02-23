@@ -1,5 +1,6 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
+#include "params.h"
 #include "ui_layout.h"
 
 #include <algorithm>
@@ -173,7 +174,7 @@ void AdditiveWindSynth::OnReset()
   mMeterSender.Reset(GetSampleRate());
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
   mLastQwertyMIDINote = -1;
-  mBreathLevel.store(1.f, std::memory_order_relaxed);
+  mBreathLevel.store(1.0, std::memory_order_relaxed);
   mLastSentBreathLevel = -1.;
 }
 
@@ -181,7 +182,7 @@ void AdditiveWindSynth::ProcessMidiMsg(const IMidiMsg& msg)
 {
   if(msg.StatusMsg() == IMidiMsg::kControlChange && msg.ControlChangeIdx() == IMidiMsg::kBreathController)
   {
-    mBreathLevel.store(static_cast<float>(msg.ControlChange(IMidiMsg::kBreathController)), std::memory_order_relaxed);
+    mBreathLevel.store(static_cast<double>(msg.ControlChange(IMidiMsg::kBreathController)), std::memory_order_relaxed);
   }
 
   mDSP.ProcessMidiMsg(msg);

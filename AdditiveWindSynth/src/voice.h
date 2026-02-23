@@ -8,18 +8,18 @@
 
 struct GlobalOscillatorModifiers
 {
-  float attackScale{1.f};
-  float releaseScale{1.f};
+  double attackScale{1.0};
+  double releaseScale{1.0};
   double pitchOffsetCents{0.0};
-  float panOffset{0.f};
-  float intensityVariationAmplitudeScale{1.f};
-  float intensityVariationRateScale{1.f};
+  double panOffset{0.0};
+  double intensityVariationAmplitudeScale{1.0};
+  double intensityVariationRateScale{1.0};
   double pitchVariationAmplitudeScale{1.0};
   double pitchVariationRateScale{1.0};
-  float panVariationAmplitudeScale{1.f};
-  float panVariationRateScale{1.f};
-  float portamentoTimeAtCC5MinSec{0.f};
-  float portamentoTimeAtCC5MaxSec{0.f};
+  double panVariationAmplitudeScale{1.0};
+  double panVariationRateScale{1.0};
+  double portamentoTimeAtCC5MinSec{0.0};
+  double portamentoTimeAtCC5MaxSec{0.0};
 };
 
 class SynthVoice
@@ -29,11 +29,11 @@ public:
 
   SynthVoice();
   bool IsActive() const;
-  void Start(double pitch, double pitchBend, float breath);
+  void Start(double pitch, double pitchBend, double breath);
   void Stop();
   void SetPitchBend(double pitchBend);
-  void SetBreath(float breath);
-  void SetPortamentoControl(float control);
+  void SetBreath(double breath);
+  void SetPortamentoControl(double control);
   void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
@@ -44,7 +44,7 @@ private:
   void UpdatePitch();
   void UpdateLevels();
   double GetPortamentoTimeSec() const;
-  float SmoothBreath(float breath);
+  double SmoothBreath(double breath);
   void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchCents);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
@@ -56,8 +56,8 @@ private:
   double mPitchBend{0.0};
 
   // Breath is a linear value from 0 to 1.
-  float mBreath{0.f};
-  float mPortamentoControl{0.f};
+  double mBreath{0.0};
+  double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
   CompoundPreset mCompoundPreset;

@@ -25,7 +25,7 @@ public:
   MidiSynth(int blockSize = kDefaultBlockSize)
   : mMidiQueue(blockSize)
   {
-    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.f, 0.f};
+    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.0, 0.0};
     ClearVoiceControls();
   }
 
@@ -35,8 +35,8 @@ public:
   void Reset()
   {
     mMidiState.currentPitchBend = 0.0;
-    mMidiState.currentBreath = 1.f;
-    mMidiState.currentPortamento = 0.f;
+    mMidiState.currentBreath = 1.0;
+    mMidiState.currentPortamento = 0.0;
     mActiveChannel = 0;
     mActiveKey = kNoKey;
     StopVoice();
@@ -123,8 +123,8 @@ private:
     uint8_t valueLSB;
     uint8_t pitchBendRange; // in semitones
     double currentPitchBend;
-    float currentBreath;
-    float currentPortamento;
+    double currentBreath;
+    double currentPortamento;
   };
 
   static bool IsRPNMessage(const IMidiMsg& msg)
@@ -188,10 +188,10 @@ private:
         switch(msg.ControlChangeIdx())
         {
           case IMidiMsg::kBreathController:
-            Breath(channel, static_cast<float>(msg.ControlChange(IMidiMsg::kBreathController)));
+            Breath(channel, static_cast<double>(msg.ControlChange(IMidiMsg::kBreathController)));
             break;
           case IMidiMsg::kPortamentoTime:
-            Portamento(channel, static_cast<float>(msg.ControlChange(IMidiMsg::kPortamentoTime)));
+            Portamento(channel, static_cast<double>(msg.ControlChange(IMidiMsg::kPortamentoTime)));
             break;
           case IMidiMsg::kAllNotesOff:
             StopVoice();
@@ -279,7 +279,7 @@ private:
       mVoice.SetPitchBend(value);
   }
 
-  void Breath(int channel, float value)
+  void Breath(int channel, double value)
   {
     const uint8_t breathChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
@@ -310,14 +310,14 @@ private:
     }
   }
 
-  void Portamento(int channel, float value)
+  void Portamento(int channel, double value)
   {
     const uint8_t portamentoChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
     if(mActiveKey != kNoKey && !IsActiveChannel(portamentoChannel))
       return;
 
-    mMidiState.currentPortamento = Clip(value, 0.f, 1.f);
+    mMidiState.currentPortamento = Clip(value, 0.0, 1.0);
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
   }
 
@@ -338,8 +338,8 @@ private:
   }
 
   static constexpr uint8_t kNoKey = static_cast<uint8_t>(-1);
-  static constexpr float kBreathGateOnThreshold = 2.f / 127.f;
-  static constexpr float kBreathGateOffThreshold = 0.f;
+  static constexpr double kBreathGateOnThreshold = 2.0 / 127.0;
+  static constexpr double kBreathGateOffThreshold = 0.0;
 
   IMidiQueue mMidiQueue;
   MonoMidiState mMidiState{};
