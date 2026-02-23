@@ -9,24 +9,23 @@
 
 using namespace iplug;
 
-template<typename T>
 class SynthEngine
 {
 public:
-  using VisualizerFrame = typename SynthVoice<T>::VisualizerFrame;
+  using VisualizerFrame = SynthVoice::VisualizerFrame;
 
-  void ProcessBlock(T** outputs, int nFrames)
+  void ProcessBlock(sample** outputs, int nFrames)
   {
     constexpr int kNumOutputs = 2;
 
     for(int i = 0; i < kNumOutputs; i++)
-      memset(outputs[i], 0, nFrames * sizeof(T));
+      memset(outputs[i], 0, nFrames * sizeof(sample));
 
     mSynth.ProcessBlock(outputs, nFrames);
 
     for(int s = 0; s < nFrames; s++)
     {
-      const T smoothedGain = mParamSmoother.Process(mGainTarget);
+      const sample smoothedGain = mParamSmoother.Process(mGainTarget);
       outputs[0][s] *= smoothedGain;
       outputs[1][s] *= smoothedGain;
     }
@@ -49,7 +48,7 @@ public:
     switch(paramIdx)
     {
       case kParamGain:
-        mGainTarget = static_cast<T>(value / 100.);
+        mGainTarget = static_cast<sample>(value / 100.);
         return;
       case kParamGlobalAttackScale:
         mGlobalOscillatorModifiers.attackScale = std::max(0.f, static_cast<float>(value));
@@ -100,8 +99,8 @@ public:
   }
 
 public:
-  MidiSynth<SynthVoice<T>> mSynth { MidiSynth<SynthVoice<T>>::kDefaultBlockSize };
-  LogParamSmooth<T, 1> mParamSmoother;
+  MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
+  LogParamSmooth<sample, 1> mParamSmoother;
   sample mGainTarget{1.};
   GlobalOscillatorModifiers mGlobalOscillatorModifiers{};
 };

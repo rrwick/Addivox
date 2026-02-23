@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 
+#include "IPlugConstants.h"
 #include "harmonic_visualizer_frame.h"
 
 class Oscillator
@@ -20,7 +21,7 @@ public:
   void SetPanVariation(float amplitude, float rateHz);
   void SetLevel(float level);
   void Reset();
-  std::array<float, 2> Process();
+  std::array<iplug::sample, 2> Process();
   bool IsActive() const;
   HarmonicVisualizerOscillator GetVisualizerState() const;
 

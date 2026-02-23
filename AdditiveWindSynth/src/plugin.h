@@ -42,9 +42,9 @@ public:
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
 
 private:
-  using VisualizerFrame = SynthEngine<sample>::VisualizerFrame;
+  using VisualizerFrame = SynthEngine::VisualizerFrame;
 
-  SynthEngine<sample> mDSP;
+  SynthEngine mDSP;
   IPeakAvgSender<2> mMeterSender;
   HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
   int mLastQwertyMIDINote{-1};

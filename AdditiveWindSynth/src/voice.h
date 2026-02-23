@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "IPlugConstants.h"
 #include "oscillator.h"
 #include "settings.h"
 
@@ -21,7 +22,6 @@ struct GlobalOscillatorModifiers
   float portamentoTimeAtCC5MaxSec{0.f};
 };
 
-template<typename T>
 class SynthVoice
 {
 public:
@@ -36,7 +36,7 @@ public:
   void SetPortamentoControl(float control);
   void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
   void Clear();
-  void ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames);
+  void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
   void GetVisualizerFrame(VisualizerFrame& frame) const;
 
@@ -63,6 +63,3 @@ private:
   CompoundPreset mCompoundPreset;
   GlobalOscillatorModifiers mGlobalOscillatorModifiers;
 };
-
-extern template class SynthVoice<float>;
-extern template class SynthVoice<double>;

@@ -95,7 +95,7 @@ void Oscillator::Reset()
   mVariationSamplesUntilUpdate = 0;
 }
 
-std::array<float, 2> Oscillator::Process()
+std::array<iplug::sample, 2> Oscillator::Process()
 {
   if(mVariationSamplesUntilUpdate <= 0)
   {
@@ -118,7 +118,7 @@ std::array<float, 2> Oscillator::Process()
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
     mLevel = 0.f;
 
-  const float out = static_cast<float>(std::sin(kTwoPi * mPhase) * static_cast<double>(mLevel));
+  const iplug::sample out = static_cast<iplug::sample>(std::sin(kTwoPi * mPhase) * static_cast<double>(mLevel));
 
   mPhase += mPhaseIncrement;
   if(mPhase >= 1.0)
@@ -126,9 +126,11 @@ std::array<float, 2> Oscillator::Process()
 
   // Deactivate oscillator if frequency is out of range - prevents aliasing
   if(mFrequencyHz > 20000.0)
-    return {0.f, 0.f};
+    return {0.0, 0.0};
 
-  return {out * mPanLeftGain, out * mPanRightGain};
+  return {
+    out * static_cast<iplug::sample>(mPanLeftGain),
+    out * static_cast<iplug::sample>(mPanRightGain)};
 }
 
 bool Oscillator::IsActive() const

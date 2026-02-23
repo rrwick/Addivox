@@ -6,8 +6,7 @@
 #include <cstdint>
 #include <cmath>
 
-template<typename T>
-SynthVoice<T>::SynthVoice()
+SynthVoice::SynthVoice()
 : mCompoundPreset(presets::MakeBrassCompoundPreset())
 {
   const uint32_t voiceSeed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
@@ -18,8 +17,7 @@ SynthVoice<T>::SynthVoice()
   }
 }
 
-template<typename T>
-bool SynthVoice<T>::IsActive() const
+bool SynthVoice::IsActive() const
 {
   for(const auto& osc : mOscs)
   {
@@ -29,8 +27,7 @@ bool SynthVoice<T>::IsActive() const
   return false;
 }
 
-template<typename T>
-void SynthVoice<T>::Start(double pitch, double pitchBend, float breath)
+void SynthVoice::Start(double pitch, double pitchBend, float breath)
 {
   const bool retrigger = !IsActive();
   mPitch = pitch;
@@ -45,21 +42,18 @@ void SynthVoice<T>::Start(double pitch, double pitchBend, float breath)
   }
 }
 
-template<typename T>
-void SynthVoice<T>::Stop()
+void SynthVoice::Stop()
 {
   SetBreath(0.f);
 }
 
-template<typename T>
-void SynthVoice<T>::SetPitchBend(double pitchBend)
+void SynthVoice::SetPitchBend(double pitchBend)
 {
   mPitchBend = pitchBend;
   UpdatePitch();
 }
 
-template<typename T>
-void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchCents)
+void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchCents)
 {
   const double harmonicPitchOffsetCents = 1200.0 * std::log2(static_cast<double>(harmonic + 1));
   const double totalPitchCents = fundamentalPitchCents + harmonicPitchOffsetCents
@@ -81,8 +75,7 @@ void SynthVoice<T>::ApplyOscillatorSettings(int harmonic, const OscillatorSettin
     settings.intensity_variation_rate * mGlobalOscillatorModifiers.intensityVariationRateScale);
 }
 
-template<typename T>
-void SynthVoice<T>::SetBreath(float breath)
+void SynthVoice::SetBreath(float breath)
 {
   const float smoothedBreath = SmoothBreath(breath);
   if(smoothedBreath == mBreath)
@@ -92,8 +85,7 @@ void SynthVoice<T>::SetBreath(float breath)
   UpdateLevels();
 }
 
-template<typename T>
-void SynthVoice<T>::SetPortamentoControl(float control)
+void SynthVoice::SetPortamentoControl(float control)
 {
   const float clampedControl = std::clamp(control, 0.f, 1.f);
   mPortamentoControl = clampedControl;
@@ -102,8 +94,7 @@ void SynthVoice<T>::SetPortamentoControl(float control)
     osc.SetPitchTime(pitchTimeSec);
 }
 
-template<typename T>
-void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
+void SynthVoice::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
 {
   mGlobalOscillatorModifiers.attackScale = std::max(0.f, modifiers.attackScale);
   mGlobalOscillatorModifiers.releaseScale = std::max(0.f, modifiers.releaseScale);
@@ -121,8 +112,7 @@ void SynthVoice<T>::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers
   UpdatePitch();
 }
 
-template<typename T>
-float SynthVoice<T>::SmoothBreath(float breath)
+float SynthVoice::SmoothBreath(float breath)
 {
   // Input and output breath are in the range [0, 1].
 
@@ -141,8 +131,7 @@ float SynthVoice<T>::SmoothBreath(float breath)
   return breath;
 }
 
-template<typename T>
-void SynthVoice<T>::Clear()
+void SynthVoice::Clear()
 {
   mPitch = 0.0;
   mPitchBend = 0.0;
@@ -151,16 +140,14 @@ void SynthVoice<T>::Clear()
   Stop();
 }
 
-template<typename T>
-double SynthVoice<T>::GetPortamentoTimeSec() const
+double SynthVoice::GetPortamentoTimeSec() const
 {
   return mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec
     + (mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec - mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec)
       * mPortamentoControl;
 }
 
-template<typename T>
-void SynthVoice<T>::UpdatePitch()
+void SynthVoice::UpdatePitch()
 {
   const double midiPitch = mPitch + mPitchBend;
   const double fundamentalPitchCents = (midiPitch - 69.0) * 100.0;
@@ -175,8 +162,7 @@ void SynthVoice<T>::UpdatePitch()
   UpdateLevels();
 }
 
-template<typename T>
-void SynthVoice<T>::UpdateLevels()
+void SynthVoice::UpdateLevels()
 {
   const double midiPitch = mPitch + mPitchBend;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
@@ -192,38 +178,32 @@ void SynthVoice<T>::UpdateLevels()
   }
 }
 
-template<typename T>
-void SynthVoice<T>::ProcessSamplesAccumulating(T** outputs, int startIdx, int nFrames)
+void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames)
 {
   const int endIdx = startIdx + nFrames;
   for(int i = startIdx; i < endIdx; i++)
   {
-    T leftSample = 0;
-    T rightSample = 0;
+    iplug::sample leftSample = 0.0;
+    iplug::sample rightSample = 0.0;
     for(auto& osc : mOscs)
     {
       const auto sample = osc.Process();
-      leftSample += static_cast<T>(sample[0]);
-      rightSample += static_cast<T>(sample[1]);
+      leftSample += sample[0];
+      rightSample += sample[1];
     }
     outputs[0][i] += leftSample;
     outputs[1][i] += rightSample;
   }
 }
 
-template<typename T>
-void SynthVoice<T>::SetSampleRate(double sampleRate)
+void SynthVoice::SetSampleRate(double sampleRate)
 {
   for(auto& osc : mOscs)
     osc.SetSampleRate(sampleRate);
 }
 
-template<typename T>
-void SynthVoice<T>::GetVisualizerFrame(VisualizerFrame& frame) const
+void SynthVoice::GetVisualizerFrame(VisualizerFrame& frame) const
 {
   for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
     frame.harmonics[harmonic] = mOscs[harmonic].GetVisualizerState();
 }
-
-template class SynthVoice<float>;
-template class SynthVoice<double>;
