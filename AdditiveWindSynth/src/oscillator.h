@@ -60,8 +60,8 @@ private:
   double mPitch = 0.0;  // the actual pitch that the oscillator is currently producing
   double mBasePitch = 0.0;  // the pitch set by the preset and MIDI note, without pitch variation applied
   double mTargetPitch = 0.0;  // the pitch that the oscillator is currently trying to reach, which may differ from mBasePitch due to portamento and pitch variation
-  double mPitchTimeSec = 0.0;
-  double mPitchRate = 1.0;
+  double mPitchTimeSec = 0.0;  // Portamento time in seconds per semitone. A value of 0 means instant pitch changes.
+  double mPitchRatePerSample = 1.0;  // Portamento rate in semitones per sample.
 
 
   double mTargetLevel = 0.0;

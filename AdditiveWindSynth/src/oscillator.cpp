@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 void Oscillator::SetSampleRate(double sampleRate)
 {
@@ -112,7 +113,9 @@ std::array<iplug::sample, 2> Oscillator::Process()
   mPanLeftGain += (mTargetPanLeftGain - mPanLeftGain) * mPanSlewRate;
   mPanRightGain += (mTargetPanRightGain - mPanRightGain) * mPanSlewRate;
 
-  mPitch += (mTargetPitch - mPitch) * mPitchRate;
+  const double pitchDelta = mTargetPitch - mPitch;
+  const double pitchStep = std::min(std::abs(pitchDelta), mPitchRatePerSample);
+  mPitch += std::copysign(pitchStep, pitchDelta);
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   UpdatePhaseIncrement(frequencyHz);
 
@@ -156,7 +159,14 @@ void Oscillator::UpdatePhaseIncrement(double frequencyHz)
 
 void Oscillator::UpdatePitchRate()
 {
-  mPitchRate = TimeToRate(mPitchTimeSec, mSampleRate);
+  if(mPitchTimeSec <= 0.0 || mSampleRate <= 0.0)
+  {
+    mPitchRatePerSample = std::numeric_limits<double>::infinity();
+    return;
+  }
+
+  // Linear portamento: fixed semitone step per sample.
+  mPitchRatePerSample = 1.0 / (mPitchTimeSec * mSampleRate);
 }
 
 void Oscillator::UpdateLevelRates()
