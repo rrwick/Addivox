@@ -6,7 +6,8 @@
 void Oscillator::SetSampleRate(double sampleRate)
 {
   mSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
-  UpdatePhaseIncrement();
+  const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
+  UpdatePhaseIncrement(frequencyHz);
   UpdatePitchRate();
   UpdateLevelRates();
   UpdatePanSlewRate();
@@ -25,9 +26,9 @@ void Oscillator::SetVariationSeed(uint32_t seed)
   UpdateVariationTargets();
 }
 
-void Oscillator::SetPitch(double pitchCents)
+void Oscillator::SetPitch(double pitchSemitones)
 {
-  mBasePitchCents = pitchCents;
+  mBasePitch = pitchSemitones;
   UpdateVariationTargets();
 }
 
@@ -37,9 +38,9 @@ void Oscillator::SetPitchTime(double pitchTimeSec)
   UpdatePitchRate();
 }
 
-void Oscillator::SetPitchVariation(double amplitudeCents, double rateHz)
+void Oscillator::SetPitchVariation(double amplitudeSemitones, double rateHz)
 {
-  mPitchVariationAmplitudeCents = std::max(0.0, amplitudeCents);
+  mPitchVariationAmplitudeSemitones = std::max(0.0, amplitudeSemitones);
   mPitchVariationRateHz = std::max(0.0, rateHz);
   UpdateVariationTargets();
 }
@@ -87,11 +88,11 @@ void Oscillator::Reset()
   mPhase = 0.0;
   mLevel = 0.0;
   mPitch = mTargetPitch;
-  mFrequencyHz = std::exp2(mPitch);
+  const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   // On full retrigger, start from the current pan target.
   mPanLeftGain = mTargetPanLeftGain;
   mPanRightGain = mTargetPanRightGain;
-  UpdatePhaseIncrement();
+  UpdatePhaseIncrement(frequencyHz);
   mVariationSamplesUntilUpdate = 0;
 }
 
@@ -112,8 +113,8 @@ std::array<iplug::sample, 2> Oscillator::Process()
   mPanRightGain += (mTargetPanRightGain - mPanRightGain) * mPanSlewRate;
 
   mPitch += (mTargetPitch - mPitch) * mPitchRate;
-  mFrequencyHz = std::exp2(mPitch);
-  UpdatePhaseIncrement();
+  const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
+  UpdatePhaseIncrement(frequencyHz);
 
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
     mLevel = 0.0;
@@ -125,7 +126,7 @@ std::array<iplug::sample, 2> Oscillator::Process()
     mPhase -= std::floor(mPhase);
 
   // Deactivate oscillator if frequency is out of range - prevents aliasing
-  if(mFrequencyHz > 20000.0)
+  if(frequencyHz > 20000.0)
     return {0.0, 0.0};
 
   return {
@@ -140,16 +141,17 @@ bool Oscillator::IsActive() const
 
 HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const
 {
+  const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   return HarmonicVisualizerOscillator{
-    static_cast<float>(mFrequencyHz),
+    static_cast<float>(frequencyHz),
     static_cast<float>(mLevel),
     static_cast<float>(mPanLeftGain),
     static_cast<float>(mPanRightGain)};
 }
 
-void Oscillator::UpdatePhaseIncrement()
+void Oscillator::UpdatePhaseIncrement(double frequencyHz)
 {
-  mPhaseIncrement = mFrequencyHz / mSampleRate;
+  mPhaseIncrement = frequencyHz / mSampleRate;
 }
 
 void Oscillator::UpdatePitchRate()
@@ -179,13 +181,13 @@ void Oscillator::UpdateVariationTargets()
   mTargetLevel = mBaseLevel * levelScale;
 
   const double pitchNoise = VariationNoise(
-    mPitchVariationAmplitudeCents,
+    mPitchVariationAmplitudeSemitones,
     mPitchVariationRateHz,
     mPitchVariationPosition,
     mVariationSeed ^ 0x17D39EF5u);
-  const double pitchCents = mBasePitchCents + mPitchVariationAmplitudeCents * pitchNoise;
-  const double minPitch = std::log2(kMinFrequencyHz);
-  mTargetPitch = std::max(minPitch, kLog2A4 + pitchCents / 1200.0);
+  const double pitchSemitones = mBasePitch + mPitchVariationAmplitudeSemitones * pitchNoise;
+  const double minPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
+  mTargetPitch = std::max(minPitchSemitones, pitchSemitones);
 
   const double panNoise = VariationNoise(
     mPanVariationAmplitude,

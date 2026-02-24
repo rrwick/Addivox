@@ -53,15 +53,17 @@ void SynthVoice::SetPitchBend(double pitchBend)
   UpdatePitch();
 }
 
-void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchCents)
+void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones)
 {
-  const double harmonicPitchOffsetCents = 1200.0 * std::log2(static_cast<double>(harmonic + 1));
-  const double totalPitchCents = fundamentalPitchCents + harmonicPitchOffsetCents
-    + settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents;
-  mOscs[harmonic].SetPitch(totalPitchCents);
+  const double harmonicPitchOffsetSemitones = 12.0 * std::log2(static_cast<double>(harmonic + 1));
+  const double presetPitchOffsetSemitones =
+    (settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents) / 100.0;
+  const double totalPitchSemitones =
+    fundamentalPitchSemitones + harmonicPitchOffsetSemitones + presetPitchOffsetSemitones;
+  mOscs[harmonic].SetPitch(totalPitchSemitones);
   mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
   mOscs[harmonic].SetPitchVariation(
-    settings.pitch_variation_amplitude * mGlobalOscillatorModifiers.pitchVariationAmplitudeScale,
+    (settings.pitch_variation_amplitude * mGlobalOscillatorModifiers.pitchVariationAmplitudeScale) / 100.0,
     settings.pitch_variation_rate * mGlobalOscillatorModifiers.pitchVariationRateScale);
   mOscs[harmonic].SetAttackTime(settings.attack * mGlobalOscillatorModifiers.attackScale);
   mOscs[harmonic].SetReleaseTime(settings.release * mGlobalOscillatorModifiers.releaseScale);
@@ -149,13 +151,13 @@ double SynthVoice::GetPortamentoTimeSec() const
 void SynthVoice::UpdatePitch()
 {
   const double midiPitch = mPitch + mPitchBend;
-  const double fundamentalPitchCents = (midiPitch - 69.0) * 100.0;
+  const double fundamentalPitchSemitones = midiPitch - 69.0;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    ApplyOscillatorSettings(harmonic, settings, fundamentalPitchCents);
+    ApplyOscillatorSettings(harmonic, settings, fundamentalPitchSemitones);
   }
 
   UpdateLevels();

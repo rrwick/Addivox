@@ -45,7 +45,7 @@ private:
   void UpdateLevels();
   double GetPortamentoTimeSec() const;
   double SmoothBreath(double breath);
-  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchCents);
+  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
 

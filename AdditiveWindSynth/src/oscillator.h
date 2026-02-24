@@ -11,9 +11,11 @@ class Oscillator
 public:
   void SetSampleRate(double sampleRate);
   void SetVariationSeed(uint32_t seed);
-  void SetPitch(double pitchCents);
+  // Pitch is in semitones relative to A4 (440 Hz), with 12 semitones per octave.
+  void SetPitch(double pitchSemitones);
   void SetPitchTime(double pitchTimeSec);
-  void SetPitchVariation(double amplitudeCents, double rateHz);
+  // Pitch variation amplitude is also in semitones.
+  void SetPitchVariation(double amplitudeSemitones, double rateHz);
   void SetAttackTime(double attackTimeSec);
   void SetReleaseTime(double releaseTimeSec);
   void SetIntensityVariation(double amplitude, double rateHz);
@@ -26,7 +28,7 @@ public:
   HarmonicVisualizerOscillator GetVisualizerState() const;
 
 private:
-  void UpdatePhaseIncrement();
+  void UpdatePhaseIncrement(double frequencyHz);
   void UpdatePitchRate();
   void UpdateLevelRates();
   void UpdatePanSlewRate();
@@ -44,7 +46,8 @@ private:
 
   static constexpr double kTwoPi = 6.28318530717958647692;
   static constexpr double kPi = 3.14159265358979323846;
-  static constexpr double kLog2A4 = 8.7813597135246596;
+  static constexpr double kA4FrequencyHz = 440.0;
+  static constexpr double kSemitonesPerOctave = 12.0;
   static constexpr double kMinFrequencyHz = 0.000001;
   static constexpr double kLevelEpsilon = 0.00001;
   static constexpr double kPanSlewTimeSec = 0.005;
@@ -52,17 +55,20 @@ private:
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
 
   double mSampleRate = 44100.0;
-  double mFrequencyHz = 440.0;
-  // Absolute pitch in cents relative to A4 (440 Hz).
-  double mBasePitchCents = 0.0;
-  double mPitch = kLog2A4;
-  double mTargetPitch = kLog2A4;
+
+  // Pitch is measured in semitones relative to A4 (440 Hz).
+  double mPitch = 0.0;  // the actual pitch that the oscillator is currently producing
+  double mBasePitch = 0.0;  // the pitch set by the preset and MIDI note, without pitch variation applied
+  double mTargetPitch = 0.0;  // the pitch that the oscillator is currently trying to reach, which may differ from mBasePitch due to portamento and pitch variation
+  double mPitchTimeSec = 0.0;
+  double mPitchRate = 1.0;
+
+
   double mTargetLevel = 0.0;
   double mBaseLevel = 0.0;
   double mLevel = 0.0;
   double mAttackTimeSec = 0.0;
   double mReleaseTimeSec = 0.0;
-  double mPitchTimeSec = 0.0;
   double mBasePan = 0.0;
   double mPanLeftGain = 0.70710678;
   double mPanRightGain = 0.70710678;
@@ -71,7 +77,7 @@ private:
   double mPanSlewRate = 1.0;
   double mIntensityVariationAmplitude = 0.0;
   double mIntensityVariationRateHz = 0.0;
-  double mPitchVariationAmplitudeCents = 0.0;
+  double mPitchVariationAmplitudeSemitones = 0.0;
   double mPitchVariationRateHz = 0.0;
   double mPanVariationAmplitude = 0.0;
   double mPanVariationRateHz = 0.0;
@@ -82,7 +88,6 @@ private:
   int mVariationSamplesUntilUpdate = 0;
   double mAttackRate = 1.0;
   double mReleaseRate = 1.0;
-  double mPitchRate = 1.0;
   double mPhase = 0.0;
-  double mPhaseIncrement = 440.0 / 44100.0;
+  double mPhaseIncrement = kA4FrequencyHz / 44100.0;
 };
