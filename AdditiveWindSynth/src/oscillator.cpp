@@ -110,8 +110,13 @@ std::array<iplug::sample, 2> Oscillator::Process()
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
 
-  mPanLeftGain += (mTargetPanLeftGain - mPanLeftGain) * mPanSlewRate;
-  mPanRightGain += (mTargetPanRightGain - mPanRightGain) * mPanSlewRate;
+  const double panLeftDelta = mTargetPanLeftGain - mPanLeftGain;
+  const double panLeftStep = std::min(std::abs(panLeftDelta), mPanSlewPerSample);
+  mPanLeftGain += std::copysign(panLeftStep, panLeftDelta);
+
+  const double panRightDelta = mTargetPanRightGain - mPanRightGain;
+  const double panRightStep = std::min(std::abs(panRightDelta), mPanSlewPerSample);
+  mPanRightGain += std::copysign(panRightStep, panRightDelta);
 
   const double pitchDelta = mTargetPitch - mPitch;
   const double pitchStep = std::min(std::abs(pitchDelta), mPitchRatePerSample);
@@ -177,7 +182,14 @@ void Oscillator::UpdateLevelRates()
 
 void Oscillator::UpdatePanSlewRate()
 {
-  mPanSlewRate = TimeToRate(kPanSlewTimeSec, mSampleRate);
+  if(kPanSlewTimeSec <= 0.0 || mSampleRate <= 0.0)
+  {
+    mPanSlewPerSample = std::numeric_limits<double>::infinity();
+    return;
+  }
+
+  // Linear pan slew: fixed max gain step per sample.
+  mPanSlewPerSample = 1.0 / (kPanSlewTimeSec * mSampleRate);
 }
 
 void Oscillator::UpdateVariationTargets()
@@ -208,7 +220,6 @@ void Oscillator::UpdateVariationTargets()
   const auto panGains = PanToGains(modulatedPan);
   mTargetPanLeftGain = panGains[0];
   mTargetPanRightGain = panGains[1];
-
 }
 
 void Oscillator::AdvanceVariationPositions(int numSamples)

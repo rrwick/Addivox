@@ -71,11 +71,7 @@ private:
 
   static constexpr double kTwoPi = 6.28318530717958647692; // Sine phase conversion.
   static constexpr double kPi = 3.14159265358979323846;
-  static constexpr double kA4FrequencyHz = 440.0;           // Pitch reference.
-  static constexpr double kSemitonesPerOctave = 12.0;       // Equal temperament.
   static constexpr double kMinFrequencyHz = 0.000001;       // Lower clamp for stability.
-  static constexpr double kLevelEpsilon = 0.00001;          // Denormal/activity threshold.
-  static constexpr double kPanSlewTimeSec = 0.005;          // Pan smoothing time constant.
   static constexpr int kVariationControlIntervalSamples = 16;
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
 
@@ -83,38 +79,44 @@ private:
   double mSampleRate = 44100.0;
 
   // Pitch is measured in semitones relative to A4 (440 Hz).
-  double mPitch = 0.0;               // the actual pitch that the oscillator is currently producing
-  double mBasePitch = 0.0;           // target pitch before pitch-variation modulation
-  double mTargetPitch = 0.0;         // target pitch after pitch-variation modulation
-  double mPitchTimeSec = 0.0;        // portamento time in seconds per semitone, 0=immediate change
+  double mPitch = 0.0;  // the actual pitch that the oscillator is currently producing
+  double mBasePitch = 0.0;  // target pitch before pitch-variation modulation
+  double mTargetPitch = 0.0;  // target pitch after pitch-variation modulation
+  double mPitchTimeSec = 0.0;  // portamento time in seconds per semitone, 0=immediate change
   double mPitchRatePerSample = 1.0;  // portamento rate in semitones/sample
+  static constexpr double kA4FrequencyHz = 440.0;  // pitch reference
+  static constexpr double kSemitonesPerOctave = 12.0;  // equal temperament
 
   // Amplitude envelope is just for attack and release shaping (decay and sustain are controlled by
   // the player's breath). Not strictly for the start/end of notes but more generally for
   // controlling how quickly the oscillator level can increase or decrease. Smoothing is done with
   // a simple one-pole approach, so attack is exponential rise toward the target level and release
   // is exponential decay toward the target level.
-  double mLevel = 0.0;           // the actual level that the oscillator is currently producing
-  double mBaseLevel = 0.0;       // target level before intensity variation modulation
-  double mTargetLevel = 0.0;     // target level after intensity variation modulation
-  double mAttackTimeSec = 0.0;   // attack time in seconds, 0=immediate attack
-  double mAttackRate = 1.0;      // one-pole per-sample attack coefficient
+  double mLevel = 0.0;  // the actual level that the oscillator is currently producing
+  double mBaseLevel = 0.0;  // target level before intensity variation modulation
+  double mTargetLevel = 0.0;  // target level after intensity variation modulation
+  double mAttackTimeSec = 0.0;  // attack time in seconds, 0=immediate attack
+  double mAttackRate = 1.0;  // one-pole per-sample attack coefficient
   double mReleaseTimeSec = 0.0;  // release time in seconds, 0=immediate release
-  double mReleaseRate = 1.0;     // one-pole per-sample release coefficient
+  double mReleaseRate = 1.0;  // one-pole per-sample release coefficient
+  static constexpr double kLevelEpsilon = 0.00001;  // levels below this are considered silent
 
   // Oscillator phase accumulator. Output level is determined by the current phase and level. Phase
   // is advanced by an increment (determined by the current pitch) each sample. If no pitch
   // variation is used, then all harmonics will remain in phase with each other.
-  double mPhase = 0.0;                       // 0 to 1, where 1 = full cycle
+  double mPhase = 0.0;  // 0 to 1, where 1 = full cycle
   double mPhaseIncrement = 440.0 / 44100.0;  // how much phase advances each sample
 
-  // Stereo pan state (equal-power gains).
-  double mBasePan = 0.0;
+  // Stereo pan state. Uses constant-power pan law (-3 dB). The rate at which pan can change is
+  // limited to avoid crackling, but since rapid pan changes should be rare, the pan slew rate is
+  // hard-coded and not adjustable by the user.
+  double mBasePan = 0.0;  // ranges from -1 (left) to +1 (right)
   double mPanLeftGain = 0.70710678;
   double mPanRightGain = 0.70710678;
-  double mTargetPanLeftGain = 0.70710678; // Modulated/smoothed target.
+  double mTargetPanLeftGain = 0.70710678;
   double mTargetPanRightGain = 0.70710678;
-  double mPanSlewRate = 1.0; // One-pole per-sample coefficient.
+  static constexpr double kPanSlewTimeSec = 0.001;  // time (seconds) for a pan to move by 1.0
+  double mPanSlewPerSample = 1.0;  // pan change rate in pan units per sample
 
   // Variation controls and state.
   double mIntensityVariationAmplitude = 0.0;
