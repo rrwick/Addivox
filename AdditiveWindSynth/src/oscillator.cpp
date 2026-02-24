@@ -41,7 +41,7 @@ void Oscillator::SetPitchTime(double pitchTimeSec)
 
 void Oscillator::SetPitchVariation(double amplitudeSemitones, double rateHz)
 {
-  mPitchVariationAmplitudeSemitones = std::max(0.0, amplitudeSemitones);
+  mPitchVariationAmplitude = std::max(0.0, amplitudeSemitones);
   mPitchVariationRateHz = std::max(0.0, rateHz);
   UpdateVariationTargets();
 }
@@ -191,11 +191,11 @@ void Oscillator::UpdateVariationTargets()
   mTargetLevel = mBaseLevel * levelScale;
 
   const double pitchNoise = VariationNoise(
-    mPitchVariationAmplitudeSemitones,
+    mPitchVariationAmplitude,
     mPitchVariationRateHz,
     mPitchVariationPosition,
     mVariationSeed ^ 0x17D39EF5u);
-  const double pitchSemitones = mBasePitch + mPitchVariationAmplitudeSemitones * pitchNoise;
+  const double pitchSemitones = mBasePitch + mPitchVariationAmplitude * pitchNoise;
   const double minPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
   mTargetPitch = std::max(minPitchSemitones, pitchSemitones);
 
