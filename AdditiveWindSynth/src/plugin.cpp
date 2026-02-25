@@ -87,11 +87,11 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
   GetParam(kParamGlobalPitchShift)->InitDouble("Global Pitch Shift", 0., -50., 50., 0.01, "cents");
   GetParam(kParamGlobalPanShift)->InitDouble("Global Pan Shift", 0., -1., 1., 0.01);
-  initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Global Intensity Variation Amount");
+  initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Global Intensity Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Global Intensity Variation Rate");
   initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Global Pitch Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Global Pitch Variation Rate");
-  initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Global Pan Variation Amount");
+  initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Global Pan Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalPanVariationRateScale, "Global Pan Variation Rate");
   GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (CC5=0)", 0., 0., 2.0, 0.001, "s");
   GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (CC5=127)", 0., 0., 2.0, 0.001, "s");
