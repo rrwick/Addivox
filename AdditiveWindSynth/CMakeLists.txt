@@ -19,8 +19,12 @@ iplug_add_plugin(${PROJECT_NAME}
     src/harmonic_visualizer_frame.h
     src/harmonic_visualizer_sender.h
     src/harmonic_visualizer_control.h
-    src/settings.cpp
-    src/settings.h
+    src/settings_oscillator.cpp
+    src/settings_oscillator.h
+    src/settings_global.cpp
+    src/settings_global.h
+    src/transformations.cpp
+    src/transformations.h
     src/midi_synth.h
     src/synth_engine.h
     src/presets.h

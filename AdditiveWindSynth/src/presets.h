@@ -1,6 +1,6 @@
 #pragma once
 
-#include "settings.h"
+#include "settings_oscillator.h"
 
 namespace presets
 {

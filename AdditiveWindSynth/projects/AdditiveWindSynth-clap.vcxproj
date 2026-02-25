@@ -282,7 +282,7 @@
     <ClInclude Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWeb.h" />
     <ClInclude Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\CLAP\IPlugCLAP.h" />
-    <ClInclude Include="..\src\settings.h" />
+    <ClInclude Include="..\src\settings_oscillator.h" />
     <ClInclude Include="..\src\midi_synth.h" />
     <ClInclude Include="..\src\synth_engine.h" />
     <ClInclude Include="..\src\voice.h" />
@@ -331,7 +331,7 @@
     <ClCompile Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\CLAP\IPlugCLAP.cpp" />
     <ClCompile Include="..\src\oscillator.cpp" />
-    <ClCompile Include="..\src\settings.cpp" />
+    <ClCompile Include="..\src\settings_oscillator.cpp" />
     <ClCompile Include="..\src\voice.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugParameter.cpp" />

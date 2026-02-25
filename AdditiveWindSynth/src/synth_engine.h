@@ -4,7 +4,6 @@
 #include "params.h"
 #include "Smoothers.h"
 #include "voice.h"
-#include <algorithm>
 #include <cstring>
 
 using namespace iplug;
@@ -45,52 +44,14 @@ public:
 
   void SetParam(int paramIdx, double value)
   {
-    switch(paramIdx)
+    if(paramIdx == kParamGain)
     {
-      case kParamGain:
-        mGainTarget = static_cast<sample>(value / 100.);
-        return;
-      case kParamGlobalAttackScale:
-        mGlobalOscillatorModifiers.attackScale = std::max(0.0, value);
-        break;
-      case kParamGlobalReleaseScale:
-        mGlobalOscillatorModifiers.releaseScale = std::max(0.0, value);
-        break;
-      case kParamGlobalPitchShift:
-        mGlobalOscillatorModifiers.pitchOffsetCents = value;
-        break;
-      case kParamGlobalPanShift:
-        mGlobalOscillatorModifiers.panOffset = std::clamp(value, -1.0, 1.0);
-        break;
-      case kParamGlobalIntensityVariationAmplitudeScale:
-        mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.0, value);
-        break;
-      case kParamGlobalIntensityVariationRateScale:
-        mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.0, value);
-        break;
-      case kParamGlobalPitchVariationAmplitudeScale:
-        mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.0, value);
-        break;
-      case kParamGlobalPitchVariationRateScale:
-        mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.0, value);
-        break;
-      case kParamGlobalPanVariationAmplitudeScale:
-        mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.0, value);
-        break;
-      case kParamGlobalPanVariationRateScale:
-        mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.0, value);
-        break;
-      case kParamPortamentoAtCC5Min:
-        mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.0, value);
-        break;
-      case kParamPortamentoAtCC5Max:
-        mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.0, value);
-        break;
-      default:
-        return;
+      mGainTarget = static_cast<sample>(value / 100.);
+      return;
     }
 
-    mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
+    if(global_settings::ApplyParam(paramIdx, value, mGlobalOscillatorModifiers))
+      mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
   }
 
   void GetVisualizerFrame(VisualizerFrame& frame) const

@@ -1,79 +1,9 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
 #include "params.h"
+#include "settings_global.h"
+#include "transformations.h"
 #include "ui_layout.h"
-
-#include <algorithm>
-#include <cmath>
-
-namespace
-{
-struct PseudoLogBase2Shape final : IParam::Shape
-{
-  Shape* Clone() const override
-  {
-    return new PseudoLogBase2Shape(*this);
-  }
-
-  IParam::EDisplayType GetDisplayType() const override
-  {
-    return IParam::kDisplayLog;
-  }
-
-  double NormalizedToValue(double value, const IParam& param) const override
-  {
-    const double n = std::clamp(value, 0.0, 1.0);
-    const double minValue = param.GetMin();
-    const double maxValue = param.GetMax();
-    constexpr double centerValue = 1.0;
-    constexpr double kCurve = 4.0; // Higher = flatter near center.
-    const double curveDenominator = std::exp2(kCurve) - 1.0;
-
-    if(n <= 0.5)
-    {
-      const double u = n * 2.0;
-      const double eased = (std::exp2(kCurve) - std::exp2(kCurve * (1.0 - u))) / curveDenominator;
-      return minValue + (centerValue - minValue) * eased;
-    }
-
-    const double u = (n - 0.5) * 2.0;
-    const double eased = (std::exp2(kCurve * u) - 1.0) / curveDenominator;
-    const double upperSpan = std::log2(maxValue / centerValue);
-    return centerValue * std::exp2(upperSpan * eased);
-  }
-
-  double ValueToNormalized(double value, const IParam& param) const override
-  {
-    const double constrainedValue = std::clamp(value, param.GetMin(), param.GetMax());
-    const double minValue = param.GetMin();
-    const double maxValue = param.GetMax();
-    constexpr double centerValue = 1.0;
-    constexpr double kCurve = 6.0; // Keep in sync with NormalizedToValue().
-    const double curvePow = std::exp2(kCurve);
-    const double curveDenominator = curvePow - 1.0;
-
-    if(constrainedValue <= centerValue)
-    {
-      if(constrainedValue <= minValue)
-        return 0.0;
-
-      const double lowerSpan = centerValue - minValue;
-      const double eased = (constrainedValue - minValue) / lowerSpan;
-      const double inside = std::clamp(curvePow - eased * curveDenominator, 1.0, curvePow);
-      const double u = 1.0 - (std::log2(inside) / kCurve);
-      return 0.5 * u;
-    }
-
-    const double upperSpan = std::log2(maxValue / centerValue);
-    const double eased = std::log2(constrainedValue / centerValue) / upperSpan;
-    const double inside = std::clamp(1.0 + eased * curveDenominator, 1.0, curvePow);
-    const double u = std::log2(inside) / kCurve;
-    return 0.5 + 0.5 * u;
-  }
-};
-
-const PseudoLogBase2Shape kPseudoLogBase2Shape{};
-}
 
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
@@ -81,7 +11,16 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.01, "%");
 
   const auto initPseudoLogScale = [this](int paramIdx, const char* name, double defaultValue = 1.0) {
-    GetParam(paramIdx)->InitDouble(name, defaultValue, 0., 100., 0.01, "x", 0, "", kPseudoLogBase2Shape);
+    GetParam(paramIdx)->InitDouble(
+      name,
+      defaultValue,
+      0.,
+      100.,
+      0.01,
+      "x",
+      0,
+      "",
+      transformations::GetPseudoLogBase2Shape());
   };
   initPseudoLogScale(kParamGlobalAttackScale, "Global Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
@@ -113,22 +52,10 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 
     // pGraphics->EnableLiveEdit(true);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
-    const std::array<int, 10> globalModifierParamIdxs{{
-      kParamGlobalAttackScale,
-      kParamGlobalPitchShift,
-      kParamGlobalIntensityVariationAmplitudeScale,
-      kParamGlobalPitchVariationAmplitudeScale,
-      kParamGlobalPanVariationAmplitudeScale,
-      kParamGlobalReleaseScale,
-      kParamGlobalPanShift,
-      kParamGlobalIntensityVariationRateScale,
-      kParamGlobalPitchVariationRateScale,
-      kParamGlobalPanVariationRateScale
-    }};
     plugin_ui::AttachMainControls(
       pGraphics,
       kParamGain,
-      globalModifierParamIdxs,
+      global_settings::kModifierParamIndices,
       kParamPortamentoAtCC5Min,
       kParamPortamentoAtCC5Max,
       kCtrlTagHarmonicVisualizer,

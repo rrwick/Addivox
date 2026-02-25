@@ -12,7 +12,9 @@
 		4F1115CF2296DA95000CFCBF /* AdditiveWindSynth-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* AdditiveWindSynth-iOS-MainInterface.storyboard */; };
 		4F11D41C232014AD003E1647 /* voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673821C5613A005991A9 /* voice.cpp */; };
 		4F11D41D232014AD003E1647 /* oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673B21C5613A005991A9 /* oscillator.cpp */; };
-		4F11D41E232014AD003E1647 /* settings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673C21C5613A005991A9 /* settings.cpp */; };
+		4F11D41E232014AD003E1647 /* settings_oscillator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673C21C5613A005991A9 /* settings_oscillator.cpp */; };
+		4F11D41F232014AD003E1647 /* settings_global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E673E21C5613A005991A9 /* settings_global.cpp */; };
+		4F11D420232014AD003E1647 /* transformations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F6E674021C5613A005991A9 /* transformations.cpp */; };
 		4F32AE7D231431BD00710734 /* AUv3Framework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA61F6E22E899B500A92C58 /* AUv3Framework.framework */; };
 		4F3E0F6A20A0BCD900A9C2BE /* AdditiveWindSynth-iOS.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F3E0F6720A0BC5B00A9C2BE /* AdditiveWindSynth-iOS.storyboard */; };
 		4F3E0F6B20A0BCE300A9C2BE /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F3E0F6820A0BCAF00A9C2BE /* Images.xcassets */; };
@@ -134,9 +136,13 @@
 		4F6E673721C5613A005991A9 /* midi_synth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = midi_synth.h; path = ../src/midi_synth.h; sourceTree = SOURCE_ROOT; };
 		4F6E673821C5613A005991A9 /* voice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = voice.cpp; path = ../src/voice.cpp; sourceTree = SOURCE_ROOT; };
 		4F6E673921C5613A005991A9 /* oscillator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = oscillator.h; path = ../src/oscillator.h; sourceTree = SOURCE_ROOT; };
-		4F6E673A21C5613A005991A9 /* settings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settings.h; path = ../src/settings.h; sourceTree = SOURCE_ROOT; };
+		4F6E673A21C5613A005991A9 /* settings_oscillator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settings_oscillator.h; path = ../src/settings_oscillator.h; sourceTree = SOURCE_ROOT; };
 		4F6E673B21C5613A005991A9 /* oscillator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = oscillator.cpp; path = ../src/oscillator.cpp; sourceTree = SOURCE_ROOT; };
-		4F6E673C21C5613A005991A9 /* settings.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = settings.cpp; path = ../src/settings.cpp; sourceTree = SOURCE_ROOT; };
+		4F6E673C21C5613A005991A9 /* settings_oscillator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = settings_oscillator.cpp; path = ../src/settings_oscillator.cpp; sourceTree = SOURCE_ROOT; };
+		4F6E673D21C5613A005991A9 /* settings_global.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settings_global.h; path = ../src/settings_global.h; sourceTree = SOURCE_ROOT; };
+		4F6E673E21C5613A005991A9 /* settings_global.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = settings_global.cpp; path = ../src/settings_global.cpp; sourceTree = SOURCE_ROOT; };
+		4F6E673F21C5613A005991A9 /* transformations.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = transformations.h; path = ../src/transformations.h; sourceTree = SOURCE_ROOT; };
+		4F6E674021C5613A005991A9 /* transformations.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = transformations.cpp; path = ../src/transformations.cpp; sourceTree = SOURCE_ROOT; };
 		4F8D7DCB224AE821002A1A2A /* IGraphicsNanoVG_src.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = IGraphicsNanoVG_src.m; sourceTree = "<group>"; };
 		4F8D8BD82316701900EFA1FB /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		4F977D3520CC9DD800D19F46 /* Easing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Easing.h; sourceTree = "<group>"; };
@@ -369,9 +375,13 @@
 				4F6E673721C5613A005991A9 /* midi_synth.h */,
 				4F6E673821C5613A005991A9 /* voice.cpp */,
 				4F6E673921C5613A005991A9 /* oscillator.h */,
-				4F6E673A21C5613A005991A9 /* settings.h */,
+				4F6E673A21C5613A005991A9 /* settings_oscillator.h */,
 				4F6E673B21C5613A005991A9 /* oscillator.cpp */,
-				4F6E673C21C5613A005991A9 /* settings.cpp */,
+				4F6E673C21C5613A005991A9 /* settings_oscillator.cpp */,
+				4F6E673D21C5613A005991A9 /* settings_global.h */,
+				4F6E673E21C5613A005991A9 /* settings_global.cpp */,
+				4F6E673F21C5613A005991A9 /* transformations.h */,
+				4F6E674021C5613A005991A9 /* transformations.cpp */,
 			);
 			path = Synth;
 			sourceTree = "<group>";
@@ -736,7 +746,9 @@
 				4FA61F8D22E89B4300A92C58 /* IGraphicsCoreText.mm in Sources */,
 				4F11D41C232014AD003E1647 /* voice.cpp in Sources */,
 				4F11D41D232014AD003E1647 /* oscillator.cpp in Sources */,
-				4F11D41E232014AD003E1647 /* settings.cpp in Sources */,
+				4F11D41E232014AD003E1647 /* settings_oscillator.cpp in Sources */,
+				4F11D41F232014AD003E1647 /* settings_global.cpp in Sources */,
+				4F11D420232014AD003E1647 /* transformations.cpp in Sources */,
 				4FA61F8922E89B3700A92C58 /* IControls.cpp in Sources */,
 				4FA61F8222E89AFF00A92C58 /* IPlugTimer.cpp in Sources */,
 				4FA61F8822E89B3700A92C58 /* ITextEntryControl.cpp in Sources */,

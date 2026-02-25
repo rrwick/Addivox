@@ -97,18 +97,7 @@ void SynthVoice::SetPortamentoControl(double control)
 
 void SynthVoice::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
 {
-  mGlobalOscillatorModifiers.attackScale = std::max(0.0, modifiers.attackScale);
-  mGlobalOscillatorModifiers.releaseScale = std::max(0.0, modifiers.releaseScale);
-  mGlobalOscillatorModifiers.pitchOffsetCents = modifiers.pitchOffsetCents;
-  mGlobalOscillatorModifiers.panOffset = std::clamp(modifiers.panOffset, -1.0, 1.0);
-  mGlobalOscillatorModifiers.intensityVariationAmplitudeScale = std::max(0.0, modifiers.intensityVariationAmplitudeScale);
-  mGlobalOscillatorModifiers.intensityVariationRateScale = std::max(0.0, modifiers.intensityVariationRateScale);
-  mGlobalOscillatorModifiers.pitchVariationAmplitudeScale = std::max(0.0, modifiers.pitchVariationAmplitudeScale);
-  mGlobalOscillatorModifiers.pitchVariationRateScale = std::max(0.0, modifiers.pitchVariationRateScale);
-  mGlobalOscillatorModifiers.panVariationAmplitudeScale = std::max(0.0, modifiers.panVariationAmplitudeScale);
-  mGlobalOscillatorModifiers.panVariationRateScale = std::max(0.0, modifiers.panVariationRateScale);
-  mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec = std::max(0.0, modifiers.portamentoTimeAtCC5MinSec);
-  mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec = std::max(0.0, modifiers.portamentoTimeAtCC5MaxSec);
+  mGlobalOscillatorModifiers = global_settings::Sanitize(modifiers);
 
   UpdatePitch();
 }

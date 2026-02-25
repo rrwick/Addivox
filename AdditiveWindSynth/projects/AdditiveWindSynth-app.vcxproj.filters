@@ -72,7 +72,7 @@
     <ClCompile Include="..\src\oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\settings.cpp">
+    <ClCompile Include="..\src\settings_oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
     <ClCompile Include="..\src\voice.cpp">
@@ -253,7 +253,7 @@
     <ClInclude Include="..\..\iPlug2\IGraphics\Controls\IVScopeControl.h">
       <Filter>IGraphics\Controls</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\settings.h">
+    <ClInclude Include="..\src\settings_oscillator.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\midi_synth.h">

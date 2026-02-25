@@ -4,23 +4,8 @@
 
 #include "IPlugConstants.h"
 #include "oscillator.h"
-#include "settings.h"
-
-struct GlobalOscillatorModifiers
-{
-  double attackScale{1.0};
-  double releaseScale{1.0};
-  double pitchOffsetCents{0.0};
-  double panOffset{0.0};
-  double intensityVariationAmplitudeScale{1.0};
-  double intensityVariationRateScale{1.0};
-  double pitchVariationAmplitudeScale{1.0};
-  double pitchVariationRateScale{1.0};
-  double panVariationAmplitudeScale{1.0};
-  double panVariationRateScale{1.0};
-  double portamentoTimeAtCC5MinSec{0.0};
-  double portamentoTimeAtCC5MaxSec{0.0};
-};
+#include "settings_global.h"
+#include "settings_oscillator.h"
 
 class SynthVoice
 {

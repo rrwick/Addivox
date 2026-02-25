@@ -1,4 +1,4 @@
-#include "settings.h"
+#include "settings_oscillator.h"
 
 #include "presets.h"
 
