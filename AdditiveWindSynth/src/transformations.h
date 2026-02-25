@@ -4,6 +4,9 @@
 
 namespace transformations
 {
+double NormalizedExp(double normalized, double shape);
+double NormalizedExpInverse(double scaledValue, double shape);
+
 class PseudoLogExpShape final : public iplug::IParam::Shape
 {
 public:
@@ -13,10 +16,6 @@ public:
   iplug::IParam::EDisplayType GetDisplayType() const override;
   double NormalizedToValue(double value, const iplug::IParam& param) const override;
   double ValueToNormalized(double value, const iplug::IParam& param) const override;
-
-private:
-  static double ApplyNormalizedExp(double normalized, double shape);
-  static double ApplyNormalizedExpInverse(double scaledValue, double shape);
 
   double mShape = 0.0;
 };

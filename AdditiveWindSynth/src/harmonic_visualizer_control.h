@@ -5,6 +5,7 @@
 #include "ISender.h"
 #include "colour.h"
 #include "harmonic_visualizer_frame.h"
+#include "transformations.h"
 
 #include <algorithm>
 #include <array>
@@ -17,10 +18,9 @@ namespace harmonic_visualizer_level
 {
 inline float MapPseudoLog(float level)
 {
-  // Isolated intensity mapping so this can be swapped easily.
-  constexpr float kShape = 64.f;
-  static const float kInvDenominator = 1.f / std::log1pf(kShape);
-  return std::clamp(std::log1pf(kShape * std::max(0.f, level)) * kInvDenominator, 0.f, 1.f);
+  // Use shared pseudo-log inverse mapping for display compression.
+  constexpr double kShape = 4.174387269895637; // ln(65), equivalent to prior log1p(k=64) mapping.
+  return static_cast<float>(transformations::NormalizedExpInverse(level, kShape));
 }
 } // namespace harmonic_visualizer_level
 

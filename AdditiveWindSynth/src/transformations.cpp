@@ -34,7 +34,7 @@ double transformations::PseudoLogExpShape::NormalizedToValue(double value, const
   if(maxValue <= minValue)
     return minValue;
 
-  const double shaped = ApplyNormalizedExp(value, mShape);
+  const double shaped = NormalizedExp(value, mShape);
   return minValue + (maxValue - minValue) * shaped;
 }
 
@@ -48,10 +48,10 @@ double transformations::PseudoLogExpShape::ValueToNormalized(double value, const
 
   const double constrained = std::clamp(value, minValue, maxValue);
   const double normalizedValue = (constrained - minValue) / (maxValue - minValue);
-  return ApplyNormalizedExpInverse(normalizedValue, mShape);
+  return NormalizedExpInverse(normalizedValue, mShape);
 }
 
-double transformations::PseudoLogExpShape::ApplyNormalizedExp(double normalized, double shape)
+double transformations::NormalizedExp(double normalized, double shape)
 {
   const double x = std::clamp(normalized, 0.0, 1.0);
 
@@ -66,7 +66,7 @@ double transformations::PseudoLogExpShape::ApplyNormalizedExp(double normalized,
   return std::clamp(y, 0.0, 1.0);
 }
 
-double transformations::PseudoLogExpShape::ApplyNormalizedExpInverse(double scaledValue, double shape)
+double transformations::NormalizedExpInverse(double scaledValue, double shape)
 {
   const double y = std::clamp(scaledValue, 0.0, 1.0);
 
