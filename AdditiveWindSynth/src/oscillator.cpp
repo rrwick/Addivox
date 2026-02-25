@@ -60,21 +60,21 @@ void Oscillator::SetReleaseTime(double releaseTimeSec)
 
 void Oscillator::SetIntensityVariation(double amplitude, double rateHz)
 {
-  mIntensityVariationAmplitude = ClampNonNegative(amplitude);
-  mIntensityVariationRateHz = ClampNonNegative(rateHz);
+  mIntensityVariationAmplitude = std::max(0.0, amplitude);
+  mIntensityVariationRateHz = std::max(0.0, rateHz);
   UpdateVariationTargets();
 }
 
 void Oscillator::SetPan(double pan)
 {
-  mBasePan = ClampPan(pan);
+  mBasePan = std::clamp(pan, -1.0, 1.0);
   UpdateVariationTargets();
 }
 
 void Oscillator::SetPanVariation(double amplitude, double rateHz)
 {
-  mPanVariationAmplitude = ClampNonNegative(amplitude);
-  mPanVariationRateHz = ClampNonNegative(rateHz);
+  mPanVariationAmplitude = std::max(0.0, amplitude);
+  mPanVariationRateHz = std::max(0.0, rateHz);
   UpdateVariationTargets();
 }
 
@@ -216,7 +216,7 @@ void Oscillator::UpdateVariationTargets()
     mPanVariationRateHz,
     mPanVariationPosition,
     mVariationSeed ^ 0xC29B3F4Bu);
-  const double modulatedPan = ClampPan(mBasePan + mPanVariationAmplitude * panNoise);
+  const double modulatedPan = std::clamp(mBasePan + mPanVariationAmplitude * panNoise, -1.0, 1.0);
   const auto panGains = PanToGains(modulatedPan);
   mTargetPanLeftGain = panGains[0];
   mTargetPanRightGain = panGains[1];
@@ -241,22 +241,13 @@ double Oscillator::TimeToRate(double timeSec, double sampleRate)
   return 1.0 - std::exp(-1.0 / (timeSec * sampleRate));
 }
 
-double Oscillator::ClampPan(double pan)
-{
-  return std::clamp(pan, -1.0, 1.0);
-}
-
 std::array<double, 2> Oscillator::PanToGains(double pan)
 {
-  // Equal-power pan law keeps perceived loudness stable across stereo position.
-  const double clampedPan = ClampPan(pan);
+  // Converts a pan value (-1.0 to 1.0) into left and right gain values using an equal-power pan
+  // law, which keeps perceived loudness stable across stereo position.
+  const double clampedPan = std::clamp(pan, -1.0, 1.0);
   const double angle = (clampedPan + 1.0) * (kPi * 0.25);
   return {std::cos(angle), std::sin(angle)};
-}
-
-double Oscillator::ClampNonNegative(double value)
-{
-  return std::max(0.0, value);
 }
 
 double Oscillator::VariationNoise(double amplitude, double rateHz, double position, uint32_t seed)
