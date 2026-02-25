@@ -2,77 +2,94 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace
 {
-class PseudoLogBase2Shape final : public iplug::IParam::Shape
-{
-public:
-  iplug::IParam::Shape* Clone() const override
-  {
-    return new PseudoLogBase2Shape(*this);
-  }
-
-  iplug::IParam::EDisplayType GetDisplayType() const override
-  {
-    return iplug::IParam::kDisplayLog;
-  }
-
-  double NormalizedToValue(double value, const iplug::IParam& param) const override
-  {
-    const double n = std::clamp(value, 0.0, 1.0);
-    const double minValue = param.GetMin();
-    const double maxValue = param.GetMax();
-    constexpr double centerValue = 1.0;
-    constexpr double kCurve = 4.0; // Higher = flatter near center.
-    const double curveDenominator = std::exp2(kCurve) - 1.0;
-
-    if(n <= 0.5)
-    {
-      const double u = n * 2.0;
-      const double eased = (std::exp2(kCurve) - std::exp2(kCurve * (1.0 - u))) / curveDenominator;
-      return minValue + (centerValue - minValue) * eased;
-    }
-
-    const double u = (n - 0.5) * 2.0;
-    const double eased = (std::exp2(kCurve * u) - 1.0) / curveDenominator;
-    const double upperSpan = std::log2(maxValue / centerValue);
-    return centerValue * std::exp2(upperSpan * eased);
-  }
-
-  double ValueToNormalized(double value, const iplug::IParam& param) const override
-  {
-    const double constrainedValue = std::clamp(value, param.GetMin(), param.GetMax());
-    const double minValue = param.GetMin();
-    const double maxValue = param.GetMax();
-    constexpr double centerValue = 1.0;
-    constexpr double kCurve = 6.0; // Keep in sync with NormalizedToValue().
-    const double curvePow = std::exp2(kCurve);
-    const double curveDenominator = curvePow - 1.0;
-
-    if(constrainedValue <= centerValue)
-    {
-      if(constrainedValue <= minValue)
-        return 0.0;
-
-      const double lowerSpan = centerValue - minValue;
-      const double eased = (constrainedValue - minValue) / lowerSpan;
-      const double inside = std::clamp(curvePow - eased * curveDenominator, 1.0, curvePow);
-      const double u = 1.0 - (std::log2(inside) / kCurve);
-      return 0.5 * u;
-    }
-
-    const double upperSpan = std::log2(maxValue / centerValue);
-    const double eased = std::log2(constrainedValue / centerValue) / upperSpan;
-    const double inside = std::clamp(1.0 + eased * curveDenominator, 1.0, curvePow);
-    const double u = std::log2(inside) / kCurve;
-    return 0.5 + 0.5 * u;
-  }
-};
+constexpr double kShapeEpsilon = 1.0e-9;
+constexpr double kGlobalPseudoLogShape = 9.19023970026918;  // 2*ln(99), puts 1 right in the middle of 0-100
+constexpr double kPortamentoPseudoLogShape = 9.19023970026918;
 } // namespace
 
-const iplug::IParam::Shape& transformations::GetPseudoLogBase2Shape()
+transformations::PseudoLogExpShape::PseudoLogExpShape(double shape)
+: mShape(shape)
 {
-  static const PseudoLogBase2Shape shape{};
+}
+
+iplug::IParam::Shape* transformations::PseudoLogExpShape::Clone() const
+{
+  return new PseudoLogExpShape(*this);
+}
+
+iplug::IParam::EDisplayType transformations::PseudoLogExpShape::GetDisplayType() const
+{
+  return iplug::IParam::kDisplayLog;
+}
+
+double transformations::PseudoLogExpShape::NormalizedToValue(double value, const iplug::IParam& param) const
+{
+  const double minValue = param.GetMin();
+  const double maxValue = param.GetMax();
+
+  if(maxValue <= minValue)
+    return minValue;
+
+  const double shaped = ApplyNormalizedExp(value, mShape);
+  return minValue + (maxValue - minValue) * shaped;
+}
+
+double transformations::PseudoLogExpShape::ValueToNormalized(double value, const iplug::IParam& param) const
+{
+  const double minValue = param.GetMin();
+  const double maxValue = param.GetMax();
+
+  if(maxValue <= minValue)
+    return 0.0;
+
+  const double constrained = std::clamp(value, minValue, maxValue);
+  const double normalizedValue = (constrained - minValue) / (maxValue - minValue);
+  return ApplyNormalizedExpInverse(normalizedValue, mShape);
+}
+
+double transformations::PseudoLogExpShape::ApplyNormalizedExp(double normalized, double shape)
+{
+  const double x = std::clamp(normalized, 0.0, 1.0);
+
+  if(std::abs(shape) <= kShapeEpsilon)
+    return x;
+
+  const double denominator = std::expm1(shape);
+  if(std::abs(denominator) <= kShapeEpsilon)
+    return x;
+
+  const double y = std::expm1(shape * x) / denominator;
+  return std::clamp(y, 0.0, 1.0);
+}
+
+double transformations::PseudoLogExpShape::ApplyNormalizedExpInverse(double scaledValue, double shape)
+{
+  const double y = std::clamp(scaledValue, 0.0, 1.0);
+
+  if(std::abs(shape) <= kShapeEpsilon)
+    return y;
+
+  const double denominator = std::expm1(shape);
+  if(std::abs(denominator) <= kShapeEpsilon)
+    return y;
+
+  const double safeLogInput = std::max(y * denominator, -1.0 + std::numeric_limits<double>::epsilon());
+  const double x = std::log1p(safeLogInput) / shape;
+  return std::clamp(x, 0.0, 1.0);
+}
+
+const iplug::IParam::Shape& transformations::GetGlobalPseudoLogShape()
+{
+  static const PseudoLogExpShape shape{kGlobalPseudoLogShape};
+  return shape;
+}
+
+const iplug::IParam::Shape& transformations::GetPortamentoPseudoLogShape()
+{
+  static const PseudoLogExpShape shape{kPortamentoPseudoLogShape};
   return shape;
 }

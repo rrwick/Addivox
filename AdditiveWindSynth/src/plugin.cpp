@@ -20,7 +20,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
       "x",
       0,
       "",
-      transformations::GetPseudoLogBase2Shape());
+      transformations::GetGlobalPseudoLogShape());
   };
   initPseudoLogScale(kParamGlobalAttackScale, "Global Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
@@ -32,8 +32,9 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Global Pitch Variation Rate");
   initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Global Pan Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalPanVariationRateScale, "Global Pan Variation Rate");
-  GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (CC5=0)", 0., 0., 2.0, 0.001, "s");
-  GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (CC5=127)", 0., 0., 2.0, 0.001, "s");
+  const auto& portamentoShape = transformations::GetPortamentoPseudoLogShape();
+  GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (CC5=0)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
+  GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (CC5=127)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
