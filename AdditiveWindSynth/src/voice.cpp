@@ -157,14 +157,10 @@ void SynthVoice::UpdateLevels()
   const double midiPitch = mPitch + mPitchBend;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
-  // Levels are scaled by breath ^ harmonicNumber, which dampens higher harmonics more than lower
-  // ones, giving a bit of a low-pass filter effect as breath is reduced.
-  double breathPower = mBreath;
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    mOscs[harmonic].SetLevel(settings.intensity * breathPower);
-    breathPower *= mBreath;
+    mOscs[harmonic].SetLevel(settings.intensity * std::pow(mBreath, settings.breath_power));
   }
 }
 

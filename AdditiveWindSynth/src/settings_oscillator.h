@@ -17,6 +17,7 @@ public:
   enum class Parameter : int
   {
     intensity = 0,
+    breath_power,
     attack,
     release,
     pitch,
@@ -34,6 +35,7 @@ public:
 
   OscillatorSettings() = default;
   constexpr OscillatorSettings(double intensityIn,
+                               double breathPowerIn = 1.0,
                                double attackIn = 0.005,
                                double releaseIn = 0.01,
                                double pitchIn = 0.0,
@@ -45,6 +47,7 @@ public:
                                double panVariationAmplitudeIn = 0.25,
                                double panVariationRateIn = 1.0)
   : intensity(intensityIn)
+  , breath_power(breathPowerIn)
   , attack(attackIn)
   , release(releaseIn)
   , pitch(pitchIn)
@@ -59,6 +62,7 @@ public:
   }
 
   double intensity{0.0};
+  double breath_power{1.0};
   double attack{0.0};
   double release{0.0};
   double pitch{0.0};

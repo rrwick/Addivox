@@ -19,6 +19,7 @@ struct ParameterDescriptor
 
 constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{{
   {"Intensity", "", &OscillatorSettings::intensity},
+  {"Breath Power", "", &OscillatorSettings::breath_power},
   {"Attack", "s", &OscillatorSettings::attack},
   {"Release", "s", &OscillatorSettings::release},
   {"Pitch", "cents", &OscillatorSettings::pitch},
