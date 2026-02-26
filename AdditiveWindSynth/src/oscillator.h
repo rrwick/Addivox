@@ -102,7 +102,7 @@ private:
   double mPanRightGain = 0.70710678;
   double mTargetPanLeftGain = 0.70710678;
   double mTargetPanRightGain = 0.70710678;
-  static constexpr double kPanSlewTimeSec = 0.001;  // time (seconds) for a pan to move by 1.0
+  static constexpr double kPanSlewTimeSec = 0.02;  // time (seconds) for a pan to move by 1.0
   double mPanSlewPerSample = 1.0;  // pan change rate in pan units per sample
   void UpdatePanSlewRate();
   static std::array<double, 2> PanToGains(double pan);
