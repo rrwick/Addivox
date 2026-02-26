@@ -4,6 +4,8 @@
 #include "colour.h"
 #include "harmonic_visualizer_control.h"
 
+#include <algorithm>
+
 namespace plugin_ui
 {
 using namespace iplug;
@@ -43,6 +45,40 @@ inline IVStyle MeterStyle()
 }
 } // namespace theme
 
+inline void AttachSVGKnobControl(
+  IGraphics* pGraphics,
+  const IRECT& bounds,
+  int paramIdx,
+  const char* label,
+  const ISVG& knobSVG,
+  const IText& labelText,
+  const IText& valueText)
+{
+  constexpr float kLabelHeight = 12.f;
+  constexpr float kValueHeight = 12.f;
+  constexpr float kKnobToLabelGap = -7.f;
+  constexpr float kLabelToValueGap = -3.f;
+  constexpr float kKnobHorizontalPadding = 6.f;
+  constexpr float kTextBottomPadding = 1.f;
+
+  const float textStackHeight = kKnobToLabelGap + kLabelHeight + kLabelToValueGap + kValueHeight + kTextBottomPadding;
+  const IRECT knobRegion(bounds.L + kKnobHorizontalPadding, bounds.T, bounds.R - kKnobHorizontalPadding, bounds.B - textStackHeight);
+  const float knobSide = std::min(knobRegion.W(), knobRegion.H());
+  const IRECT knobBounds = knobRegion.GetCentredInside(knobSide, knobSide);
+  const float labelTop = knobBounds.B + kKnobToLabelGap;
+  const IRECT labelBounds(bounds.L, labelTop, bounds.R, labelTop + kLabelHeight);
+  const IRECT valueBounds(bounds.L, labelBounds.B + kLabelToValueGap, bounds.R, labelBounds.B + kLabelToValueGap + kValueHeight);
+
+  pGraphics->AttachControl(new ISVGKnobControl(knobBounds, knobSVG, paramIdx));
+
+  auto* valueControl = new ICaptionControl(valueBounds, paramIdx, valueText, COLOR_TRANSPARENT, true);
+  valueControl->SetIgnoreMouse(true);
+  valueControl->DisablePrompt(true);
+  pGraphics->AttachControl(valueControl);
+
+  pGraphics->AttachControl(new ITextControl(labelBounds, label, labelText));
+}
+
 inline void AttachMainControls(
   IGraphics* pGraphics,
   int gainParamIdx,
@@ -70,12 +106,14 @@ inline void AttachMainControls(
   const IRECT outMeterBounds = IRECT::MakeXYWH(960.f, 10.f, 30.f, 200.f);
   const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
   const IVStyle knobStyle = theme::BaseStyle();
-  const IVStyle compactKnobStyle = knobStyle
-    .WithLabelText(IText(10.5f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Top))
-    .WithValueText(IText(10.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Bottom));
+  const IText compactLabelText = IText(10.5f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+  const IText compactValueText = IText(10.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+  const IText gainLabelText = IText(13.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+  const IText gainValueText = IText(12.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
   const IText portamentoValueText = IText(12.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
   const IVStyle groupStyle = theme::BaseStyle(true, false);
   const IVStyle meterStyle = theme::MeterStyle();
+  const ISVG knobSVG = pGraphics->LoadSVG("knob.svg");
   constexpr int kGlobalKnobCols = 5;
   constexpr int kGlobalKnobRows = 2;
   constexpr std::array<const char*, 10> kGlobalKnobLabels{{
@@ -110,7 +148,14 @@ inline void AttachMainControls(
       globalKnobGridBounds.T + static_cast<float>(row) * globalCellHeight,
       globalCellWidth,
       globalCellHeight);
-    pGraphics->AttachControl(new IVKnobControl(knobBounds, globalModifierParamIdxs[i], kGlobalKnobLabels[i], compactKnobStyle));
+    AttachSVGKnobControl(
+      pGraphics,
+      knobBounds,
+      globalModifierParamIdxs[i],
+      kGlobalKnobLabels[i],
+      knobSVG,
+      compactLabelText,
+      compactValueText);
   }
   pGraphics->AttachControl(
     new IVRangeSliderControl(
@@ -133,7 +178,7 @@ inline void AttachMainControls(
   portamentoMaxValueControl->SetIgnoreMouse(true);
   portamentoMaxValueControl->DisablePrompt(true);
   pGraphics->AttachControl(portamentoMaxValueControl);
-  pGraphics->AttachControl(new IVKnobControl(gainKnobBounds, gainParamIdx, "Gain", knobStyle));
+  AttachSVGKnobControl(pGraphics, gainKnobBounds, gainParamIdx, "Gain", knobSVG, gainLabelText, gainValueText);
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "Breath", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "Out", meterStyle), outMeterTag);
 }

@@ -34,6 +34,11 @@ def copy_resources_to_destination(projectpath, dst, label=""):
       print("copying " + font + " to " + display_dst)
       shutil.copy(projectpath + "/resources/fonts/" + font, dst)
 
+  if os.path.exists(projectpath + "/assets/"):
+    for asset in os.listdir(projectpath + "/assets/"):
+      print("copying " + asset + " to " + display_dst)
+      shutil.copy(projectpath + "/assets/" + asset, dst)
+
 def main():
   config = parse_config(projectpath)
   xcconfig = parse_xcconfig(os.path.join(os.getcwd(), IPLUG2_ROOT +  '/common-mac.xcconfig'))

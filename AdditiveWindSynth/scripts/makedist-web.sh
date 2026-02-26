@@ -68,9 +68,16 @@ fi
 
 #package svgs
 FOUND_SVGS=0
-if [ "$(ls -A ./resources/img/*.svg)" ]; then
+SVG_PRELOAD_ARGS=""
+if [ -d ./resources/img ] && [ "$(ls -A ./resources/img/*.svg 2>/dev/null)" ]; then
+  SVG_PRELOAD_ARGS="$SVG_PRELOAD_ARGS --preload ./resources/img/"
+fi
+if [ -d ./assets ] && [ "$(ls -A ./assets/*.svg 2>/dev/null)" ]; then
+  SVG_PRELOAD_ARGS="$SVG_PRELOAD_ARGS --preload ./assets@/resources/img/"
+fi
+if [ -n "$SVG_PRELOAD_ARGS" ]; then
   FOUND_SVGS=1
-  python3 $FILE_PACKAGER svgs.data --preload ./resources/img/ --exclude *.png --exclude *DS_Store --js-output=./svgs.js
+  eval "python3 $FILE_PACKAGER svgs.data $SVG_PRELOAD_ARGS --exclude *.png --exclude *DS_Store --js-output=./svgs.js"
 fi
 
 #package @1x pngs
