@@ -1,3 +1,9 @@
+// Oscillator-level settings are stored in three levels:
+// - OscillatorSettings: settings for a single oscillator.
+// - SimplePreset: settings for all 100 oscillators in a preset.
+// - CompoundPreset: a collection of SimplePresets for different MIDI notes, with interpolation
+//       between them.
+
 #pragma once
 
 #include <array>

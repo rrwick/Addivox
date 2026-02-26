@@ -7,7 +7,10 @@
 namespace
 {
 constexpr double kShapeEpsilon = 1.0e-9;
-constexpr double kGlobalPseudoLogShape = 9.19023970026918;  // 2*ln(99), puts 1 right in the middle of 0-100
+
+// https://www.desmos.com/calculator/62op06fbef
+// 2*ln(99), puts 1 right in the middle of 0-100
+constexpr double kGlobalPseudoLogShape = 9.19023970026918;
 constexpr double kPortamentoPseudoLogShape = 9.19023970026918;
 } // namespace
 
