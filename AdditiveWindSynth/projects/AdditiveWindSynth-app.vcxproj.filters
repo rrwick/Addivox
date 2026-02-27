@@ -69,13 +69,13 @@
     <ClCompile Include="..\..\iPlug2\IGraphics\Controls\IPopupMenuControl.cpp">
       <Filter>IGraphics\Controls</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\oscillator.cpp">
+    <ClCompile Include="..\src\synth\oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\settings_oscillator.cpp">
+    <ClCompile Include="..\src\settings\settings_oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\voice.cpp">
+    <ClCompile Include="..\src\synth\voice.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
     <ClCompile Include="..\..\iPlug2\IGraphics\Controls\ITextEntryControl.cpp">
@@ -253,16 +253,16 @@
     <ClInclude Include="..\..\iPlug2\IGraphics\Controls\IVScopeControl.h">
       <Filter>IGraphics\Controls</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\settings_oscillator.h">
+    <ClInclude Include="..\src\settings\settings_oscillator.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\midi_synth.h">
+    <ClInclude Include="..\src\synth\midi_synth.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\synth_engine.h">
+    <ClInclude Include="..\src\synth\synth_engine.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\voice.h">
+    <ClInclude Include="..\src\synth\voice.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\..\iPlug2\IGraphics\Controls\ITextEntryControl.h">
@@ -280,7 +280,7 @@
     <ClInclude Include="..\..\iPlug2\IPlug\ISender.h">
       <Filter>IPlug</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\oscillator.h" />
+    <ClInclude Include="..\src\synth\oscillator.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">

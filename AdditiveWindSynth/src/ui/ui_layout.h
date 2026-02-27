@@ -2,7 +2,7 @@
 
 #include "IControls.h"
 #include "colour.h"
-#include "harmonic_visualizer_control.h"
+#include "../visualizer/harmonic_visualizer_control.h"
 
 #include <algorithm>
 

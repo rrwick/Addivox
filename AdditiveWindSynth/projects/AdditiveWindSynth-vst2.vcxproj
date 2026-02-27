@@ -277,10 +277,10 @@
     <ClInclude Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsMac_view.h" />
     <ClInclude Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWeb.h" />
     <ClInclude Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.h" />
-    <ClInclude Include="..\src\settings_oscillator.h" />
-    <ClInclude Include="..\src\midi_synth.h" />
-    <ClInclude Include="..\src\synth_engine.h" />
-    <ClInclude Include="..\src\voice.h" />
+    <ClInclude Include="..\src\settings\settings_oscillator.h" />
+    <ClInclude Include="..\src\synth\midi_synth.h" />
+    <ClInclude Include="..\src\synth\synth_engine.h" />
+    <ClInclude Include="..\src\synth\voice.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlugConstants.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlugEditorDelegate.h" />
@@ -298,7 +298,7 @@
     <ClInclude Include="..\..\iPlug2\IPlug\ISender.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\VST2\IPlugVST2.h" />
     <ClInclude Include="..\src\plugin.h" />
-    <ClInclude Include="..\src\oscillator.h" />
+    <ClInclude Include="..\src\synth\oscillator.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -325,9 +325,9 @@
     <ClCompile Include="..\..\iPlug2\IGraphics\IGraphics.cpp" />
     <ClCompile Include="..\..\iPlug2\IGraphics\IGraphicsEditorDelegate.cpp" />
     <ClCompile Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.cpp" />
-    <ClCompile Include="..\src\oscillator.cpp" />
-    <ClCompile Include="..\src\settings_oscillator.cpp" />
-    <ClCompile Include="..\src\voice.cpp" />
+    <ClCompile Include="..\src\synth\oscillator.cpp" />
+    <ClCompile Include="..\src\settings\settings_oscillator.cpp" />
+    <ClCompile Include="..\src\synth\voice.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugParameter.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugPaths.cpp" />

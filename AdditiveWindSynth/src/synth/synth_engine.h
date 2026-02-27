@@ -1,7 +1,7 @@
 #pragma once
 
 #include "midi_synth.h"
-#include "params.h"
+#include "../settings/params.h"
 #include "Smoothers.h"
 #include "voice.h"
 #include <cstring>

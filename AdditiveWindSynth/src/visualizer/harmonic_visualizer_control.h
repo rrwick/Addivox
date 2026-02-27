@@ -3,9 +3,9 @@
 #include "IControl.h"
 #include "IPlugStructs.h"
 #include "ISender.h"
-#include "colour.h"
+#include "../ui/colour.h"
 #include "harmonic_visualizer_frame.h"
-#include "transformations.h"
+#include "../ui/transformations.h"
 
 #include <algorithm>
 #include <array>

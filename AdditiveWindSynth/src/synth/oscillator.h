@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "IPlugConstants.h"
-#include "harmonic_visualizer_frame.h"
+#include "../visualizer/harmonic_visualizer_frame.h"
 
 class Oscillator
 {

@@ -1,9 +1,9 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
-#include "params.h"
-#include "settings_global.h"
-#include "transformations.h"
-#include "ui_layout.h"
+#include "settings/params.h"
+#include "settings/settings_global.h"
+#include "ui/transformations.h"
+#include "ui/ui_layout.h"
 
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))

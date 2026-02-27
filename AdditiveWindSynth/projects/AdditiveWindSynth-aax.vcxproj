@@ -403,9 +403,9 @@
     <ClCompile Include="..\..\iPlug2\IPlug\AAX\IPlugAAX_Parameters.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\AAX\IPlugAAX_Describe.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\AAX\IPlugAAX.cpp" />
-    <ClCompile Include="..\src\oscillator.cpp" />
-    <ClCompile Include="..\src\settings_oscillator.cpp" />
-    <ClCompile Include="..\src\voice.cpp" />
+    <ClCompile Include="..\src\synth\oscillator.cpp" />
+    <ClCompile Include="..\src\settings\settings_oscillator.cpp" />
+    <ClCompile Include="..\src\synth\voice.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugParameter.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugPaths.cpp" />
@@ -475,10 +475,10 @@
     <ClInclude Include="..\..\iPlug2\IPlug\AAX\IPlugAAX_Parameters.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\AAX\IPlugAAX_TaperDelegate.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\AAX\IPlugAAX.h" />
-    <ClInclude Include="..\src\settings_oscillator.h" />
-    <ClInclude Include="..\src\midi_synth.h" />
-    <ClInclude Include="..\src\synth_engine.h" />
-    <ClInclude Include="..\src\voice.h" />
+    <ClInclude Include="..\src\settings\settings_oscillator.h" />
+    <ClInclude Include="..\src\synth\midi_synth.h" />
+    <ClInclude Include="..\src\synth\synth_engine.h" />
+    <ClInclude Include="..\src\synth\voice.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlugAPIBase.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlugConstants.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlugDelegate_select.h" />
@@ -499,7 +499,7 @@
     <ClInclude Include="..\..\iPlug2\IPlug\ISender.h" />
     <ClInclude Include="..\config.h" />
     <ClInclude Include="..\src\plugin.h" />
-    <ClInclude Include="..\src\oscillator.h" />
+    <ClInclude Include="..\src\synth\oscillator.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>

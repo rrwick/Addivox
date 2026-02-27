@@ -12,23 +12,23 @@ iplug_add_plugin(${PROJECT_NAME}
   SOURCES
     src/plugin.cpp
     src/plugin.h
-    src/voice.cpp
-    src/voice.h
-    src/oscillator.cpp
-    src/oscillator.h
-    src/harmonic_visualizer_frame.h
-    src/harmonic_visualizer_sender.h
-    src/harmonic_visualizer_control.h
-    src/settings_oscillator.cpp
-    src/settings_oscillator.h
-    src/settings_global.cpp
-    src/settings_global.h
-    src/transformations.cpp
-    src/transformations.h
-    src/midi_synth.h
-    src/synth_engine.h
-    src/presets.h
-    src/ui_layout.h
+    src/synth/voice.cpp
+    src/synth/voice.h
+    src/synth/oscillator.cpp
+    src/synth/oscillator.h
+    src/visualizer/harmonic_visualizer_frame.h
+    src/visualizer/harmonic_visualizer_sender.h
+    src/visualizer/harmonic_visualizer_control.h
+    src/settings/settings_oscillator.cpp
+    src/settings/settings_oscillator.h
+    src/settings/settings_global.cpp
+    src/settings/settings_global.h
+    src/ui/transformations.cpp
+    src/ui/transformations.h
+    src/synth/midi_synth.h
+    src/synth/synth_engine.h
+    src/settings/presets.h
+    src/ui/ui_layout.h
     resources/resource.h
   RESOURCES
     resources/fonts/Roboto-Regular.ttf

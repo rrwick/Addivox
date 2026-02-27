@@ -4,12 +4,12 @@
 #include "IControls.h"
 #include <atomic>
 
-#include "harmonic_visualizer_sender.h"
+#include "visualizer/harmonic_visualizer_sender.h"
 
 const int kNumPresets = 1;
 
 #if IPLUG_DSP
-#include "synth_engine.h"
+#include "synth/synth_engine.h"
 #endif
 
 enum EControlTags

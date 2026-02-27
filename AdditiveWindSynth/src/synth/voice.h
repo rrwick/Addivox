@@ -4,8 +4,8 @@
 
 #include "IPlugConstants.h"
 #include "oscillator.h"
-#include "settings_global.h"
-#include "settings_oscillator.h"
+#include "../settings/settings_global.h"
+#include "../settings/settings_oscillator.h"
 
 class SynthVoice
 {

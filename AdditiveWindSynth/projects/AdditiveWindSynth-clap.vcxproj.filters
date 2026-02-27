@@ -51,13 +51,13 @@
     <ClCompile Include="..\..\iPlug2\IPlug\CLAP\IPlugCLAP.cpp">
       <Filter>IPlug\CLAP</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\oscillator.cpp">
+    <ClCompile Include="..\src\synth\oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\settings_oscillator.cpp">
+    <ClCompile Include="..\src\settings\settings_oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\voice.cpp">
+    <ClCompile Include="..\src\synth\voice.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
   </ItemGroup>
@@ -196,19 +196,19 @@
     <ClInclude Include="..\..\iPlug2\IPlug\CLAP\IPlugCLAP.h">
       <Filter>IPlug\CLAP</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\settings_oscillator.h">
+    <ClInclude Include="..\src\settings\settings_oscillator.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\midi_synth.h">
+    <ClInclude Include="..\src\synth\midi_synth.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\synth_engine.h">
+    <ClInclude Include="..\src\synth\synth_engine.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\voice.h">
+    <ClInclude Include="..\src\synth\voice.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\oscillator.h" />
+    <ClInclude Include="..\src\synth\oscillator.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="IPlug">

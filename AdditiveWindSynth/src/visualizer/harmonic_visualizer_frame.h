@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "settings_oscillator.h"
+#include "../settings/settings_oscillator.h"
 
 struct HarmonicVisualizerOscillator
 {
