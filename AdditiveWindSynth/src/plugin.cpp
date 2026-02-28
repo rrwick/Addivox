@@ -53,6 +53,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 
     // pGraphics->EnableLiveEdit(true);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
+    pGraphics->LoadFont("Roboto-Bold", ROBOTO_BOLD_FN);
+    pGraphics->LoadFont("Roboto-Black", ROBOTO_BLACK_FN);
     plugin_ui::AttachMainControls(
       pGraphics,
       kParamGain,

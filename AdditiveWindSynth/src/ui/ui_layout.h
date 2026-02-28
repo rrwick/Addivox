@@ -99,13 +99,12 @@ inline void AttachMainControls(
   const IRECT portamentoMinValueBounds = IRECT::MakeXYWH(480.f, 260.f, 50.f, 20.f);
   const IRECT portamentoMaxValueBounds = IRECT::MakeXYWH(590.f, 260.f, 50.f, 20.f);
 
-  const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
   const IVStyle knobStyle = theme::BaseStyle();
-  const IText compactLabelText = IText(10.5f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
-  const IText compactValueText = IText(10.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
-  const IText gainLabelText = IText(13.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
-  const IText gainValueText = IText(12.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
-  const IText portamentoValueText = IText(12.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
+  const IText compactLabelText = IText(10.5f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center, EVAlign::Middle);
+  const IText compactValueText = IText(10.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle);
+  const IText gainLabelText = IText(13.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center, EVAlign::Middle);
+  const IText gainValueText = IText(12.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle);
+  const IText portamentoValueText = IText(12.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle);
   const IVStyle groupStyle = theme::BaseStyle(true, false);
   const IVStyle meterStyle = theme::MeterStyle();
   const ISVG knobSVG = pGraphics->LoadSVG("knob.svg");
@@ -141,6 +140,23 @@ inline void AttachMainControls(
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
   pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), keyboardTag);
+
+  // Envelope panel
+
+  // Pitch panel
+  // Pitch knob goes here: x=409, y=464, w=42, h=42
+
+  // Blip guard panel
+
+  // Variation panel
+
+  // Output panel
+  const IRECT gainKnobBounds = IRECT::MakeXYWH(982.f, 322.f, 90.f, 90.f);
+  AttachSVGKnobControl(pGraphics, gainKnobBounds, gainParamIdx, "Gain", knobSVG, gainLabelText, gainValueText);
+
+  // Effects panel
+
+
 
   const float globalCellWidth = globalKnobGridBounds.W() / static_cast<float>(kGlobalKnobCols);
   const float globalCellHeight = globalKnobGridBounds.H() / static_cast<float>(kGlobalKnobRows);
@@ -183,7 +199,6 @@ inline void AttachMainControls(
   portamentoMaxValueControl->SetIgnoreMouse(true);
   portamentoMaxValueControl->DisablePrompt(true);
   pGraphics->AttachControl(portamentoMaxValueControl);
-  AttachSVGKnobControl(pGraphics, gainKnobBounds, gainParamIdx, "Gain", knobSVG, gainLabelText, gainValueText);
   
 }
 
