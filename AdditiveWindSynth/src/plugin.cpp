@@ -5,38 +5,34 @@
 #include "ui/transformations.h"
 #include "ui/ui_layout.h"
 
+#include <cmath>
+
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-  GetParam(kParamGain)->InitDouble(
-    "Gain",
-    100.,
-    0.,
-    100.0,
-    0.1,
-    "",
-    0,
-    "",
-    iplug::IParam::ShapeLinear(),
-    iplug::IParam::kUnitCustom,
+  GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.1, "", 0, "",
+    iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom,
     [](double value, WDL_String& str) { str.SetFormatted(32, "%.1f%%", value); });
 
-  const auto initPseudoLogScale = [this](int paramIdx, const char* name, double defaultValue = 1.0) {
-    GetParam(paramIdx)->InitDouble(
-      name,
-      defaultValue,
-      0.,
-      100.,
-      0.01,
-      "x",
-      0,
-      "",
-      transformations::GetGlobalPseudoLogShape());
+  const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
+    int decimals = 2;
+    if (value >= 10.0)  decimals = 1;
+    if (value >= 100.0) decimals = 0;
+    const double scale = (decimals == 2 ? 100.0 : (decimals == 1 ? 10.0 : 1.0));
+    const double rounded = std::round(value * scale) / scale;
+    str.SetFormatted(32, "%.*f\xC3\x97", decimals, rounded);
+  };
+
+  const auto initPseudoLogScale = [this, formatPseudoLogScaleDisplay](int paramIdx, const char* name, double defaultValue = 1.0) {
+    GetParam(paramIdx)->InitDouble(name, defaultValue, 0., 100., 0.01, "", 0, "",
+      transformations::GetGlobalPseudoLogShape(),
+      iplug::IParam::kUnitCustom,
+      formatPseudoLogScaleDisplay);
   };
   initPseudoLogScale(kParamGlobalAttackScale, "Global Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
   GetParam(kParamGlobalPitchShift)->InitDouble("Global Pitch Shift", 0., -50., 50., 0.1, "cents");
-  GetParam(kParamGlobalPanShift)->InitDouble("Global Pan Shift", 0., -1., 1., 0.01);
+  GetParam(kParamGlobalPanShift)->InitDouble("Global Pan Shift", 0., -1., 1., 0.01, "", iplug::IParam::kFlagSignDisplay);
   initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Global Intensity Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Global Intensity Variation Rate");
   initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Global Pitch Variation Amount", 0.0);
