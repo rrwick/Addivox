@@ -8,7 +8,18 @@
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-  GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.01, "%");
+  GetParam(kParamGain)->InitDouble(
+    "Gain",
+    100.,
+    0.,
+    100.0,
+    0.1,
+    "",
+    0,
+    "",
+    iplug::IParam::ShapeLinear(),
+    iplug::IParam::kUnitCustom,
+    [](double value, WDL_String& str) { str.SetFormatted(32, "%.1f%%", value); });
 
   const auto initPseudoLogScale = [this](int paramIdx, const char* name, double defaultValue = 1.0) {
     GetParam(paramIdx)->InitDouble(
@@ -24,7 +35,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   };
   initPseudoLogScale(kParamGlobalAttackScale, "Global Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
-  GetParam(kParamGlobalPitchShift)->InitDouble("Global Pitch Shift", 0., -50., 50., 0.01, "cents");
+  GetParam(kParamGlobalPitchShift)->InitDouble("Global Pitch Shift", 0., -50., 50., 0.1, "cents");
   GetParam(kParamGlobalPanShift)->InitDouble("Global Pan Shift", 0., -1., 1., 0.01);
   initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Global Intensity Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Global Intensity Variation Rate");

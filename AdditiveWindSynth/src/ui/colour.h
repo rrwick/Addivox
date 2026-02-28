@@ -33,10 +33,10 @@ static const IColor kControlHighlight{110, 140, 180, 235};
 static const IColor kControlShadow{90, 0, 0, 0};
 
 // Label text color for control captions.
-static const IColor kLabelText{220, 255, 255, 255};
+static const IColor kLabelText{220, 188, 188, 188};
 
 // Value readout text color for control values.
-static const IColor kValueText{230, 255, 255, 255};
+static const IColor kValueText{230, 188, 188, 188};
 
 // Meter fill color for non-LED meter body/level.
 static const IColor kMeterForeground{210, 88, 150, 220};
