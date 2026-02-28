@@ -92,9 +92,6 @@ inline void AttachMainControls(
   int outMeterTag)
 {
   // Full UI: 1000 x 550
-  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(50.f, 20.f, 900.f, 190.f);
-  const IRECT wheelsBounds = IRECT::MakeXYWH(5.f, 420.f, 35.f, 120.f);
-  const IRECT keyboardBounds = IRECT::MakeXYWH(45.f, 430.f, 945.f, 110.f);
   const IRECT globalKnobGridBounds = IRECT::MakeXYWH(50.f, 240.f, 400.f, 160.f);
 
   const IRECT portamentoGroupBounds = IRECT::MakeXYWH(480.f, 240.f, 160.f, 30.f);
@@ -102,8 +99,6 @@ inline void AttachMainControls(
   const IRECT portamentoMinValueBounds = IRECT::MakeXYWH(480.f, 260.f, 50.f, 20.f);
   const IRECT portamentoMaxValueBounds = IRECT::MakeXYWH(590.f, 260.f, 50.f, 20.f);
 
-  const IRECT breathMeterBounds = IRECT::MakeXYWH(10.f, 8.f, 30.f, 200.f);
-  const IRECT outMeterBounds = IRECT::MakeXYWH(960.f, 10.f, 30.f, 200.f);
   const IRECT gainKnobBounds = IRECT::MakeXYWH(900.f, 220.f, 90.f, 90.f);
   const IVStyle knobStyle = theme::BaseStyle();
   const IText compactLabelText = IText(10.5f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle);
@@ -129,14 +124,24 @@ inline void AttachMainControls(
     "Pan Var Rate"
   }};
 
+  // The top right panel has the output meter.
+  const IRECT outMeterBounds = IRECT::MakeXYWH(853.f, 11.f, 226.f, 46.f);
+  pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "", meterStyle, EDirection::Horizontal), outMeterTag);
+
+  // The largest panel contains the breath meter on the left and the visualizer taking up the rest
+  // of the space.
+  const IRECT breathMeterBounds = IRECT::MakeXYWH(12.f, 113.f, 20.f, 266.f);
+  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 798.f, 344.f);
+  pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
-  // Keep keyboard in standard white/black colors for readability.
-  pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), keyboardTag);
+
+  // The bottom panel has the pitch bend wheel on the left and the keyboard taking up the rest of
+  // the space.
+  const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
+  const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
-  pGraphics->AttachControl(
-    new IVGroupControl(globalKnobGridBounds.GetPadded(8.f, 16.f, 8.f, 8.f), "Global settings", 6.f, groupStyle));
-  pGraphics->AttachControl(
-    new IVGroupControl(portamentoGroupBounds.GetPadded(8.f, 16.f, 8.f, 8.f), "Portamento", 6.f, groupStyle));
+  pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), keyboardTag);
+
   const float globalCellWidth = globalKnobGridBounds.W() / static_cast<float>(kGlobalKnobCols);
   const float globalCellHeight = globalKnobGridBounds.H() / static_cast<float>(kGlobalKnobRows);
   for(size_t i = 0; i < globalModifierParamIdxs.size(); ++i)
@@ -179,8 +184,7 @@ inline void AttachMainControls(
   portamentoMaxValueControl->DisablePrompt(true);
   pGraphics->AttachControl(portamentoMaxValueControl);
   AttachSVGKnobControl(pGraphics, gainKnobBounds, gainParamIdx, "Gain", knobSVG, gainLabelText, gainValueText);
-  pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "Breath", meterStyle), breathMeterTag);
-  pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "Out", meterStyle), outMeterTag);
+  
 }
 
 inline void HandleQwertyMidi(IGraphics* pGraphics, int keyboardTag, int& lastQwertyMIDINote, const IMidiMsg& msg)

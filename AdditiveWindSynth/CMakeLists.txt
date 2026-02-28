@@ -33,4 +33,5 @@ iplug_add_plugin(${PROJECT_NAME}
   RESOURCES
     resources/fonts/Roboto-Regular.ttf
     assets/knob.svg
+    assets/background.svg
 )
