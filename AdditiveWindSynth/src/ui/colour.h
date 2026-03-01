@@ -75,30 +75,32 @@ static const IColor kHarmonicGradientEnd{255, 255, 100, 0};
 static const IColor kHarmonicCore{255, 255, 255, 255};
 
 // Colours used in the LED output meter.
-const static IColor LED01 = {255, 0, 100, 255};
-const static IColor LED02 = {255, 11, 100, 244};
-const static IColor LED03 = {255, 22, 100, 233};
-const static IColor LED04 = {255, 33, 100, 222};
-const static IColor LED05 = {255, 44, 100, 211};
-const static IColor LED06 = {255, 55, 100, 200};
-const static IColor LED07 = {255, 67, 100, 188};
-const static IColor LED08 = {255, 78, 100, 177};
-const static IColor LED09 = {255, 89, 100, 166};
-const static IColor LED10 = {255, 100, 100, 155};
-const static IColor LED11 = {255, 111, 100, 144};
-const static IColor LED12 = {255, 122, 100, 133};
-const static IColor LED13 = {255, 133, 100, 122};
-const static IColor LED14 = {255, 144, 100, 111};
-const static IColor LED15 = {255, 155, 100, 100};
-const static IColor LED16 = {255, 166, 100, 89};
-const static IColor LED17 = {255, 177, 100, 78};
-const static IColor LED18 = {255, 188, 100, 67};
-const static IColor LED19 = {255, 200, 100, 55};
-const static IColor LED20 = {255, 211, 100, 44};
-const static IColor LED21 = {255, 222, 100, 33};
-const static IColor LED22 = {255, 233, 100, 22};
-const static IColor LED23 = {255, 244, 100, 11};
-const static IColor LED24 = {255, 255, 100, 0};
+const static IColor LED01 = {255, 128, 178, 255};
+const static IColor LED02 = {255, 130, 176, 250};
+const static IColor LED03 = {255, 134, 174, 244};
+const static IColor LED04 = {255, 137, 173, 238};
+const static IColor LED05 = {255, 141, 172, 233};
+const static IColor LED06 = {255, 145, 171, 227};
+const static IColor LED07 = {255, 150, 170, 222};
+const static IColor LED08 = {255, 156, 169, 216};
+const static IColor LED09 = {255, 162, 169, 210};
+const static IColor LED10 = {255, 169, 169, 205};
+const static IColor LED11 = {255, 177, 169, 200};
+const static IColor LED12 = {255, 186, 170, 194};
+const static IColor LED13 = {255, 194, 170, 186};
+const static IColor LED14 = {255, 200, 169, 177};
+const static IColor LED15 = {255, 205, 169, 169};
+const static IColor LED16 = {255, 210, 169, 162};
+const static IColor LED17 = {255, 216, 169, 156};
+const static IColor LED18 = {255, 222, 170, 150};
+const static IColor LED19 = {255, 227, 171, 145};
+const static IColor LED20 = {255, 233, 172, 141};
+const static IColor LED21 = {255, 238, 173, 137};
+const static IColor LED22 = {255, 244, 174, 134};
+const static IColor LED23 = {255, 250, 176, 130};
+const static IColor LED24 = {255, 255, 178, 128};
+const static IColor LED25 = {255, 255, 0, 0};
+const static IColor LED26 = {255, 255, 0, 0};
 
 } // namespace visualizer
 } // namespace colour

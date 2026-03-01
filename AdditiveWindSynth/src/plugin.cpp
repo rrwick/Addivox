@@ -108,7 +108,12 @@ void AdditiveWindSynth::OnIdle()
 void AdditiveWindSynth::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
+
+  // Make the meter respond more quickly to changes in level.
   mMeterSender.Reset(GetSampleRate());
+  mMeterSender.SetDecayTimeMs(50.0, GetSampleRate());
+  mMeterSender.SetPeakHoldTimeMs(250.0, GetSampleRate());
+  
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
   mLastQwertyMIDINote = -1;
   mBreathLevel.store(1.0, std::memory_order_relaxed);

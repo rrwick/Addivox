@@ -59,6 +59,7 @@ inline void AttachMainControls(
 {
   // Full UI: 1000 x 550
 
+  float knob_size = 52.f;
   const IVStyle knobStyle = theme::BaseStyle();
   const IText compactLabelText = IText(14.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Near);
   const IText compactValueText = IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Near);
@@ -71,20 +72,21 @@ inline void AttachMainControls(
     pGraphics->AttachControl(new LayeredSVGKnobControl(bounds, knobFixedSVG, knobRotatingSVG, paramIdx));
   };
 
+  // The top right panel has the output meter.
   using OutMeterLEDRange = IVLEDMeterControl<2>::LEDRange;
-  constexpr int kOutMeterNumBars = 24;
-  constexpr float kOutMeterLowDB = -72.f;
-  constexpr float kOutMeterHighDB = 6.f;
+  constexpr int kOutMeterNumBars = 26;  // Count and range are chosen so the first red bar is centered on 0 dBFS and therefore begins lighting just above 0 dB. So seeing the meter hit red indicates potential clipping.
+  constexpr float kOutMeterLowDB = -73.5f;
+  constexpr float kOutMeterHighDB = 4.5f;
   constexpr float kOutMeterStepDB = (kOutMeterHighDB - kOutMeterLowDB) / static_cast<float>(kOutMeterNumBars);
-
   const std::array<IColor, kOutMeterNumBars> outMeterLEDColors = {
-    colour::visualizer::LED24, colour::visualizer::LED23, colour::visualizer::LED22, colour::visualizer::LED21, colour::visualizer::LED20,
-    colour::visualizer::LED19, colour::visualizer::LED18, colour::visualizer::LED17, colour::visualizer::LED16, colour::visualizer::LED15,
-    colour::visualizer::LED14, colour::visualizer::LED13, colour::visualizer::LED12, colour::visualizer::LED11, colour::visualizer::LED10,
-    colour::visualizer::LED09, colour::visualizer::LED08, colour::visualizer::LED07, colour::visualizer::LED06, colour::visualizer::LED05,
+    colour::visualizer::LED26, colour::visualizer::LED25,  // top levels (>0 dB) are bright red
+    colour::visualizer::LED24, colour::visualizer::LED23, colour::visualizer::LED22, colour::visualizer::LED21,
+    colour::visualizer::LED20, colour::visualizer::LED19, colour::visualizer::LED18, colour::visualizer::LED17,
+    colour::visualizer::LED16, colour::visualizer::LED15, colour::visualizer::LED14, colour::visualizer::LED13,
+    colour::visualizer::LED12, colour::visualizer::LED11, colour::visualizer::LED10, colour::visualizer::LED09,
+    colour::visualizer::LED08, colour::visualizer::LED07, colour::visualizer::LED06, colour::visualizer::LED05,
     colour::visualizer::LED04, colour::visualizer::LED03, colour::visualizer::LED02, colour::visualizer::LED01
   };
-
   std::vector<OutMeterLEDRange> outMeterLEDRanges;
   outMeterLEDRanges.reserve(kOutMeterNumBars);
   for(int i = 0; i < kOutMeterNumBars; ++i)
@@ -93,10 +95,6 @@ inline void AttachMainControls(
     const float highDB = lowDB + kOutMeterStepDB;
     outMeterLEDRanges.emplace_back(lowDB, highDB, 1, outMeterLEDColors[static_cast<std::size_t>(i)]);
   }
-
-  float knob_size = 52.f;
-
-  // The top right panel has the output meter.
   const IRECT outMeterBounds = IRECT::MakeXYWH(853.f, 11.f, 226.f, 46.f);
   auto* meter = new IVLEDMeterControl<2>(outMeterBounds, "", meterStyle, EDirection::Horizontal, {}, kOutMeterNumBars, outMeterLEDRanges);
   meter->SetResponse(IVMeterControl<2>::EResponse::Linear); // disables marker drawing
