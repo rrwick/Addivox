@@ -2,6 +2,7 @@
 
 #include "IControls.h"
 #include "colour.h"
+#include "layered_svg_knob_control.h"
 #include "../visualizer/harmonic_visualizer_control.h"
 
 namespace plugin_ui
@@ -63,7 +64,13 @@ inline void AttachMainControls(
   const IText compactValueTextRightAlign = IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Far);
   const IText portamentoValueText = IText(12.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center);
   const IVStyle meterStyle = theme::MeterStyle();
-  const ISVG knobSVG = pGraphics->LoadSVG("knob.svg");
+  const ISVG knobFixedSVG = pGraphics->LoadSVG("knob-fixed.svg");
+  const ISVG knobRotatingSVG = pGraphics->LoadSVG("knob-rotating.svg");
+  const auto attachKnob = [&](const IRECT& bounds, int paramIdx) {
+    pGraphics->AttachControl(new LayeredSVGKnobControl(bounds, knobFixedSVG, knobRotatingSVG, paramIdx));
+  };
+
+  float knob_size = 52.f;
 
   // The top right panel has the output meter.
   const IRECT outMeterBounds = IRECT::MakeXYWH(853.f, 11.f, 226.f, 46.f);
@@ -84,10 +91,10 @@ inline void AttachMainControls(
   pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), keyboardTag);
 
   // Envelope panel: x=186, y=428, w=212, h=84
-  const IRECT attackKnobBounds = IRECT::MakeXYWH(189.f, 451.f, 56.f, 56.f);
+  const IRECT attackKnobBounds = IRECT::MakeMidXYWH(216.f, 480.5f, knob_size, knob_size);
   const IRECT attackLabelBounds = IRECT::MakeXYWH(245.f, 468.f, 70.f, 12.f);
   const IRECT attackValueBounds = IRECT::MakeXYWH(245.f, 481.f, 70.f, 12.f);
-  const IRECT releaseKnobBounds = IRECT::MakeXYWH(287.f, 451.f, 56.f, 56.f);
+  const IRECT releaseKnobBounds = IRECT::MakeMidXYWH(312.f, 480.5f, knob_size, knob_size);
   const IRECT releaseLabelBounds = IRECT::MakeXYWH(343.f, 468.f, 70.f, 12.f);
   const IRECT releaseValueBounds = IRECT::MakeXYWH(343.f, 481.f, 70.f, 12.f);
   auto* attackValueControl = new ICaptionControl(attackValueBounds, globalModifierParamIdxs[0], compactValueText, COLOR_TRANSPARENT, true);
@@ -96,13 +103,13 @@ inline void AttachMainControls(
   releaseValueControl->SetIgnoreMouse(true); releaseValueControl->DisablePrompt(true);
   pGraphics->AttachControl(attackValueControl);
   pGraphics->AttachControl(releaseValueControl);
-  pGraphics->AttachControl(new ISVGKnobControl(attackKnobBounds, knobSVG, globalModifierParamIdxs[0]));
-  pGraphics->AttachControl(new ISVGKnobControl(releaseKnobBounds, knobSVG, globalModifierParamIdxs[5]));
+  attachKnob(attackKnobBounds, globalModifierParamIdxs[0]);
+  attachKnob(releaseKnobBounds, globalModifierParamIdxs[5]);
   pGraphics->AttachControl(new ITextControl(attackLabelBounds, "Attack", compactLabelText));
   pGraphics->AttachControl(new ITextControl(releaseLabelBounds, "Release", compactLabelText));
 
   // Pitch panel: x=400, y=428, w=262, h=84
-  const IRECT pitchKnobBounds = IRECT::MakeXYWH(406.f, 451.f, 56.f, 56.f);
+  const IRECT pitchKnobBounds = IRECT::MakeMidXYWH(431.f, 480.5f, knob_size, knob_size);
   const IRECT pitchLabelBounds = IRECT::MakeXYWH(464.f, 468.f, 70.f, 12.f);
   const IRECT pitchValueBounds = IRECT::MakeXYWH(464.f, 481.f, 70.f, 12.f);
   const IRECT portamentoSliderBounds = IRECT::MakeXYWH(524.f, 474.f, 140.f, 30.f);
@@ -118,7 +125,7 @@ inline void AttachMainControls(
   pGraphics->AttachControl(pitchValueControl);
   pGraphics->AttachControl(portamentoMinValueControl);
   pGraphics->AttachControl(portamentoMaxValueControl);
-  pGraphics->AttachControl(new ISVGKnobControl(pitchKnobBounds, knobSVG, globalModifierParamIdxs[1]));
+  attachKnob(pitchKnobBounds, globalModifierParamIdxs[1]);
   pGraphics->AttachControl(new IVRangeSliderControl( portamentoSliderBounds, {portamentoAtCC5MinParamIdx, portamentoAtCC5MaxParamIdx}, "", knobStyle, EDirection::Horizontal, true, 9.f, 3.f));
   pGraphics->AttachControl(new ITextControl(pitchLabelBounds, "Pitch", compactLabelText));
   pGraphics->AttachControl(new ITextControl(portamentoLabelBounds, "Portamento", compactLabelText));
@@ -127,17 +134,17 @@ inline void AttachMainControls(
   // TODO: add controls for blip guard settings here once implemented
 
   // Variation panel: x=846, y=66, w=240, h=222
-  const IRECT intVarAmtKnobBounds = IRECT::MakeXYWH(898.f, 112.f, 56.f, 56.f);
+  const IRECT intVarAmtKnobBounds = IRECT::MakeMidXYWH(923.f, 141.5f, knob_size, knob_size);
   const IRECT intVarAmtValueBounds = IRECT::MakeXYWH(951.f, 134.f, 70.f, 12.f);
-  const IRECT intVarRateKnobBounds = IRECT::MakeXYWH(993.f, 112.f, 56.f, 56.f);
+  const IRECT intVarRateKnobBounds = IRECT::MakeMidXYWH(1018.f, 141.5f, knob_size, knob_size);
   const IRECT intVarRateValueBounds = IRECT::MakeXYWH(1046.f, 134.f, 70.f, 12.f);
-  const IRECT panVarAmtKnobBounds = IRECT::MakeXYWH(898.f, 166.f, 56.f, 56.f);
+  const IRECT panVarAmtKnobBounds = IRECT::MakeMidXYWH(923.f, 195.5f, knob_size, knob_size);
   const IRECT panVarAmtValueBounds = IRECT::MakeXYWH(951.f, 188.f, 70.f, 12.f);
-  const IRECT panVarRateKnobBounds = IRECT::MakeXYWH(993.f, 166.f, 56.f, 56.f);
+  const IRECT panVarRateKnobBounds = IRECT::MakeMidXYWH(1018.f, 195.5f, knob_size, knob_size);
   const IRECT panVarRateValueBounds = IRECT::MakeXYWH(1046.f, 188.f, 70.f, 12.f);
-  const IRECT pitchVarAmtKnobBounds = IRECT::MakeXYWH(898.f, 220.f, 56.f, 56.f);
+  const IRECT pitchVarAmtKnobBounds = IRECT::MakeMidXYWH(923.f, 249.5f, knob_size, knob_size);
   const IRECT pitchVarAmtValueBounds = IRECT::MakeXYWH(951.f, 242.f, 70.f, 12.f);
-  const IRECT pitchVarRateKnobBounds = IRECT::MakeXYWH(993.f, 220.f, 56.f, 56.f);
+  const IRECT pitchVarRateKnobBounds = IRECT::MakeMidXYWH(1018.f, 249.5f, knob_size, knob_size);
   const IRECT pitchVarRateValueBounds = IRECT::MakeXYWH(1046.f, 242.f, 70.f, 12.f);
   auto* intVarAmtValueControl = new ICaptionControl(intVarAmtValueBounds, globalModifierParamIdxs[2], compactValueText, COLOR_TRANSPARENT, true);
   auto* intVarRateValueControl = new ICaptionControl(intVarRateValueBounds, globalModifierParamIdxs[7], compactValueText, COLOR_TRANSPARENT, true);
@@ -157,18 +164,18 @@ inline void AttachMainControls(
   pGraphics->AttachControl(panVarRateValueControl);
   pGraphics->AttachControl(pitchVarAmtValueControl);
   pGraphics->AttachControl(pitchVarRateValueControl);
-  pGraphics->AttachControl(new ISVGKnobControl(intVarAmtKnobBounds, knobSVG, globalModifierParamIdxs[2]));
-  pGraphics->AttachControl(new ISVGKnobControl(intVarRateKnobBounds, knobSVG, globalModifierParamIdxs[7]));
-  pGraphics->AttachControl(new ISVGKnobControl(panVarAmtKnobBounds, knobSVG, globalModifierParamIdxs[4]));
-  pGraphics->AttachControl(new ISVGKnobControl(panVarRateKnobBounds, knobSVG, globalModifierParamIdxs[9]));
-  pGraphics->AttachControl(new ISVGKnobControl(pitchVarAmtKnobBounds, knobSVG, globalModifierParamIdxs[3]));
-  pGraphics->AttachControl(new ISVGKnobControl(pitchVarRateKnobBounds, knobSVG, globalModifierParamIdxs[8]));
+  attachKnob(intVarAmtKnobBounds, globalModifierParamIdxs[2]);
+  attachKnob(intVarRateKnobBounds, globalModifierParamIdxs[7]);
+  attachKnob(panVarAmtKnobBounds, globalModifierParamIdxs[4]);
+  attachKnob(panVarRateKnobBounds, globalModifierParamIdxs[9]);
+  attachKnob(pitchVarAmtKnobBounds, globalModifierParamIdxs[3]);
+  attachKnob(pitchVarRateKnobBounds, globalModifierParamIdxs[8]);
 
   // Output panel: x=846, y=290, w=240, h=84
-  const IRECT panKnobBounds = IRECT::MakeXYWH(860.f, 313.f, 56.f, 56.f);
+  const IRECT panKnobBounds = IRECT::MakeMidXYWH(886.f, 342.5f, knob_size, knob_size);
   const IRECT panLabelBounds = IRECT::MakeXYWH(918.f, 330.f, 50.f, 12.f);
   const IRECT panValueBounds = IRECT::MakeXYWH(918.f, 343.f, 50.f, 12.f);
-  const IRECT gainKnobBounds = IRECT::MakeXYWH(966.f, 313.f, 56.f, 56.f);
+  const IRECT gainKnobBounds = IRECT::MakeMidXYWH(992.f, 342.5f, knob_size, knob_size);
   const IRECT gainLabelBounds = IRECT::MakeXYWH(1024.f, 330.f, 50.f, 12.f);
   const IRECT gainValueBounds = IRECT::MakeXYWH(1024.f, 343.f, 50.f, 12.f);
   auto* panValueControl = new ICaptionControl(panValueBounds, globalModifierParamIdxs[6], compactValueText, COLOR_TRANSPARENT, true);
@@ -177,8 +184,8 @@ inline void AttachMainControls(
   gainValueControl->SetIgnoreMouse(true); gainValueControl->DisablePrompt(true);
   pGraphics->AttachControl(gainValueControl);
   pGraphics->AttachControl(panValueControl);
-  pGraphics->AttachControl(new ISVGKnobControl(gainKnobBounds, knobSVG, gainParamIdx));
-  pGraphics->AttachControl(new ISVGKnobControl(panKnobBounds, knobSVG, globalModifierParamIdxs[6]));
+  attachKnob(gainKnobBounds, gainParamIdx);
+  attachKnob(panKnobBounds, globalModifierParamIdxs[6]);
   pGraphics->AttachControl(new ITextControl(gainLabelBounds, "Gain", compactLabelText));
   pGraphics->AttachControl(new ITextControl(panLabelBounds, "Pan", compactLabelText));
 

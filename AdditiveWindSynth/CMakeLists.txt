@@ -28,6 +28,7 @@ iplug_add_plugin(${PROJECT_NAME}
     src/synth/midi_synth.h
     src/synth/synth_engine.h
     src/settings/presets.h
+    src/ui/layered_svg_knob_control.h
     src/ui/ui_layout.h
     resources/resource.h
   RESOURCES
@@ -35,5 +36,7 @@ iplug_add_plugin(${PROJECT_NAME}
     resources/fonts/Roboto-Bold.ttf
     resources/fonts/Roboto-Black.ttf
     assets/knob.svg
+    assets/knob-fixed.svg
+    assets/knob-rotating.svg
     assets/background.svg
 )
