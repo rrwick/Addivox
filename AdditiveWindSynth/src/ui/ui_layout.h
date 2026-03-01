@@ -131,6 +131,11 @@ inline void AttachMainControls(
         setMainPanelVizVisible(vizMode);
       }, "", mainPanelModeSwitchStyle, false, EDirection::Horizontal, 2, 0));
   setMainPanelVizVisible(true);
+  const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
+  const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
+  const IVStyle vizEditButtonStyle = theme::BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
+  pGraphics->AttachControl(new IVButtonControl(addButtonBounds, DefaultClickActionFunc, "ADD", vizEditButtonStyle, true, false));
+  pGraphics->AttachControl(new IVButtonControl(deleteButtonBounds, DefaultClickActionFunc, "DELETE", vizEditButtonStyle, true, false));
 
   // Keyboard panel: x=4, y=514, w=1082, h=130
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
