@@ -111,6 +111,26 @@ inline void AttachMainControls(
   const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 798.f, 344.f);
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
+  const auto setMainPanelVizVisible = [pGraphics, breathMeterTag, harmonicVisualizerTag](bool visible) {
+    if(auto* breathMeter = pGraphics->GetControlWithTag(breathMeterTag))
+      breathMeter->Hide(!visible);
+    if(auto* harmonicVisualizer = pGraphics->GetControlWithTag(harmonicVisualizerTag))
+      harmonicVisualizer->Hide(!visible);
+  };
+
+  // Viz/edit panel: x=4, y=428, w=180, h=84
+  const IRECT mainPanelModeSwitchBounds = IRECT::MakeXYWH(73.f, 442.f, 42.f, 26.f);
+  const IColor kMainPanelModeSwitchColor{255, 188, 188, 188};
+  const IVStyle mainPanelModeSwitchStyle = theme::BaseStyle(false, false)
+    .WithColor(kFG, kMainPanelModeSwitchColor)
+    .WithColor(kHL, kMainPanelModeSwitchColor);
+  pGraphics->AttachControl(
+    new IVSlideSwitchControl(mainPanelModeSwitchBounds,
+      [setMainPanelVizVisible](IControl* pCaller) {
+        const bool vizMode = pCaller->GetValue() < 0.5;
+        setMainPanelVizVisible(vizMode);
+      }, "", mainPanelModeSwitchStyle, false, EDirection::Horizontal, 2, 0));
+  setMainPanelVizVisible(true);
 
   // Keyboard panel: x=4, y=514, w=1082, h=130
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
