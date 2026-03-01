@@ -38,6 +38,7 @@ inline IVStyle MeterStyle()
 {
   return BaseStyle(true, false)
     .WithRoundness(0.1f)
+    .WithColor(kBG, IColor{128, 0, 0, 0})
     .WithColor(kFG, colour::ui::kMeterForeground)
     .WithColor(kX1, colour::ui::kAccentSecondary)
     .WithColor(kHL, colour::ui::kMeterHighlight);
@@ -70,11 +71,36 @@ inline void AttachMainControls(
     pGraphics->AttachControl(new LayeredSVGKnobControl(bounds, knobFixedSVG, knobRotatingSVG, paramIdx));
   };
 
+  using OutMeterLEDRange = IVLEDMeterControl<2>::LEDRange;
+  constexpr int kOutMeterNumBars = 24;
+  constexpr float kOutMeterLowDB = -72.f;
+  constexpr float kOutMeterHighDB = 6.f;
+  constexpr float kOutMeterStepDB = (kOutMeterHighDB - kOutMeterLowDB) / static_cast<float>(kOutMeterNumBars);
+
+  const std::array<IColor, kOutMeterNumBars> outMeterLEDColors = {
+    colour::visualizer::LED24, colour::visualizer::LED23, colour::visualizer::LED22, colour::visualizer::LED21, colour::visualizer::LED20,
+    colour::visualizer::LED19, colour::visualizer::LED18, colour::visualizer::LED17, colour::visualizer::LED16, colour::visualizer::LED15,
+    colour::visualizer::LED14, colour::visualizer::LED13, colour::visualizer::LED12, colour::visualizer::LED11, colour::visualizer::LED10,
+    colour::visualizer::LED09, colour::visualizer::LED08, colour::visualizer::LED07, colour::visualizer::LED06, colour::visualizer::LED05,
+    colour::visualizer::LED04, colour::visualizer::LED03, colour::visualizer::LED02, colour::visualizer::LED01
+  };
+
+  std::vector<OutMeterLEDRange> outMeterLEDRanges;
+  outMeterLEDRanges.reserve(kOutMeterNumBars);
+  for(int i = 0; i < kOutMeterNumBars; ++i)
+  {
+    const float lowDB = kOutMeterLowDB + (kOutMeterStepDB * static_cast<float>(i));
+    const float highDB = lowDB + kOutMeterStepDB;
+    outMeterLEDRanges.emplace_back(lowDB, highDB, 1, outMeterLEDColors[static_cast<std::size_t>(i)]);
+  }
+
   float knob_size = 52.f;
 
   // The top right panel has the output meter.
   const IRECT outMeterBounds = IRECT::MakeXYWH(853.f, 11.f, 226.f, 46.f);
-  pGraphics->AttachControl(new IVLEDMeterControl<2>(outMeterBounds, "", meterStyle, EDirection::Horizontal), outMeterTag);
+  auto* meter = new IVLEDMeterControl<2>(outMeterBounds, "", meterStyle, EDirection::Horizontal, {}, kOutMeterNumBars, outMeterLEDRanges);
+  meter->SetResponse(IVMeterControl<2>::EResponse::Linear); // disables marker drawing
+  pGraphics->AttachControl(meter, outMeterTag);
 
   // The largest panel contains the breath meter on the left and the visualizer taking up the rest
   // of the space.

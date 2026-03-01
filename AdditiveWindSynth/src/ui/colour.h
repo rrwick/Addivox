@@ -33,10 +33,10 @@ static const IColor kControlHighlight{110, 140, 180, 235};
 static const IColor kControlShadow{90, 0, 0, 0};
 
 // Label text color for control captions.
-static const IColor kLabelText{220, 188, 188, 188};
+static const IColor kLabelText{255, 188, 188, 188};
 
 // Value readout text color for control values.
-static const IColor kValueText{230, 188, 188, 188};
+static const IColor kValueText{255, 188, 188, 188};
 
 // Meter fill color for non-LED meter body/level.
 static const IColor kMeterForeground{210, 88, 150, 220};
@@ -74,8 +74,31 @@ static const IColor kHarmonicGradientEnd{255, 255, 100, 0};
 // Bright white core stroke for harmonic bars.
 static const IColor kHarmonicCore{255, 255, 255, 255};
 
-// Solid bar color used by the legacy/simple visualizer control.
-static const IColor kLegacyBar{220, 160, 188, 230};
+// Colours used in the LED output meter.
+const static IColor LED01 = {255, 0, 100, 255};
+const static IColor LED02 = {255, 11, 100, 244};
+const static IColor LED03 = {255, 22, 100, 233};
+const static IColor LED04 = {255, 33, 100, 222};
+const static IColor LED05 = {255, 44, 100, 211};
+const static IColor LED06 = {255, 55, 100, 200};
+const static IColor LED07 = {255, 67, 100, 188};
+const static IColor LED08 = {255, 78, 100, 177};
+const static IColor LED09 = {255, 89, 100, 166};
+const static IColor LED10 = {255, 100, 100, 155};
+const static IColor LED11 = {255, 111, 100, 144};
+const static IColor LED12 = {255, 122, 100, 133};
+const static IColor LED13 = {255, 133, 100, 122};
+const static IColor LED14 = {255, 144, 100, 111};
+const static IColor LED15 = {255, 155, 100, 100};
+const static IColor LED16 = {255, 166, 100, 89};
+const static IColor LED17 = {255, 177, 100, 78};
+const static IColor LED18 = {255, 188, 100, 67};
+const static IColor LED19 = {255, 200, 100, 55};
+const static IColor LED20 = {255, 211, 100, 44};
+const static IColor LED21 = {255, 222, 100, 33};
+const static IColor LED22 = {255, 233, 100, 22};
+const static IColor LED23 = {255, 244, 100, 11};
+const static IColor LED24 = {255, 255, 100, 0};
 
 } // namespace visualizer
 } // namespace colour
