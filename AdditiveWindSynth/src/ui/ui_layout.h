@@ -63,6 +63,7 @@ inline void AttachMainControls(
   const IText compactLabelText = IText(14.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Near);
   const IText compactValueText = IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Near);
   const IText compactValueTextRightAlign = IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Far);
+  const IColor kSecondaryUIValueColor{255, 188, 188, 188};
   const IText portamentoValueText = IText(12.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center);
   const IVStyle meterStyle = theme::MeterStyle();
   const ISVG knobFixedSVG = pGraphics->LoadSVG("knob-fixed.svg");
@@ -120,10 +121,9 @@ inline void AttachMainControls(
 
   // Viz/edit panel: x=4, y=428, w=180, h=84
   const IRECT mainPanelModeSwitchBounds = IRECT::MakeXYWH(73.f, 442.f, 42.f, 26.f);
-  const IColor kMainPanelModeSwitchColor{255, 188, 188, 188};
   const IVStyle mainPanelModeSwitchStyle = theme::BaseStyle(false, false)
-    .WithColor(kFG, kMainPanelModeSwitchColor)
-    .WithColor(kHL, kMainPanelModeSwitchColor);
+    .WithColor(kFG, kSecondaryUIValueColor)
+    .WithColor(kHL, kSecondaryUIValueColor);
   pGraphics->AttachControl(
     new IVSlideSwitchControl(mainPanelModeSwitchBounds,
       [setMainPanelVizVisible](IControl* pCaller) {
@@ -174,7 +174,10 @@ inline void AttachMainControls(
   pGraphics->AttachControl(portamentoMinValueControl);
   pGraphics->AttachControl(portamentoMaxValueControl);
   attachKnob(pitchKnobBounds, globalModifierParamIdxs[1]);
-  pGraphics->AttachControl(new IVRangeSliderControl( portamentoSliderBounds, {portamentoAtCC5MinParamIdx, portamentoAtCC5MaxParamIdx}, "", knobStyle, EDirection::Horizontal, true, 9.f, 3.f));
+    const IVStyle portamentoRangeSliderStyle = knobStyle
+    .WithColor(kFG, kSecondaryUIValueColor)
+    .WithColor(kHL, kSecondaryUIValueColor);
+  pGraphics->AttachControl(new IVRangeSliderControl( portamentoSliderBounds, {portamentoAtCC5MinParamIdx, portamentoAtCC5MaxParamIdx}, "", portamentoRangeSliderStyle, EDirection::Horizontal, true, 9.f, 3.f));
   pGraphics->AttachControl(new ITextControl(pitchLabelBounds, "Pitch", compactLabelText));
   pGraphics->AttachControl(new ITextControl(portamentoLabelBounds, "Portamento", compactLabelText));
 
