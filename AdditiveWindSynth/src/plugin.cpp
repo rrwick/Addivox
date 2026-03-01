@@ -10,10 +10,6 @@
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-  GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.1, "", 0, "",
-    iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom,
-    [](double value, WDL_String& str) { str.SetFormatted(32, "%.1f%%", value); });
-
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
     int decimals = 2;
     if (value >= 10.0)  decimals = 1;
@@ -22,6 +18,11 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     const double rounded = std::round(value * scale) / scale;
     str.SetFormatted(32, "%.*f\xC3\x97", decimals, rounded);
   };
+
+  GetParam(kParamGain)->InitDouble("Gain", 1.0, 0., 10.0, 0.01, "", 0, "",
+    transformations::GetGainPseudoLogShape(),
+    iplug::IParam::kUnitCustom,
+    formatPseudoLogScaleDisplay);
 
   const auto initPseudoLogScale = [this, formatPseudoLogScaleDisplay](int paramIdx, const char* name, double defaultValue = 1.0) {
     GetParam(paramIdx)->InitDouble(name, defaultValue, 0., 100., 0.01, "", 0, "",

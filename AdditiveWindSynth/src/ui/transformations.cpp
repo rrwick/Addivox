@@ -9,9 +9,11 @@ namespace
 constexpr double kShapeEpsilon = 1.0e-9;
 
 // https://www.desmos.com/calculator/62op06fbef
-// 2*ln(99), puts 1 right in the middle of 0-100
+// 2*ln(99) = 9.19, puts 1 right in the middle of 0-100
+// 2*ln(9) = 4.39, puts 1 right in the middle of 0-10
 constexpr double kGlobalPseudoLogShape = 9.19023970026918;
 constexpr double kPortamentoPseudoLogShape = 9.19023970026918;
+constexpr double kGainPseudoLogShape = 4.394449154672439;
 } // namespace
 
 transformations::PseudoLogExpShape::PseudoLogExpShape(double shape)
@@ -94,5 +96,11 @@ const iplug::IParam::Shape& transformations::GetGlobalPseudoLogShape()
 const iplug::IParam::Shape& transformations::GetPortamentoPseudoLogShape()
 {
   static const PseudoLogExpShape shape{kPortamentoPseudoLogShape};
+  return shape;
+}
+
+const iplug::IParam::Shape& transformations::GetGainPseudoLogShape()
+{
+  static const PseudoLogExpShape shape{kGainPseudoLogShape};
   return shape;
 }

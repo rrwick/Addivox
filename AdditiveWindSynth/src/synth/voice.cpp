@@ -86,6 +86,16 @@ void SynthVoice::SetBreath(double breath)
   UpdateLevels();
 }
 
+void SynthVoice::SetMasterGain(double gain)
+{
+  const double clampedGain = std::max(0.0, gain);
+  if(clampedGain == mMasterGain)
+    return;
+
+  mMasterGain = clampedGain;
+  UpdateLevels();
+}
+
 void SynthVoice::SetPortamentoControl(double control)
 {
   const double clampedControl = std::clamp(control, 0.0, 1.0);
@@ -160,7 +170,7 @@ void SynthVoice::UpdateLevels()
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    mOscs[harmonic].SetLevel(settings.intensity * std::pow(mBreath, settings.breath_power));
+    mOscs[harmonic].SetLevel(settings.intensity * std::pow(mBreath, settings.breath_power) * mMasterGain);
   }
 }
 

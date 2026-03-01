@@ -2,7 +2,6 @@
 
 #include "midi_synth.h"
 #include "../settings/params.h"
-#include "Smoothers.h"
 #include "voice.h"
 #include <cstring>
 
@@ -21,19 +20,13 @@ public:
       memset(outputs[i], 0, nFrames * sizeof(sample));
 
     mSynth.ProcessBlock(outputs, nFrames);
-
-    for(int s = 0; s < nFrames; s++)
-    {
-      const sample smoothedGain = mParamSmoother.Process(mGainTarget);
-      outputs[0][s] *= smoothedGain;
-      outputs[1][s] *= smoothedGain;
-    }
   }
 
   void Reset(double sampleRate, int blockSize)
   {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
+    mSynth.GetVoice().SetMasterGain(mMasterGain);
     mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
   }
 
@@ -46,7 +39,8 @@ public:
   {
     if(paramIdx == kParamGain)
     {
-      mGainTarget = static_cast<sample>(value / 100.);
+      mMasterGain = static_cast<sample>(value);
+      mSynth.GetVoice().SetMasterGain(mMasterGain);
       return;
     }
 
@@ -61,7 +55,6 @@ public:
 
 public:
   MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
-  LogParamSmooth<sample, 1> mParamSmoother;
-  sample mGainTarget{1.};
+  sample mMasterGain{1.};
   GlobalOscillatorModifiers mGlobalOscillatorModifiers{};
 };

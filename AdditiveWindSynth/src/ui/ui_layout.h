@@ -57,7 +57,6 @@ inline void AttachMainControls(
   int breathMeterTag,
   int outMeterTag)
 {
-  // Full UI: 1000 x 550
 
   float knob_size = 52.f;
   const IVStyle knobStyle = theme::BaseStyle();
@@ -72,7 +71,12 @@ inline void AttachMainControls(
     pGraphics->AttachControl(new LayeredSVGKnobControl(bounds, knobFixedSVG, knobRotatingSVG, paramIdx));
   };
 
-  // The top right panel has the output meter.
+  // Full UI: 1090 x 648
+
+  // Title panel: x=4, y=4, w=840, h=60
+  // TODO: add preset management controls here once implemented.
+
+  // Output meter panel: x=846, y=4, w=240, h=60
   using OutMeterLEDRange = IVLEDMeterControl<2>::LEDRange;
   constexpr int kOutMeterNumBars = 26;  // Count and range are chosen so the first red bar is centered on 0 dBFS and therefore begins lighting just above 0 dB. So seeing the meter hit red indicates potential clipping.
   constexpr float kOutMeterLowDB = -73.5f;
@@ -100,15 +104,15 @@ inline void AttachMainControls(
   meter->SetResponse(IVMeterControl<2>::EResponse::Linear); // disables marker drawing
   pGraphics->AttachControl(meter, outMeterTag);
 
-  // The largest panel contains the breath meter on the left and the visualizer taking up the rest
-  // of the space.
+  // Main panel: x=4, y=66, w=840, h=360
+  // Viz mode: breath meter on the left and the visualizer taking up the rest of the space.
+  // Edit mode: TODO
   const IRECT breathMeterBounds = IRECT::MakeXYWH(12.f, 113.f, 20.f, 266.f);
   const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 798.f, 344.f);
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
 
-  // The bottom panel has the pitch bend wheel on the left and the keyboard taking up the rest of
-  // the space.
+  // Keyboard panel: x=4, y=514, w=1082, h=130
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
@@ -154,7 +158,7 @@ inline void AttachMainControls(
   pGraphics->AttachControl(new ITextControl(pitchLabelBounds, "Pitch", compactLabelText));
   pGraphics->AttachControl(new ITextControl(portamentoLabelBounds, "Portamento", compactLabelText));
 
-  // Blip guard panel
+  // Blip guard panel: x=664, y=428, w=180, h=84
   // TODO: add controls for blip guard settings here once implemented
 
   // Variation panel: x=846, y=66, w=240, h=222
@@ -210,10 +214,10 @@ inline void AttachMainControls(
   pGraphics->AttachControl(panValueControl);
   attachKnob(gainKnobBounds, gainParamIdx);
   attachKnob(panKnobBounds, globalModifierParamIdxs[6]);
-  pGraphics->AttachControl(new ITextControl(gainLabelBounds, "Gain", compactLabelText));
+  pGraphics->AttachControl(new ITextControl(gainLabelBounds, "Level", compactLabelText));
   pGraphics->AttachControl(new ITextControl(panLabelBounds, "Pan", compactLabelText));
 
-  // Effects panel
+  // Effects panel: x=846, y=376, w=240, h=136
   // TODO: add controls for effects settings here once implemented
 
 }
