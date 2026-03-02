@@ -176,6 +176,7 @@ inline void AttachMainControls(
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   auto* keyboardControl = new PresetEditorKeyboardControl(keyboardBounds, 21, 108);
   keyboardControl->SetHighlightedMidiNotes(presets::kBrassCompoundPresetKeyNotes);
+  keyboardControl->SetSelectedMidiNote(presets::kBrassCompoundPresetKeyNotes[3]);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);
   setMainPanelMode(true);

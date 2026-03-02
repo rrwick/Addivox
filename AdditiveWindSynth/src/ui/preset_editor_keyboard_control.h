@@ -68,10 +68,35 @@ public:
       SetHighlightedMidiNote(midiNote, true);
   }
 
+  void SetSelectedMidiNote(int midiNote)
+  {
+    const int selectedMidiNote = IsMidiNoteInRange(midiNote) ? midiNote : -1;
+    if(mSelectedMidiNote == selectedMidiNote)
+      return;
+
+    mSelectedMidiNote = selectedMidiNote;
+    SetDirty(false);
+  }
+
+  int GetSelectedMidiNote() const
+  {
+    return mSelectedMidiNote;
+  }
+
+  void ClearSelectedMidiNote()
+  {
+    SetSelectedMidiNote(-1);
+  }
+
   void OnMouseDown(float x, float y, const IMouseMod& mod) override
   {
     if(mEditMode)
+    {
+      const int keyIndex = GetKeyAtPointForEditMode(x, y);
+      if(keyIndex >= 0)
+        SetSelectedMidiNote(GetMidiNoteNumberForKey(keyIndex));
       return;
+    }
 
     IVKeyboardControl::OnMouseDown(x, y, mod);
   }
@@ -87,7 +112,12 @@ public:
   void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override
   {
     if(mEditMode)
+    {
+      const int keyIndex = GetKeyAtPointForEditMode(x, y);
+      if(keyIndex >= 0)
+        SetSelectedMidiNote(GetMidiNoteNumberForKey(keyIndex));
       return;
+    }
 
     IVKeyboardControl::OnMouseDrag(x, y, dX, dY, mod);
   }
@@ -116,12 +146,75 @@ private:
     return midiNote >= 0 && midiNote <= 127;
   }
 
+  bool IsMidiNoteInRange(int midiNote) const
+  {
+    return midiNote >= mMinNote && midiNote <= mMaxNote;
+  }
+
   bool IsMidiNoteHighlighted(int midiNote) const
   {
     if(!IsValidMidiNote(midiNote))
       return false;
 
     return mHighlightedMidiNotes[static_cast<size_t>(midiNote)];
+  }
+
+  bool IsMidiNoteSelected(int midiNote) const
+  {
+    return midiNote == mSelectedMidiNote;
+  }
+
+  int GetKeyAtPointForEditMode(float x, float y) const
+  {
+    IRECT clipRect = mRECT.GetPadded(-2.f);
+    clipRect.Constrain(x, y);
+
+    const int numKeys = mMaxNote - mMinNote + 1;
+    if(numKeys <= 0)
+      return -1;
+
+    const float blackKeyBottom = mRECT.T + mRECT.H() * mBKHeightRatio;
+    const float blackKeyWidth = (numKeys > 1) ? (mWKWidth * mBKWidthRatio) : mWKWidth;
+
+    for(int key = 0; key < numKeys; ++key)
+    {
+      if(!mIsBlackKeyList.Get()[key])
+        continue;
+
+      const float keyLeft = mKeyXPos.Get()[key];
+      const IRECT keyBounds{keyLeft, mRECT.T, keyLeft + blackKeyWidth, blackKeyBottom};
+      if(keyBounds.Contains(x, y))
+        return key;
+    }
+
+    for(int key = 0; key < numKeys; ++key)
+    {
+      if(mIsBlackKeyList.Get()[key])
+        continue;
+
+      const float keyLeft = mKeyXPos.Get()[key];
+      const IRECT keyBounds{keyLeft, mRECT.T, keyLeft + mWKWidth, mRECT.B};
+      if(keyBounds.Contains(x, y))
+        return key;
+    }
+
+    return -1;
+  }
+
+  const IColor& GetWhiteOverlayColor(bool keyNote, bool selected) const
+  {
+    if(selected)
+      return keyNote ? mSelectedKeyNoteWhiteColor : mSelectedNonKeyNoteWhiteColor;
+
+    return keyNote ? mUnselectedKeyNoteWhiteColor : mUnselectedNonKeyNoteWhiteColor;
+  }
+
+  const IColor& GetBlackOverlayColor(bool keyNote, bool selected) const
+  {
+    if(selected)
+      return keyNote ? mSelectedKeyNoteBlackColor : mSelectedNonKeyNoteBlackColor;
+
+    return keyNote ? mUnselectedKeyNoteBlackColor : mUnselectedNonKeyNoteBlackColor;
   }
 
   void EndMouseNoteIfNeeded()
@@ -159,7 +252,10 @@ private:
         continue;
 
       const int midiNote = mMinNote + key;
-      if(!IsMidiNoteHighlighted(midiNote))
+      const bool isKeyNote = IsMidiNoteHighlighted(midiNote);
+      const bool isSelected = IsMidiNoteSelected(midiNote);
+      const IColor& whiteOverlayColor = GetWhiteOverlayColor(isKeyNote, isSelected);
+      if(whiteOverlayColor.A == 0)
         continue;
 
       const float keyLeft = mKeyXPos.Get()[key];
@@ -169,7 +265,7 @@ private:
       if(blackKeyBottom < mRECT.B)
       {
         const IRECT lowerWhiteBounds{keyLeft, blackKeyBottom, keyRight, mRECT.B};
-        g.FillRect(mEditWhiteKeyHighlightColor, lowerWhiteBounds, &mBlend);
+        g.FillRect(whiteOverlayColor, lowerWhiteBounds, &mBlend);
       }
 
       // Top portion avoids the horizontal spans covered by overlapping black keys.
@@ -203,7 +299,7 @@ private:
         if(numOccludedIntervals == 0)
         {
           const IRECT upperWhiteBounds{keyLeft, mRECT.T, keyRight, blackKeyBottom};
-          g.FillRect(mEditWhiteKeyHighlightColor, upperWhiteBounds, &mBlend);
+          g.FillRect(whiteOverlayColor, upperWhiteBounds, &mBlend);
         }
         else
         {
@@ -219,7 +315,7 @@ private:
             if(occluded.l > visibleStart)
             {
               const IRECT visibleUpperWhiteBounds{visibleStart, mRECT.T, occluded.l, blackKeyBottom};
-              g.FillRect(mEditWhiteKeyHighlightColor, visibleUpperWhiteBounds, &mBlend);
+              g.FillRect(whiteOverlayColor, visibleUpperWhiteBounds, &mBlend);
             }
 
             visibleStart = std::max(visibleStart, occluded.r);
@@ -228,7 +324,7 @@ private:
           if(visibleStart < keyRight)
           {
             const IRECT trailingUpperWhiteBounds{visibleStart, mRECT.T, keyRight, blackKeyBottom};
-            g.FillRect(mEditWhiteKeyHighlightColor, trailingUpperWhiteBounds, &mBlend);
+            g.FillRect(whiteOverlayColor, trailingUpperWhiteBounds, &mBlend);
           }
         }
       }
@@ -241,18 +337,28 @@ private:
         continue;
 
       const int midiNote = mMinNote + key;
-      if(!IsMidiNoteHighlighted(midiNote))
+      const bool isKeyNote = IsMidiNoteHighlighted(midiNote);
+      const bool isSelected = IsMidiNoteSelected(midiNote);
+      const IColor& blackOverlayColor = GetBlackOverlayColor(isKeyNote, isSelected);
+      if(blackOverlayColor.A == 0)
         continue;
 
       const float keyLeft = mKeyXPos.Get()[key];
       const IRECT keyBounds{keyLeft, mRECT.T, keyLeft + blackKeyWidth, blackKeyBottom};
-      g.FillRect(mEditBlackKeyHighlightColor, keyBounds, &mBlend);
+      g.FillRect(blackOverlayColor, keyBounds, &mBlend);
     }
   }
 
   bool mEditMode{false};
+  int mSelectedMidiNote{-1};
   std::array<bool, 128> mHighlightedMidiNotes{};
-  IColor mEditWhiteKeyHighlightColor{100, 66, 130, 255};
-  IColor mEditBlackKeyHighlightColor{155, 48, 110, 255};
+  IColor mUnselectedNonKeyNoteWhiteColor{0, 0, 0, 0};
+  IColor mUnselectedKeyNoteWhiteColor{90, 74, 128, 220};
+  IColor mSelectedNonKeyNoteWhiteColor{120, 255, 180, 70};
+  IColor mSelectedKeyNoteWhiteColor{150, 90, 195, 255};
+  IColor mUnselectedNonKeyNoteBlackColor{0, 0, 0, 0};
+  IColor mUnselectedKeyNoteBlackColor{145, 46, 105, 255};
+  IColor mSelectedNonKeyNoteBlackColor{155, 235, 182, 63};
+  IColor mSelectedKeyNoteBlackColor{185, 88, 160, 255};
 };
 } // namespace plugin_ui
