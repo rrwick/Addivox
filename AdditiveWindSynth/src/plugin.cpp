@@ -70,6 +70,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
       kParamPortamentoAtCC5Min,
       kParamPortamentoAtCC5Max,
       kCtrlTagHarmonicVisualizer,
+      kCtrlTagPresetEditorTabs,
       kCtrlTagKeyboard,
       kCtrlTagBender,
       kCtrlTagBreathMeter,

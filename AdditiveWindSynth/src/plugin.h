@@ -17,6 +17,7 @@ enum EControlTags
   kCtrlTagMeter = 0,
   kCtrlTagBreathMeter,
   kCtrlTagHarmonicVisualizer,
+  kCtrlTagPresetEditorTabs,
   kCtrlTagKeyboard,
   kCtrlTagBender,
   kNumCtrlTags

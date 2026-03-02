@@ -52,6 +52,7 @@ inline void AttachMainControls(
   int portamentoAtCC5MinParamIdx,
   int portamentoAtCC5MaxParamIdx,
   int harmonicVisualizerTag,
+  int presetEditorTabsTag,
   int keyboardTag,
   int benderTag,
   int breathMeterTag,
@@ -107,16 +108,42 @@ inline void AttachMainControls(
 
   // Main panel: x=4, y=66, w=840, h=360
   // Viz mode: breath meter on the left and the visualizer taking up the rest of the space.
-  // Edit mode: TODO
+  // Edit mode: tabbed preset editor.
   const IRECT breathMeterBounds = IRECT::MakeXYWH(12.f, 113.f, 20.f, 266.f);
   const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 798.f, 344.f);
+  const IRECT presetEditorTabsBounds = IRECT::MakeXYWH(12.f, 74.f, 824.f, 344.f);
+  const IVStyle presetEditorTabsStyle = theme::BaseStyle(false, false).WithValueText(IText(13.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle));
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
+  pGraphics->AttachControl(new IVTabbedPagesControl(presetEditorTabsBounds,
+    {
+      {"Level", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"Breath", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"Attack", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"Release", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"Pitch", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"Pan", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"LvlVarAmt", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"LvlVarRate", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"PchVarAmt", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"PchVarRate", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"PanVarAmt", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"PanVarRate", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+    }, "", presetEditorTabsStyle, 20.f, 1.f),
+    presetEditorTabsTag);
   const auto setMainPanelVizVisible = [pGraphics, breathMeterTag, harmonicVisualizerTag](bool visible) {
     if(auto* breathMeter = pGraphics->GetControlWithTag(breathMeterTag))
       breathMeter->Hide(!visible);
     if(auto* harmonicVisualizer = pGraphics->GetControlWithTag(harmonicVisualizerTag))
       harmonicVisualizer->Hide(!visible);
+  };
+  const auto setMainPanelEditVisible = [pGraphics, presetEditorTabsTag](bool visible) {
+    if(auto* presetEditorTabs = pGraphics->GetControlWithTag(presetEditorTabsTag))
+      presetEditorTabs->Hide(!visible);
+  };
+  const auto setMainPanelMode = [setMainPanelVizVisible, setMainPanelEditVisible](bool vizMode) {
+    setMainPanelVizVisible(vizMode);
+    setMainPanelEditVisible(!vizMode);
   };
 
   // Viz/edit panel: x=4, y=428, w=180, h=84
@@ -126,11 +153,11 @@ inline void AttachMainControls(
     .WithColor(kHL, kSecondaryUIValueColor);
   pGraphics->AttachControl(
     new IVSlideSwitchControl(mainPanelModeSwitchBounds,
-      [setMainPanelVizVisible](IControl* pCaller) {
+      [setMainPanelMode](IControl* pCaller) {
         const bool vizMode = pCaller->GetValue() < 0.5;
-        setMainPanelVizVisible(vizMode);
+        setMainPanelMode(vizMode);
       }, "", mainPanelModeSwitchStyle, false, EDirection::Horizontal, 2, 0));
-  setMainPanelVizVisible(true);
+  setMainPanelMode(true);
   const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
   const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
   const IVStyle vizEditButtonStyle = theme::BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
