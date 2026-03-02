@@ -155,10 +155,40 @@ const SimplePreset& CompoundPreset::GetPresetForMidiNote(double midiNote) const
   return mInterpolatedPresets[clampedNote - kMinMidiNote];
 }
 
+const SimplePreset* CompoundPreset::GetKeyNotePreset(double midiNote) const
+{
+  const int clampedNote = RoundAndClampMidiNote(midiNote);
+  const auto keyNoteIt = mKeyNotePresets.find(clampedNote);
+  if(keyNoteIt == mKeyNotePresets.end())
+    return nullptr;
+
+  return &keyNoteIt->second;
+}
+
+bool CompoundPreset::HasKeyNotePreset(double midiNote) const
+{
+  return GetKeyNotePreset(midiNote) != nullptr;
+}
+
 void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
 {
   mKeyNotePresets[ClampMidiNote(midiNote)] = preset;
   RebuildInterpolatedPresets();
+}
+
+bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
+                                                   int oscillatorIndex,
+                                                   OscillatorSettings::Parameter parameter,
+                                                   double value)
+{
+  const int clampedNote = RoundAndClampMidiNote(midiNote);
+  const auto keyNoteIt = mKeyNotePresets.find(clampedNote);
+  if(keyNoteIt == mKeyNotePresets.end())
+    return false;
+
+  keyNoteIt->second.SetOscillatorParameter(oscillatorIndex, parameter, value);
+  RebuildInterpolatedPresets();
+  return true;
 }
 
 bool CompoundPreset::RemoveKeyNotePreset(int midiNote)

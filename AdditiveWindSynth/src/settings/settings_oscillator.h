@@ -126,8 +126,14 @@ public:
 
   const OscillatorSettings& GetOscillatorSettings(double midiNote, int oscillatorIndex) const;
   const SimplePreset& GetPresetForMidiNote(double midiNote) const;
+  const SimplePreset* GetKeyNotePreset(double midiNote) const;
+  bool HasKeyNotePreset(double midiNote) const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
+  bool SetKeyNoteOscillatorParameter(double midiNote,
+                                     int oscillatorIndex,
+                                     OscillatorSettings::Parameter parameter,
+                                     double value);
   bool RemoveKeyNotePreset(int midiNote);
   void ClearKeyNotePresets();
 

@@ -21,6 +21,10 @@ public:
   void SetMasterGain(double gain);
   void SetPortamentoControl(double control);
   void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
+  bool SetKeyNoteOscillatorParameter(double midiNote,
+                                     int oscillatorIndex,
+                                     OscillatorSettings::Parameter parameter,
+                                     double value);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);

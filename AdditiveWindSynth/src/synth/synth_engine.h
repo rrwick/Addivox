@@ -48,6 +48,14 @@ public:
       mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
   }
 
+  bool SetKeyNoteOscillatorParameter(double midiNote,
+                                     int oscillatorIndex,
+                                     OscillatorSettings::Parameter parameter,
+                                     double value)
+  {
+    return mSynth.GetVoice().SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
+  }
+
   void GetVisualizerFrame(VisualizerFrame& frame) const
   {
     mSynth.GetVoice().GetVisualizerFrame(frame);

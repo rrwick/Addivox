@@ -112,6 +112,19 @@ void SynthVoice::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& m
   UpdatePitch();
 }
 
+bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote,
+                                               int oscillatorIndex,
+                                               OscillatorSettings::Parameter parameter,
+                                               double value)
+{
+  const bool updated = mCompoundPreset.SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
+  if(!updated)
+    return false;
+
+  UpdatePitch();
+  return true;
+}
+
 double SynthVoice::SmoothBreath(double breath)
 {
   // Input and output breath are in the range [0, 1].

@@ -103,5 +103,8 @@ const static IColor LED25 = {255, 255, 0, 0};
 const static IColor LED26 = {255, 255, 0, 0};
 
 } // namespace visualizer
+
+// Shared dark background color used across visualizer/editor surfaces.
+static const IColor kBackground = visualizer::kBackground;
 } // namespace colour
 } // namespace plugin_ui

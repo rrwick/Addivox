@@ -2,6 +2,7 @@
 #include "IPlug_include_in_plug_src.h"
 #include "settings/params.h"
 #include "settings/settings_global.h"
+#include "preset_editor_messages.h"
 #include "ui/transformations.h"
 #include "ui/ui_layout.h"
 
@@ -140,6 +141,19 @@ void AdditiveWindSynth::OnParamChange(int paramIdx)
 
 bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
+  if(ctrlTag == kCtrlTagPresetEditorTabs
+    && msgTag == preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter
+    && dataSize == sizeof(preset_editor_messages::SetKeyNoteOscillatorParameterPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const preset_editor_messages::SetKeyNoteOscillatorParameterPayload*>(pData);
+    if(payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters)
+      return false;
+
+    const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    return mDSP.SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
+  }
+
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
   {
     const int bendRange = *static_cast<const int*>(pData);

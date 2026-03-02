@@ -6,6 +6,13 @@
 #include "preset_editor_keyboard_control.h"
 #include "../visualizer/harmonic_visualizer_control.h"
 #include "../settings/preset_key_notes.h"
+#include "../settings/presets.h"
+#include "../settings/settings_oscillator.h"
+#include "../preset_editor_messages.h"
+
+#include <algorithm>
+#include <functional>
+#include <memory>
 
 namespace plugin_ui
 {
@@ -114,12 +121,101 @@ inline void AttachMainControls(
   const IRECT breathMeterBounds = IRECT::MakeXYWH(12.f, 113.f, 20.f, 266.f);
   const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 798.f, 344.f);
   const IRECT presetEditorTabsBounds = IRECT::MakeXYWH(12.f, 74.f, 824.f, 344.f);
-  const IVStyle presetEditorTabsStyle = theme::BaseStyle(false, false).WithValueText(IText(13.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle));
+  const IColor kPresetEditorDarkSurface = colour::kBackground;
+  const IColor kPresetEditorDarkTab{255, 24, 32, 42};
+  const IColor kPresetEditorBarColor{255, 118, 168, 230};
+  const IVStyle presetEditorTabsStyle = theme::BaseStyle(false, false)
+    .WithValueText(IText(13.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))
+    .WithColor(kFG, kPresetEditorDarkTab)
+    .WithColor(kPR, kPresetEditorDarkSurface)
+    .WithColor(kHL, IColor{70, 180, 210, 255});
+  const IVStyle levelSliderStyle = theme::BaseStyle(false, false)
+    .WithColor(kBG, kPresetEditorDarkSurface)
+    .WithColor(kFG, kPresetEditorBarColor)
+    .WithColor(kX1, kPresetEditorBarColor)
+    .WithColor(kHL, IColor{55, 255, 255, 255});
+  using LevelSliderControl = IVMultiSliderControl<SimplePreset::kNumOscillators>;
+  auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
+  auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
+  auto levelSliderControl = std::make_shared<LevelSliderControl*>(nullptr);
+  auto refreshLevelTab = std::make_shared<std::function<void()>>();
+  *refreshLevelTab = [editorCompoundPreset, selectedEditorMidiNote, levelSliderControl]() {
+    auto* levelControl = *levelSliderControl;
+    if(!levelControl)
+      return;
+
+    const int selectedMidiNote = *selectedEditorMidiNote;
+    if(selectedMidiNote < CompoundPreset::kMinMidiNote || selectedMidiNote > CompoundPreset::kMaxMidiNote)
+    {
+      levelControl->SetDisabled(true);
+      levelControl->SetDirty(false);
+      return;
+    }
+
+    const SimplePreset* keyNotePreset = editorCompoundPreset->GetKeyNotePreset(selectedMidiNote);
+    const SimplePreset& selectedPreset = keyNotePreset ? *keyNotePreset : editorCompoundPreset->GetPresetForMidiNote(selectedMidiNote);
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      const double intensity = selectedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
+      levelControl->SetValue(std::clamp(intensity, 0.0, 1.0), oscillatorIndex);
+    }
+
+    levelControl->SetDisabled(keyNotePreset == nullptr);
+    levelControl->SetDirty(false);
+  };
+
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
   pGraphics->AttachControl(new IVTabbedPagesControl(presetEditorTabsBounds,
     {
-      {"Level", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {"Level", new IVTabPage([levelSliderControl, refreshLevelTab, editorCompoundPreset, selectedEditorMidiNote, levelSliderStyle, presetEditorTabsTag](IVTabPage* page, const IRECT&) {
+        auto* levelControl = new LevelSliderControl(IRECT(), "", levelSliderStyle, 0, EDirection::Vertical);
+        levelControl->SetOnNewValueFunc([levelControl, editorCompoundPreset, selectedEditorMidiNote, refreshLevelTab, presetEditorTabsTag](int oscillatorIndex, double value) {
+          if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
+            return;
+
+          const int selectedMidiNote = *selectedEditorMidiNote;
+          const double clampedValue = std::clamp(value, 0.0, 1.0);
+          const bool updated = editorCompoundPreset->SetKeyNoteOscillatorParameter(
+            selectedMidiNote,
+            oscillatorIndex,
+            OscillatorSettings::Parameter::intensity,
+            clampedValue);
+          if(!updated)
+            return;
+
+          if(auto* delegate = levelControl->GetDelegate())
+          {
+            preset_editor_messages::SetKeyNoteOscillatorParameterPayload payload;
+            payload.midiNote = selectedMidiNote;
+            payload.oscillatorIndex = oscillatorIndex;
+            payload.parameter = static_cast<int>(OscillatorSettings::Parameter::intensity);
+            payload.value = clampedValue;
+            delegate->SendArbitraryMsgFromUI(
+              preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter,
+              presetEditorTabsTag,
+              sizeof(payload),
+              &payload);
+          }
+
+          if(*refreshLevelTab)
+            (*refreshLevelTab)();
+        });
+
+        page->AddChildControl(levelControl);
+        *levelSliderControl = levelControl;
+        if(*refreshLevelTab)
+          (*refreshLevelTab)();
+      },
+      [](IContainerBase* pTab, const IRECT& r) {
+        if(pTab->NChildren() != 1)
+          return;
+
+        constexpr float kLevelTabLeftInset = 104.f;
+        auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
+        innerBounds.L += kLevelTabLeftInset;
+        pTab->GetChild(0)->SetTargetAndDrawRECTs(innerBounds);
+      })},
       {"Breath", new IVTabPage([](IVTabPage*, const IRECT&) {})},
       {"Attack", new IVTabPage([](IVTabPage*, const IRECT&) {})},
       {"Release", new IVTabPage([](IVTabPage*, const IRECT&) {})},
@@ -175,10 +271,17 @@ inline void AttachMainControls(
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   auto* keyboardControl = new PresetEditorKeyboardControl(keyboardBounds, 21, 108);
+  keyboardControl->SetOnSelectedMidiNoteChanged([selectedEditorMidiNote, refreshLevelTab](int midiNote) {
+    *selectedEditorMidiNote = midiNote;
+    if(*refreshLevelTab)
+      (*refreshLevelTab)();
+  });
   keyboardControl->SetHighlightedMidiNotes(presets::kBrassCompoundPresetKeyNotes);
-  keyboardControl->SetSelectedMidiNote(presets::kBrassCompoundPresetKeyNotes[3]);
+  keyboardControl->SetSelectedMidiNote(*selectedEditorMidiNote);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);
+  if(*refreshLevelTab)
+    (*refreshLevelTab)();
   setMainPanelMode(true);
 
   // Envelope panel: x=186, y=428, w=212, h=84

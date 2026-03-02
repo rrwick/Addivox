@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <initializer_list>
 
 namespace plugin_ui
@@ -14,6 +15,8 @@ using namespace igraphics;
 class PresetEditorKeyboardControl final : public IVKeyboardControl
 {
 public:
+  using SelectedMidiNoteChangedFunc = std::function<void(int midiNote)>;
+
   PresetEditorKeyboardControl(const IRECT& bounds, int minNote = 48, int maxNote = 72)
   : IVKeyboardControl(bounds, minNote, maxNote)
   {
@@ -71,12 +74,19 @@ public:
       return;
 
     mSelectedMidiNote = selectedMidiNote;
+    if(mOnSelectedMidiNoteChanged)
+      mOnSelectedMidiNoteChanged(mSelectedMidiNote);
     SetDirty(false);
   }
 
   int GetSelectedMidiNote() const
   {
     return mSelectedMidiNote;
+  }
+
+  void SetOnSelectedMidiNoteChanged(SelectedMidiNoteChangedFunc func)
+  {
+    mOnSelectedMidiNoteChanged = func;
   }
 
   void ClearSelectedMidiNote()
@@ -394,6 +404,7 @@ private:
 
   bool mEditMode{false};
   int mSelectedMidiNote{-1};
+  SelectedMidiNoteChangedFunc mOnSelectedMidiNoteChanged{};
   std::array<bool, 128> mHighlightedMidiNotes{};
   IColor mKeyNoteDotColor{255, 32, 130, 245};
   float mWhiteKeyDotRadiusFactor{0.4f};
