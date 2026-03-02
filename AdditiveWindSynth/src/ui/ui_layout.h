@@ -3,6 +3,7 @@
 #include "IControls.h"
 #include "colour.h"
 #include "layered_svg_knob_control.h"
+#include "oscillator_slider_control.h"
 #include "preset_editor_keyboard_control.h"
 #include "../visualizer/harmonic_visualizer_control.h"
 #include "../settings/preset_key_notes.h"
@@ -134,10 +135,9 @@ inline void AttachMainControls(
     .WithColor(kFG, kPresetEditorBarColor)
     .WithColor(kX1, kPresetEditorBarColor)
     .WithColor(kHL, IColor{55, 255, 255, 255});
-  using LevelSliderControl = IVMultiSliderControl<SimplePreset::kNumOscillators>;
   auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
   auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
-  auto levelSliderControl = std::make_shared<LevelSliderControl*>(nullptr);
+  auto levelSliderControl = std::make_shared<OscillatorSliderControl*>(nullptr);
   auto refreshLevelTab = std::make_shared<std::function<void()>>();
   *refreshLevelTab = [editorCompoundPreset, selectedEditorMidiNote, levelSliderControl]() {
     auto* levelControl = *levelSliderControl;
@@ -157,10 +157,10 @@ inline void AttachMainControls(
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
     {
       const double intensity = selectedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
-      levelControl->SetValue(std::clamp(intensity, 0.0, 1.0), oscillatorIndex);
+      levelControl->SetOscillatorValue(oscillatorIndex, intensity);
     }
 
-    levelControl->SetDisabled(keyNotePreset == nullptr);
+    levelControl->SetEditable(keyNotePreset != nullptr);
     levelControl->SetDirty(false);
   };
 
@@ -169,8 +169,8 @@ inline void AttachMainControls(
   pGraphics->AttachControl(new IVTabbedPagesControl(presetEditorTabsBounds,
     {
       {"Level", new IVTabPage([levelSliderControl, refreshLevelTab, editorCompoundPreset, selectedEditorMidiNote, levelSliderStyle, presetEditorTabsTag](IVTabPage* page, const IRECT&) {
-        auto* levelControl = new LevelSliderControl(IRECT(), "", levelSliderStyle, 0, EDirection::Vertical);
-        levelControl->SetOnNewValueFunc([levelControl, editorCompoundPreset, selectedEditorMidiNote, refreshLevelTab, presetEditorTabsTag](int oscillatorIndex, double value) {
+        auto* levelControl = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
+        levelControl->SetOnOscillatorValueChanged([levelControl, editorCompoundPreset, selectedEditorMidiNote, refreshLevelTab, presetEditorTabsTag](int oscillatorIndex, double value) {
           if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
             return;
 
