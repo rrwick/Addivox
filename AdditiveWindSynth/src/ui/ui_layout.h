@@ -3,7 +3,9 @@
 #include "IControls.h"
 #include "colour.h"
 #include "layered_svg_knob_control.h"
+#include "preset_editor_keyboard_control.h"
 #include "../visualizer/harmonic_visualizer_control.h"
+#include "../settings/preset_key_notes.h"
 
 namespace plugin_ui
 {
@@ -141,9 +143,15 @@ inline void AttachMainControls(
     if(auto* presetEditorTabs = pGraphics->GetControlWithTag(presetEditorTabsTag))
       presetEditorTabs->Hide(!visible);
   };
-  const auto setMainPanelMode = [setMainPanelVizVisible, setMainPanelEditVisible](bool vizMode) {
+  const auto setKeyboardEditMode = [pGraphics, keyboardTag](bool editMode) {
+    if(auto* keyboard = pGraphics->GetControlWithTag(keyboardTag))
+      if(auto* presetKeyboard = keyboard->As<PresetEditorKeyboardControl>())
+        presetKeyboard->SetEditMode(editMode);
+  };
+  const auto setMainPanelMode = [setMainPanelVizVisible, setMainPanelEditVisible, setKeyboardEditMode](bool vizMode) {
     setMainPanelVizVisible(vizMode);
     setMainPanelEditVisible(!vizMode);
+    setKeyboardEditMode(!vizMode);
   };
 
   // Viz/edit panel: x=4, y=428, w=180, h=84
@@ -157,7 +165,6 @@ inline void AttachMainControls(
         const bool vizMode = pCaller->GetValue() < 0.5;
         setMainPanelMode(vizMode);
       }, "", mainPanelModeSwitchStyle, false, EDirection::Horizontal, 2, 0));
-  setMainPanelMode(true);
   const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
   const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
   const IVStyle vizEditButtonStyle = theme::BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
@@ -167,8 +174,11 @@ inline void AttachMainControls(
   // Keyboard panel: x=4, y=514, w=1082, h=130
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
+  auto* keyboardControl = new PresetEditorKeyboardControl(keyboardBounds, 21, 108);
+  keyboardControl->SetHighlightedMidiNotes(presets::kBrassCompoundPresetKeyNotes);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
-  pGraphics->AttachControl(new IVKeyboardControl(keyboardBounds, 21, 108), keyboardTag);
+  pGraphics->AttachControl(keyboardControl, keyboardTag);
+  setMainPanelMode(true);
 
   // Envelope panel: x=186, y=428, w=212, h=84
   const IRECT attackKnobBounds = IRECT::MakeMidXYWH(216.f, 480.5f, knob_size, knob_size);

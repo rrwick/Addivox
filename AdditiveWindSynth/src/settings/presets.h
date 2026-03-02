@@ -1,6 +1,7 @@
 #pragma once
 
 #include "settings_oscillator.h"
+#include "preset_key_notes.h"
 
 namespace presets
 {
@@ -198,14 +199,14 @@ inline const SimplePreset sine = [] {
 inline CompoundPreset MakeBrassCompoundPreset()
 {
   return CompoundPreset({
-    {24, SimplePreset{kBrassPresetC1}},
-    {36, SimplePreset{kBrassPresetC2}},
-    {48, SimplePreset{kBrassPresetC3}},
-    {60, SimplePreset{kBrassPresetC4}},
-    {72, SimplePreset{kBrassPresetC5}},
-    {84, SimplePreset{kBrassPresetC6}},
-    {96, SimplePreset{kBrassPresetC7}},
-    {108, SimplePreset{kBrassPresetC8}}
+    {kBrassCompoundPresetKeyNotes[0], SimplePreset{kBrassPresetC1}},
+    {kBrassCompoundPresetKeyNotes[1], SimplePreset{kBrassPresetC2}},
+    {kBrassCompoundPresetKeyNotes[2], SimplePreset{kBrassPresetC3}},
+    {kBrassCompoundPresetKeyNotes[3], SimplePreset{kBrassPresetC4}},
+    {kBrassCompoundPresetKeyNotes[4], SimplePreset{kBrassPresetC5}},
+    {kBrassCompoundPresetKeyNotes[5], SimplePreset{kBrassPresetC6}},
+    {kBrassCompoundPresetKeyNotes[6], SimplePreset{kBrassPresetC7}},
+    {kBrassCompoundPresetKeyNotes[7], SimplePreset{kBrassPresetC8}}
   });
 }
 } // namespace presets
