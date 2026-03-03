@@ -18,6 +18,7 @@ class OscillatorSliderControl final : public IVMultiSliderControl<SimplePreset::
 public:
   using Base = IVMultiSliderControl<SimplePreset::kNumOscillators>;
   using OnOscillatorValueChangedFunc = std::function<void(int oscillatorIndex, double value)>;
+  using RestoreState = std::array<double, SimplePreset::kNumOscillators>;
 
   enum class ValueTransform
   {
@@ -87,6 +88,29 @@ public:
     return !IsDisabled();
   }
 
+  void CaptureRestoreState()
+  {
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      mRestoreState[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
+
+    mHasRestoreState = true;
+  }
+
+  void ClearRestoreState()
+  {
+    mHasRestoreState = false;
+  }
+
+  bool HasRestoreState() const
+  {
+    return mHasRestoreState;
+  }
+
+  const RestoreState& GetRestoreState() const
+  {
+    return mRestoreState;
+  }
+
 private:
   static double Clamp01(double value)
   {
@@ -146,6 +170,8 @@ private:
   }
 
   Config mConfig{};
+  RestoreState mRestoreState{};
+  bool mHasRestoreState{false};
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
 };
 

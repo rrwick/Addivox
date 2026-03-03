@@ -56,6 +56,33 @@ inline IVStyle MeterStyle()
 }
 } // namespace theme
 
+class EditorOscillatorTabPage final : public IVTabPage
+{
+public:
+  using VisibilityChangedFunc = std::function<void(bool isVisible)>;
+
+  EditorOscillatorTabPage(TabAttachFunc attachFunc, ResizeFunc resizeFunc, VisibilityChangedFunc visibilityChangedFunc)
+  : IVTabPage(attachFunc, resizeFunc)
+  , mVisibilityChangedFunc(visibilityChangedFunc)
+  {
+  }
+
+  void Hide(bool hide) override
+  {
+    const bool wasHidden = IsHidden();
+    IVTabPage::Hide(hide);
+    const bool isHidden = IsHidden();
+    if(wasHidden == isHidden)
+      return;
+
+    if(mVisibilityChangedFunc)
+      mVisibilityChangedFunc(!isHidden);
+  }
+
+private:
+  VisibilityChangedFunc mVisibilityChangedFunc{};
+};
+
 inline void AttachMainControls(
   IGraphics* pGraphics,
   int gainParamIdx,
@@ -172,39 +199,90 @@ inline void AttachMainControls(
       "Controls speed of pan variation for each harmonic."},
   }};
 
-  const IText oscillatorTabDescriptionText{12.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Near, EVAlign::Top};
+  const IText oscillatorTabDescriptionText{13.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Near, EVAlign::Top};
+  const IVStyle oscillatorRestoreButtonStyle = theme::BaseStyle(true, false)
+    .WithLabelText(IText(13.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))
+    .WithColor(kFG, kPresetEditorDarkTab)
+    .WithColor(kHL, IColor{55, 255, 255, 255});
   const auto oscillatorTabResizeFunc = [](IContainerBase* pTab, const IRECT& r) {
-    if(pTab->NChildren() < 2)
+    if(pTab->NChildren() < 3)
       return;
 
     constexpr float kLeftInset = 104.f;
+    constexpr float kDescriptionHeight = 112.f;
+    constexpr float kButtonHeight = 24.f;
+    constexpr float kGap = 8.f;
     auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
-    auto descriptionBounds = innerBounds.GetFromLeft(kLeftInset).GetPadded(-4.f);
+    auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
+    const float descriptionBottom = std::min(leftColumnBounds.T + kDescriptionHeight, leftColumnBounds.B - (kButtonHeight + kGap + 2.f));
+    auto descriptionBounds = IRECT(leftColumnBounds.L + 4.f, leftColumnBounds.T + 2.f, leftColumnBounds.R - 4.f, descriptionBottom);
+    auto restoreButtonBounds = IRECT(leftColumnBounds.L + 8.f, descriptionBottom + kGap, leftColumnBounds.R - 8.f, descriptionBottom + kGap + kButtonHeight);
     auto sliderBounds = innerBounds;
     sliderBounds.L += kLeftInset;
 
     pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
-    pTab->GetChild(1)->SetTargetAndDrawRECTs(sliderBounds);
+    pTab->GetChild(1)->SetTargetAndDrawRECTs(restoreButtonBounds);
+    pTab->GetChild(2)->SetTargetAndDrawRECTs(sliderBounds);
   };
 
   auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
   auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
   auto oscillatorSliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
   oscillatorSliderControls->fill(nullptr);
+  auto restoreButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
+  restoreButtons->fill(nullptr);
+  const auto sendOscillatorParameterToDSP = [presetEditorTabsTag](IControl* sourceControl,
+                                                                   int midiNote,
+                                                                   int oscillatorIndex,
+                                                                   OscillatorSettings::Parameter parameter,
+                                                                   double value) {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      preset_editor_messages::SetKeyNoteOscillatorParameterPayload payload;
+      payload.midiNote = midiNote;
+      payload.oscillatorIndex = oscillatorIndex;
+      payload.parameter = static_cast<int>(parameter);
+      payload.value = value;
+      delegate->SendArbitraryMsgFromUI(
+        preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter,
+        presetEditorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  };
   auto refreshOscillatorTabs = std::make_shared<std::function<void()>>();
-  *refreshOscillatorTabs = [editorCompoundPreset, selectedEditorMidiNote, oscillatorSliderControls, oscillatorTabDescriptors]() {
+  *refreshOscillatorTabs = [editorCompoundPreset, selectedEditorMidiNote, oscillatorSliderControls, restoreButtons, oscillatorTabDescriptors]() {
     const int selectedMidiNote = *selectedEditorMidiNote;
     const bool midiNoteValid = selectedMidiNote >= CompoundPreset::kMinMidiNote && selectedMidiNote <= CompoundPreset::kMaxMidiNote;
 
     if(!midiNoteValid)
     {
-      for(auto* control : *oscillatorSliderControls)
+      for(std::size_t i = 0; i < oscillatorSliderControls->size(); ++i)
       {
+        auto* control = (*oscillatorSliderControls)[i];
         if(!control)
+        {
+          auto* restoreButton = (*restoreButtons)[i];
+          if(restoreButton)
+          {
+            restoreButton->SetDisabled(true);
+            restoreButton->SetDirty(false);
+          }
           continue;
+        }
 
         control->SetEditable(false);
         control->SetDirty(false);
+
+        auto* restoreButton = (*restoreButtons)[i];
+        if(restoreButton)
+        {
+          restoreButton->SetDisabled(true);
+          restoreButton->SetDirty(false);
+        }
       }
       return;
     }
@@ -227,39 +305,89 @@ inline void AttachMainControls(
 
       control->SetEditable(editable);
       control->SetDirty(false);
+
+      auto* restoreButton = (*restoreButtons)[static_cast<std::size_t>(descriptor.parameter)];
+      if(restoreButton)
+      {
+        restoreButton->SetDisabled(!(editable && control->HasRestoreState()));
+        restoreButton->SetDirty(false);
+      }
     }
   };
 
   const auto makeOscillatorTabPage =
     [oscillatorSliderControls,
+      restoreButtons,
       refreshOscillatorTabs,
       editorCompoundPreset,
       selectedEditorMidiNote,
       levelSliderStyle,
       oscillatorTabDescriptionText,
+      oscillatorRestoreButtonStyle,
       oscillatorTabResizeFunc,
-      presetEditorTabsTag]
+      sendOscillatorParameterToDSP]
     (const OscillatorTabDescriptor& descriptor) {
-      return new IVTabPage(
+      return new EditorOscillatorTabPage(
         [oscillatorSliderControls,
+          restoreButtons,
           refreshOscillatorTabs,
           editorCompoundPreset,
           selectedEditorMidiNote,
           levelSliderStyle,
           oscillatorTabDescriptionText,
-          presetEditorTabsTag,
+          oscillatorRestoreButtonStyle,
+          sendOscillatorParameterToDSP,
           descriptor]
         (IVTabPage* page, const IRECT&) {
           auto* descriptionControl = new IMultiLineTextControl(IRECT(), descriptor.description, oscillatorTabDescriptionText, COLOR_TRANSPARENT);
           descriptionControl->SetIgnoreMouse(true);
           descriptionControl->DisablePrompt(true);
 
+          auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", oscillatorRestoreButtonStyle, true, false);
+          restoreButton->SetAnimationEndActionFunction(
+            [oscillatorSliderControls, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, sendOscillatorParameterToDSP, descriptor](IControl* caller) {
+              if(!caller)
+                return;
+
+              const int selectedMidiNote = *selectedEditorMidiNote;
+              if(selectedMidiNote < CompoundPreset::kMinMidiNote || selectedMidiNote > CompoundPreset::kMaxMidiNote)
+                return;
+
+              if(!editorCompoundPreset->HasKeyNotePreset(selectedMidiNote))
+                return;
+
+              auto* control = (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)];
+              if(!control || !control->HasRestoreState())
+                return;
+
+              const auto& restoreState = control->GetRestoreState();
+              for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+              {
+                const double value = std::clamp(
+                  restoreState[static_cast<std::size_t>(oscillatorIndex)],
+                  descriptor.range.min,
+                  descriptor.range.max);
+                const bool updated = editorCompoundPreset->SetKeyNoteOscillatorParameter(
+                  selectedMidiNote,
+                  oscillatorIndex,
+                  descriptor.parameter,
+                  value);
+                if(!updated)
+                  return;
+
+                sendOscillatorParameterToDSP(caller, selectedMidiNote, oscillatorIndex, descriptor.parameter, value);
+              }
+
+              if(*refreshOscillatorTabs)
+                (*refreshOscillatorTabs)();
+            });
+
           auto* control = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
           OscillatorSliderControl::Config config;
           config.range = descriptor.range;
           control->SetConfig(config);
           control->SetOnOscillatorValueChanged(
-            [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, presetEditorTabsTag, descriptor](int oscillatorIndex, double value) {
+            [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, sendOscillatorParameterToDSP, descriptor](int oscillatorIndex, double value) {
               if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
                 return;
 
@@ -273,31 +401,34 @@ inline void AttachMainControls(
               if(!updated)
                 return;
 
-              if(auto* delegate = control->GetDelegate())
-              {
-                preset_editor_messages::SetKeyNoteOscillatorParameterPayload payload;
-                payload.midiNote = selectedMidiNote;
-                payload.oscillatorIndex = oscillatorIndex;
-                payload.parameter = static_cast<int>(descriptor.parameter);
-                payload.value = clampedValue;
-                delegate->SendArbitraryMsgFromUI(
-                  preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter,
-                  presetEditorTabsTag,
-                  sizeof(payload),
-                  &payload);
-              }
+              sendOscillatorParameterToDSP(control, selectedMidiNote, oscillatorIndex, descriptor.parameter, clampedValue);
 
               if(*refreshOscillatorTabs)
                 (*refreshOscillatorTabs)();
             });
 
           page->AddChildControl(descriptionControl);
+          page->AddChildControl(restoreButton);
           page->AddChildControl(control);
           (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)] = control;
+          (*restoreButtons)[static_cast<std::size_t>(descriptor.parameter)] = restoreButton;
           if(*refreshOscillatorTabs)
             (*refreshOscillatorTabs)();
         },
-        oscillatorTabResizeFunc);
+        oscillatorTabResizeFunc,
+        [oscillatorSliderControls, refreshOscillatorTabs, descriptor](bool isVisible) {
+          auto* control = (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)];
+          if(!control)
+            return;
+
+          if(isVisible)
+            control->CaptureRestoreState();
+          else
+            control->ClearRestoreState();
+
+          if(*refreshOscillatorTabs)
+            (*refreshOscillatorTabs)();
+        });
   };
 
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
