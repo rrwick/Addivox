@@ -12,6 +12,7 @@
 #include "../preset_editor_messages.h"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <memory>
 
@@ -135,98 +136,160 @@ inline void AttachMainControls(
     .WithColor(kFG, kPresetEditorBarColor)
     .WithColor(kX1, kPresetEditorBarColor)
     .WithColor(kHL, IColor{55, 255, 255, 255});
-  auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
-  auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
-  auto levelSliderControl = std::make_shared<OscillatorSliderControl*>(nullptr);
-  auto refreshLevelTab = std::make_shared<std::function<void()>>();
-  *refreshLevelTab = [editorCompoundPreset, selectedEditorMidiNote, levelSliderControl]() {
-    auto* levelControl = *levelSliderControl;
-    if(!levelControl)
+
+  struct OscillatorTabDescriptor
+  {
+    const char* title;
+    OscillatorSettings::Parameter parameter;
+    OscillatorSliderControl::ValueRange range;
+  };
+
+  const std::array<OscillatorTabDescriptor, OscillatorSettings::kNumParameters> oscillatorTabDescriptors{{
+    {"Level", OscillatorSettings::Parameter::intensity, {0.0, 1.0}},
+    {"Breath", OscillatorSettings::Parameter::breath_power, {0.0, 100.0}},
+    {"Attack", OscillatorSettings::Parameter::attack, {0.0, 0.01}},
+    {"Release", OscillatorSettings::Parameter::release, {0.0, 0.1}},
+    {"Pitch", OscillatorSettings::Parameter::pitch, {-100.0, 100.0}},
+    {"Pan", OscillatorSettings::Parameter::pan, {-1.0, 1.0}},
+    {"LvlVarAmt", OscillatorSettings::Parameter::intensity_variation_amplitude, {0.0, 10.0}},
+    {"LvlVarRate", OscillatorSettings::Parameter::intensity_variation_rate, {0.0, 10.0}},
+    {"PchVarAmt", OscillatorSettings::Parameter::pitch_variation_amplitude, {0.0, 10.0}},
+    {"PchVarRate", OscillatorSettings::Parameter::pitch_variation_rate, {0.0, 10.0}},
+    {"PanVarAmt", OscillatorSettings::Parameter::pan_variation_amplitude, {0.0, 10.0}},
+    {"PanVarRate", OscillatorSettings::Parameter::pan_variation_rate, {0.0, 10.0}},
+  }};
+
+  const auto oscillatorTabResizeFunc = [](IContainerBase* pTab, const IRECT& r) {
+    if(pTab->NChildren() != 1)
       return;
 
+    auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
+    innerBounds.L += 104.f;
+    pTab->GetChild(0)->SetTargetAndDrawRECTs(innerBounds);
+  };
+
+  auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
+  auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
+  auto oscillatorSliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
+  oscillatorSliderControls->fill(nullptr);
+  auto refreshOscillatorTabs = std::make_shared<std::function<void()>>();
+  *refreshOscillatorTabs = [editorCompoundPreset, selectedEditorMidiNote, oscillatorSliderControls, oscillatorTabDescriptors]() {
     const int selectedMidiNote = *selectedEditorMidiNote;
-    if(selectedMidiNote < CompoundPreset::kMinMidiNote || selectedMidiNote > CompoundPreset::kMaxMidiNote)
+    const bool midiNoteValid = selectedMidiNote >= CompoundPreset::kMinMidiNote && selectedMidiNote <= CompoundPreset::kMaxMidiNote;
+
+    if(!midiNoteValid)
     {
-      levelControl->SetDisabled(true);
-      levelControl->SetDirty(false);
+      for(auto* control : *oscillatorSliderControls)
+      {
+        if(!control)
+          continue;
+
+        control->SetEditable(false);
+        control->SetDirty(false);
+      }
       return;
     }
 
     const SimplePreset* keyNotePreset = editorCompoundPreset->GetKeyNotePreset(selectedMidiNote);
     const SimplePreset& selectedPreset = keyNotePreset ? *keyNotePreset : editorCompoundPreset->GetPresetForMidiNote(selectedMidiNote);
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-    {
-      const double intensity = selectedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
-      levelControl->SetOscillatorValue(oscillatorIndex, intensity);
-    }
+    const bool editable = keyNotePreset != nullptr;
 
-    levelControl->SetEditable(keyNotePreset != nullptr);
-    levelControl->SetDirty(false);
+    for(const auto& descriptor : oscillatorTabDescriptors)
+    {
+      auto* control = (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)];
+      if(!control)
+        continue;
+
+      for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      {
+        const double value = selectedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(descriptor.parameter);
+        control->SetOscillatorValue(oscillatorIndex, value);
+      }
+
+      control->SetEditable(editable);
+      control->SetDirty(false);
+    }
+  };
+
+  const auto makeOscillatorTabPage =
+    [oscillatorSliderControls,
+      refreshOscillatorTabs,
+      editorCompoundPreset,
+      selectedEditorMidiNote,
+      levelSliderStyle,
+      oscillatorTabResizeFunc,
+      presetEditorTabsTag]
+    (const OscillatorTabDescriptor& descriptor) {
+      return new IVTabPage(
+        [oscillatorSliderControls,
+          refreshOscillatorTabs,
+          editorCompoundPreset,
+          selectedEditorMidiNote,
+          levelSliderStyle,
+          presetEditorTabsTag,
+          descriptor]
+        (IVTabPage* page, const IRECT&) {
+          auto* control = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
+          OscillatorSliderControl::Config config;
+          config.range = descriptor.range;
+          control->SetConfig(config);
+          control->SetOnOscillatorValueChanged(
+            [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, presetEditorTabsTag, descriptor](int oscillatorIndex, double value) {
+              if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
+                return;
+
+              const int selectedMidiNote = *selectedEditorMidiNote;
+              const double clampedValue = std::clamp(value, descriptor.range.min, descriptor.range.max);
+              const bool updated = editorCompoundPreset->SetKeyNoteOscillatorParameter(
+                selectedMidiNote,
+                oscillatorIndex,
+                descriptor.parameter,
+                clampedValue);
+              if(!updated)
+                return;
+
+              if(auto* delegate = control->GetDelegate())
+              {
+                preset_editor_messages::SetKeyNoteOscillatorParameterPayload payload;
+                payload.midiNote = selectedMidiNote;
+                payload.oscillatorIndex = oscillatorIndex;
+                payload.parameter = static_cast<int>(descriptor.parameter);
+                payload.value = clampedValue;
+                delegate->SendArbitraryMsgFromUI(
+                  preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter,
+                  presetEditorTabsTag,
+                  sizeof(payload),
+                  &payload);
+              }
+
+              if(*refreshOscillatorTabs)
+                (*refreshOscillatorTabs)();
+            });
+
+          page->AddChildControl(control);
+          (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)] = control;
+          if(*refreshOscillatorTabs)
+            (*refreshOscillatorTabs)();
+        },
+        oscillatorTabResizeFunc);
   };
 
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
   pGraphics->AttachControl(new IVTabbedPagesControl(presetEditorTabsBounds,
     {
-      {"Level", new IVTabPage([levelSliderControl, refreshLevelTab, editorCompoundPreset, selectedEditorMidiNote, levelSliderStyle, presetEditorTabsTag](IVTabPage* page, const IRECT&) {
-        auto* levelControl = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
-        levelControl->SetOnOscillatorValueChanged([levelControl, editorCompoundPreset, selectedEditorMidiNote, refreshLevelTab, presetEditorTabsTag](int oscillatorIndex, double value) {
-          if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
-            return;
-
-          const int selectedMidiNote = *selectedEditorMidiNote;
-          const double clampedValue = std::clamp(value, 0.0, 1.0);
-          const bool updated = editorCompoundPreset->SetKeyNoteOscillatorParameter(
-            selectedMidiNote,
-            oscillatorIndex,
-            OscillatorSettings::Parameter::intensity,
-            clampedValue);
-          if(!updated)
-            return;
-
-          if(auto* delegate = levelControl->GetDelegate())
-          {
-            preset_editor_messages::SetKeyNoteOscillatorParameterPayload payload;
-            payload.midiNote = selectedMidiNote;
-            payload.oscillatorIndex = oscillatorIndex;
-            payload.parameter = static_cast<int>(OscillatorSettings::Parameter::intensity);
-            payload.value = clampedValue;
-            delegate->SendArbitraryMsgFromUI(
-              preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter,
-              presetEditorTabsTag,
-              sizeof(payload),
-              &payload);
-          }
-
-          if(*refreshLevelTab)
-            (*refreshLevelTab)();
-        });
-
-        page->AddChildControl(levelControl);
-        *levelSliderControl = levelControl;
-        if(*refreshLevelTab)
-          (*refreshLevelTab)();
-      },
-      [](IContainerBase* pTab, const IRECT& r) {
-        if(pTab->NChildren() != 1)
-          return;
-
-        constexpr float kLevelTabLeftInset = 104.f;
-        auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
-        innerBounds.L += kLevelTabLeftInset;
-        pTab->GetChild(0)->SetTargetAndDrawRECTs(innerBounds);
-      })},
-      {"Breath", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"Attack", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"Release", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"Pitch", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"Pan", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"LvlVarAmt", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"LvlVarRate", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"PchVarAmt", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"PchVarRate", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"PanVarAmt", new IVTabPage([](IVTabPage*, const IRECT&) {})},
-      {"PanVarRate", new IVTabPage([](IVTabPage*, const IRECT&) {})},
+      {oscillatorTabDescriptors[0].title, makeOscillatorTabPage(oscillatorTabDescriptors[0])},
+      {oscillatorTabDescriptors[1].title, makeOscillatorTabPage(oscillatorTabDescriptors[1])},
+      {oscillatorTabDescriptors[2].title, makeOscillatorTabPage(oscillatorTabDescriptors[2])},
+      {oscillatorTabDescriptors[3].title, makeOscillatorTabPage(oscillatorTabDescriptors[3])},
+      {oscillatorTabDescriptors[4].title, makeOscillatorTabPage(oscillatorTabDescriptors[4])},
+      {oscillatorTabDescriptors[5].title, makeOscillatorTabPage(oscillatorTabDescriptors[5])},
+      {oscillatorTabDescriptors[6].title, makeOscillatorTabPage(oscillatorTabDescriptors[6])},
+      {oscillatorTabDescriptors[7].title, makeOscillatorTabPage(oscillatorTabDescriptors[7])},
+      {oscillatorTabDescriptors[8].title, makeOscillatorTabPage(oscillatorTabDescriptors[8])},
+      {oscillatorTabDescriptors[9].title, makeOscillatorTabPage(oscillatorTabDescriptors[9])},
+      {oscillatorTabDescriptors[10].title, makeOscillatorTabPage(oscillatorTabDescriptors[10])},
+      {oscillatorTabDescriptors[11].title, makeOscillatorTabPage(oscillatorTabDescriptors[11])},
     }, "", presetEditorTabsStyle, 20.f, 1.f),
     presetEditorTabsTag);
   const auto setMainPanelVizVisible = [pGraphics, breathMeterTag, harmonicVisualizerTag](bool visible) {
@@ -271,17 +334,17 @@ inline void AttachMainControls(
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   auto* keyboardControl = new PresetEditorKeyboardControl(keyboardBounds, 21, 108);
-  keyboardControl->SetOnSelectedMidiNoteChanged([selectedEditorMidiNote, refreshLevelTab](int midiNote) {
+  keyboardControl->SetOnSelectedMidiNoteChanged([selectedEditorMidiNote, refreshOscillatorTabs](int midiNote) {
     *selectedEditorMidiNote = midiNote;
-    if(*refreshLevelTab)
-      (*refreshLevelTab)();
+    if(*refreshOscillatorTabs)
+      (*refreshOscillatorTabs)();
   });
   keyboardControl->SetHighlightedMidiNotes(presets::kBrassCompoundPresetKeyNotes);
   keyboardControl->SetSelectedMidiNote(*selectedEditorMidiNote);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);
-  if(*refreshLevelTab)
-    (*refreshLevelTab)();
+  if(*refreshOscillatorTabs)
+    (*refreshOscillatorTabs)();
   setMainPanelMode(true);
 
   // Envelope panel: x=186, y=428, w=212, h=84
