@@ -45,6 +45,7 @@ public:
     SetOnNewValueFunc([this](int oscillatorIndex, double normalizedValue) {
       HandleSliderValueChanged(oscillatorIndex, normalizedValue);
     });
+    ApplyBaseValue();
   }
 
   void SetConfig(const Config& config)
@@ -52,6 +53,8 @@ public:
     mConfig = config;
     if(!std::isfinite(mConfig.range.min) || !std::isfinite(mConfig.range.max) || mConfig.range.max <= mConfig.range.min)
       mConfig.range = ValueRange{};
+
+    ApplyBaseValue();
   }
 
   const Config& GetConfig() const
@@ -131,6 +134,15 @@ private:
   {
     if(mOnOscillatorValueChanged)
       mOnOscillatorValueChanged(oscillatorIndex, Denormalize(FromControlValue(normalizedValue)));
+  }
+
+  void ApplyBaseValue()
+  {
+    const bool bipolarAroundZero = mConfig.range.min < 0.0 && mConfig.range.max > 0.0;
+    if(bipolarAroundZero)
+      SetBaseValue(ToControlValue(Normalize(0.0)));
+    else
+      SetBaseValue(0.0);
   }
 
   Config mConfig{};
