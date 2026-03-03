@@ -142,30 +142,49 @@ inline void AttachMainControls(
     const char* title;
     OscillatorSettings::Parameter parameter;
     OscillatorSliderControl::ValueRange range;
+    const char* description;
   };
 
   const std::array<OscillatorTabDescriptor, OscillatorSettings::kNumParameters> oscillatorTabDescriptors{{
-    {"Level", OscillatorSettings::Parameter::intensity, {0.0, 1.0}},
-    {"Breath", OscillatorSettings::Parameter::breath_power, {0.0, 100.0}},
-    {"Attack", OscillatorSettings::Parameter::attack, {0.0, 0.01}},
-    {"Release", OscillatorSettings::Parameter::release, {0.0, 0.1}},
-    {"Pitch", OscillatorSettings::Parameter::pitch, {-100.0, 100.0}},
-    {"Pan", OscillatorSettings::Parameter::pan, {-1.0, 1.0}},
-    {"LvlVarAmt", OscillatorSettings::Parameter::intensity_variation_amplitude, {0.0, 10.0}},
-    {"LvlVarRate", OscillatorSettings::Parameter::intensity_variation_rate, {0.0, 10.0}},
-    {"PchVarAmt", OscillatorSettings::Parameter::pitch_variation_amplitude, {0.0, 10.0}},
-    {"PchVarRate", OscillatorSettings::Parameter::pitch_variation_rate, {0.0, 10.0}},
-    {"PanVarAmt", OscillatorSettings::Parameter::pan_variation_amplitude, {0.0, 10.0}},
-    {"PanVarRate", OscillatorSettings::Parameter::pan_variation_rate, {0.0, 10.0}},
+    {"Level", OscillatorSettings::Parameter::intensity, {0.0, 1.0},
+      "Controls the intensity of each harmonic at full breath."},
+    {"Breath", OscillatorSettings::Parameter::breath_power, {0.0, 100.0},
+      "Controls how strongly breath scales each harmonic level."},
+    {"Attack", OscillatorSettings::Parameter::attack, {0.0, 0.01},
+      "Controls how quickly each harmonic ramps up at note start."},
+    {"Release", OscillatorSettings::Parameter::release, {0.0, 0.1},
+      "Controls how quickly each harmonic fades after note release."},
+    {"Pitch", OscillatorSettings::Parameter::pitch, {-100.0, 100.0},
+      "Controls static pitch offset per harmonic in cents."},
+    {"Pan", OscillatorSettings::Parameter::pan, {-1.0, 1.0},
+      "Controls stereo position of each harmonic from left to right."},
+    {"LvlVarAmt", OscillatorSettings::Parameter::intensity_variation_amplitude, {0.0, 10.0},
+      "Controls depth of intensity variation for each harmonic."},
+    {"LvlVarRate", OscillatorSettings::Parameter::intensity_variation_rate, {0.0, 10.0},
+      "Controls speed of intensity variation for each harmonic."},
+    {"PchVarAmt", OscillatorSettings::Parameter::pitch_variation_amplitude, {0.0, 10.0},
+      "Controls depth of pitch variation for each harmonic."},
+    {"PchVarRate", OscillatorSettings::Parameter::pitch_variation_rate, {0.0, 10.0},
+      "Controls speed of pitch variation for each harmonic."},
+    {"PanVarAmt", OscillatorSettings::Parameter::pan_variation_amplitude, {0.0, 10.0},
+      "Controls depth of pan variation for each harmonic."},
+    {"PanVarRate", OscillatorSettings::Parameter::pan_variation_rate, {0.0, 10.0},
+      "Controls speed of pan variation for each harmonic."},
   }};
 
+  const IText oscillatorTabDescriptionText{12.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Near, EVAlign::Top};
   const auto oscillatorTabResizeFunc = [](IContainerBase* pTab, const IRECT& r) {
-    if(pTab->NChildren() != 1)
+    if(pTab->NChildren() < 2)
       return;
 
+    constexpr float kLeftInset = 104.f;
     auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
-    innerBounds.L += 104.f;
-    pTab->GetChild(0)->SetTargetAndDrawRECTs(innerBounds);
+    auto descriptionBounds = innerBounds.GetFromLeft(kLeftInset).GetPadded(-4.f);
+    auto sliderBounds = innerBounds;
+    sliderBounds.L += kLeftInset;
+
+    pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
+    pTab->GetChild(1)->SetTargetAndDrawRECTs(sliderBounds);
   };
 
   auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
@@ -217,6 +236,7 @@ inline void AttachMainControls(
       editorCompoundPreset,
       selectedEditorMidiNote,
       levelSliderStyle,
+      oscillatorTabDescriptionText,
       oscillatorTabResizeFunc,
       presetEditorTabsTag]
     (const OscillatorTabDescriptor& descriptor) {
@@ -226,9 +246,14 @@ inline void AttachMainControls(
           editorCompoundPreset,
           selectedEditorMidiNote,
           levelSliderStyle,
+          oscillatorTabDescriptionText,
           presetEditorTabsTag,
           descriptor]
         (IVTabPage* page, const IRECT&) {
+          auto* descriptionControl = new IMultiLineTextControl(IRECT(), descriptor.description, oscillatorTabDescriptionText, COLOR_TRANSPARENT);
+          descriptionControl->SetIgnoreMouse(true);
+          descriptionControl->DisablePrompt(true);
+
           auto* control = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
           OscillatorSliderControl::Config config;
           config.range = descriptor.range;
@@ -266,6 +291,7 @@ inline void AttachMainControls(
                 (*refreshOscillatorTabs)();
             });
 
+          page->AddChildControl(descriptionControl);
           page->AddChildControl(control);
           (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)] = control;
           if(*refreshOscillatorTabs)
