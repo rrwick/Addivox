@@ -534,7 +534,8 @@ inline void AttachMainControls(
   const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
   const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
   const IVStyle vizEditButtonStyle = theme::BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
-  auto* addButtonControl = new IVButtonControl(addButtonBounds,
+  auto* addButtonControl = new IVButtonControl(addButtonBounds, SplashClickActionFunc, "ADD", vizEditButtonStyle, true, false);
+  addButtonControl->SetAnimationEndActionFunction(
     [pGraphics, keyboardTag, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, refreshEditorActionButtons, sendKeyNotePresetEditToDSP](IControl* caller) {
       if(!caller)
         return;
@@ -557,12 +558,9 @@ inline void AttachMainControls(
         (*refreshOscillatorTabs)();
       if(*refreshEditorActionButtons)
         (*refreshEditorActionButtons)();
-    },
-    "ADD",
-    vizEditButtonStyle,
-    true,
-    false);
-  auto* deleteButtonControl = new IVButtonControl(deleteButtonBounds,
+    });
+  auto* deleteButtonControl = new IVButtonControl(deleteButtonBounds, SplashClickActionFunc, "DELETE", vizEditButtonStyle, true, false);
+  deleteButtonControl->SetAnimationEndActionFunction(
     [pGraphics, keyboardTag, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, refreshEditorActionButtons, sendKeyNotePresetEditToDSP](IControl* caller) {
       if(!caller)
         return;
@@ -585,11 +583,7 @@ inline void AttachMainControls(
         (*refreshOscillatorTabs)();
       if(*refreshEditorActionButtons)
         (*refreshEditorActionButtons)();
-    },
-    "DELETE",
-    vizEditButtonStyle,
-    true,
-    false);
+    });
   pGraphics->AttachControl(addButtonControl);
   pGraphics->AttachControl(deleteButtonControl);
   *addButton = addButtonControl;
