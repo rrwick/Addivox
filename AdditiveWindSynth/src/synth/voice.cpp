@@ -183,7 +183,8 @@ void SynthVoice::UpdateLevels()
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    mOscs[harmonic].SetLevel(settings.intensity * std::pow(mBreath, settings.breath_power) * mMasterGain);
+    const double level = (mBreath == 0.0) ? 0.0 : settings.intensity * std::pow(mBreath, settings.breath_power) * mMasterGain;
+    mOscs[harmonic].SetLevel(level);
   }
 }
 

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <utility>
 
 namespace plugin_ui
@@ -88,22 +89,34 @@ public:
     return !IsDisabled();
   }
 
-  void CaptureRestoreState()
+  void CaptureRestoreState(int midiNote)
   {
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
       mRestoreState[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
 
     mHasRestoreState = true;
+    mRestoreMidiNote = midiNote;
   }
 
   void ClearRestoreState()
   {
     mHasRestoreState = false;
+    mRestoreMidiNote = kNoRestoreMidiNote;
   }
 
   bool HasRestoreState() const
   {
     return mHasRestoreState;
+  }
+
+  bool HasRestoreStateForMidiNote(int midiNote) const
+  {
+    return mHasRestoreState && (mRestoreMidiNote == midiNote);
+  }
+
+  int GetRestoreMidiNote() const
+  {
+    return mRestoreMidiNote;
   }
 
   const RestoreState& GetRestoreState() const
@@ -172,6 +185,8 @@ private:
   Config mConfig{};
   RestoreState mRestoreState{};
   bool mHasRestoreState{false};
+  static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
+  int mRestoreMidiNote{kNoRestoreMidiNote};
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
 };
 

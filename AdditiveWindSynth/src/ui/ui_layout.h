@@ -303,13 +303,16 @@ inline void AttachMainControls(
         control->SetOscillatorValue(oscillatorIndex, value);
       }
 
+      if(!control->IsHidden() && !control->HasRestoreStateForMidiNote(selectedMidiNote))
+        control->CaptureRestoreState(selectedMidiNote);
+
       control->SetEditable(editable);
       control->SetDirty(false);
 
       auto* restoreButton = (*restoreButtons)[static_cast<std::size_t>(descriptor.parameter)];
       if(restoreButton)
       {
-        restoreButton->SetDisabled(!(editable && control->HasRestoreState()));
+        restoreButton->SetDisabled(!(editable && control->HasRestoreStateForMidiNote(selectedMidiNote)));
         restoreButton->SetDirty(false);
       }
     }
@@ -357,7 +360,7 @@ inline void AttachMainControls(
                 return;
 
               auto* control = (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)];
-              if(!control || !control->HasRestoreState())
+              if(!control || !control->HasRestoreStateForMidiNote(selectedMidiNote))
                 return;
 
               const auto& restoreState = control->GetRestoreState();
@@ -416,13 +419,19 @@ inline void AttachMainControls(
             (*refreshOscillatorTabs)();
         },
         oscillatorTabResizeFunc,
-        [oscillatorSliderControls, refreshOscillatorTabs, descriptor](bool isVisible) {
+        [oscillatorSliderControls, selectedEditorMidiNote, refreshOscillatorTabs, descriptor](bool isVisible) {
           auto* control = (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)];
           if(!control)
             return;
 
           if(isVisible)
-            control->CaptureRestoreState();
+          {
+            const int selectedMidiNote = *selectedEditorMidiNote;
+            if(selectedMidiNote >= CompoundPreset::kMinMidiNote && selectedMidiNote <= CompoundPreset::kMaxMidiNote)
+              control->CaptureRestoreState(selectedMidiNote);
+            else
+              control->ClearRestoreState();
+          }
           else
             control->ClearRestoreState();
 
