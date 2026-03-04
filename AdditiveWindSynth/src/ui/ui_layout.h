@@ -4,6 +4,7 @@
 #include "colour.h"
 #include "layered_svg_knob_control.h"
 #include "oscillator_slider_control.h"
+#include "action_selection_control.h"
 #include "preset_editor_keyboard_control.h"
 #include "../visualizer/harmonic_visualizer_control.h"
 #include "../settings/preset_key_notes.h"
@@ -178,7 +179,7 @@ inline void AttachMainControls(
     {"Breath", OscillatorSettings::Parameter::breath_power, {0.0, 100.0},
       "Controls how\nstrongly breath\nscales each\nharmonic level."},
     {"Attack", OscillatorSettings::Parameter::attack, {0.0, 0.01},
-      "Controls how\nquickly each\nharmonic ramps up\nat note start."},
+      "Controls how\nquickly each\nharmonic ramps\nup at note start."},
     {"Release", OscillatorSettings::Parameter::release, {0.0, 0.1},
       "Controls how\nquickly each\nharmonic fades\nafter note release."},
     {"Pitch", OscillatorSettings::Parameter::pitch, {-100.0, 100.0},
@@ -204,25 +205,100 @@ inline void AttachMainControls(
     .WithLabelText(IText(13.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))
     .WithColor(kFG, kPresetEditorDarkTab)
     .WithColor(kHL, IColor{55, 255, 255, 255});
+  const IVStyle oscillatorUtilityNumberBoxStyle = theme::BaseStyle(false, false)
+    .WithValueText(IText(13.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle))
+    .WithColor(kBG, kPresetEditorDarkTab)
+    .WithColor(kFG, IColor{255, 16, 22, 30})
+    .WithColor(kFR, colour::ui::kControlFrame)
+    .WithColor(kHL, IColor{55, 255, 255, 255});
+  const IText oscillatorUtilityLabelText{13.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Near, EVAlign::Middle};
+  const IText oscillatorUtilityDropdownText{13.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle};
+  const IText oscillatorUtilityActionTitleText{13.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle};
   const auto oscillatorTabResizeFunc = [](IContainerBase* pTab, const IRECT& r) {
     if(pTab->NChildren() < 3)
       return;
 
     constexpr float kLeftInset = 104.f;
-    constexpr float kDescriptionHeight = 112.f;
     constexpr float kButtonHeight = 24.f;
+    constexpr float kBottomPad = 8.f;
     constexpr float kGap = 8.f;
     auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
     auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-    const float descriptionBottom = std::min(leftColumnBounds.T + kDescriptionHeight, leftColumnBounds.B - (kButtonHeight + kGap + 2.f));
-    auto descriptionBounds = IRECT(leftColumnBounds.L + 4.f, leftColumnBounds.T + 2.f, leftColumnBounds.R - 4.f, descriptionBottom);
-    auto restoreButtonBounds = IRECT(leftColumnBounds.L + 8.f, descriptionBottom + kGap, leftColumnBounds.R - 8.f, descriptionBottom + kGap + kButtonHeight);
+    auto restoreButtonBounds = IRECT(
+      leftColumnBounds.L + 8.f,
+      leftColumnBounds.B - (kButtonHeight + kBottomPad),
+      leftColumnBounds.R - 8.f,
+      leftColumnBounds.B - kBottomPad);
+    auto descriptionBounds = IRECT(
+      leftColumnBounds.L + 4.f,
+      leftColumnBounds.T + 2.f,
+      leftColumnBounds.R - 4.f,
+      restoreButtonBounds.T - kGap);
     auto sliderBounds = innerBounds;
     sliderBounds.L += kLeftInset;
 
     pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
     pTab->GetChild(1)->SetTargetAndDrawRECTs(restoreButtonBounds);
     pTab->GetChild(2)->SetTargetAndDrawRECTs(sliderBounds);
+  };
+  const auto levelTabResizeFunc = [](IContainerBase* pTab, const IRECT& r) {
+    if(pTab->NChildren() < 10)
+      return;
+
+    constexpr float kLeftInset = 104.f;
+    constexpr float kLabelHeight = 14.f;
+    constexpr float kControlHeight = 24.f;
+    constexpr float kDescriptionHeight = 96.f;
+    constexpr float kButtonHeight = 24.f;
+    constexpr float kGap = 8.f;
+    constexpr float kTightGap = 4.f;
+    constexpr float kBottomPad = 8.f;
+    constexpr float kHalfGap = 6.f;
+    auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
+    auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
+    auto sliderBounds = innerBounds;
+    sliderBounds.L += kLeftInset;
+
+    const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
+    auto restoreButtonBounds = IRECT(
+      leftColumnBounds.L + 8.f,
+      restoreTop,
+      leftColumnBounds.R - 8.f,
+      leftColumnBounds.B - kBottomPad);
+
+    auto descriptionBounds = IRECT(
+      leftColumnBounds.L + 4.f,
+      leftColumnBounds.T + 2.f,
+      leftColumnBounds.R - 4.f,
+      std::min(leftColumnBounds.T + kDescriptionHeight, restoreTop - (kLabelHeight * 2.f + kControlHeight * 4.f + kGap * 5.f + kTightGap * 2.f)));
+
+    float y = descriptionBounds.B + kGap;
+    const float rowL = leftColumnBounds.L + 8.f;
+    const float rowR = leftColumnBounds.R - 8.f;
+    const float rowMid = (rowL + rowR) * 0.5f;
+    auto xRangeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+    y += kLabelHeight + kTightGap;
+    auto xRangeMinBounds = IRECT(rowL, y, rowMid - kHalfGap * 0.5f, y + kControlHeight);
+    auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, y, rowR, y + kControlHeight);
+    y += kControlHeight + kGap;
+    auto yTransformLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+    y += kLabelHeight + kTightGap;
+    auto yTransformBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+    y += kControlHeight + kGap;
+    auto waveformBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+    y += kControlHeight + kGap;
+    auto actionsBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+
+    pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
+    pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+    pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMinBounds);
+    pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+    pTab->GetChild(4)->SetTargetAndDrawRECTs(yTransformLabelBounds);
+    pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformBounds);
+    pTab->GetChild(6)->SetTargetAndDrawRECTs(waveformBounds);
+    pTab->GetChild(7)->SetTargetAndDrawRECTs(actionsBounds);
+    pTab->GetChild(8)->SetTargetAndDrawRECTs(restoreButtonBounds);
+    pTab->GetChild(9)->SetTargetAndDrawRECTs(sliderBounds);
   };
 
   auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
@@ -365,9 +441,16 @@ inline void AttachMainControls(
       levelSliderStyle,
       oscillatorTabDescriptionText,
       oscillatorRestoreButtonStyle,
+      oscillatorUtilityNumberBoxStyle,
+      oscillatorUtilityLabelText,
+      oscillatorUtilityDropdownText,
+      oscillatorUtilityActionTitleText,
+      kPresetEditorDarkTab,
       oscillatorTabResizeFunc,
+      levelTabResizeFunc,
       sendOscillatorParameterToDSP]
     (const OscillatorTabDescriptor& descriptor) {
+      const bool isLevelTab = descriptor.parameter == OscillatorSettings::Parameter::intensity;
       return new EditorOscillatorTabPage(
         [oscillatorSliderControls,
           restoreButtons,
@@ -377,7 +460,13 @@ inline void AttachMainControls(
           levelSliderStyle,
           oscillatorTabDescriptionText,
           oscillatorRestoreButtonStyle,
+          oscillatorUtilityNumberBoxStyle,
+          oscillatorUtilityLabelText,
+          oscillatorUtilityDropdownText,
+          oscillatorUtilityActionTitleText,
+          kPresetEditorDarkTab,
           sendOscillatorParameterToDSP,
+          isLevelTab,
           descriptor]
         (IVTabPage* page, const IRECT&) {
           auto* descriptionControl = new IMultiLineTextControl(IRECT(), descriptor.description, oscillatorTabDescriptionText, COLOR_TRANSPARENT);
@@ -448,15 +537,54 @@ inline void AttachMainControls(
                 (*refreshOscillatorTabs)();
             });
 
-          page->AddChildControl(descriptionControl);
-          page->AddChildControl(restoreButton);
-          page->AddChildControl(control);
+          if(isLevelTab)
+          {
+            auto* xRangeMinControl = new IVNumberBoxControl(
+              IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, 1.0, 1.0, 100.0, "%0.0f", false);
+            auto* xRangeMaxControl = new IVNumberBoxControl(
+              IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, 100.0, 1.0, 100.0, "%0.0f", false);
+            xRangeMinControl->SetDrawTriangle(false);
+            xRangeMaxControl->SetDrawTriangle(false);
+
+            auto* xRangeLabelControl = new ITextControl(IRECT(), "X range:", oscillatorUtilityLabelText, COLOR_TRANSPARENT);
+            xRangeLabelControl->SetIgnoreMouse(true);
+            xRangeLabelControl->DisablePrompt(true);
+
+            auto* yTransformLabelControl = new ITextControl(IRECT(), "Y transform:", oscillatorUtilityLabelText, COLOR_TRANSPARENT);
+            yTransformLabelControl->SetIgnoreMouse(true);
+            yTransformLabelControl->DisablePrompt(true);
+
+            auto* yTransformControl = new ActionSelectionControl(
+              IRECT(), "linear", {"linear", "square root", "pseudo-log"}, oscillatorUtilityDropdownText, kPresetEditorDarkTab, true);
+            auto* waveformControl = new ActionSelectionControl(
+              IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+            auto* actionsControl = new ActionSelectionControl(
+              IRECT(), "Actions", {"scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+
+            page->AddChildControl(descriptionControl);
+            page->AddChildControl(xRangeLabelControl);
+            page->AddChildControl(xRangeMinControl);
+            page->AddChildControl(xRangeMaxControl);
+            page->AddChildControl(yTransformLabelControl);
+            page->AddChildControl(yTransformControl);
+            page->AddChildControl(waveformControl);
+            page->AddChildControl(actionsControl);
+            page->AddChildControl(restoreButton);
+            page->AddChildControl(control);
+          }
+          else
+          {
+            page->AddChildControl(descriptionControl);
+            page->AddChildControl(restoreButton);
+            page->AddChildControl(control);
+          }
+
           (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)] = control;
           (*restoreButtons)[static_cast<std::size_t>(descriptor.parameter)] = restoreButton;
           if(*refreshOscillatorTabs)
             (*refreshOscillatorTabs)();
         },
-        oscillatorTabResizeFunc,
+        isLevelTab ? levelTabResizeFunc : oscillatorTabResizeFunc,
         [oscillatorSliderControls, selectedEditorMidiNote, refreshOscillatorTabs, descriptor](bool isVisible) {
           auto* control = (*oscillatorSliderControls)[static_cast<std::size_t>(descriptor.parameter)];
           if(!control)
