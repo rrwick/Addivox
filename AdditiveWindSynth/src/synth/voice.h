@@ -21,6 +21,8 @@ public:
   void SetMasterGain(double gain);
   void SetPortamentoControl(double control);
   void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
+  bool AddKeyNotePreset(double midiNote);
+  bool RemoveKeyNotePreset(double midiNote);
   bool SetKeyNoteOscillatorParameter(double midiNote,
                                      int oscillatorIndex,
                                      OscillatorSettings::Parameter parameter,

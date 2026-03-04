@@ -154,6 +154,24 @@ bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const v
     return mDSP.SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
   }
 
+  if(ctrlTag == kCtrlTagPresetEditorTabs
+    && msgTag == preset_editor_messages::kMsgTagAddKeyNotePreset
+    && dataSize == sizeof(preset_editor_messages::KeyNotePresetPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const preset_editor_messages::KeyNotePresetPayload*>(pData);
+    return mDSP.AddKeyNotePreset(payload->midiNote);
+  }
+
+  if(ctrlTag == kCtrlTagPresetEditorTabs
+    && msgTag == preset_editor_messages::kMsgTagRemoveKeyNotePreset
+    && dataSize == sizeof(preset_editor_messages::KeyNotePresetPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const preset_editor_messages::KeyNotePresetPayload*>(pData);
+    return mDSP.RemoveKeyNotePreset(payload->midiNote);
+  }
+
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
   {
     const int bendRange = *static_cast<const int*>(pData);

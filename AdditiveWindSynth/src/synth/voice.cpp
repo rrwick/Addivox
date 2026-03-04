@@ -112,6 +112,28 @@ void SynthVoice::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& m
   UpdatePitch();
 }
 
+bool SynthVoice::AddKeyNotePreset(double midiNote)
+{
+  if(mCompoundPreset.HasKeyNotePreset(midiNote))
+    return false;
+
+  const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
+  mCompoundPreset.SetKeyNotePreset(roundedMidiNote, mCompoundPreset.GetPresetForMidiNote(midiNote));
+  UpdatePitch();
+  return true;
+}
+
+bool SynthVoice::RemoveKeyNotePreset(double midiNote)
+{
+  const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
+  const bool removed = mCompoundPreset.RemoveKeyNotePreset(roundedMidiNote);
+  if(!removed)
+    return false;
+
+  UpdatePitch();
+  return true;
+}
+
 bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote,
                                                int oscillatorIndex,
                                                OscillatorSettings::Parameter parameter,

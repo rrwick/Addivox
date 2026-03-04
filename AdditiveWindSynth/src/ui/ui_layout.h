@@ -231,6 +231,9 @@ inline void AttachMainControls(
   oscillatorSliderControls->fill(nullptr);
   auto restoreButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
   restoreButtons->fill(nullptr);
+  auto addButton = std::make_shared<IVButtonControl*>(nullptr);
+  auto deleteButton = std::make_shared<IVButtonControl*>(nullptr);
+  auto isEditorEditMode = std::make_shared<bool>(false);
   const auto sendOscillatorParameterToDSP = [presetEditorTabsTag](IControl* sourceControl,
                                                                    int midiNote,
                                                                    int oscillatorIndex,
@@ -251,6 +254,41 @@ inline void AttachMainControls(
         presetEditorTabsTag,
         sizeof(payload),
         &payload);
+    }
+  };
+  const auto sendKeyNotePresetEditToDSP = [presetEditorTabsTag](IControl* sourceControl, int msgTag, int midiNote) {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      preset_editor_messages::KeyNotePresetPayload payload;
+      payload.midiNote = midiNote;
+      delegate->SendArbitraryMsgFromUI(
+        msgTag,
+        presetEditorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  };
+  auto refreshEditorActionButtons = std::make_shared<std::function<void()>>();
+  *refreshEditorActionButtons = [editorCompoundPreset, selectedEditorMidiNote, addButton, deleteButton, isEditorEditMode]() {
+    const int selectedMidiNote = *selectedEditorMidiNote;
+    const bool midiNoteValid = selectedMidiNote >= CompoundPreset::kMinMidiNote && selectedMidiNote <= CompoundPreset::kMaxMidiNote;
+    const bool keyNoteSelected = midiNoteValid && editorCompoundPreset->HasKeyNotePreset(selectedMidiNote);
+    const bool canAdd = *isEditorEditMode && midiNoteValid && !keyNoteSelected;
+    const bool canDelete = *isEditorEditMode && keyNoteSelected;
+
+    if(*addButton)
+    {
+      (*addButton)->SetDisabled(!canAdd);
+      (*addButton)->SetDirty(false);
+    }
+
+    if(*deleteButton)
+    {
+      (*deleteButton)->SetDisabled(!canDelete);
+      (*deleteButton)->SetDirty(false);
     }
   };
   auto refreshOscillatorTabs = std::make_shared<std::function<void()>>();
@@ -473,10 +511,13 @@ inline void AttachMainControls(
       if(auto* presetKeyboard = keyboard->As<PresetEditorKeyboardControl>())
         presetKeyboard->SetEditMode(editMode);
   };
-  const auto setMainPanelMode = [setMainPanelVizVisible, setMainPanelEditVisible, setKeyboardEditMode](bool vizMode) {
+  const auto setMainPanelMode = [setMainPanelVizVisible, setMainPanelEditVisible, setKeyboardEditMode, isEditorEditMode, refreshEditorActionButtons](bool vizMode) {
     setMainPanelVizVisible(vizMode);
     setMainPanelEditVisible(!vizMode);
     setKeyboardEditMode(!vizMode);
+    *isEditorEditMode = !vizMode;
+    if(*refreshEditorActionButtons)
+      (*refreshEditorActionButtons)();
   };
 
   // Viz/edit panel: x=4, y=428, w=180, h=84
@@ -493,17 +534,77 @@ inline void AttachMainControls(
   const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
   const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
   const IVStyle vizEditButtonStyle = theme::BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
-  pGraphics->AttachControl(new IVButtonControl(addButtonBounds, DefaultClickActionFunc, "ADD", vizEditButtonStyle, true, false));
-  pGraphics->AttachControl(new IVButtonControl(deleteButtonBounds, DefaultClickActionFunc, "DELETE", vizEditButtonStyle, true, false));
+  auto* addButtonControl = new IVButtonControl(addButtonBounds,
+    [pGraphics, keyboardTag, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, refreshEditorActionButtons, sendKeyNotePresetEditToDSP](IControl* caller) {
+      if(!caller)
+        return;
+
+      const int selectedMidiNote = *selectedEditorMidiNote;
+      if(selectedMidiNote < CompoundPreset::kMinMidiNote || selectedMidiNote > CompoundPreset::kMaxMidiNote)
+        return;
+
+      if(editorCompoundPreset->HasKeyNotePreset(selectedMidiNote))
+        return;
+
+      editorCompoundPreset->SetKeyNotePreset(selectedMidiNote, editorCompoundPreset->GetPresetForMidiNote(selectedMidiNote));
+      sendKeyNotePresetEditToDSP(caller, preset_editor_messages::kMsgTagAddKeyNotePreset, selectedMidiNote);
+
+      if(auto* keyboard = pGraphics->GetControlWithTag(keyboardTag))
+        if(auto* presetKeyboard = keyboard->As<PresetEditorKeyboardControl>())
+          presetKeyboard->SetHighlightedMidiNote(selectedMidiNote, true);
+
+      if(*refreshOscillatorTabs)
+        (*refreshOscillatorTabs)();
+      if(*refreshEditorActionButtons)
+        (*refreshEditorActionButtons)();
+    },
+    "ADD",
+    vizEditButtonStyle,
+    true,
+    false);
+  auto* deleteButtonControl = new IVButtonControl(deleteButtonBounds,
+    [pGraphics, keyboardTag, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, refreshEditorActionButtons, sendKeyNotePresetEditToDSP](IControl* caller) {
+      if(!caller)
+        return;
+
+      const int selectedMidiNote = *selectedEditorMidiNote;
+      if(selectedMidiNote < CompoundPreset::kMinMidiNote || selectedMidiNote > CompoundPreset::kMaxMidiNote)
+        return;
+
+      const bool removed = editorCompoundPreset->RemoveKeyNotePreset(selectedMidiNote);
+      if(!removed)
+        return;
+
+      sendKeyNotePresetEditToDSP(caller, preset_editor_messages::kMsgTagRemoveKeyNotePreset, selectedMidiNote);
+
+      if(auto* keyboard = pGraphics->GetControlWithTag(keyboardTag))
+        if(auto* presetKeyboard = keyboard->As<PresetEditorKeyboardControl>())
+          presetKeyboard->SetHighlightedMidiNote(selectedMidiNote, false);
+
+      if(*refreshOscillatorTabs)
+        (*refreshOscillatorTabs)();
+      if(*refreshEditorActionButtons)
+        (*refreshEditorActionButtons)();
+    },
+    "DELETE",
+    vizEditButtonStyle,
+    true,
+    false);
+  pGraphics->AttachControl(addButtonControl);
+  pGraphics->AttachControl(deleteButtonControl);
+  *addButton = addButtonControl;
+  *deleteButton = deleteButtonControl;
 
   // Keyboard panel: x=4, y=514, w=1082, h=130
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   auto* keyboardControl = new PresetEditorKeyboardControl(keyboardBounds, 21, 108);
-  keyboardControl->SetOnSelectedMidiNoteChanged([selectedEditorMidiNote, refreshOscillatorTabs](int midiNote) {
+  keyboardControl->SetOnSelectedMidiNoteChanged([selectedEditorMidiNote, refreshOscillatorTabs, refreshEditorActionButtons](int midiNote) {
     *selectedEditorMidiNote = midiNote;
     if(*refreshOscillatorTabs)
       (*refreshOscillatorTabs)();
+    if(*refreshEditorActionButtons)
+      (*refreshEditorActionButtons)();
   });
   keyboardControl->SetHighlightedMidiNotes(presets::kBrassCompoundPresetKeyNotes);
   keyboardControl->SetSelectedMidiNote(*selectedEditorMidiNote);
@@ -511,6 +612,8 @@ inline void AttachMainControls(
   pGraphics->AttachControl(keyboardControl, keyboardTag);
   if(*refreshOscillatorTabs)
     (*refreshOscillatorTabs)();
+  if(*refreshEditorActionButtons)
+    (*refreshEditorActionButtons)();
   setMainPanelMode(true);
 
   // Envelope panel: x=186, y=428, w=212, h=84

@@ -56,6 +56,16 @@ public:
     return mSynth.GetVoice().SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
   }
 
+  bool AddKeyNotePreset(double midiNote)
+  {
+    return mSynth.GetVoice().AddKeyNotePreset(midiNote);
+  }
+
+  bool RemoveKeyNotePreset(double midiNote)
+  {
+    return mSynth.GetVoice().RemoveKeyNotePreset(midiNote);
+  }
+
   void GetVisualizerFrame(VisualizerFrame& frame) const
   {
     mSynth.GetVoice().GetVisualizerFrame(frame);
