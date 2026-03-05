@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IControls.h"
+#include "transformations.h"
 #include "../settings/settings_oscillator.h"
 
 #include <algorithm>
@@ -23,7 +24,9 @@ public:
 
   enum class ValueTransform
   {
-    Linear
+    Linear,
+    SquareRoot,
+    PseudoLog
   };
 
   struct ValueRange
@@ -52,11 +55,20 @@ public:
 
   void SetConfig(const Config& config)
   {
+    RestoreState oscillatorValues{};
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      oscillatorValues[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
+
     mConfig = config;
     if(!std::isfinite(mConfig.range.min) || !std::isfinite(mConfig.range.max) || mConfig.range.max <= mConfig.range.min)
       mConfig.range = ValueRange{};
 
     ApplyBaseValue();
+
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      SetOscillatorValue(oscillatorIndex, oscillatorValues[static_cast<std::size_t>(oscillatorIndex)]);
+
+    SetDirty(false);
   }
 
   const Config& GetConfig() const
@@ -150,6 +162,10 @@ private:
     const double clamped = Clamp01(normalizedValue);
     switch(mConfig.transform)
     {
+      case ValueTransform::SquareRoot:
+        return transformations::NormalizedSquareRoot(clamped);
+      case ValueTransform::PseudoLog:
+        return transformations::NormalizedExpInverse(clamped, transformations::GetGlobalPseudoLogShapeValue());
       case ValueTransform::Linear:
       default:
         return clamped;
@@ -161,6 +177,10 @@ private:
     const double clamped = Clamp01(controlValue);
     switch(mConfig.transform)
     {
+      case ValueTransform::SquareRoot:
+        return transformations::NormalizedSquareRootInverse(clamped);
+      case ValueTransform::PseudoLog:
+        return transformations::NormalizedExp(clamped, transformations::GetGlobalPseudoLogShapeValue());
       case ValueTransform::Linear:
       default:
         return clamped;

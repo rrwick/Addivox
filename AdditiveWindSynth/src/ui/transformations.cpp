@@ -21,6 +21,17 @@ transformations::PseudoLogExpShape::PseudoLogExpShape(double shape)
 {
 }
 
+double transformations::NormalizedSquareRoot(double normalized)
+{
+  return std::sqrt(std::clamp(normalized, 0.0, 1.0));
+}
+
+double transformations::NormalizedSquareRootInverse(double scaledValue)
+{
+  const double y = std::clamp(scaledValue, 0.0, 1.0);
+  return y * y;
+}
+
 iplug::IParam::Shape* transformations::PseudoLogExpShape::Clone() const
 {
   return new PseudoLogExpShape(*this);
@@ -85,6 +96,11 @@ double transformations::NormalizedExpInverse(double scaledValue, double shape)
   const double safeLogInput = std::max(y * denominator, -1.0 + std::numeric_limits<double>::epsilon());
   const double x = std::log1p(safeLogInput) / shape;
   return std::clamp(x, 0.0, 1.0);
+}
+
+double transformations::GetGlobalPseudoLogShapeValue()
+{
+  return kGlobalPseudoLogShape;
 }
 
 const iplug::IParam::Shape& transformations::GetGlobalPseudoLogShape()

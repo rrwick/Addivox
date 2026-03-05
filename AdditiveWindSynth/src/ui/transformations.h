@@ -4,8 +4,11 @@
 
 namespace transformations
 {
+double NormalizedSquareRoot(double normalized);
+double NormalizedSquareRootInverse(double scaledValue);
 double NormalizedExp(double normalized, double shape);
 double NormalizedExpInverse(double scaledValue, double shape);
+double GetGlobalPseudoLogShapeValue();
 
 class PseudoLogExpShape final : public iplug::IParam::Shape
 {

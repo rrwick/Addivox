@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <functional>
 #include <memory>
 
@@ -589,6 +590,20 @@ inline void AttachMainControls(
 
             auto* yTransformControl = new ActionSelectionControl(
               IRECT(), "linear", {"linear", "square root", "pseudo-log"}, oscillatorUtilityDropdownText, kPresetEditorDarkTab, true);
+            yTransformControl->SetOnSelection([control](const char* selectedText) {
+              if(!selectedText)
+                return;
+
+              auto config = control->GetConfig();
+              if(std::strcmp(selectedText, "square root") == 0)
+                config.transform = OscillatorSliderControl::ValueTransform::SquareRoot;
+              else if(std::strcmp(selectedText, "pseudo-log") == 0)
+                config.transform = OscillatorSliderControl::ValueTransform::PseudoLog;
+              else
+                config.transform = OscillatorSliderControl::ValueTransform::Linear;
+
+              control->SetConfig(config);
+            });
             auto* waveformControl = new ActionSelectionControl(
               IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
             auto* actionsControl = new ActionSelectionControl(
