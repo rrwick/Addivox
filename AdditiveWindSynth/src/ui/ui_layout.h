@@ -673,17 +673,22 @@ inline void AttachMainControls(
                   preset.SetOscillatorParameter(oscillatorIndex, OscillatorSettings::Parameter::intensity, intensity);
                 }
 
+                preset.ApplyIntensityTopTaper();
                 return preset.NormalizeIntensityWaveformRms();
               });
             });
             auto* actionsControl = new ActionSelectionControl(
-              IRECT(), "Actions", {"normalise", "scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+              IRECT(), "Actions", {"normalise", "taper top", "scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
             actionsControl->SetOnSelection([applyLevelActionToSelectedKeyNote](const char* selectedText) {
-              if(!selectedText || std::strcmp(selectedText, "normalise") != 0)
+              if(!selectedText)
                 return;
 
-              applyLevelActionToSelectedKeyNote([](SimplePreset& preset) {
-                return preset.NormalizeIntensityWaveformRms();
+              applyLevelActionToSelectedKeyNote([selectedText](SimplePreset& preset) {
+                if(std::strcmp(selectedText, "normalise") == 0)
+                  return preset.NormalizeIntensityWaveformRms();
+                if(std::strcmp(selectedText, "taper top") == 0)
+                  return preset.ApplyIntensityTopTaper();
+                return false;
               });
             });
 

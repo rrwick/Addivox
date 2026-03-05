@@ -104,6 +104,7 @@ public:
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   double GetIntensityWaveformRms() const;
+  bool ApplyIntensityTopTaper();
   bool NormalizeIntensityWaveformRms();
 
   static SimplePreset Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t);
