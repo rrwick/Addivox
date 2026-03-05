@@ -688,6 +688,16 @@ inline void AttachMainControls(
                   return preset.NormalizeIntensityWaveformRms();
                 if(std::strcmp(selectedText, "taper top") == 0)
                   return preset.ApplyIntensityTopTaper();
+                if(std::strcmp(selectedText, "scale up") == 0)
+                  return preset.ScaleIntensityUp();
+                if(std::strcmp(selectedText, "scale down") == 0)
+                  return preset.ScaleIntensityDown();
+                if(std::strcmp(selectedText, "smooth") == 0)
+                  return preset.SmoothIntensity();
+                if(std::strcmp(selectedText, "zero even") == 0)
+                  return preset.ZeroEvenIntensities();
+                if(std::strcmp(selectedText, "zero odd") == 0)
+                  return preset.ZeroOddIntensities();
                 return false;
               });
             });

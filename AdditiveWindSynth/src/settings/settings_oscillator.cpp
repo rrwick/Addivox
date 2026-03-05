@@ -142,6 +142,68 @@ bool SimplePreset::ApplyIntensityTopTaper()
   return true;
 }
 
+bool SimplePreset::ScaleIntensityUp()
+{
+  for(auto& settings : mOscillatorSettings)
+    settings.intensity *= 1.1;
+
+  return true;
+}
+
+bool SimplePreset::ScaleIntensityDown()
+{
+  for(auto& settings : mOscillatorSettings)
+    settings.intensity *= 0.9;
+
+  return true;
+}
+
+bool SimplePreset::SmoothIntensity()
+{
+  std::array<double, kNumOscillators> smoothedIntensities{};
+
+  for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; ++oscillatorIndex)
+  {
+    double sum = mOscillatorSettings[oscillatorIndex].intensity;
+    int count = 1;
+
+    if(oscillatorIndex > 0)
+    {
+      sum += mOscillatorSettings[oscillatorIndex - 1].intensity;
+      ++count;
+    }
+
+    if(oscillatorIndex + 1 < kNumOscillators)
+    {
+      sum += mOscillatorSettings[oscillatorIndex + 1].intensity;
+      ++count;
+    }
+
+    smoothedIntensities[static_cast<std::size_t>(oscillatorIndex)] = sum / static_cast<double>(count);
+  }
+
+  for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; ++oscillatorIndex)
+    mOscillatorSettings[oscillatorIndex].intensity = smoothedIntensities[static_cast<std::size_t>(oscillatorIndex)];
+
+  return true;
+}
+
+bool SimplePreset::ZeroEvenIntensities()
+{
+  for(int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
+    mOscillatorSettings[oscillatorIndex].intensity = 0.0;
+
+  return true;
+}
+
+bool SimplePreset::ZeroOddIntensities()
+{
+  for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
+    mOscillatorSettings[oscillatorIndex].intensity = 0.0;
+
+  return true;
+}
+
 bool SimplePreset::NormalizeIntensityWaveformRms()
 {
   const double currentRms = GetIntensityWaveformRms();
