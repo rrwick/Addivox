@@ -545,6 +545,39 @@ inline void AttachMainControls(
               IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, 100.0, 1.0, 100.0, "%0.0f", false);
             xRangeMinControl->SetDrawTriangle(false);
             xRangeMaxControl->SetDrawTriangle(false);
+            auto xRangeConstraintGuard = std::make_shared<bool>(false);
+            const auto updateVisibleOscillatorRange = [control, xRangeMinControl, xRangeMaxControl]() {
+              const int minOscillator = static_cast<int>(xRangeMinControl->GetRealValue());
+              const int maxOscillator = static_cast<int>(xRangeMaxControl->GetRealValue());
+              control->SetVisibleOscillatorRange(minOscillator, maxOscillator);
+            };
+            const auto clampEditedXRange = [xRangeMinControl, xRangeMaxControl, xRangeConstraintGuard](IVNumberBoxControl* editedControl) {
+              if(*xRangeConstraintGuard)
+                return;
+
+              const double minValue = xRangeMinControl->GetRealValue();
+              const double maxValue = xRangeMaxControl->GetRealValue();
+              if(minValue <= maxValue)
+                return;
+
+              *xRangeConstraintGuard = true;
+              WDL_String textValue;
+              if(editedControl == xRangeMinControl)
+                textValue.SetFormatted(32, "%0.0f", maxValue);
+              else
+                textValue.SetFormatted(32, "%0.0f", minValue);
+              editedControl->OnTextEntryCompletion(textValue.Get(), 0);
+              *xRangeConstraintGuard = false;
+            };
+            xRangeMinControl->SetActionFunction([clampEditedXRange, updateVisibleOscillatorRange, xRangeMinControl](IControl*) {
+              clampEditedXRange(xRangeMinControl);
+              updateVisibleOscillatorRange();
+            });
+            xRangeMaxControl->SetActionFunction([clampEditedXRange, updateVisibleOscillatorRange, xRangeMaxControl](IControl*) {
+              clampEditedXRange(xRangeMaxControl);
+              updateVisibleOscillatorRange();
+            });
+            updateVisibleOscillatorRange();
 
             auto* xRangeLabelControl = new ITextControl(IRECT(), "X range:", oscillatorUtilityLabelText, COLOR_TRANSPARENT);
             xRangeLabelControl->SetIgnoreMouse(true);
@@ -559,7 +592,7 @@ inline void AttachMainControls(
             auto* waveformControl = new ActionSelectionControl(
               IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
             auto* actionsControl = new ActionSelectionControl(
-              IRECT(), "Actions", {"scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+              IRECT(), "Actions", {"normalise", "scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
 
             page->AddChildControl(descriptionControl);
             page->AddChildControl(xRangeLabelControl);

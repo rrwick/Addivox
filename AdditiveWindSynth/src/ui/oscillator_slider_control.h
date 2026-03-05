@@ -84,6 +84,21 @@ public:
     SetDisabled(!editable);
   }
 
+  void SetVisibleOscillatorRange(int minOscillatorOneBased, int maxOscillatorOneBased)
+  {
+    int minOscillator = std::clamp(minOscillatorOneBased - 1, 0, SimplePreset::kNumOscillators - 1);
+    int maxOscillator = std::clamp(maxOscillatorOneBased - 1, 0, SimplePreset::kNumOscillators - 1);
+    if(maxOscillator < minOscillator)
+      maxOscillator = minOscillator;
+
+    if(mVisibleOscillatorMin == minOscillator && mVisibleOscillatorMax == maxOscillator)
+      return;
+
+    mVisibleOscillatorMin = minOscillator;
+    mVisibleOscillatorMax = maxOscillator;
+    OnResize();
+  }
+
   bool IsEditable() const
   {
     return !IsDisabled();
@@ -182,11 +197,34 @@ private:
       SetBaseValue(0.0);
   }
 
+  void MakeTrackRects(const IRECT& bounds) override
+  {
+    const int nVals = NVals();
+    const int dir = static_cast<int>(mDirection);
+
+    for(int ch = 0; ch < nVals; ++ch)
+      mTrackBounds.Get()[ch] = IRECT();
+
+    const int visibleMin = std::clamp(mVisibleOscillatorMin, 0, nVals - 1);
+    const int visibleMax = std::clamp(mVisibleOscillatorMax, visibleMin, nVals - 1);
+    const int visibleCount = visibleMax - visibleMin + 1;
+
+    for(int ch = visibleMin; ch <= visibleMax; ++ch)
+    {
+      const int visibleIndex = ch - visibleMin;
+      mTrackBounds.Get()[ch] = bounds.SubRect(EDirection(!dir), visibleCount, visibleIndex)
+                                     .GetPadded(0, -mTrackPadding * static_cast<float>(dir),
+                                                -mTrackPadding * static_cast<float>(!dir), -mTrackPadding);
+    }
+  }
+
   Config mConfig{};
   RestoreState mRestoreState{};
   bool mHasRestoreState{false};
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
   int mRestoreMidiNote{kNoRestoreMidiNote};
+  int mVisibleOscillatorMin{0};
+  int mVisibleOscillatorMax{SimplePreset::kNumOscillators - 1};
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
 };
 
