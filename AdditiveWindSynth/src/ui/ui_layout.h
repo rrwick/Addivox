@@ -333,6 +333,26 @@ inline void AttachMainControls(
         &payload);
     }
   };
+  const auto sendOscillatorParameterValuesToDSP = [presetEditorTabsTag](IControl* sourceControl,
+                                                                         int midiNote,
+                                                                         OscillatorSettings::Parameter parameter,
+                                                                         const std::array<double, SimplePreset::kNumOscillators>& values) {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      preset_editor_messages::SetKeyNoteOscillatorParameterValuesPayload payload;
+      payload.midiNote = midiNote;
+      payload.parameter = static_cast<int>(parameter);
+      payload.values = values;
+      delegate->SendArbitraryMsgFromUI(
+        preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues,
+        presetEditorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  };
   const auto sendKeyNotePresetEditToDSP = [presetEditorTabsTag](IControl* sourceControl, int msgTag, int midiNote) {
     if(!sourceControl)
       return;
@@ -449,7 +469,8 @@ inline void AttachMainControls(
       kPresetEditorDarkTab,
       oscillatorTabResizeFunc,
       levelTabResizeFunc,
-      sendOscillatorParameterToDSP]
+      sendOscillatorParameterToDSP,
+      sendOscillatorParameterValuesToDSP]
     (const OscillatorTabDescriptor& descriptor) {
       const bool isLevelTab = descriptor.parameter == OscillatorSettings::Parameter::intensity;
       return new EditorOscillatorTabPage(
@@ -467,6 +488,7 @@ inline void AttachMainControls(
           oscillatorUtilityActionTitleText,
           kPresetEditorDarkTab,
           sendOscillatorParameterToDSP,
+          sendOscillatorParameterValuesToDSP,
           isLevelTab,
           descriptor]
         (IVTabPage* page, const IRECT&) {
@@ -608,6 +630,30 @@ inline void AttachMainControls(
               IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
             auto* actionsControl = new ActionSelectionControl(
               IRECT(), "Actions", {"normalise", "scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+            actionsControl->SetOnSelection(
+              [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, sendOscillatorParameterValuesToDSP](const char* selectedText) {
+                if(!selectedText || std::strcmp(selectedText, "normalise") != 0)
+                  return;
+
+                const int selectedMidiNote = *selectedEditorMidiNote;
+                const SimplePreset* keyNotePreset = editorCompoundPreset->GetKeyNotePreset(selectedMidiNote);
+                if(!keyNotePreset)
+                  return;
+
+                SimplePreset normalizedPreset = *keyNotePreset;
+                if(!normalizedPreset.NormalizeIntensityWaveformRms())
+                  return;
+
+                std::array<double, SimplePreset::kNumOscillators> values{};
+                for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+                  values[static_cast<std::size_t>(oscillatorIndex)] = normalizedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
+
+                editorCompoundPreset->SetKeyNotePreset(selectedMidiNote, normalizedPreset);
+                sendOscillatorParameterValuesToDSP(control, selectedMidiNote, OscillatorSettings::Parameter::intensity, values);
+
+                if(*refreshOscillatorTabs)
+                  (*refreshOscillatorTabs)();
+              });
 
             page->AddChildControl(descriptionControl);
             page->AddChildControl(xRangeLabelControl);

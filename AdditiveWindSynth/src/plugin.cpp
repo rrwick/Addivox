@@ -155,6 +155,19 @@ bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const v
   }
 
   if(ctrlTag == kCtrlTagPresetEditorTabs
+    && msgTag == preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues
+    && dataSize == sizeof(preset_editor_messages::SetKeyNoteOscillatorParameterValuesPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const preset_editor_messages::SetKeyNoteOscillatorParameterValuesPayload*>(pData);
+    if(payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters)
+      return false;
+
+    const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    return mDSP.SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
+  }
+
+  if(ctrlTag == kCtrlTagPresetEditorTabs
     && msgTag == preset_editor_messages::kMsgTagAddKeyNotePreset
     && dataSize == sizeof(preset_editor_messages::KeyNotePresetPayload)
     && pData)

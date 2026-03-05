@@ -147,6 +147,19 @@ bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote,
   return true;
 }
 
+bool SynthVoice::SetKeyNoteOscillatorParameterValues(
+  double midiNote,
+  OscillatorSettings::Parameter parameter,
+  const std::array<double, SimplePreset::kNumOscillators>& values)
+{
+  const bool updated = mCompoundPreset.SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
+  if(!updated)
+    return false;
+
+  UpdatePitch();
+  return true;
+}
+
 double SynthVoice::SmoothBreath(double breath)
 {
   // Input and output breath are in the range [0, 1].

@@ -45,6 +45,11 @@ double Lerp(double lo, double hi, double t)
 {
   return lo + (hi - lo) * t;
 }
+
+// Existing presets are normalized so the sum of squared harmonic levels is 1.
+// For a harmonic sine sum at full breath, that corresponds to a waveform RMS of 1/sqrt(2).
+constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
+constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
 } // namespace
 
 const char* OscillatorSettings::GetParameterName(Parameter parameter)
@@ -106,6 +111,28 @@ void SimplePreset::SetOscillatorSettings(int oscillatorIndex, const OscillatorSe
 void SimplePreset::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value)
 {
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)].SetParameter(parameter, value);
+}
+
+double SimplePreset::GetIntensityWaveformRms() const
+{
+  double sumSquares = 0.0;
+  for(const auto& settings : mOscillatorSettings)
+    sumSquares += settings.intensity * settings.intensity;
+
+  return std::sqrt(sumSquares * 0.5);
+}
+
+bool SimplePreset::NormalizeIntensityWaveformRms()
+{
+  const double currentRms = GetIntensityWaveformRms();
+  if(currentRms <= kIntensityWaveformRmsEpsilon)
+    return false;
+
+  const double scale = kReferenceIntensityWaveformRms / currentRms;
+  for(auto& settings : mOscillatorSettings)
+    settings.intensity *= scale;
+
+  return true;
 }
 
 SimplePreset SimplePreset::Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t)
@@ -187,6 +214,23 @@ bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
     return false;
 
   keyNoteIt->second.SetOscillatorParameter(oscillatorIndex, parameter, value);
+  RebuildInterpolatedPresets();
+  return true;
+}
+
+bool CompoundPreset::SetKeyNoteOscillatorParameterValues(
+  double midiNote,
+  OscillatorSettings::Parameter parameter,
+  const std::array<double, SimplePreset::kNumOscillators>& values)
+{
+  const int clampedNote = RoundAndClampMidiNote(midiNote);
+  const auto keyNoteIt = mKeyNotePresets.find(clampedNote);
+  if(keyNoteIt == mKeyNotePresets.end())
+    return false;
+
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    keyNoteIt->second.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
+
   RebuildInterpolatedPresets();
   return true;
 }

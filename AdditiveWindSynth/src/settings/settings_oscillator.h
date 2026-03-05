@@ -103,6 +103,8 @@ public:
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
+  double GetIntensityWaveformRms() const;
+  bool NormalizeIntensityWaveformRms();
 
   static SimplePreset Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t);
 
@@ -134,6 +136,10 @@ public:
                                      int oscillatorIndex,
                                      OscillatorSettings::Parameter parameter,
                                      double value);
+  bool SetKeyNoteOscillatorParameterValues(
+    double midiNote,
+    OscillatorSettings::Parameter parameter,
+    const std::array<double, SimplePreset::kNumOscillators>& values);
   bool RemoveKeyNotePreset(int midiNote);
   void ClearKeyNotePresets();
 

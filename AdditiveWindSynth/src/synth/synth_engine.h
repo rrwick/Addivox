@@ -56,6 +56,14 @@ public:
     return mSynth.GetVoice().SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
   }
 
+  bool SetKeyNoteOscillatorParameterValues(
+    double midiNote,
+    OscillatorSettings::Parameter parameter,
+    const std::array<double, SimplePreset::kNumOscillators>& values)
+  {
+    return mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
+  }
+
   bool AddKeyNotePreset(double midiNote)
   {
     return mSynth.GetVoice().AddKeyNotePreset(midiNote);

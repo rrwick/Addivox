@@ -27,6 +27,10 @@ public:
                                      int oscillatorIndex,
                                      OscillatorSettings::Parameter parameter,
                                      double value);
+  bool SetKeyNoteOscillatorParameterValues(
+    double midiNote,
+    OscillatorSettings::Parameter parameter,
+    const std::array<double, SimplePreset::kNumOscillators>& values);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
