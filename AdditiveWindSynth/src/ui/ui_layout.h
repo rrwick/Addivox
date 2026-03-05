@@ -626,34 +626,66 @@ inline void AttachMainControls(
 
               control->SetConfig(config);
             });
-            auto* waveformControl = new ActionSelectionControl(
-              IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
-            auto* actionsControl = new ActionSelectionControl(
-              IRECT(), "Actions", {"normalise", "scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
-            actionsControl->SetOnSelection(
-              [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, sendOscillatorParameterValuesToDSP](const char* selectedText) {
-                if(!selectedText || std::strcmp(selectedText, "normalise") != 0)
-                  return;
-
+            const auto applyLevelActionToSelectedKeyNote =
+              [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, sendOscillatorParameterValuesToDSP](const auto& action) {
                 const int selectedMidiNote = *selectedEditorMidiNote;
                 const SimplePreset* keyNotePreset = editorCompoundPreset->GetKeyNotePreset(selectedMidiNote);
                 if(!keyNotePreset)
                   return;
 
-                SimplePreset normalizedPreset = *keyNotePreset;
-                if(!normalizedPreset.NormalizeIntensityWaveformRms())
+                SimplePreset updatedPreset = *keyNotePreset;
+                if(!action(updatedPreset))
                   return;
 
                 std::array<double, SimplePreset::kNumOscillators> values{};
                 for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-                  values[static_cast<std::size_t>(oscillatorIndex)] = normalizedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
+                  values[static_cast<std::size_t>(oscillatorIndex)] = updatedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
 
-                editorCompoundPreset->SetKeyNotePreset(selectedMidiNote, normalizedPreset);
+                editorCompoundPreset->SetKeyNotePreset(selectedMidiNote, updatedPreset);
                 sendOscillatorParameterValuesToDSP(control, selectedMidiNote, OscillatorSettings::Parameter::intensity, values);
 
                 if(*refreshOscillatorTabs)
                   (*refreshOscillatorTabs)();
+              };
+            auto* waveformControl = new ActionSelectionControl(
+              IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+            waveformControl->SetOnSelection([applyLevelActionToSelectedKeyNote](const char* selectedText) {
+              if(!selectedText)
+                return;
+
+              applyLevelActionToSelectedKeyNote([selectedText](SimplePreset& preset) {
+                for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+                {
+                  const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
+                  double intensity = 0.0;
+
+                  if(std::strcmp(selectedText, "saw") == 0)
+                    intensity = 1.0 / harmonicNumber;
+                  else if(std::strcmp(selectedText, "square") == 0)
+                    intensity = (oscillatorIndex % 2 == 0) ? (1.0 / harmonicNumber) : 0.0;
+                  else if(std::strcmp(selectedText, "triangle") == 0)
+                    intensity = (oscillatorIndex % 2 == 0) ? (1.0 / (harmonicNumber * harmonicNumber)) : 0.0;
+                  else if(std::strcmp(selectedText, "sine") == 0)
+                    intensity = (oscillatorIndex == 0) ? 1.0 : 0.0;
+                  else
+                    return false;
+
+                  preset.SetOscillatorParameter(oscillatorIndex, OscillatorSettings::Parameter::intensity, intensity);
+                }
+
+                return preset.NormalizeIntensityWaveformRms();
               });
+            });
+            auto* actionsControl = new ActionSelectionControl(
+              IRECT(), "Actions", {"normalise", "scale up", "scale down", "smooth", "zero even", "zero odd"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+            actionsControl->SetOnSelection([applyLevelActionToSelectedKeyNote](const char* selectedText) {
+              if(!selectedText || std::strcmp(selectedText, "normalise") != 0)
+                return;
+
+              applyLevelActionToSelectedKeyNote([](SimplePreset& preset) {
+                return preset.NormalizeIntensityWaveformRms();
+              });
+            });
 
             page->AddChildControl(descriptionControl);
             page->AddChildControl(xRangeLabelControl);
