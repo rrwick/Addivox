@@ -86,6 +86,60 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 #endif
 }
 
+void AdditiveWindSynth::SendMidiMsgFromUI(const IMidiMsg& msg)
+{
+  const IMidiMsg::EStatusMsg status = msg.StatusMsg();
+  const bool isNoteOn = (status == IMidiMsg::kNoteOn) && (msg.Velocity() > 0);
+  const bool isNoteOff = (status == IMidiMsg::kNoteOff) || ((status == IMidiMsg::kNoteOn) && (msg.Velocity() == 0));
+
+  if(!isNoteOn && !isNoteOff)
+  {
+    Plugin::SendMidiMsgFromUI(msg);
+    return;
+  }
+
+  const int midiNote = msg.NoteNumber();
+  if(midiNote < 0 || midiNote >= static_cast<int>(mActiveUIMIDINotes.size()))
+  {
+    Plugin::SendMidiMsgFromUI(msg);
+    return;
+  }
+
+  const auto sendBreathFromUI = [this, &msg](double value) {
+    IMidiMsg breathMsg;
+    breathMsg.MakeControlChangeMsg(IMidiMsg::kBreathController, value, msg.Channel(), msg.mOffset);
+    Plugin::SendMidiMsgFromUI(breathMsg);
+  };
+
+  if(isNoteOn)
+  {
+    if(!mActiveUIMIDINotes[static_cast<size_t>(midiNote)])
+    {
+      if(mNumActiveUIMIDINotes == 0)
+        sendBreathFromUI(1.0);
+
+      mActiveUIMIDINotes[static_cast<size_t>(midiNote)] = true;
+      ++mNumActiveUIMIDINotes;
+    }
+
+    Plugin::SendMidiMsgFromUI(msg);
+    return;
+  }
+
+  bool releasedActiveUINote = false;
+  if(mActiveUIMIDINotes[static_cast<size_t>(midiNote)])
+  {
+    mActiveUIMIDINotes[static_cast<size_t>(midiNote)] = false;
+    --mNumActiveUIMIDINotes;
+    releasedActiveUINote = true;
+  }
+
+  Plugin::SendMidiMsgFromUI(msg);
+
+  if(releasedActiveUINote && mNumActiveUIMIDINotes == 0)
+    sendBreathFromUI(0.0);
+}
+
 #if IPLUG_DSP
 void AdditiveWindSynth::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {

@@ -2,6 +2,7 @@
 
 #include "IPlug_include_in_plug_hdr.h"
 #include "IControls.h"
+#include <array>
 #include <atomic>
 #include <memory>
 
@@ -33,6 +34,7 @@ class AdditiveWindSynth final : public Plugin
 {
 public:
   AdditiveWindSynth(const InstanceInfo& info);
+  void SendMidiMsgFromUI(const IMidiMsg& msg) override;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -45,6 +47,8 @@ public:
 #endif
 
 private:
+  std::array<bool, 128> mActiveUIMIDINotes{};
+  int mNumActiveUIMIDINotes{0};
   std::shared_ptr<plugin_ui::PresetEditorState> mPresetEditorState;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
