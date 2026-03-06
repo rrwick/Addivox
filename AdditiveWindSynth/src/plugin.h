@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "settings/settings_oscillator.h"
+#include "ui/preset_editor_state.h"
 #include "visualizer/harmonic_visualizer_sender.h"
 
 const int kNumPresets = 1;
@@ -44,7 +45,7 @@ public:
 #endif
 
 private:
-  std::shared_ptr<CompoundPreset> mEditorCompoundPreset;
+  std::shared_ptr<plugin_ui::PresetEditorState> mPresetEditorState;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;

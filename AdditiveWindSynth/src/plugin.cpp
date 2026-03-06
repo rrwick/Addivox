@@ -1,7 +1,6 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
 #include "settings/params.h"
-#include "settings/presets.h"
 #include "settings/settings_global.h"
 #include "preset_editor_messages.h"
 #include "ui/transformations.h"
@@ -11,7 +10,7 @@
 
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
-, mEditorCompoundPreset(std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset()))
+, mPresetEditorState(std::make_shared<plugin_ui::PresetEditorState>())
 {
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
     int decimals = 2;
@@ -68,7 +67,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     pGraphics->LoadFont("Roboto-Black", ROBOTO_BLACK_FN);
     plugin_ui::AttachMainControls(
       pGraphics,
-      mEditorCompoundPreset,
+      mPresetEditorState,
       kParamGain,
       global_settings::kModifierParamIndices,
       kParamPortamentoAtCC5Min,

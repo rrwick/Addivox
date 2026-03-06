@@ -5,6 +5,7 @@
 #include "layered_svg_knob_control.h"
 #include "oscillator_slider_control.h"
 #include "action_selection_control.h"
+#include "preset_editor_state.h"
 #include "preset_editor_keyboard_control.h"
 #include "../visualizer/harmonic_visualizer_control.h"
 #include "../settings/preset_key_notes.h"
@@ -87,7 +88,7 @@ private:
 
 inline void AttachMainControls(
   IGraphics* pGraphics,
-  const std::shared_ptr<CompoundPreset>& editorCompoundPreset,
+  const std::shared_ptr<PresetEditorState>& editorState,
   int gainParamIdx,
   const std::array<int, 10>& globalModifierParamIdxs,
   int portamentoAtCC5MinParamIdx,
@@ -303,7 +304,9 @@ inline void AttachMainControls(
     pTab->GetChild(9)->SetTargetAndDrawRECTs(sliderBounds);
   };
 
-  auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
+  auto editorCompoundPreset = std::shared_ptr<CompoundPreset>(editorState, &editorState->compoundPreset);
+  auto selectedEditorMidiNote = std::shared_ptr<int>(editorState, &editorState->selectedMidiNote);
+  auto selectedEditorTabIndex = std::shared_ptr<int>(editorState, &editorState->selectedTabIndex);
   auto oscillatorSliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
   oscillatorSliderControls->fill(nullptr);
   auto restoreButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
@@ -312,7 +315,36 @@ inline void AttachMainControls(
   auto levelActionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   auto addButton = std::make_shared<IVButtonControl*>(nullptr);
   auto deleteButton = std::make_shared<IVButtonControl*>(nullptr);
-  auto isEditorEditMode = std::make_shared<bool>(false);
+  auto isEditorEditMode = std::shared_ptr<bool>(editorState, &editorState->editMode);
+  auto levelXRangeMinState = std::shared_ptr<int>(editorState, &editorState->levelXRangeMin);
+  auto levelXRangeMaxState = std::shared_ptr<int>(editorState, &editorState->levelXRangeMax);
+  auto levelTransformState = std::shared_ptr<PresetEditorLevelTransform>(editorState, &editorState->levelTransform);
+  *levelXRangeMinState = std::clamp(*levelXRangeMinState, 1, SimplePreset::kNumOscillators);
+  *levelXRangeMaxState = std::clamp(*levelXRangeMaxState, *levelXRangeMinState, SimplePreset::kNumOscillators);
+  const auto getLevelTransformLabel = [](PresetEditorLevelTransform transform) {
+    switch(transform)
+    {
+      case PresetEditorLevelTransform::SquareRoot:
+        return "square root";
+      case PresetEditorLevelTransform::PseudoLog:
+        return "pseudo-log";
+      case PresetEditorLevelTransform::Linear:
+      default:
+        return "linear";
+    }
+  };
+  const auto getSliderValueTransform = [](PresetEditorLevelTransform transform) {
+    switch(transform)
+    {
+      case PresetEditorLevelTransform::SquareRoot:
+        return OscillatorSliderControl::ValueTransform::SquareRoot;
+      case PresetEditorLevelTransform::PseudoLog:
+        return OscillatorSliderControl::ValueTransform::PseudoLog;
+      case PresetEditorLevelTransform::Linear:
+      default:
+        return OscillatorSliderControl::ValueTransform::Linear;
+    }
+  };
   const auto sendOscillatorParameterToDSP = [presetEditorTabsTag](IControl* sourceControl,
                                                                    int midiNote,
                                                                    int oscillatorIndex,
@@ -486,48 +518,58 @@ inline void AttachMainControls(
     }
   };
 
-  const auto makeOscillatorTabPage =
-	    [oscillatorSliderControls,
-	      restoreButtons,
-	      refreshOscillatorTabs,
-	      editorCompoundPreset,
-	      selectedEditorMidiNote,
-	      levelSetShapeControl,
-	      levelActionsControl,
-	      levelSliderStyle,
-	      oscillatorTabDescriptionText,
-	      oscillatorRestoreButtonStyle,
+	  const auto makeOscillatorTabPage =
+		    [oscillatorSliderControls,
+		      restoreButtons,
+		      refreshOscillatorTabs,
+		      editorCompoundPreset,
+		      selectedEditorMidiNote,
+		      levelXRangeMinState,
+		      levelXRangeMaxState,
+		      levelTransformState,
+		      levelSetShapeControl,
+		      levelActionsControl,
+		      levelSliderStyle,
+		      oscillatorTabDescriptionText,
+		      oscillatorRestoreButtonStyle,
       oscillatorUtilityNumberBoxStyle,
       oscillatorUtilityLabelText,
       oscillatorUtilityDropdownText,
-      oscillatorUtilityActionTitleText,
-      kPresetEditorDarkTab,
-      oscillatorTabResizeFunc,
-      levelTabResizeFunc,
-      sendOscillatorParameterToDSP,
-      sendOscillatorParameterValuesToDSP]
+	      oscillatorUtilityActionTitleText,
+	      kPresetEditorDarkTab,
+	      getLevelTransformLabel,
+	      getSliderValueTransform,
+	      oscillatorTabResizeFunc,
+	      levelTabResizeFunc,
+	      sendOscillatorParameterToDSP,
+	      sendOscillatorParameterValuesToDSP]
     (const OscillatorTabDescriptor& descriptor) {
       const bool isLevelTab = descriptor.parameter == OscillatorSettings::Parameter::intensity;
       return new EditorOscillatorTabPage(
-	        [oscillatorSliderControls,
-	          restoreButtons,
-	          refreshOscillatorTabs,
-	          editorCompoundPreset,
-	          selectedEditorMidiNote,
-	          levelSetShapeControl,
-	          levelActionsControl,
-	          levelSliderStyle,
-	          oscillatorTabDescriptionText,
-	          oscillatorRestoreButtonStyle,
+		        [oscillatorSliderControls,
+		          restoreButtons,
+		          refreshOscillatorTabs,
+		          editorCompoundPreset,
+		          selectedEditorMidiNote,
+		          levelXRangeMinState,
+		          levelXRangeMaxState,
+		          levelTransformState,
+		          levelSetShapeControl,
+		          levelActionsControl,
+		          levelSliderStyle,
+		          oscillatorTabDescriptionText,
+		          oscillatorRestoreButtonStyle,
           oscillatorUtilityNumberBoxStyle,
           oscillatorUtilityLabelText,
-          oscillatorUtilityDropdownText,
-          oscillatorUtilityActionTitleText,
-          kPresetEditorDarkTab,
-          sendOscillatorParameterToDSP,
-          sendOscillatorParameterValuesToDSP,
-          isLevelTab,
-          descriptor]
+	          oscillatorUtilityDropdownText,
+	          oscillatorUtilityActionTitleText,
+	          kPresetEditorDarkTab,
+	          getLevelTransformLabel,
+	          getSliderValueTransform,
+	          sendOscillatorParameterToDSP,
+	          sendOscillatorParameterValuesToDSP,
+	          isLevelTab,
+	          descriptor]
         (IVTabPage* page, const IRECT&) {
           auto* descriptionControl = new IMultiLineTextControl(IRECT(), descriptor.description, oscillatorTabDescriptionText, COLOR_TRANSPARENT);
           descriptionControl->SetIgnoreMouse(true);
@@ -572,10 +614,12 @@ inline void AttachMainControls(
                 (*refreshOscillatorTabs)();
             });
 
-          auto* control = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
-          OscillatorSliderControl::Config config;
-          config.range = descriptor.range;
-          control->SetConfig(config);
+	          auto* control = new OscillatorSliderControl(IRECT(), "", levelSliderStyle, EDirection::Vertical);
+	          OscillatorSliderControl::Config config;
+	          config.range = descriptor.range;
+	          if(isLevelTab)
+	            config.transform = getSliderValueTransform(*levelTransformState);
+	          control->SetConfig(config);
           control->SetOnOscillatorValueChanged(
             [control, editorCompoundPreset, selectedEditorMidiNote, refreshOscillatorTabs, sendOscillatorParameterToDSP, descriptor](int oscillatorIndex, double value) {
               if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
@@ -600,15 +644,17 @@ inline void AttachMainControls(
           if(isLevelTab)
           {
             auto* xRangeMinControl = new IVNumberBoxControl(
-              IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, 1.0, 1.0, 100.0, "%0.0f", false);
+              IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, static_cast<double>(*levelXRangeMinState), 1.0, 100.0, "%0.0f", false);
             auto* xRangeMaxControl = new IVNumberBoxControl(
-              IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, 100.0, 1.0, 100.0, "%0.0f", false);
+              IRECT(), kNoParameter, nullptr, "", oscillatorUtilityNumberBoxStyle, false, static_cast<double>(*levelXRangeMaxState), 1.0, 100.0, "%0.0f", false);
             xRangeMinControl->SetDrawTriangle(false);
             xRangeMaxControl->SetDrawTriangle(false);
             auto xRangeConstraintGuard = std::make_shared<bool>(false);
-            const auto updateVisibleOscillatorRange = [control, xRangeMinControl, xRangeMaxControl]() {
+            const auto updateVisibleOscillatorRange = [control, xRangeMinControl, xRangeMaxControl, levelXRangeMinState, levelXRangeMaxState]() {
               const int minOscillator = static_cast<int>(xRangeMinControl->GetRealValue());
               const int maxOscillator = static_cast<int>(xRangeMaxControl->GetRealValue());
+              *levelXRangeMinState = minOscillator;
+              *levelXRangeMaxState = maxOscillator;
               control->SetVisibleOscillatorRange(minOscillator, maxOscillator);
             };
             const auto clampEditedXRange = [xRangeMinControl, xRangeMaxControl, xRangeConstraintGuard](IVNumberBoxControl* editedControl) {
@@ -648,19 +694,20 @@ inline void AttachMainControls(
             yTransformLabelControl->DisablePrompt(true);
 
             auto* yTransformControl = new ActionSelectionControl(
-              IRECT(), "linear", {"linear", "square root", "pseudo-log"}, oscillatorUtilityDropdownText, kPresetEditorDarkTab, true);
-            yTransformControl->SetOnSelection([control](const char* selectedText) {
+              IRECT(), getLevelTransformLabel(*levelTransformState), {"linear", "square root", "pseudo-log"}, oscillatorUtilityDropdownText, kPresetEditorDarkTab, true);
+	            yTransformControl->SetOnSelection([control, levelTransformState, getSliderValueTransform](const char* selectedText) {
               if(!selectedText)
                 return;
 
-              auto config = control->GetConfig();
               if(std::strcmp(selectedText, "square root") == 0)
-                config.transform = OscillatorSliderControl::ValueTransform::SquareRoot;
+                *levelTransformState = PresetEditorLevelTransform::SquareRoot;
               else if(std::strcmp(selectedText, "pseudo-log") == 0)
-                config.transform = OscillatorSliderControl::ValueTransform::PseudoLog;
+                *levelTransformState = PresetEditorLevelTransform::PseudoLog;
               else
-                config.transform = OscillatorSliderControl::ValueTransform::Linear;
+                *levelTransformState = PresetEditorLevelTransform::Linear;
 
+              auto config = control->GetConfig();
+              config.transform = getSliderValueTransform(*levelTransformState);
               control->SetConfig(config);
             });
             const auto applyLevelActionToSelectedKeyNote =
@@ -788,7 +835,7 @@ inline void AttachMainControls(
 
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
-  pGraphics->AttachControl(new IVTabbedPagesControl(presetEditorTabsBounds,
+  auto* presetEditorTabsControl = new IVTabbedPagesControl(presetEditorTabsBounds,
     {
       {oscillatorTabDescriptors[0].title, makeOscillatorTabPage(oscillatorTabDescriptors[0])},
       {oscillatorTabDescriptors[1].title, makeOscillatorTabPage(oscillatorTabDescriptors[1])},
@@ -802,8 +849,30 @@ inline void AttachMainControls(
       {oscillatorTabDescriptors[9].title, makeOscillatorTabPage(oscillatorTabDescriptors[9])},
       {oscillatorTabDescriptors[10].title, makeOscillatorTabPage(oscillatorTabDescriptors[10])},
       {oscillatorTabDescriptors[11].title, makeOscillatorTabPage(oscillatorTabDescriptors[11])},
-    }, "", presetEditorTabsStyle, 20.f, 1.f),
-    presetEditorTabsTag);
+    }, "", presetEditorTabsStyle, 20.f, 1.f);
+  pGraphics->AttachControl(presetEditorTabsControl, presetEditorTabsTag);
+  if(auto* tabSwitch = presetEditorTabsControl->NChildren() > 0 ? presetEditorTabsControl->GetChild(0)->As<IVTabSwitchControl>() : nullptr)
+  {
+    const auto originalTabSwitchAction = tabSwitch->GetActionFunction();
+    tabSwitch->SetActionFunction([originalTabSwitchAction, selectedEditorTabIndex](IControl* caller) {
+      if(originalTabSwitchAction)
+        originalTabSwitchAction(caller);
+
+      if(auto* switchControl = caller ? caller->As<IVTabSwitchControl>() : nullptr)
+        *selectedEditorTabIndex = switchControl->GetSelectedIdx();
+    });
+
+    const int maxTabIndex = static_cast<int>(oscillatorTabDescriptors.size()) - 1;
+    *selectedEditorTabIndex = std::clamp(*selectedEditorTabIndex, 0, maxTabIndex);
+    if(maxTabIndex > 0)
+      tabSwitch->SetValue(static_cast<double>(*selectedEditorTabIndex) / static_cast<double>(maxTabIndex));
+    else
+      tabSwitch->SetValue(0.0);
+
+    if(const auto tabSwitchAction = tabSwitch->GetActionFunction())
+      tabSwitchAction(tabSwitch);
+    tabSwitch->SetDirty(false);
+  }
   const auto setMainPanelVizVisible = [pGraphics, breathMeterTag, harmonicVisualizerTag](bool visible) {
     if(auto* breathMeter = pGraphics->GetControlWithTag(breathMeterTag))
       breathMeter->Hide(!visible);
@@ -833,12 +902,12 @@ inline void AttachMainControls(
   const IVStyle mainPanelModeSwitchStyle = theme::BaseStyle(false, false)
     .WithColor(kFG, kSecondaryUIValueColor)
     .WithColor(kHL, kSecondaryUIValueColor);
-  pGraphics->AttachControl(
-    new IVSlideSwitchControl(mainPanelModeSwitchBounds,
-      [setMainPanelMode](IControl* pCaller) {
-        const bool vizMode = pCaller->GetValue() < 0.5;
-        setMainPanelMode(vizMode);
-      }, "", mainPanelModeSwitchStyle, false, EDirection::Horizontal, 2, 0));
+  auto* mainPanelModeSwitch = new IVSlideSwitchControl(mainPanelModeSwitchBounds,
+    [setMainPanelMode](IControl* pCaller) {
+      const bool vizMode = pCaller->GetValue() < 0.5;
+      setMainPanelMode(vizMode);
+    }, "", mainPanelModeSwitchStyle, false, EDirection::Horizontal, 2, *isEditorEditMode ? 1 : 0);
+  pGraphics->AttachControl(mainPanelModeSwitch);
   const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
   const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
   const IVStyle vizEditButtonStyle = theme::BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
@@ -918,7 +987,8 @@ inline void AttachMainControls(
     (*refreshOscillatorTabs)();
   if(*refreshEditorActionButtons)
     (*refreshEditorActionButtons)();
-  setMainPanelMode(true);
+  setMainPanelMode(!*isEditorEditMode);
+  mainPanelModeSwitch->SetDirty(false);
 
   // Envelope panel: x=186, y=428, w=212, h=84
   const IRECT attackKnobBounds = IRECT::MakeMidXYWH(216.f, 480.5f, knob_size, knob_size);
