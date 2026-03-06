@@ -136,6 +136,7 @@ public:
   const SimplePreset& GetPresetForMidiNote(double midiNote) const;
   const SimplePreset* GetKeyNotePreset(double midiNote) const;
   bool HasKeyNotePreset(double midiNote) const;
+  int GetNumKeyNotePresets() const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
   bool SetKeyNoteOscillatorParameter(double midiNote,

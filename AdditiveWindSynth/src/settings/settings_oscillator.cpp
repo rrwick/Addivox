@@ -279,6 +279,11 @@ bool CompoundPreset::HasKeyNotePreset(double midiNote) const
   return GetKeyNotePreset(midiNote) != nullptr;
 }
 
+int CompoundPreset::GetNumKeyNotePresets() const
+{
+  return static_cast<int>(mKeyNotePresets.size());
+}
+
 void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
 {
   mKeyNotePresets[ClampMidiNote(midiNote)] = preset;
@@ -319,6 +324,9 @@ bool CompoundPreset::SetKeyNoteOscillatorParameterValues(
 
 bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
 {
+  if(mKeyNotePresets.size() <= 1)
+    return false;
+
   const size_t numRemoved = mKeyNotePresets.erase(ClampMidiNote(midiNote));
   if(numRemoved > 0)
     RebuildInterpolatedPresets();

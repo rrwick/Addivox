@@ -407,8 +407,9 @@ inline void AttachMainControls(
     const int selectedMidiNote = *selectedEditorMidiNote;
     const bool midiNoteValid = selectedMidiNote >= CompoundPreset::kMinMidiNote && selectedMidiNote <= CompoundPreset::kMaxMidiNote;
     const bool keyNoteSelected = midiNoteValid && editorCompoundPreset->HasKeyNotePreset(selectedMidiNote);
+    const bool canRemoveKeyNote = editorCompoundPreset->GetNumKeyNotePresets() > 1;
     const bool canAdd = *isEditorEditMode && midiNoteValid && !keyNoteSelected;
-    const bool canDelete = *isEditorEditMode && keyNoteSelected;
+    const bool canDelete = *isEditorEditMode && keyNoteSelected && canRemoveKeyNote;
 
     if(*addButton)
     {
