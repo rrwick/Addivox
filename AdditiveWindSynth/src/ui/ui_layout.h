@@ -308,6 +308,8 @@ inline void AttachMainControls(
   oscillatorSliderControls->fill(nullptr);
   auto restoreButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
   restoreButtons->fill(nullptr);
+  auto levelSetShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  auto levelActionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   auto addButton = std::make_shared<IVButtonControl*>(nullptr);
   auto deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   auto isEditorEditMode = std::make_shared<bool>(false);
@@ -389,7 +391,13 @@ inline void AttachMainControls(
     }
   };
   auto refreshOscillatorTabs = std::make_shared<std::function<void()>>();
-  *refreshOscillatorTabs = [editorCompoundPreset, selectedEditorMidiNote, oscillatorSliderControls, restoreButtons, oscillatorTabDescriptors]() {
+  *refreshOscillatorTabs = [editorCompoundPreset,
+                            selectedEditorMidiNote,
+                            oscillatorSliderControls,
+                            restoreButtons,
+                            levelSetShapeControl,
+                            levelActionsControl,
+                            oscillatorTabDescriptors]() {
     const int selectedMidiNote = *selectedEditorMidiNote;
     const bool midiNoteValid = selectedMidiNote >= CompoundPreset::kMinMidiNote && selectedMidiNote <= CompoundPreset::kMaxMidiNote;
 
@@ -419,12 +427,37 @@ inline void AttachMainControls(
           restoreButton->SetDirty(false);
         }
       }
+
+      if(*levelSetShapeControl)
+      {
+        (*levelSetShapeControl)->SetDisabled(true);
+        (*levelSetShapeControl)->SetDirty(false);
+      }
+
+      if(*levelActionsControl)
+      {
+        (*levelActionsControl)->SetDisabled(true);
+        (*levelActionsControl)->SetDirty(false);
+      }
+
       return;
     }
 
     const SimplePreset* keyNotePreset = editorCompoundPreset->GetKeyNotePreset(selectedMidiNote);
     const SimplePreset& selectedPreset = keyNotePreset ? *keyNotePreset : editorCompoundPreset->GetPresetForMidiNote(selectedMidiNote);
     const bool editable = keyNotePreset != nullptr;
+
+    if(*levelSetShapeControl)
+    {
+      (*levelSetShapeControl)->SetDisabled(!editable);
+      (*levelSetShapeControl)->SetDirty(false);
+    }
+
+    if(*levelActionsControl)
+    {
+      (*levelActionsControl)->SetDisabled(!editable);
+      (*levelActionsControl)->SetDirty(false);
+    }
 
     for(const auto& descriptor : oscillatorTabDescriptors)
     {
@@ -454,14 +487,16 @@ inline void AttachMainControls(
   };
 
   const auto makeOscillatorTabPage =
-    [oscillatorSliderControls,
-      restoreButtons,
-      refreshOscillatorTabs,
-      editorCompoundPreset,
-      selectedEditorMidiNote,
-      levelSliderStyle,
-      oscillatorTabDescriptionText,
-      oscillatorRestoreButtonStyle,
+	    [oscillatorSliderControls,
+	      restoreButtons,
+	      refreshOscillatorTabs,
+	      editorCompoundPreset,
+	      selectedEditorMidiNote,
+	      levelSetShapeControl,
+	      levelActionsControl,
+	      levelSliderStyle,
+	      oscillatorTabDescriptionText,
+	      oscillatorRestoreButtonStyle,
       oscillatorUtilityNumberBoxStyle,
       oscillatorUtilityLabelText,
       oscillatorUtilityDropdownText,
@@ -474,14 +509,16 @@ inline void AttachMainControls(
     (const OscillatorTabDescriptor& descriptor) {
       const bool isLevelTab = descriptor.parameter == OscillatorSettings::Parameter::intensity;
       return new EditorOscillatorTabPage(
-        [oscillatorSliderControls,
-          restoreButtons,
-          refreshOscillatorTabs,
-          editorCompoundPreset,
-          selectedEditorMidiNote,
-          levelSliderStyle,
-          oscillatorTabDescriptionText,
-          oscillatorRestoreButtonStyle,
+	        [oscillatorSliderControls,
+	          restoreButtons,
+	          refreshOscillatorTabs,
+	          editorCompoundPreset,
+	          selectedEditorMidiNote,
+	          levelSetShapeControl,
+	          levelActionsControl,
+	          levelSliderStyle,
+	          oscillatorTabDescriptionText,
+	          oscillatorRestoreButtonStyle,
           oscillatorUtilityNumberBoxStyle,
           oscillatorUtilityLabelText,
           oscillatorUtilityDropdownText,
@@ -648,7 +685,7 @@ inline void AttachMainControls(
                   (*refreshOscillatorTabs)();
               };
             auto* waveformControl = new ActionSelectionControl(
-              IRECT(), "Wave shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
+              IRECT(), "Set shape", {"saw", "square", "triangle", "sine"}, oscillatorUtilityActionTitleText, kPresetEditorDarkTab);
             waveformControl->SetOnSelection([applyLevelActionToSelectedKeyNote](const char* selectedText) {
               if(!selectedText)
                 return;
@@ -701,6 +738,8 @@ inline void AttachMainControls(
                 return false;
               });
             });
+            *levelSetShapeControl = waveformControl;
+            *levelActionsControl = actionsControl;
 
             page->AddChildControl(descriptionControl);
             page->AddChildControl(xRangeLabelControl);
