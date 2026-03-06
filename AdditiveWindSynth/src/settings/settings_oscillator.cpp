@@ -53,6 +53,13 @@ constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
 constexpr int kIntensityTopTaperStartOscillatorIndex = 80;
 constexpr int kIntensityTopTaperZeroAtOscillatorIndex = SimplePreset::kNumOscillators;
 
+enum class HarmonicParity
+{
+  All,
+  Even,
+  Odd
+};
+
 double GetIntensityTopTaperScale(int oscillatorIndex)
 {
   if(oscillatorIndex < kIntensityTopTaperStartOscillatorIndex)
@@ -61,6 +68,32 @@ double GetIntensityTopTaperScale(int oscillatorIndex)
   const double taperPosition = static_cast<double>(oscillatorIndex - kIntensityTopTaperStartOscillatorIndex);
   const double taperLength = static_cast<double>(kIntensityTopTaperZeroAtOscillatorIndex - kIntensityTopTaperStartOscillatorIndex);
   return std::clamp(1.0 - (taperPosition / taperLength), 0.0, 1.0);
+}
+
+bool MatchesParity(int oscillatorIndex, HarmonicParity parity)
+{
+  switch(parity)
+  {
+    case HarmonicParity::All:
+      return true;
+    case HarmonicParity::Even:
+      return (oscillatorIndex % 2) == 1;
+    case HarmonicParity::Odd:
+      return (oscillatorIndex % 2) == 0;
+  }
+
+  return false;
+}
+
+bool ScaleIntensities(SimplePreset::OscillatorArray& oscillatorSettings, double scale, HarmonicParity parity)
+{
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    if(MatchesParity(oscillatorIndex, parity))
+      oscillatorSettings[oscillatorIndex].intensity *= scale;
+  }
+
+  return true;
 }
 } // namespace
 
@@ -144,18 +177,32 @@ bool SimplePreset::ApplyIntensityTopTaper()
 
 bool SimplePreset::ScaleIntensityUp()
 {
-  for(auto& settings : mOscillatorSettings)
-    settings.intensity *= 1.1;
-
-  return true;
+  return ScaleIntensities(mOscillatorSettings, 1.1, HarmonicParity::All);
 }
 
 bool SimplePreset::ScaleIntensityDown()
 {
-  for(auto& settings : mOscillatorSettings)
-    settings.intensity *= 0.9;
+  return ScaleIntensities(mOscillatorSettings, 0.9, HarmonicParity::All);
+}
 
-  return true;
+bool SimplePreset::ScaleIntensityUpEven()
+{
+  return ScaleIntensities(mOscillatorSettings, 1.1, HarmonicParity::Even);
+}
+
+bool SimplePreset::ScaleIntensityDownEven()
+{
+  return ScaleIntensities(mOscillatorSettings, 0.9, HarmonicParity::Even);
+}
+
+bool SimplePreset::ScaleIntensityUpOdd()
+{
+  return ScaleIntensities(mOscillatorSettings, 1.1, HarmonicParity::Odd);
+}
+
+bool SimplePreset::ScaleIntensityDownOdd()
+{
+  return ScaleIntensities(mOscillatorSettings, 0.9, HarmonicParity::Odd);
 }
 
 bool SimplePreset::SmoothIntensity()

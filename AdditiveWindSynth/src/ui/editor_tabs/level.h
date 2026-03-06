@@ -182,7 +182,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "Actions",
-    {"normalise", "taper top", "scale up", "scale down", "smooth", "zero even", "zero odd"},
+    {"normalise", "taper top", "smooth", "scale up all", "scale down all", "scale up even", "scale down even", "scale up odd", "scale down odd", "zero even", "zero odd"},
     styles.utilityActionTitleText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -194,12 +194,20 @@ inline void AttachLevelTabChildren(IVTabPage* page,
         return preset.NormalizeIntensityWaveformRms();
       if(std::strcmp(selectedText, "taper top") == 0)
         return preset.ApplyIntensityTopTaper();
-      if(std::strcmp(selectedText, "scale up") == 0)
-        return preset.ScaleIntensityUp();
-      if(std::strcmp(selectedText, "scale down") == 0)
-        return preset.ScaleIntensityDown();
       if(std::strcmp(selectedText, "smooth") == 0)
         return preset.SmoothIntensity();
+      if(std::strcmp(selectedText, "scale up all") == 0)
+        return preset.ScaleIntensityUp();
+      if(std::strcmp(selectedText, "scale down all") == 0)
+        return preset.ScaleIntensityDown();
+      if(std::strcmp(selectedText, "scale up even") == 0)
+        return preset.ScaleIntensityUpEven();
+      if(std::strcmp(selectedText, "scale down even") == 0)
+        return preset.ScaleIntensityDownEven();
+      if(std::strcmp(selectedText, "scale up odd") == 0)
+        return preset.ScaleIntensityUpOdd();
+      if(std::strcmp(selectedText, "scale down odd") == 0)
+        return preset.ScaleIntensityDownOdd();
       if(std::strcmp(selectedText, "zero even") == 0)
         return preset.ZeroEvenIntensities();
       if(std::strcmp(selectedText, "zero odd") == 0)

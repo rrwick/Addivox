@@ -107,6 +107,10 @@ public:
   bool ApplyIntensityTopTaper();
   bool ScaleIntensityUp();
   bool ScaleIntensityDown();
+  bool ScaleIntensityUpEven();
+  bool ScaleIntensityDownEven();
+  bool ScaleIntensityUpOdd();
+  bool ScaleIntensityDownOdd();
   bool SmoothIntensity();
   bool ZeroEvenIntensities();
   bool ZeroOddIntensities();
