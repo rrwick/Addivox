@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "settings/settings_oscillator.h"
-#include "ui/preset_editor_state.h"
+#include "ui/editor_state.h"
 #include "visualizer/harmonic_visualizer_sender.h"
 
 const int kNumPresets = 1;
@@ -21,7 +21,7 @@ enum EControlTags
   kCtrlTagMeter = 0,
   kCtrlTagBreathMeter,
   kCtrlTagHarmonicVisualizer,
-  kCtrlTagPresetEditorTabs,
+  kCtrlTagEditorTabs,
   kCtrlTagKeyboard,
   kCtrlTagBender,
   kNumCtrlTags
@@ -49,7 +49,7 @@ public:
 private:
   std::array<bool, 128> mActiveUIMIDINotes{};
   int mNumActiveUIMIDINotes{0};
-  std::shared_ptr<plugin_ui::PresetEditorState> mPresetEditorState;
+  std::shared_ptr<plugin_ui::EditorState> mEditorState;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;

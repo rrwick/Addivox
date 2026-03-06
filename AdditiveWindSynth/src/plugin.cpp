@@ -2,15 +2,15 @@
 #include "IPlug_include_in_plug_src.h"
 #include "settings/params.h"
 #include "settings/settings_global.h"
-#include "preset_editor_messages.h"
+#include "editor_messages.h"
 #include "ui/transformations.h"
-#include "ui/ui_layout.h"
+#include "ui/layout.h"
 
 #include <cmath>
 
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
-, mPresetEditorState(std::make_shared<plugin_ui::PresetEditorState>())
+, mEditorState(std::make_shared<plugin_ui::EditorState>())
 {
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
     int decimals = 2;
@@ -67,13 +67,13 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     pGraphics->LoadFont("Roboto-Black", ROBOTO_BLACK_FN);
     plugin_ui::AttachMainControls(
       pGraphics,
-      mPresetEditorState,
+      mEditorState,
       kParamGain,
       global_settings::kModifierParamIndices,
       kParamPortamentoAtCC5Min,
       kParamPortamentoAtCC5Max,
       kCtrlTagHarmonicVisualizer,
-      kCtrlTagPresetEditorTabs,
+      kCtrlTagEditorTabs,
       kCtrlTagKeyboard,
       kCtrlTagBender,
       kCtrlTagBreathMeter,
@@ -197,12 +197,12 @@ void AdditiveWindSynth::OnParamChange(int paramIdx)
 
 bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
-  if(ctrlTag == kCtrlTagPresetEditorTabs
-    && msgTag == preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameter
-    && dataSize == sizeof(preset_editor_messages::SetKeyNoteOscillatorParameterPayload)
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameter
+    && dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterPayload)
     && pData)
   {
-    const auto* payload = static_cast<const preset_editor_messages::SetKeyNoteOscillatorParameterPayload*>(pData);
+    const auto* payload = static_cast<const editor_messages::SetKeyNoteOscillatorParameterPayload*>(pData);
     if(payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters)
       return false;
 
@@ -210,12 +210,12 @@ bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const v
     return mDSP.SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
   }
 
-  if(ctrlTag == kCtrlTagPresetEditorTabs
-    && msgTag == preset_editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues
-    && dataSize == sizeof(preset_editor_messages::SetKeyNoteOscillatorParameterValuesPayload)
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues
+    && dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterValuesPayload)
     && pData)
   {
-    const auto* payload = static_cast<const preset_editor_messages::SetKeyNoteOscillatorParameterValuesPayload*>(pData);
+    const auto* payload = static_cast<const editor_messages::SetKeyNoteOscillatorParameterValuesPayload*>(pData);
     if(payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters)
       return false;
 
@@ -223,21 +223,21 @@ bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const v
     return mDSP.SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
   }
 
-  if(ctrlTag == kCtrlTagPresetEditorTabs
-    && msgTag == preset_editor_messages::kMsgTagAddKeyNotePreset
-    && dataSize == sizeof(preset_editor_messages::KeyNotePresetPayload)
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagAddKeyNotePreset
+    && dataSize == sizeof(editor_messages::KeyNotePresetPayload)
     && pData)
   {
-    const auto* payload = static_cast<const preset_editor_messages::KeyNotePresetPayload*>(pData);
+    const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
     return mDSP.AddKeyNotePreset(payload->midiNote);
   }
 
-  if(ctrlTag == kCtrlTagPresetEditorTabs
-    && msgTag == preset_editor_messages::kMsgTagRemoveKeyNotePreset
-    && dataSize == sizeof(preset_editor_messages::KeyNotePresetPayload)
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagRemoveKeyNotePreset
+    && dataSize == sizeof(editor_messages::KeyNotePresetPayload)
     && pData)
   {
-    const auto* payload = static_cast<const preset_editor_messages::KeyNotePresetPayload*>(pData);
+    const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
     return mDSP.RemoveKeyNotePreset(payload->midiNote);
   }
 

@@ -31,7 +31,8 @@ iplug_add_plugin(${PROJECT_NAME}
     src/synth/synth_engine.h
     src/settings/presets.h
     src/ui/layered_svg_knob_control.h
-    src/ui/ui_layout.h
+    src/ui/layout.h
+    src/ui/theme.h
     resources/resource.h
   RESOURCES
     resources/fonts/Roboto-Regular.ttf

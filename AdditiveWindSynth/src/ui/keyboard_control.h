@@ -12,12 +12,12 @@ namespace plugin_ui
 using namespace iplug;
 using namespace igraphics;
 
-class PresetEditorKeyboardControl final : public IVKeyboardControl
+class KeyboardControl final : public IVKeyboardControl
 {
 public:
   using SelectedMidiNoteChangedFunc = std::function<void(int midiNote)>;
 
-  PresetEditorKeyboardControl(const IRECT& bounds, int minNote = 48, int maxNote = 72)
+  KeyboardControl(const IRECT& bounds, int minNote = 48, int maxNote = 72)
   : IVKeyboardControl(bounds, minNote, maxNote)
   {
   }

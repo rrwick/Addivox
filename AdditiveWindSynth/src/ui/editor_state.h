@@ -6,14 +6,14 @@
 namespace plugin_ui
 {
 
-enum class PresetEditorLevelTransform
+enum class EditorLevelTransform
 {
   Linear,
   SquareRoot,
   PseudoLog
 };
 
-struct PresetEditorState
+struct EditorState
 {
   CompoundPreset compoundPreset{presets::MakeBrassCompoundPreset()};
   int selectedMidiNote{presets::kBrassCompoundPresetKeyNotes[3]};
@@ -21,7 +21,7 @@ struct PresetEditorState
   int selectedTabIndex{0};
   int levelXRangeMin{1};
   int levelXRangeMax{SimplePreset::kNumOscillators};
-  PresetEditorLevelTransform levelTransform{PresetEditorLevelTransform::Linear};
+  EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui

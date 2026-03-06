@@ -4,7 +4,7 @@
 
 #include "settings/settings_oscillator.h"
 
-namespace preset_editor_messages
+namespace editor_messages
 {
 inline constexpr int kMsgTagSetKeyNoteOscillatorParameter = 1000;
 inline constexpr int kMsgTagAddKeyNotePreset = 1001;
@@ -30,4 +30,4 @@ struct SetKeyNoteOscillatorParameterValuesPayload
   int parameter{0};
   std::array<double, SimplePreset::kNumOscillators> values{};
 };
-} // namespace preset_editor_messages
+} // namespace editor_messages
