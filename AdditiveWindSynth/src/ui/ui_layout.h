@@ -87,6 +87,7 @@ private:
 
 inline void AttachMainControls(
   IGraphics* pGraphics,
+  const std::shared_ptr<CompoundPreset>& editorCompoundPreset,
   int gainParamIdx,
   const std::array<int, 10>& globalModifierParamIdxs,
   int portamentoAtCC5MinParamIdx,
@@ -302,7 +303,6 @@ inline void AttachMainControls(
     pTab->GetChild(9)->SetTargetAndDrawRECTs(sliderBounds);
   };
 
-  auto editorCompoundPreset = std::make_shared<CompoundPreset>(presets::MakeBrassCompoundPreset());
   auto selectedEditorMidiNote = std::make_shared<int>(presets::kBrassCompoundPresetKeyNotes[3]);
   auto oscillatorSliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
   oscillatorSliderControls->fill(nullptr);
@@ -901,6 +901,9 @@ inline void AttachMainControls(
   const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
   const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1038.f, 114.f);
   auto* keyboardControl = new PresetEditorKeyboardControl(keyboardBounds, 21, 108);
+  keyboardControl->ClearHighlightedMidiNotes();
+  for(int midiNote = CompoundPreset::kMinMidiNote; midiNote <= CompoundPreset::kMaxMidiNote; ++midiNote)
+    keyboardControl->SetHighlightedMidiNote(midiNote, editorCompoundPreset->HasKeyNotePreset(midiNote));
   keyboardControl->SetOnSelectedMidiNoteChanged([selectedEditorMidiNote, refreshOscillatorTabs, refreshEditorActionButtons](int midiNote) {
     *selectedEditorMidiNote = midiNote;
     if(*refreshOscillatorTabs)
@@ -908,7 +911,6 @@ inline void AttachMainControls(
     if(*refreshEditorActionButtons)
       (*refreshEditorActionButtons)();
   });
-  keyboardControl->SetHighlightedMidiNotes(presets::kBrassCompoundPresetKeyNotes);
   keyboardControl->SetSelectedMidiNote(*selectedEditorMidiNote);
   pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);

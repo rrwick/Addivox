@@ -3,7 +3,9 @@
 #include "IPlug_include_in_plug_hdr.h"
 #include "IControls.h"
 #include <atomic>
+#include <memory>
 
+#include "settings/settings_oscillator.h"
 #include "visualizer/harmonic_visualizer_sender.h"
 
 const int kNumPresets = 1;
@@ -39,8 +41,12 @@ public:
   void OnParamChange(int paramIdx) override;
   void OnIdle() override;
   bool OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) override;
+#endif
 
 private:
+  std::shared_ptr<CompoundPreset> mEditorCompoundPreset;
+
+#if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;
 
   SynthEngine mDSP;
