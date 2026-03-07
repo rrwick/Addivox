@@ -28,7 +28,7 @@ public:
   {
     if(defaultText && defaultText[0] != '\0')
       mDefaultText.Set(defaultText);
-    else if(mMenu.NItems() > 0)
+    else if(defaultText == nullptr && mMenu.NItems() > 0)
       mDefaultText.Set(mMenu.GetItem(0)->GetText());
 
     SetStr(mDefaultText.Get());

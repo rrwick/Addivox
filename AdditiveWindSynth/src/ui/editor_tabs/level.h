@@ -18,7 +18,7 @@ inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& desc
 
 inline void ResizeLevelTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 10)
+  if(pTab->NChildren() < 12)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -47,7 +47,7 @@ inline void ResizeLevelTabPage(IContainerBase* pTab, const IRECT& r)
     leftColumnBounds.L + 4.f,
     leftColumnBounds.T + 2.f,
     leftColumnBounds.R - 4.f,
-    std::min(leftColumnBounds.T + kDescriptionHeight, restoreTop - (kLabelHeight * 2.f + kControlHeight * 4.f + kGap * 5.f + kTightGap * 2.f)));
+    std::min(leftColumnBounds.T + kDescriptionHeight, restoreTop - (kLabelHeight * 4.f + kControlHeight * 4.f + kGap * 5.f + kTightGap * 4.f)));
 
   float y = descriptionBounds.B + kGap;
   const float rowL = leftColumnBounds.L + 8.f;
@@ -62,8 +62,12 @@ inline void ResizeLevelTabPage(IContainerBase* pTab, const IRECT& r)
   y += kLabelHeight + kTightGap;
   auto yTransformBounds = IRECT(rowL, y, rowR, y + kControlHeight);
   y += kControlHeight + kGap;
-  auto waveformBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+  auto setShapeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+  y += kLabelHeight + kTightGap;
+  auto setShapeBounds = IRECT(rowL, y, rowR, y + kControlHeight);
   y += kControlHeight + kGap;
+  auto actionsLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+  y += kLabelHeight + kTightGap;
   auto actionsBounds = IRECT(rowL, y, rowR, y + kControlHeight);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
@@ -72,10 +76,12 @@ inline void ResizeLevelTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
   pTab->GetChild(4)->SetTargetAndDrawRECTs(yTransformLabelBounds);
   pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(waveformBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(setShapeLabelBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void AttachLevelTabChildren(IVTabPage* page,
@@ -149,7 +155,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   });
 
   auto* setShapeControl = new ActionSelectionControl(
-    IRECT(), "Set shape", {"saw", "square", "triangle", "sine"}, styles.utilityActionTitleText, styles.darkTab);
+    IRECT(), "choose shape", {"saw", "square", "triangle", "sine"}, styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
     if(!selectedText)
       return;
@@ -181,9 +187,9 @@ inline void AttachLevelTabChildren(IVTabPage* page,
 
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
-    "Actions",
+    "run action",
     {"normalise", "taper top", "smooth", "scale up all", "scale down all", "scale up even", "scale down even", "scale up odd", "scale down odd", "zero even", "zero odd"},
-    styles.utilityActionTitleText,
+    styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
     if(!selectedText)
@@ -225,7 +231,9 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   page->AddChildControl(xRangeMaxControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Y transform:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(yTransformControl);
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(setShapeControl);
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(actionsControl);
   page->AddChildControl(restoreButton);
   page->AddChildControl(sliderControl);
