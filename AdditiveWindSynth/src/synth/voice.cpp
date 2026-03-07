@@ -169,14 +169,7 @@ double SynthVoice::SmoothBreath(double breath)
   // https://www.desmos.com/calculator/ntwh4mbkwn
   constexpr double k = 5.0;
   static const double invDenominator = 1.0 / (k - 1.0 + std::exp(-k));
-  breath = (k * breath - 1.0 + std::exp(-k * breath)) * invDenominator;
-
-  // Cap breath at 97% to avoid ringing tone from brick wall at top of harmonic series.
-  // TODO: this is a bit of a hack - would be better to use a more gradual roll-off of the highest
-  //       harmonic intensities.
-  breath *= 0.97;
-
-  return breath;
+  return (k * breath - 1.0 + std::exp(-k * breath)) * invDenominator;
 }
 
 void SynthVoice::Clear()
