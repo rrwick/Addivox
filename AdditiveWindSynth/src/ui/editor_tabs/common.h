@@ -138,6 +138,7 @@ struct BreathTabRefs
 {
   std::shared_ptr<EditorLevelTransform> breathTransform;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
+  std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
 struct OscillatorTabControlRefs
@@ -334,6 +335,7 @@ struct EditorContext
       SetDisabledState(*levelTab.setShapeControl, true);
       SetDisabledState(*levelTab.actionsControl, true);
       SetDisabledState(*breathTab.setShapeControl, true);
+      SetDisabledState(*breathTab.actionsControl, true);
       return;
     }
 
@@ -345,6 +347,7 @@ struct EditorContext
     SetDisabledState(*levelTab.setShapeControl, !editable);
     SetDisabledState(*levelTab.actionsControl, !editable);
     SetDisabledState(*breathTab.setShapeControl, !editable);
+    SetDisabledState(*breathTab.actionsControl, !editable);
 
     for(const auto& descriptor : GetOscillatorTabDescriptors())
     {

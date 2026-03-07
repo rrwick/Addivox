@@ -200,6 +200,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->breathTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->buttons.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->buttons.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
 

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace
 {
@@ -52,6 +53,8 @@ constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
 constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
 constexpr int kIntensityTopTaperStartOscillatorIndex = 80;
 constexpr int kIntensityTopTaperZeroAtOscillatorIndex = SimplePreset::kNumOscillators;
+constexpr double kBreathPowerMin = 0.0;
+constexpr double kBreathPowerMax = 100.0;
 
 enum class HarmonicParity
 {
@@ -85,12 +88,20 @@ bool MatchesParity(int oscillatorIndex, HarmonicParity parity)
   return false;
 }
 
-bool ScaleIntensities(SimplePreset::OscillatorArray& oscillatorSettings, double scale, HarmonicParity parity)
+bool ScaleParameters(SimplePreset::OscillatorArray& oscillatorSettings,
+                     MemberPtr member,
+                     double scale,
+                     HarmonicParity parity,
+                     double minValue = -std::numeric_limits<double>::infinity(),
+                     double maxValue = std::numeric_limits<double>::infinity())
 {
   for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
   {
     if(MatchesParity(oscillatorIndex, parity))
-      oscillatorSettings[oscillatorIndex].intensity *= scale;
+    {
+      auto& value = oscillatorSettings[oscillatorIndex].*member;
+      value = std::clamp(value * scale, minValue, maxValue);
+    }
   }
 
   return true;
@@ -177,32 +188,98 @@ bool SimplePreset::ApplyIntensityTopTaper()
 
 bool SimplePreset::ScaleIntensityUp()
 {
-  return ScaleIntensities(mOscillatorSettings, 1.1, HarmonicParity::All);
+  return ScaleParameters(mOscillatorSettings, &OscillatorSettings::intensity, 1.1, HarmonicParity::All);
 }
 
 bool SimplePreset::ScaleIntensityDown()
 {
-  return ScaleIntensities(mOscillatorSettings, 0.9, HarmonicParity::All);
+  return ScaleParameters(mOscillatorSettings, &OscillatorSettings::intensity, 0.9, HarmonicParity::All);
 }
 
 bool SimplePreset::ScaleIntensityUpEven()
 {
-  return ScaleIntensities(mOscillatorSettings, 1.1, HarmonicParity::Even);
+  return ScaleParameters(mOscillatorSettings, &OscillatorSettings::intensity, 1.1, HarmonicParity::Even);
 }
 
 bool SimplePreset::ScaleIntensityDownEven()
 {
-  return ScaleIntensities(mOscillatorSettings, 0.9, HarmonicParity::Even);
+  return ScaleParameters(mOscillatorSettings, &OscillatorSettings::intensity, 0.9, HarmonicParity::Even);
 }
 
 bool SimplePreset::ScaleIntensityUpOdd()
 {
-  return ScaleIntensities(mOscillatorSettings, 1.1, HarmonicParity::Odd);
+  return ScaleParameters(mOscillatorSettings, &OscillatorSettings::intensity, 1.1, HarmonicParity::Odd);
 }
 
 bool SimplePreset::ScaleIntensityDownOdd()
 {
-  return ScaleIntensities(mOscillatorSettings, 0.9, HarmonicParity::Odd);
+  return ScaleParameters(mOscillatorSettings, &OscillatorSettings::intensity, 0.9, HarmonicParity::Odd);
+}
+
+bool SimplePreset::ScaleBreathPowerUp()
+{
+  return ScaleParameters(
+    mOscillatorSettings,
+    &OscillatorSettings::breath_power,
+    1.1,
+    HarmonicParity::All,
+    kBreathPowerMin,
+    kBreathPowerMax);
+}
+
+bool SimplePreset::ScaleBreathPowerDown()
+{
+  return ScaleParameters(
+    mOscillatorSettings,
+    &OscillatorSettings::breath_power,
+    0.9,
+    HarmonicParity::All,
+    kBreathPowerMin,
+    kBreathPowerMax);
+}
+
+bool SimplePreset::ScaleBreathPowerUpEven()
+{
+  return ScaleParameters(
+    mOscillatorSettings,
+    &OscillatorSettings::breath_power,
+    1.1,
+    HarmonicParity::Even,
+    kBreathPowerMin,
+    kBreathPowerMax);
+}
+
+bool SimplePreset::ScaleBreathPowerDownEven()
+{
+  return ScaleParameters(
+    mOscillatorSettings,
+    &OscillatorSettings::breath_power,
+    0.9,
+    HarmonicParity::Even,
+    kBreathPowerMin,
+    kBreathPowerMax);
+}
+
+bool SimplePreset::ScaleBreathPowerUpOdd()
+{
+  return ScaleParameters(
+    mOscillatorSettings,
+    &OscillatorSettings::breath_power,
+    1.1,
+    HarmonicParity::Odd,
+    kBreathPowerMin,
+    kBreathPowerMax);
+}
+
+bool SimplePreset::ScaleBreathPowerDownOdd()
+{
+  return ScaleParameters(
+    mOscillatorSettings,
+    &OscillatorSettings::breath_power,
+    0.9,
+    HarmonicParity::Odd,
+    kBreathPowerMin,
+    kBreathPowerMax);
 }
 
 bool SimplePreset::SmoothIntensity()

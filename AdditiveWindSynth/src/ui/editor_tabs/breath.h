@@ -45,6 +45,24 @@ inline bool ApplyBreathShape(SimplePreset& preset, const char* shapeName)
   return true;
 }
 
+inline bool ApplyBreathAction(SimplePreset& preset, const char* actionName)
+{
+  if(std::strcmp(actionName, "scale up all") == 0)
+    return preset.ScaleBreathPowerUp();
+  if(std::strcmp(actionName, "scale down all") == 0)
+    return preset.ScaleBreathPowerDown();
+  if(std::strcmp(actionName, "scale up even") == 0)
+    return preset.ScaleBreathPowerUpEven();
+  if(std::strcmp(actionName, "scale down even") == 0)
+    return preset.ScaleBreathPowerDownEven();
+  if(std::strcmp(actionName, "scale up odd") == 0)
+    return preset.ScaleBreathPowerUpOdd();
+  if(std::strcmp(actionName, "scale down odd") == 0)
+    return preset.ScaleBreathPowerDownOdd();
+
+  return false;
+}
+
 inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
 {
   descriptors.push_back({
@@ -57,7 +75,7 @@ inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& des
 
 inline void ResizeBreathTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 10)
+  if(pTab->NChildren() < 12)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -70,7 +88,7 @@ inline void ResizeBreathTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kBottomPad = 8.f;
   constexpr float kHalfGap = 6.f;
   constexpr float kControlsBlockHeight =
-    (kLabelHeight * 3.f) + (kControlHeight * 3.f) + (kGap * 2.f) + (kTightGap * 3.f);
+    (kLabelHeight * 4.f) + (kControlHeight * 4.f) + (kGap * 3.f) + (kTightGap * 4.f);
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
@@ -107,6 +125,10 @@ inline void ResizeBreathTabPage(IContainerBase* pTab, const IRECT& r)
   auto setShapeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
   y += kLabelHeight + kTightGap;
   auto setShapeBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+  y += kControlHeight + kGap;
+  auto actionsLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+  y += kLabelHeight + kTightGap;
+  auto actionsBounds = IRECT(rowL, y, rowR, y + kControlHeight);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
@@ -116,8 +138,10 @@ inline void ResizeBreathTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformBounds);
   pTab->GetChild(6)->SetTargetAndDrawRECTs(setShapeLabelBounds);
   pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void AttachBreathTabChildren(IVTabPage* page,
@@ -170,7 +194,26 @@ inline void AttachBreathTabChildren(IVTabPage* page,
       });
   });
 
+  auto* actionsControl = new ActionSelectionControl(
+    IRECT(),
+    "run action",
+    {"scale up all", "scale down all", "scale up even", "scale down even", "scale up odd", "scale down odd"},
+    styles.utilityDropdownText,
+    styles.darkTab);
+  actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
+    if(!selectedText)
+      return;
+
+    context->ApplyOscillatorParameterActionToSelectedKeyNote(
+      sliderControl,
+      OscillatorParameter::breath_power,
+      [selectedText](SimplePreset& preset) {
+        return ApplyBreathAction(preset, selectedText);
+      });
+  });
+
   *context->breathTab.setShapeControl = setShapeControl;
+  *context->breathTab.actionsControl = actionsControl;
 
   page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
@@ -180,6 +223,8 @@ inline void AttachBreathTabChildren(IVTabPage* page,
   page->AddChildControl(yTransformControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(setShapeControl);
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(actionsControl);
   page->AddChildControl(restoreButton);
   page->AddChildControl(sliderControl);
 }

@@ -111,6 +111,12 @@ public:
   bool ScaleIntensityDownEven();
   bool ScaleIntensityUpOdd();
   bool ScaleIntensityDownOdd();
+  bool ScaleBreathPowerUp();
+  bool ScaleBreathPowerDown();
+  bool ScaleBreathPowerUpEven();
+  bool ScaleBreathPowerDownEven();
+  bool ScaleBreathPowerUpOdd();
+  bool ScaleBreathPowerDownOdd();
   bool SmoothIntensity();
   bool ZeroEvenIntensities();
   bool ZeroOddIntensities();
