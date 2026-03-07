@@ -12,15 +12,15 @@ inline double GetLevelPseudoLogRolloffIntensity(int oscillatorIndex)
   return transformations::NormalizedExp(displayRampValue, transformations::GetGlobalPseudoLogShapeValue());
 }
 
-inline bool IsPowerOfTwo(int value)
-{
-  return value > 0 && (value & (value - 1)) == 0;
-}
-
 template <std::size_t N>
 inline bool IsListedHarmonic(int harmonicIndex, const std::array<int, N>& harmonics)
 {
   return std::binary_search(harmonics.begin(), harmonics.end(), harmonicIndex);
+}
+
+inline bool IsOctavesHarmonic(int harmonicIndex)
+{
+  return harmonicIndex > 0 && (harmonicIndex & (harmonicIndex - 1)) == 0;
 }
 
 inline bool IsOctavesAndFifthsHarmonic(int harmonicIndex)
@@ -92,19 +92,31 @@ inline bool TryGetLevelShapeIntensity(const char* shapeName, int oscillatorIndex
 
   if(std::strcmp(shapeName, "octaves") == 0)
   {
-    intensity = IsPowerOfTwo(harmonicIndex) ? 1.0 : 0.0;
+    intensity = IsOctavesHarmonic(harmonicIndex) ? 1.0 : 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "octaves+fifths") == 0)
   {
-    intensity = IsOctavesAndFifthsHarmonic(harmonicIndex) ? 1.0 : 0.0;
+    if (IsOctavesHarmonic(harmonicIndex))
+      intensity = 1.0;
+    else if (IsOctavesAndFifthsHarmonic(harmonicIndex))
+      intensity = 0.5;
+    else
+      intensity = 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "octaves+fifths+thirds") == 0)
   {
-    intensity = IsOctavesFifthsAndThirdsHarmonic(harmonicIndex) ? 1.0 : 0.0;
+    if (IsOctavesHarmonic(harmonicIndex))
+      intensity = 1.0;
+    else if (IsOctavesAndFifthsHarmonic(harmonicIndex))
+      intensity = 0.5;
+    else if (IsOctavesFifthsAndThirdsHarmonic(harmonicIndex))
+      intensity = 0.25;
+    else
+      intensity = 0.0;
     return true;
   }
 
