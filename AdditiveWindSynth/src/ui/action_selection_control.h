@@ -62,7 +62,7 @@ public:
 
     if(selectedText && mPersistentSelection)
       SetStr(selectedText);
-    else
+    else if(!mPersistentSelection)
       SetStr(mDefaultText.Get());
 
     if(!mPersistentSelection)

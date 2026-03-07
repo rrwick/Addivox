@@ -97,6 +97,8 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
 
   if(descriptor.parameter == OscillatorParameter::intensity)
     AttachLevelTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+  else if(descriptor.parameter == OscillatorParameter::breath_power)
+    AttachBreathTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
   else
     AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
 
@@ -107,11 +109,17 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
                                           const EditorStyles& styles,
                                           const OscillatorTabDescriptor& descriptor)
 {
+  auto resizeFunc = ResizeDefaultOscillatorTabPage;
+  if(descriptor.parameter == OscillatorParameter::intensity)
+    resizeFunc = ResizeLevelTabPage;
+  else if(descriptor.parameter == OscillatorParameter::breath_power)
+    resizeFunc = ResizeBreathTabPage;
+
   return new EditorOscillatorTabPage(
     [context, styles, descriptor](IVTabPage* page, const IRECT&) {
       AttachOscillatorTabChildren(page, context, styles, descriptor);
     },
-    descriptor.parameter == OscillatorParameter::intensity ? ResizeLevelTabPage : ResizeDefaultOscillatorTabPage,
+    resizeFunc,
     [context, descriptor](bool isVisible) {
       auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
       if(!control)
@@ -176,6 +184,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
+  context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
   context->oscillatorTabControls.sliderControls =
     std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.sliderControls->fill(nullptr);
@@ -190,6 +199,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorTabControls.restoreButtons->fill(nullptr);
   context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->buttons.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->buttons.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
 

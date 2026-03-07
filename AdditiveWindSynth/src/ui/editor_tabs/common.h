@@ -134,6 +134,12 @@ struct LevelTabRefs
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
+struct BreathTabRefs
+{
+  std::shared_ptr<EditorLevelTransform> breathTransform;
+  std::shared_ptr<ActionSelectionControl*> setShapeControl;
+};
+
 struct OscillatorTabControlRefs
 {
   std::shared_ptr<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>> sliderControls;
@@ -154,6 +160,7 @@ struct EditorContext
   EditorModelRefs model;
   OscillatorViewRefs oscillatorView;
   LevelTabRefs levelTab;
+  BreathTabRefs breathTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
 
@@ -326,6 +333,7 @@ struct EditorContext
 
       SetDisabledState(*levelTab.setShapeControl, true);
       SetDisabledState(*levelTab.actionsControl, true);
+      SetDisabledState(*breathTab.setShapeControl, true);
       return;
     }
 
@@ -336,6 +344,7 @@ struct EditorContext
 
     SetDisabledState(*levelTab.setShapeControl, !editable);
     SetDisabledState(*levelTab.actionsControl, !editable);
+    SetDisabledState(*breathTab.setShapeControl, !editable);
 
     for(const auto& descriptor : GetOscillatorTabDescriptors())
     {
@@ -361,7 +370,9 @@ struct EditorContext
   }
 
   template <typename Action>
-  void ApplyLevelActionToSelectedKeyNote(OscillatorSliderControl* control, Action&& action) const
+  void ApplyOscillatorParameterActionToSelectedKeyNote(OscillatorSliderControl* control,
+                                                       OscillatorParameter parameter,
+                                                       Action&& action) const
   {
     const int midiNote = SelectedMidiNote();
     const SimplePreset* keyNotePreset = Preset().GetKeyNotePreset(midiNote);
@@ -369,15 +380,18 @@ struct EditorContext
       return;
 
     SimplePreset updatedPreset = *keyNotePreset;
-    if(!action(updatedPreset))
+    if(!std::forward<Action>(action)(updatedPreset))
       return;
 
     std::array<double, SimplePreset::kNumOscillators> values{};
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-      values[static_cast<std::size_t>(oscillatorIndex)] = updatedPreset.GetOscillatorSettings(oscillatorIndex).intensity;
+    {
+      values[static_cast<std::size_t>(oscillatorIndex)] =
+        updatedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+    }
 
     Preset().SetKeyNotePreset(midiNote, updatedPreset);
-    SendOscillatorParameterValuesToDSP(control, midiNote, OscillatorParameter::intensity, values);
+    SendOscillatorParameterValuesToDSP(control, midiNote, parameter, values);
     RefreshOscillatorTabs();
   }
 };
@@ -475,6 +489,8 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   config.range = descriptor.range;
   if(descriptor.parameter == OscillatorParameter::intensity)
     config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
+  else if(descriptor.parameter == OscillatorParameter::breath_power)
+    config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);
   control->SetConfig(config);
   control->SetVisibleOscillatorRange(context->XRangeMin(), context->XRangeMax());
   control->SetOnOscillatorValueChanged(

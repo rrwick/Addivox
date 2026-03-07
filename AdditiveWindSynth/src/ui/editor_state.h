@@ -22,6 +22,7 @@ struct EditorState
   int oscillatorXRangeMin{1};
   int oscillatorXRangeMax{SimplePreset::kNumOscillators};
   EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
+  EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui
