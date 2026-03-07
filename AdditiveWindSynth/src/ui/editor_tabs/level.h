@@ -218,28 +218,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
 
-  auto* yTransformControl = new ActionSelectionControl(
-    IRECT(),
-    GetLevelTransformLabel(*context->levelTab.levelTransform),
-    {"linear", "square root", "pseudo-log"},
-    styles.utilityDropdownText,
-    styles.darkTab,
-    true);
-  yTransformControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if(!selectedText)
-      return;
-
-    if(std::strcmp(selectedText, "square root") == 0)
-      *context->levelTab.levelTransform = EditorLevelTransform::SquareRoot;
-    else if(std::strcmp(selectedText, "pseudo-log") == 0)
-      *context->levelTab.levelTransform = EditorLevelTransform::PseudoLog;
-    else
-      *context->levelTab.levelTransform = EditorLevelTransform::Linear;
-
-    auto config = sliderControl->GetConfig();
-    config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
-    sliderControl->SetConfig(config);
-  });
+  auto* yTransformControl = CreateYTransformControl(context->levelTab.levelTransform, sliderControl, styles);
 
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(), "choose shape", {"sine", "saw", "square", "triangle", "flat", "rolloff", "rolloff odd", "octaves", "octaves+fifths", "octaves+fifths+thirds"}, styles.utilityDropdownText, styles.darkTab);

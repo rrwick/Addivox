@@ -23,6 +23,8 @@ struct EditorState
   int oscillatorXRangeMax{SimplePreset::kNumOscillators};
   EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
   EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
+  EditorLevelTransform attackTransform{EditorLevelTransform::Linear};
+  EditorLevelTransform releaseTransform{EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui

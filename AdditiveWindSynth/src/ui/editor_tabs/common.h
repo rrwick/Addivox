@@ -111,6 +111,40 @@ inline int RoundOscillatorRangeValue(double value)
   return std::clamp(static_cast<int>(std::lround(value)), 1, SimplePreset::kNumOscillators);
 }
 
+inline ActionSelectionControl* CreateYTransformControl(const std::shared_ptr<EditorLevelTransform>& transform,
+                                                       OscillatorSliderControl* sliderControl,
+                                                       const EditorStyles& styles)
+{
+  auto* control = new ActionSelectionControl(
+    IRECT(),
+    GetLevelTransformLabel(*transform),
+    {"linear", "square root", "pseudo-log"},
+    styles.utilityDropdownText,
+    styles.darkTab,
+    true);
+  control->SetOnSelection([transform, sliderControl](const char* selectedText) {
+    if(!selectedText)
+      return;
+
+    if(std::strcmp(selectedText, "square root") == 0)
+      *transform = EditorLevelTransform::SquareRoot;
+    else if(std::strcmp(selectedText, "pseudo-log") == 0)
+      *transform = EditorLevelTransform::PseudoLog;
+    else
+      *transform = EditorLevelTransform::Linear;
+
+    auto config = sliderControl->GetConfig();
+    config.transform = GetSliderValueTransform(*transform);
+    sliderControl->SetConfig(config);
+  });
+  return control;
+}
+
+inline std::size_t GetAttackReleaseTabIndex(OscillatorParameter parameter)
+{
+  return parameter == OscillatorParameter::release ? 1u : 0u;
+}
+
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
 
 struct EditorModelRefs
@@ -141,6 +175,14 @@ struct BreathTabRefs
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
+struct AttackReleaseTabRefs
+{
+  std::shared_ptr<EditorLevelTransform> attackTransform;
+  std::shared_ptr<EditorLevelTransform> releaseTransform;
+  std::shared_ptr<std::array<ActionSelectionControl*, 2>> setShapeControls;
+  std::shared_ptr<std::array<ActionSelectionControl*, 2>> actionsControls;
+};
+
 struct OscillatorTabControlRefs
 {
   std::shared_ptr<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>> sliderControls;
@@ -162,6 +204,7 @@ struct EditorContext
   OscillatorViewRefs oscillatorView;
   LevelTabRefs levelTab;
   BreathTabRefs breathTab;
+  AttackReleaseTabRefs attackReleaseTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
 
@@ -336,6 +379,10 @@ struct EditorContext
       SetDisabledState(*levelTab.actionsControl, true);
       SetDisabledState(*breathTab.setShapeControl, true);
       SetDisabledState(*breathTab.actionsControl, true);
+      for(auto* control : *attackReleaseTab.setShapeControls)
+        SetDisabledState(control, true);
+      for(auto* control : *attackReleaseTab.actionsControls)
+        SetDisabledState(control, true);
       return;
     }
 
@@ -348,6 +395,10 @@ struct EditorContext
     SetDisabledState(*levelTab.actionsControl, !editable);
     SetDisabledState(*breathTab.setShapeControl, !editable);
     SetDisabledState(*breathTab.actionsControl, !editable);
+    for(auto* control : *attackReleaseTab.setShapeControls)
+      SetDisabledState(control, !editable);
+    for(auto* control : *attackReleaseTab.actionsControls)
+      SetDisabledState(control, !editable);
 
     for(const auto& descriptor : GetOscillatorTabDescriptors())
     {
@@ -494,6 +545,10 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
     config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
   else if(descriptor.parameter == OscillatorParameter::breath_power)
     config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);
+  else if(descriptor.parameter == OscillatorParameter::attack)
+    config.transform = GetSliderValueTransform(*context->attackReleaseTab.attackTransform);
+  else if(descriptor.parameter == OscillatorParameter::release)
+    config.transform = GetSliderValueTransform(*context->attackReleaseTab.releaseTransform);
   control->SetConfig(config);
   control->SetVisibleOscillatorRange(context->XRangeMin(), context->XRangeMax());
   control->SetOnOscillatorValueChanged(

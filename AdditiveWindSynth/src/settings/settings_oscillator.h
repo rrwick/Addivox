@@ -111,6 +111,9 @@ public:
   bool ScaleIntensityDownEven();
   bool ScaleIntensityUpOdd();
   bool ScaleIntensityDownOdd();
+  bool ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
+  bool ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
+  bool ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
   bool ScaleBreathPowerUp();
   bool ScaleBreathPowerDown();
   bool ScaleBreathPowerUpEven();

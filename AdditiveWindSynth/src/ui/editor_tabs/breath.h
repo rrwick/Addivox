@@ -153,28 +153,7 @@ inline void AttachBreathTabChildren(IVTabPage* page,
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
 
-  auto* yTransformControl = new ActionSelectionControl(
-    IRECT(),
-    GetLevelTransformLabel(*context->breathTab.breathTransform),
-    {"linear", "square root", "pseudo-log"},
-    styles.utilityDropdownText,
-    styles.darkTab,
-    true);
-  yTransformControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if(!selectedText)
-      return;
-
-    if(std::strcmp(selectedText, "square root") == 0)
-      *context->breathTab.breathTransform = EditorLevelTransform::SquareRoot;
-    else if(std::strcmp(selectedText, "pseudo-log") == 0)
-      *context->breathTab.breathTransform = EditorLevelTransform::PseudoLog;
-    else
-      *context->breathTab.breathTransform = EditorLevelTransform::Linear;
-
-    auto config = sliderControl->GetConfig();
-    config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);
-    sliderControl->SetConfig(config);
-  });
+  auto* yTransformControl = CreateYTransformControl(context->breathTab.breathTransform, sliderControl, styles);
 
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(),
