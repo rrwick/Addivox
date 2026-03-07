@@ -92,8 +92,7 @@ inline void ResizeBreathTabPage(IContainerBase* pTab, const IRECT& r)
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-  auto sliderBounds = innerBounds;
-  sliderBounds.L += kLeftInset;
+  const auto sliderBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
 
   const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
   auto restoreButtonBounds = IRECT(

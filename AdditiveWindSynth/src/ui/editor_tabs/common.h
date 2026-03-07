@@ -456,6 +456,19 @@ struct XRangeControls
   IVNumberBoxControl* maxControl{};
 };
 
+inline IRECT GetOscillatorSliderBounds(IContainerBase* pTab, const IRECT& r, float leftInset)
+{
+  constexpr float kColumnControlInset = 8.f;
+  constexpr float kOuterInset = 2.f;
+
+  const float padding = static_cast<float>(pTab->As<IVTabPage>()->GetPadding());
+  return IRECT(
+    r.L + padding + leftInset - kColumnControlInset,
+    r.T + kOuterInset,
+    r.R - kOuterInset,
+    r.B - kOuterInset);
+}
+
 inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
 {
   if(pTab->NChildren() < 6)
@@ -487,8 +500,7 @@ inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
   auto xRangeLabelBounds = IRECT(rowL, controlsTop, rowR, controlsTop + kLabelHeight);
   auto xRangeMinBounds = IRECT(rowL, xRangeLabelBounds.B + kTightGap, rowMid - kHalfGap * 0.5f, xRangeLabelBounds.B + kTightGap + kControlHeight);
   auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
-  auto sliderBounds = innerBounds;
-  sliderBounds.L += kLeftInset;
+  const auto sliderBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);

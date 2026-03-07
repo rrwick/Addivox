@@ -1,10 +1,12 @@
 #pragma once
 
 #include "IControls.h"
+#include "colour.h"
 #include "transformations.h"
 #include "../settings/settings_oscillator.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -151,10 +153,46 @@ public:
     return mRestoreState;
   }
 
+  void OnResize() override
+  {
+    Base::OnResize();
+
+    const float readoutBandHeight = GetReadoutBandHeight();
+    if(readoutBandHeight <= 0.f)
+      return;
+
+    IRECT plotBounds = mWidgetBounds.GetReducedFromTop(readoutBandHeight).GetReducedFromBottom(readoutBandHeight);
+    const float sidePadding = 15.f;
+    mWidgetBounds = plotBounds.GetReducedFromLeft(sidePadding).GetReducedFromRight(sidePadding);
+    MakeTrackRects(mWidgetBounds);
+    MakeStepRects(mWidgetBounds, mNSteps);
+    SetDirty(false);
+  }
+
+  void DrawWidget(IGraphics& g) override
+  {
+    Base::DrawWidget(g);
+
+    const int oscillatorIndex = GetReadoutOscillatorIndex();
+    if(oscillatorIndex < 0)
+      return;
+
+    DrawOscillatorReadout(g, oscillatorIndex);
+  }
+
 private:
+  static constexpr float kReadoutMaxBandHeight = 16.f;
+  static constexpr float kReadoutMinBandHeight = 8.f;
+  static constexpr float kReadoutTextWidth = 72.f;
+
   static double Clamp01(double value)
   {
     return std::clamp(value, 0.0, 1.0);
+  }
+
+  float GetReadoutBandHeight() const
+  {
+    return std::clamp(mRECT.H() * 0.06f, kReadoutMinBandHeight, kReadoutMaxBandHeight);
   }
 
   double ToControlValue(double normalizedValue) const
@@ -215,6 +253,85 @@ private:
       SetBaseValue(ToControlValue(Normalize(0.0)));
     else
       SetBaseValue(0.0);
+  }
+
+  int GetReadoutOscillatorIndex() const
+  {
+    if(IsVisibleOscillatorIndex(mMouseOverTrack))
+      return mMouseOverTrack;
+
+    if(IsVisibleOscillatorIndex(mHighlightedTrack))
+      return mHighlightedTrack;
+
+    return -1;
+  }
+
+  bool IsVisibleOscillatorIndex(int oscillatorIndex) const
+  {
+    return oscillatorIndex >= 0
+      && oscillatorIndex < NVals()
+      && !mTrackBounds.Get()[oscillatorIndex].Empty();
+  }
+
+  void DrawOscillatorReadout(IGraphics& g, int oscillatorIndex) const
+  {
+    const IRECT& trackBounds = mTrackBounds.Get()[oscillatorIndex];
+    if(trackBounds.Empty())
+      return;
+
+    const float readoutBandHeight = std::max(0.f, GetReadoutBandHeight());
+    if(readoutBandHeight <= 0.f)
+      return;
+
+    const float centerX = trackBounds.MW();
+    const IRECT topBand = MakeReadoutRect(IRECT(mRECT.L, mRECT.T, mRECT.R, mWidgetBounds.T), centerX);
+    const IRECT bottomBand = MakeReadoutRect(IRECT(mRECT.L, mWidgetBounds.B, mRECT.R, mRECT.B), centerX);
+
+    const WDL_String harmonicNumber = FormatHarmonicNumber(oscillatorIndex);
+    const WDL_String value = FormatOscillatorValue(oscillatorIndex);
+
+    g.DrawText(MakeReadoutText("Roboto-Black", 12.f, EAlign::Center, EVAlign::Bottom), value.Get(), topBand, &mBlend);
+    g.DrawText(MakeReadoutText("Roboto-Black", 12.f, EAlign::Center, EVAlign::Top), harmonicNumber.Get(), bottomBand, &mBlend);
+  }
+
+  IRECT MakeReadoutRect(const IRECT& bandBounds, float centerX) const
+  {
+    const float width = std::min(kReadoutTextWidth, bandBounds.W());
+    const float left = centerX - (width * 0.5f);
+    return IRECT(left, bandBounds.T, left + width, bandBounds.B);
+  }
+
+  IText MakeReadoutText(const char* font, float size, EAlign align, EVAlign valign) const
+  {
+    return IText(size, colour::ui::kValueText, font, align, valign);
+  }
+
+  WDL_String FormatHarmonicNumber(int oscillatorIndex) const
+  {
+    WDL_String text;
+    text.SetFormatted(8, "%d", oscillatorIndex + 1);
+    return text;
+  }
+
+  WDL_String FormatOscillatorValue(int oscillatorIndex) const
+  {
+    const double value = GetOscillatorValue(oscillatorIndex);
+    WDL_String text;
+    const double absValue = std::fabs(value);
+    if(absValue < 1e-12)
+      text.Set("0.0");
+    else if(absValue >= 1.0)
+      text.SetFormatted(16, "%.1f", value);
+    else
+      text.SetFormatted(16, "%.*f", GetSmallValueDecimalDigits(absValue), value);
+
+    return text;
+  }
+
+  static int GetSmallValueDecimalDigits(double absValue)
+  {
+    const int digits = 1 - static_cast<int>(std::floor(std::log10(absValue)));
+    return std::clamp(digits, 1, 5);
   }
 
   void MakeTrackRects(const IRECT& bounds) override
