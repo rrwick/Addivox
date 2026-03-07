@@ -19,8 +19,8 @@ struct EditorState
   int selectedMidiNote{presets::kBrassCompoundPresetKeyNotes[3]};
   bool editMode{false};
   int selectedTabIndex{0};
-  int levelXRangeMin{1};
-  int levelXRangeMax{SimplePreset::kNumOscillators};
+  int oscillatorXRangeMin{1};
+  int oscillatorXRangeMax{SimplePreset::kNumOscillators};
   EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
 };
 

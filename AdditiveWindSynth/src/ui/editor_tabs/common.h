@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -105,6 +106,11 @@ inline void SetDisabledState(IControl* control, bool disabled)
   control->SetDirty(false);
 }
 
+inline int RoundOscillatorRangeValue(double value)
+{
+  return std::clamp(static_cast<int>(std::lround(value)), 1, SimplePreset::kNumOscillators);
+}
+
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
 
 struct EditorModelRefs
@@ -115,10 +121,14 @@ struct EditorModelRefs
   std::shared_ptr<bool> editMode;
 };
 
+struct OscillatorViewRefs
+{
+  std::shared_ptr<int> xRangeMin;
+  std::shared_ptr<int> xRangeMax;
+};
+
 struct LevelTabRefs
 {
-  std::shared_ptr<int> levelXRangeMin;
-  std::shared_ptr<int> levelXRangeMax;
   std::shared_ptr<EditorLevelTransform> levelTransform;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
@@ -127,6 +137,8 @@ struct LevelTabRefs
 struct OscillatorTabControlRefs
 {
   std::shared_ptr<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>> sliderControls;
+  std::shared_ptr<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>> xRangeMinControls;
+  std::shared_ptr<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>> xRangeMaxControls;
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> restoreButtons;
 };
 
@@ -140,6 +152,7 @@ struct EditorContext
 {
   int editorTabsTag = kNoTag;
   EditorModelRefs model;
+  OscillatorViewRefs oscillatorView;
   LevelTabRefs levelTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
@@ -169,10 +182,58 @@ struct EditorContext
     *model.editMode = editMode;
   }
 
+  int XRangeMin() const
+  {
+    return *oscillatorView.xRangeMin;
+  }
+
+  int XRangeMax() const
+  {
+    return *oscillatorView.xRangeMax;
+  }
+
+  void SetXRange(int minOscillator, int maxOscillator) const
+  {
+    *oscillatorView.xRangeMin = minOscillator;
+    *oscillatorView.xRangeMax = maxOscillator;
+  }
+
   bool HasValidSelectedMidiNote() const
   {
     const int midiNote = SelectedMidiNote();
     return midiNote >= CompoundPreset::kMinMidiNote && midiNote <= CompoundPreset::kMaxMidiNote;
+  }
+
+  void ApplyVisibleOscillatorRangeToSliders() const
+  {
+    for(auto* control : *oscillatorTabControls.sliderControls)
+    {
+      if(control)
+        control->SetVisibleOscillatorRange(XRangeMin(), XRangeMax());
+    }
+  }
+
+  void SyncXRangeNumberBoxes() const
+  {
+    const auto setNumberBoxValueSilently = [](IVNumberBoxControl* control, int value) {
+      if(!control || RoundOscillatorRangeValue(control->GetRealValue()) == value)
+        return;
+
+      const auto originalAction = control->GetActionFunction();
+      control->SetActionFunction(nullptr);
+
+      WDL_String textValue;
+      textValue.SetFormatted(16, "%d", value);
+      control->OnTextEntryCompletion(textValue.Get(), 0);
+      control->SetActionFunction(originalAction);
+      control->SetDirty(false);
+    };
+
+    for(std::size_t i = 0; i < oscillatorTabControls.xRangeMinControls->size(); ++i)
+    {
+      setNumberBoxValueSilently((*oscillatorTabControls.xRangeMinControls)[i], XRangeMin());
+      setNumberBoxValueSilently((*oscillatorTabControls.xRangeMaxControls)[i], XRangeMax());
+    }
   }
 
   void SendOscillatorParameterToDSP(IControl* sourceControl,
@@ -247,6 +308,9 @@ struct EditorContext
 
   void RefreshOscillatorTabs() const
   {
+    ApplyVisibleOscillatorRangeToSliders();
+    SyncXRangeNumberBoxes();
+
     if(!HasValidSelectedMidiNote())
     {
       for(std::size_t i = 0; i < oscillatorTabControls.sliderControls->size(); ++i)
@@ -318,34 +382,52 @@ struct EditorContext
   }
 };
 
+struct XRangeControls
+{
+  IVNumberBoxControl* minControl{};
+  IVNumberBoxControl* maxControl{};
+};
+
 inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 3)
+  if(pTab->NChildren() < 6)
     return;
 
   constexpr float kLeftInset = 104.f;
+  constexpr float kLabelHeight = 14.f;
+  constexpr float kControlHeight = 24.f;
+  constexpr float kDescriptionHeight = 64.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kBottomPad = 8.f;
-  constexpr float kGap = 8.f;
+  constexpr float kTightGap = 4.f;
+  constexpr float kHalfGap = 6.f;
+  constexpr float kXRangeBlockHeight = kLabelHeight + kTightGap + kControlHeight;
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-  auto restoreButtonBounds = IRECT(
-    leftColumnBounds.L + 8.f,
-    leftColumnBounds.B - (kButtonHeight + kBottomPad),
-    leftColumnBounds.R - 8.f,
-    leftColumnBounds.B - kBottomPad);
+  const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
+  auto restoreButtonBounds = IRECT(leftColumnBounds.L + 8.f, restoreTop, leftColumnBounds.R - 8.f, leftColumnBounds.B - kBottomPad);
   auto descriptionBounds = IRECT(
     leftColumnBounds.L + 4.f,
     leftColumnBounds.T + 2.f,
     leftColumnBounds.R - 4.f,
-    restoreButtonBounds.T - kGap);
+    leftColumnBounds.T + 2.f + kDescriptionHeight);
+  const float controlsTop = std::min(descriptionBounds.B, restoreTop - kXRangeBlockHeight);
+  const float rowL = leftColumnBounds.L + 8.f;
+  const float rowR = leftColumnBounds.R - 8.f;
+  const float rowMid = (rowL + rowR) * 0.5f;
+  auto xRangeLabelBounds = IRECT(rowL, controlsTop, rowR, controlsTop + kLabelHeight);
+  auto xRangeMinBounds = IRECT(rowL, xRangeLabelBounds.B + kTightGap, rowMid - kHalfGap * 0.5f, xRangeLabelBounds.B + kTightGap + kControlHeight);
+  auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
   auto sliderBounds = innerBounds;
   sliderBounds.L += kLeftInset;
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMinBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context,
@@ -394,6 +476,7 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   if(descriptor.parameter == OscillatorParameter::intensity)
     config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
   control->SetConfig(config);
+  control->SetVisibleOscillatorRange(context->XRangeMin(), context->XRangeMax());
   control->SetOnOscillatorValueChanged(
     [context, control, descriptor](int oscillatorIndex, double value) {
       if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
@@ -413,6 +496,58 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
       context->RefreshOscillatorTabs();
     });
   return control;
+}
+
+inline XRangeControls CreateXRangeControls(const std::shared_ptr<EditorContext>& context,
+                                           const OscillatorTabDescriptor& descriptor,
+                                           const EditorStyles& styles)
+{
+  auto* minControl = new IVNumberBoxControl(
+    IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
+    static_cast<double>(context->XRangeMin()), 1.0, static_cast<double>(SimplePreset::kNumOscillators), "%0.0f", false);
+  auto* maxControl = new IVNumberBoxControl(
+    IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
+    static_cast<double>(context->XRangeMax()), 1.0, static_cast<double>(SimplePreset::kNumOscillators), "%0.0f", false);
+  minControl->SetDrawTriangle(false);
+  maxControl->SetDrawTriangle(false);
+
+  auto rangeGuard = std::make_shared<bool>(false);
+  const auto clampEditedControl = [rangeGuard, minControl, maxControl](IVNumberBoxControl* editedControl) {
+    if(*rangeGuard)
+      return;
+
+    const double minValue = minControl->GetRealValue();
+    const double maxValue = maxControl->GetRealValue();
+    if(minValue <= maxValue)
+      return;
+
+    *rangeGuard = true;
+    WDL_String textValue;
+    textValue.SetFormatted(16, "%0.0f", editedControl == minControl ? maxValue : minValue);
+    editedControl->OnTextEntryCompletion(textValue.Get(), 0);
+    *rangeGuard = false;
+  };
+  const auto updateVisibleRange = [context, minControl, maxControl]() {
+    context->SetXRange(RoundOscillatorRangeValue(minControl->GetRealValue()),
+                       RoundOscillatorRangeValue(maxControl->GetRealValue()));
+    context->ApplyVisibleOscillatorRangeToSliders();
+    context->SyncXRangeNumberBoxes();
+  };
+
+  minControl->SetActionFunction([clampEditedControl, updateVisibleRange, minControl](IControl*) {
+    clampEditedControl(minControl);
+    updateVisibleRange();
+  });
+  maxControl->SetActionFunction([clampEditedControl, updateVisibleRange, maxControl](IControl*) {
+    clampEditedControl(maxControl);
+    updateVisibleRange();
+  });
+
+  const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+  (*context->oscillatorTabControls.xRangeMinControls)[parameterIndex] = minControl;
+  (*context->oscillatorTabControls.xRangeMaxControls)[parameterIndex] = maxControl;
+  context->SyncXRangeNumberBoxes();
+  return {minControl, maxControl};
 }
 } // namespace editor
 } // namespace plugin_ui

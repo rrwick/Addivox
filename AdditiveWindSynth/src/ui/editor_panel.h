@@ -65,12 +65,17 @@ inline const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors()
 }
 
 inline void AttachDefaultTabChildren(IVTabPage* page,
+                                     const std::shared_ptr<EditorContext>& context,
                                      const EditorStyles& styles,
                                      const OscillatorTabDescriptor& descriptor,
                                      IVButtonControl* restoreButton,
                                      OscillatorSliderControl* sliderControl)
 {
+  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(xRangeControls.minControl);
+  page->AddChildControl(xRangeControls.maxControl);
   page->AddChildControl(restoreButton);
   page->AddChildControl(sliderControl);
 }
@@ -86,14 +91,15 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
   });
 
   auto* sliderControl = CreateOscillatorSliderControl(context, descriptor, styles);
+  const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+  (*context->oscillatorTabControls.sliderControls)[parameterIndex] = sliderControl;
+  (*context->oscillatorTabControls.restoreButtons)[parameterIndex] = restoreButton;
 
   if(descriptor.parameter == OscillatorParameter::intensity)
     AttachLevelTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
   else
-    AttachDefaultTabChildren(page, styles, descriptor, restoreButton, sliderControl);
+    AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
 
-  (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)] = sliderControl;
-  (*context->oscillatorTabControls.restoreButtons)[static_cast<std::size_t>(descriptor.parameter)] = restoreButton;
   context->RefreshOscillatorTabs();
 }
 
@@ -167,12 +173,18 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->model.selectedMidiNote = std::shared_ptr<int>(editorState, &editorState->selectedMidiNote);
   context->model.selectedTabIndex = std::shared_ptr<int>(editorState, &editorState->selectedTabIndex);
   context->model.editMode = std::shared_ptr<bool>(editorState, &editorState->editMode);
-  context->levelTab.levelXRangeMin = std::shared_ptr<int>(editorState, &editorState->levelXRangeMin);
-  context->levelTab.levelXRangeMax = std::shared_ptr<int>(editorState, &editorState->levelXRangeMax);
+  context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
+  context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
   context->oscillatorTabControls.sliderControls =
     std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.sliderControls->fill(nullptr);
+  context->oscillatorTabControls.xRangeMinControls =
+    std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.xRangeMinControls->fill(nullptr);
+  context->oscillatorTabControls.xRangeMaxControls =
+    std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.xRangeMaxControls->fill(nullptr);
   context->oscillatorTabControls.restoreButtons =
     std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.restoreButtons->fill(nullptr);
@@ -181,9 +193,9 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->buttons.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->buttons.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
 
-  *context->levelTab.levelXRangeMin = std::clamp(*context->levelTab.levelXRangeMin, 1, SimplePreset::kNumOscillators);
-  *context->levelTab.levelXRangeMax =
-    std::clamp(*context->levelTab.levelXRangeMax, *context->levelTab.levelXRangeMin, SimplePreset::kNumOscillators);
+  *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePreset::kNumOscillators);
+  *context->oscillatorView.xRangeMax =
+    std::clamp(*context->oscillatorView.xRangeMax, *context->oscillatorView.xRangeMin, SimplePreset::kNumOscillators);
   return context;
 }
 } // namespace editor

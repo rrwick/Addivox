@@ -146,12 +146,14 @@ inline void ResizeLevelTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
-  constexpr float kDescriptionHeight = 96.f;
+  constexpr float kDescriptionHeight = 64.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kGap = 8.f;
   constexpr float kTightGap = 4.f;
   constexpr float kBottomPad = 8.f;
   constexpr float kHalfGap = 6.f;
+  constexpr float kControlsBlockHeight =
+    (kLabelHeight * 4.f) + (kControlHeight * 4.f) + (kGap * 3.f) + (kTightGap * 4.f);
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
@@ -169,9 +171,10 @@ inline void ResizeLevelTabPage(IContainerBase* pTab, const IRECT& r)
     leftColumnBounds.L + 4.f,
     leftColumnBounds.T + 2.f,
     leftColumnBounds.R - 4.f,
-    std::min(leftColumnBounds.T + kDescriptionHeight, restoreTop - (kLabelHeight * 4.f + kControlHeight * 4.f + kGap * 5.f + kTightGap * 4.f)));
+    leftColumnBounds.T + 2.f + kDescriptionHeight);
 
-  float y = descriptionBounds.B + kGap;
+  const float controlsTop = std::min(descriptionBounds.B, restoreTop - kControlsBlockHeight);
+  float y = controlsTop;
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
   const float rowMid = (rowL + rowR) * 0.5f;
@@ -213,45 +216,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
                                    IVButtonControl* restoreButton,
                                    OscillatorSliderControl* sliderControl)
 {
-  auto* xRangeMinControl = new IVNumberBoxControl(
-    IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
-    static_cast<double>(*context->levelTab.levelXRangeMin), 1.0, 100.0, "%0.0f", false);
-  auto* xRangeMaxControl = new IVNumberBoxControl(
-    IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
-    static_cast<double>(*context->levelTab.levelXRangeMax), 1.0, 100.0, "%0.0f", false);
-  xRangeMinControl->SetDrawTriangle(false);
-  xRangeMaxControl->SetDrawTriangle(false);
-
-  auto xRangeConstraintGuard = std::make_shared<bool>(false);
-  const auto updateVisibleOscillatorRange = [context, sliderControl, xRangeMinControl, xRangeMaxControl]() {
-    *context->levelTab.levelXRangeMin = static_cast<int>(xRangeMinControl->GetRealValue());
-    *context->levelTab.levelXRangeMax = static_cast<int>(xRangeMaxControl->GetRealValue());
-    sliderControl->SetVisibleOscillatorRange(*context->levelTab.levelXRangeMin, *context->levelTab.levelXRangeMax);
-  };
-  const auto clampEditedXRange = [xRangeConstraintGuard, xRangeMinControl, xRangeMaxControl](IVNumberBoxControl* editedControl) {
-    if(*xRangeConstraintGuard)
-      return;
-
-    const double minValue = xRangeMinControl->GetRealValue();
-    const double maxValue = xRangeMaxControl->GetRealValue();
-    if(minValue <= maxValue)
-      return;
-
-    *xRangeConstraintGuard = true;
-    WDL_String textValue;
-    textValue.SetFormatted(32, "%0.0f", editedControl == xRangeMinControl ? maxValue : minValue);
-    editedControl->OnTextEntryCompletion(textValue.Get(), 0);
-    *xRangeConstraintGuard = false;
-  };
-  xRangeMinControl->SetActionFunction([clampEditedXRange, updateVisibleOscillatorRange, xRangeMinControl](IControl*) {
-    clampEditedXRange(xRangeMinControl);
-    updateVisibleOscillatorRange();
-  });
-  xRangeMaxControl->SetActionFunction([clampEditedXRange, updateVisibleOscillatorRange, xRangeMaxControl](IControl*) {
-    clampEditedXRange(xRangeMaxControl);
-    updateVisibleOscillatorRange();
-  });
-  updateVisibleOscillatorRange();
+  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
 
   auto* yTransformControl = new ActionSelectionControl(
     IRECT(),
@@ -329,8 +294,8 @@ inline void AttachLevelTabChildren(IVTabPage* page,
 
   page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
-  page->AddChildControl(xRangeMinControl);
-  page->AddChildControl(xRangeMaxControl);
+  page->AddChildControl(xRangeControls.minControl);
+  page->AddChildControl(xRangeControls.maxControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Y transform:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(yTransformControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
