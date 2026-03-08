@@ -29,6 +29,12 @@ inline bool TryGetPitchShapeValue(const char* shapeName, int oscillatorIndex, do
     return true;
   }
 
+  if(std::strcmp(shapeName, "ramp alternating") == 0)
+  {
+    value = ((oscillatorIndex % 2) == 1 ? 1.0 : -1.0) * centsOffset;
+    return true;
+  }
+
   return false;
 }
 
@@ -180,7 +186,7 @@ inline void AttachPitchTabChildren(IVTabPage* page,
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(),
     "choose shape",
-    {"zero", "ramp sharp", "ramp flat"},
+    {"zero", "ramp sharp", "ramp flat", "ramp alternating"},
     styles.utilityDropdownText,
     styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
