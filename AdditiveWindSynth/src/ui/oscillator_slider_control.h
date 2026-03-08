@@ -85,12 +85,12 @@ public:
 
   void SetOscillatorValue(int oscillatorIndex, double value)
   {
-    SetValue(ToControlValue(Normalize(value)), oscillatorIndex);
+    SetValue(ToControlValueFromRangeValue(value), oscillatorIndex);
   }
 
   double GetOscillatorValue(int oscillatorIndex) const
   {
-    return Denormalize(FromControlValue(GetValue(oscillatorIndex)));
+    return FromControlValueToRangeValue(GetValue(oscillatorIndex));
   }
 
   void SetEditable(bool editable)
@@ -190,12 +190,17 @@ private:
     return std::clamp(value, 0.0, 1.0);
   }
 
+  static double ClampSignedUnit(double value)
+  {
+    return std::clamp(value, -1.0, 1.0);
+  }
+
   float GetReadoutBandHeight() const
   {
     return std::clamp(mRECT.H() * 0.06f, kReadoutMinBandHeight, kReadoutMaxBandHeight);
   }
 
-  double ToControlValue(double normalizedValue) const
+  double ApplyTransform(double normalizedValue) const
   {
     const double clamped = Clamp01(normalizedValue);
     switch(mConfig.transform)
@@ -210,7 +215,7 @@ private:
     }
   }
 
-  double FromControlValue(double controlValue) const
+  double InvertTransform(double controlValue) const
   {
     const double clamped = Clamp01(controlValue);
     switch(mConfig.transform)
@@ -219,6 +224,36 @@ private:
         return transformations::NormalizedSquareRootInverse(clamped);
       case ValueTransform::PseudoLog:
         return transformations::NormalizedExp(clamped, transformations::GetGlobalPseudoLogShapeValue());
+      case ValueTransform::Linear:
+      default:
+        return clamped;
+    }
+  }
+
+  double ApplySignedTransform(double normalizedValue) const
+  {
+    const double clamped = ClampSignedUnit(normalizedValue);
+    switch(mConfig.transform)
+    {
+      case ValueTransform::SquareRoot:
+        return transformations::SignedNormalizedSquareRoot(clamped);
+      case ValueTransform::PseudoLog:
+        return transformations::SignedNormalizedExpInverse(clamped, transformations::GetGlobalPseudoLogShapeValue());
+      case ValueTransform::Linear:
+      default:
+        return clamped;
+    }
+  }
+
+  double InvertSignedTransform(double controlValue) const
+  {
+    const double clamped = ClampSignedUnit(controlValue);
+    switch(mConfig.transform)
+    {
+      case ValueTransform::SquareRoot:
+        return transformations::SignedNormalizedSquareRootInverse(clamped);
+      case ValueTransform::PseudoLog:
+        return transformations::SignedNormalizedExp(clamped, transformations::GetGlobalPseudoLogShapeValue());
       case ValueTransform::Linear:
       default:
         return clamped;
@@ -240,17 +275,60 @@ private:
     return mConfig.range.min + (Clamp01(normalizedValue) * range);
   }
 
+  bool UsesMirroredBipolarTransform() const
+  {
+    if(mConfig.range.min >= 0.0 || mConfig.range.max <= 0.0)
+      return false;
+
+    const double minMagnitude = std::fabs(mConfig.range.min);
+    const double maxMagnitude = std::fabs(mConfig.range.max);
+    const double tolerance = std::max({1.0, minMagnitude, maxMagnitude}) * 1.0e-9;
+    return std::fabs(minMagnitude - maxMagnitude) <= tolerance;
+  }
+
+  double GetMirroredBipolarMaxMagnitude() const
+  {
+    return std::max(std::fabs(mConfig.range.min), std::fabs(mConfig.range.max));
+  }
+
+  double ToControlValueFromRangeValue(double value) const
+  {
+    const double clampedValue = std::clamp(value, mConfig.range.min, mConfig.range.max);
+    if(!UsesMirroredBipolarTransform())
+      return ApplyTransform(Normalize(clampedValue));
+
+    const double maxMagnitude = GetMirroredBipolarMaxMagnitude();
+    if(maxMagnitude <= 0.0)
+      return 0.5;
+
+    const double normalizedValue = ClampSignedUnit(clampedValue / maxMagnitude);
+    return 0.5 + (ApplySignedTransform(normalizedValue) * 0.5);
+  }
+
+  double FromControlValueToRangeValue(double controlValue) const
+  {
+    const double clampedControlValue = Clamp01(controlValue);
+    if(!UsesMirroredBipolarTransform())
+      return Denormalize(InvertTransform(clampedControlValue));
+
+    const double maxMagnitude = GetMirroredBipolarMaxMagnitude();
+    if(maxMagnitude <= 0.0)
+      return 0.0;
+
+    const double normalizedValue = InvertSignedTransform((clampedControlValue * 2.0) - 1.0);
+    return std::clamp(normalizedValue * maxMagnitude, mConfig.range.min, mConfig.range.max);
+  }
+
   void HandleSliderValueChanged(int oscillatorIndex, double normalizedValue)
   {
     if(mOnOscillatorValueChanged)
-      mOnOscillatorValueChanged(oscillatorIndex, Denormalize(FromControlValue(normalizedValue)));
+      mOnOscillatorValueChanged(oscillatorIndex, FromControlValueToRangeValue(normalizedValue));
   }
 
   void ApplyBaseValue()
   {
-    const bool bipolarAroundZero = mConfig.range.min < 0.0 && mConfig.range.max > 0.0;
-    if(bipolarAroundZero)
-      SetBaseValue(ToControlValue(Normalize(0.0)));
+    if(mConfig.range.min < 0.0 && mConfig.range.max > 0.0)
+      SetBaseValue(ToControlValueFromRangeValue(0.0));
     else
       SetBaseValue(0.0);
   }

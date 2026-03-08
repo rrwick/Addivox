@@ -25,6 +25,7 @@ struct EditorState
   EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
   EditorLevelTransform attackTransform{EditorLevelTransform::Linear};
   EditorLevelTransform releaseTransform{EditorLevelTransform::Linear};
+  EditorLevelTransform pitchTransform{EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui

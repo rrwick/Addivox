@@ -32,6 +32,18 @@ double transformations::NormalizedSquareRootInverse(double scaledValue)
   return y * y;
 }
 
+double transformations::SignedNormalizedSquareRoot(double normalized)
+{
+  const double x = std::clamp(normalized, -1.0, 1.0);
+  return std::copysign(NormalizedSquareRoot(std::fabs(x)), x);
+}
+
+double transformations::SignedNormalizedSquareRootInverse(double scaledValue)
+{
+  const double y = std::clamp(scaledValue, -1.0, 1.0);
+  return std::copysign(NormalizedSquareRootInverse(std::fabs(y)), y);
+}
+
 iplug::IParam::Shape* transformations::PseudoLogExpShape::Clone() const
 {
   return new PseudoLogExpShape(*this);
@@ -96,6 +108,18 @@ double transformations::NormalizedExpInverse(double scaledValue, double shape)
   const double safeLogInput = std::max(y * denominator, -1.0 + std::numeric_limits<double>::epsilon());
   const double x = std::log1p(safeLogInput) / shape;
   return std::clamp(x, 0.0, 1.0);
+}
+
+double transformations::SignedNormalizedExp(double normalized, double shape)
+{
+  const double x = std::clamp(normalized, -1.0, 1.0);
+  return std::copysign(NormalizedExp(std::fabs(x), shape), x);
+}
+
+double transformations::SignedNormalizedExpInverse(double scaledValue, double shape)
+{
+  const double y = std::clamp(scaledValue, -1.0, 1.0);
+  return std::copysign(NormalizedExpInverse(std::fabs(y), shape), y);
 }
 
 double transformations::GetGlobalPseudoLogShapeValue()

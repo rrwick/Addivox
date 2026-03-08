@@ -102,6 +102,8 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
   else if(descriptor.parameter == OscillatorParameter::attack
        || descriptor.parameter == OscillatorParameter::release)
     AttachAttackReleaseTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+  else if(descriptor.parameter == OscillatorParameter::pitch)
+    AttachPitchTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
   else
     AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
 
@@ -120,6 +122,8 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
   else if(descriptor.parameter == OscillatorParameter::attack
        || descriptor.parameter == OscillatorParameter::release)
     resizeFunc = ResizeAttackReleaseTabPage;
+  else if(descriptor.parameter == OscillatorParameter::pitch)
+    resizeFunc = ResizePitchTabPage;
 
   return new EditorOscillatorTabPage(
     [context, styles, descriptor](IVTabPage* page, const IRECT&) {
@@ -191,6 +195,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
   context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
+  context->pitchTab.pitchTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->pitchTransform);
   context->attackReleaseTab.attackTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->attackTransform);
   context->attackReleaseTab.releaseTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->releaseTransform);
   context->oscillatorTabControls.sliderControls =

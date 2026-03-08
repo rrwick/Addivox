@@ -175,6 +175,11 @@ struct BreathTabRefs
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
+struct PitchTabRefs
+{
+  std::shared_ptr<EditorLevelTransform> pitchTransform;
+};
+
 struct AttackReleaseTabRefs
 {
   std::shared_ptr<EditorLevelTransform> attackTransform;
@@ -204,6 +209,7 @@ struct EditorContext
   OscillatorViewRefs oscillatorView;
   LevelTabRefs levelTab;
   BreathTabRefs breathTab;
+  PitchTabRefs pitchTab;
   AttackReleaseTabRefs attackReleaseTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
@@ -557,6 +563,8 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
     config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
   else if(descriptor.parameter == OscillatorParameter::breath_power)
     config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);
+  else if(descriptor.parameter == OscillatorParameter::pitch)
+    config.transform = GetSliderValueTransform(*context->pitchTab.pitchTransform);
   else if(descriptor.parameter == OscillatorParameter::attack)
     config.transform = GetSliderValueTransform(*context->attackReleaseTab.attackTransform);
   else if(descriptor.parameter == OscillatorParameter::release)
