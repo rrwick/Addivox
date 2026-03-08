@@ -214,6 +214,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->breathTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->pitchTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->pitchTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->attackReleaseTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
   context->attackReleaseTab.setShapeControls->fill(nullptr);
   context->attackReleaseTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();

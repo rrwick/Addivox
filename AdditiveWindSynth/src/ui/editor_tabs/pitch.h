@@ -6,6 +6,88 @@ namespace plugin_ui
 {
 namespace editor
 {
+inline bool TryGetPitchShapeValue(const char* shapeName, int oscillatorIndex, double& value)
+{
+  const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
+  const double centsOffset = harmonicNumber - 1.0;
+
+  if(std::strcmp(shapeName, "zero") == 0)
+  {
+    value = 0.0;
+    return true;
+  }
+
+  if(std::strcmp(shapeName, "ramp sharp") == 0)
+  {
+    value = centsOffset;
+    return true;
+  }
+
+  if(std::strcmp(shapeName, "ramp flat") == 0)
+  {
+    value = -centsOffset;
+    return true;
+  }
+
+  return false;
+}
+
+inline bool ApplyPitchShape(SimplePreset& preset, const char* shapeName)
+{
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    double value = 0.0;
+    if(!TryGetPitchShapeValue(shapeName, oscillatorIndex, value))
+      return false;
+
+    preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, value);
+  }
+
+  return true;
+}
+
+inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName)
+{
+  constexpr double kPitchMin = -100.0;
+  constexpr double kPitchMax = 100.0;
+
+  if(std::strcmp(actionName, "scale up all") == 0)
+    return preset.ScaleOscillatorParameterAll(OscillatorParameter::pitch, 1.1, kPitchMin, kPitchMax);
+  if(std::strcmp(actionName, "scale down all") == 0)
+    return preset.ScaleOscillatorParameterAll(OscillatorParameter::pitch, 0.9, kPitchMin, kPitchMax);
+  if(std::strcmp(actionName, "scale up even") == 0)
+    return preset.ScaleOscillatorParameterEven(OscillatorParameter::pitch, 1.1, kPitchMin, kPitchMax);
+  if(std::strcmp(actionName, "scale down even") == 0)
+    return preset.ScaleOscillatorParameterEven(OscillatorParameter::pitch, 0.9, kPitchMin, kPitchMax);
+  if(std::strcmp(actionName, "scale up odd") == 0)
+    return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pitch, 1.1, kPitchMin, kPitchMax);
+  if(std::strcmp(actionName, "scale down odd") == 0)
+    return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pitch, 0.9, kPitchMin, kPitchMax);
+  if(std::strcmp(actionName, "zero even") == 0)
+  {
+    for(int oscillatorIndex = 1; oscillatorIndex < SimplePreset::kNumOscillators; oscillatorIndex += 2)
+      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, 0.0);
+    return true;
+  }
+  if(std::strcmp(actionName, "zero odd") == 0)
+  {
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; oscillatorIndex += 2)
+      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, 0.0);
+    return true;
+  }
+  if(std::strcmp(actionName, "flip sign") == 0)
+  {
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      const double pitch = preset.GetOscillatorSettings(oscillatorIndex).pitch;
+      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, -pitch);
+    }
+    return true;
+  }
+
+  return false;
+}
+
 inline void AppendPitchTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
 {
   descriptors.push_back({
@@ -18,7 +100,7 @@ inline void AppendPitchTabDescriptors(std::vector<OscillatorTabDescriptor>& desc
 
 inline void ResizePitchTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 8)
+  if(pTab->NChildren() < 12)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -31,7 +113,7 @@ inline void ResizePitchTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kBottomPad = 8.f;
   constexpr float kHalfGap = 6.f;
   constexpr float kControlsBlockHeight =
-    (kLabelHeight * 2.f) + (kControlHeight * 2.f) + kGap + (kTightGap * 2.f);
+    (kLabelHeight * 4.f) + (kControlHeight * 4.f) + (kGap * 3.f) + (kTightGap * 4.f);
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
@@ -63,6 +145,14 @@ inline void ResizePitchTabPage(IContainerBase* pTab, const IRECT& r)
   auto yTransformLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
   y += kLabelHeight + kTightGap;
   auto yTransformBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+  y += kControlHeight + kGap;
+  auto setShapeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+  y += kLabelHeight + kTightGap;
+  auto setShapeBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+  y += kControlHeight + kGap;
+  auto actionsLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
+  y += kLabelHeight + kTightGap;
+  auto actionsBounds = IRECT(rowL, y, rowR, y + kControlHeight);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
@@ -70,8 +160,12 @@ inline void ResizePitchTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
   pTab->GetChild(4)->SetTargetAndDrawRECTs(yTransformLabelBounds);
   pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(setShapeLabelBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void AttachPitchTabChildren(IVTabPage* page,
@@ -83,6 +177,42 @@ inline void AttachPitchTabChildren(IVTabPage* page,
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   auto* yTransformControl = CreateYTransformControl(context->pitchTab.pitchTransform, sliderControl, styles);
+  auto* setShapeControl = new ActionSelectionControl(
+    IRECT(),
+    "choose shape",
+    {"zero", "ramp sharp", "ramp flat"},
+    styles.utilityDropdownText,
+    styles.darkTab);
+  setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
+    if(!selectedText)
+      return;
+
+    context->ApplyOscillatorParameterActionToSelectedKeyNote(
+      sliderControl,
+      OscillatorParameter::pitch,
+      [selectedText](SimplePreset& preset) {
+        return ApplyPitchShape(preset, selectedText);
+      });
+  });
+  auto* actionsControl = new ActionSelectionControl(
+    IRECT(),
+    "run action",
+    {"scale up all", "scale down all", "scale up even", "scale down even", "scale up odd", "scale down odd", "zero even", "zero odd", "flip sign"},
+    styles.utilityDropdownText,
+    styles.darkTab);
+  actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
+    if(!selectedText)
+      return;
+
+    context->ApplyOscillatorParameterActionToSelectedKeyNote(
+      sliderControl,
+      OscillatorParameter::pitch,
+      [selectedText](SimplePreset& preset) {
+        return ApplyPitchAction(preset, selectedText);
+      });
+  });
+  *context->pitchTab.setShapeControl = setShapeControl;
+  *context->pitchTab.actionsControl = actionsControl;
 
   page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
@@ -90,6 +220,10 @@ inline void AttachPitchTabChildren(IVTabPage* page,
   page->AddChildControl(xRangeControls.maxControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Y transform:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(yTransformControl);
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(setShapeControl);
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(actionsControl);
   page->AddChildControl(restoreButton);
   page->AddChildControl(sliderControl);
 }

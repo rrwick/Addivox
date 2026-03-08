@@ -178,6 +178,8 @@ struct BreathTabRefs
 struct PitchTabRefs
 {
   std::shared_ptr<EditorLevelTransform> pitchTransform;
+  std::shared_ptr<ActionSelectionControl*> setShapeControl;
+  std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
 struct AttackReleaseTabRefs
@@ -385,6 +387,8 @@ struct EditorContext
       SetDisabledState(*levelTab.actionsControl, true);
       SetDisabledState(*breathTab.setShapeControl, true);
       SetDisabledState(*breathTab.actionsControl, true);
+      SetDisabledState(*pitchTab.setShapeControl, true);
+      SetDisabledState(*pitchTab.actionsControl, true);
       for(auto* control : *attackReleaseTab.setShapeControls)
         SetDisabledState(control, true);
       for(auto* control : *attackReleaseTab.actionsControls)
@@ -401,6 +405,8 @@ struct EditorContext
     SetDisabledState(*levelTab.actionsControl, !editable);
     SetDisabledState(*breathTab.setShapeControl, !editable);
     SetDisabledState(*breathTab.actionsControl, !editable);
+    SetDisabledState(*pitchTab.setShapeControl, !editable);
+    SetDisabledState(*pitchTab.actionsControl, !editable);
     for(auto* control : *attackReleaseTab.setShapeControls)
       SetDisabledState(control, !editable);
     for(auto* control : *attackReleaseTab.actionsControls)
