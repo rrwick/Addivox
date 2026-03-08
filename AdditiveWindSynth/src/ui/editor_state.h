@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "../settings/presets.h"
 #include "../settings/settings_oscillator.h"
 
@@ -26,6 +28,14 @@ struct EditorState
   EditorLevelTransform attackTransform{EditorLevelTransform::Linear};
   EditorLevelTransform releaseTransform{EditorLevelTransform::Linear};
   EditorLevelTransform pitchTransform{EditorLevelTransform::Linear};
+  EditorLevelTransform panTransform{EditorLevelTransform::Linear};
+  std::array<EditorLevelTransform, 6> variationTransforms{
+    EditorLevelTransform::Linear,
+    EditorLevelTransform::Linear,
+    EditorLevelTransform::Linear,
+    EditorLevelTransform::Linear,
+    EditorLevelTransform::Linear,
+    EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui

@@ -145,6 +145,19 @@ inline std::size_t GetAttackReleaseTabIndex(OscillatorParameter parameter)
   return parameter == OscillatorParameter::release ? 1u : 0u;
 }
 
+inline bool IsVariationParameter(OscillatorParameter parameter)
+{
+  const int index = static_cast<int>(parameter);
+  return index >= static_cast<int>(OscillatorParameter::intensity_variation_amplitude)
+    && index <= static_cast<int>(OscillatorParameter::pan_variation_rate);
+}
+
+inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
+{
+  return static_cast<std::size_t>(
+    static_cast<int>(parameter) - static_cast<int>(OscillatorParameter::intensity_variation_amplitude));
+}
+
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
 
 struct EditorModelRefs
@@ -182,6 +195,20 @@ struct PitchTabRefs
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
+struct PanTabRefs
+{
+  std::shared_ptr<EditorLevelTransform> panTransform;
+  std::shared_ptr<ActionSelectionControl*> setShapeControl;
+  std::shared_ptr<ActionSelectionControl*> actionsControl;
+};
+
+struct VariationTabRefs
+{
+  std::shared_ptr<std::array<EditorLevelTransform, 6>> transforms;
+  std::shared_ptr<std::array<ActionSelectionControl*, 6>> setShapeControls;
+  std::shared_ptr<std::array<ActionSelectionControl*, 6>> actionsControls;
+};
+
 struct AttackReleaseTabRefs
 {
   std::shared_ptr<EditorLevelTransform> attackTransform;
@@ -212,6 +239,8 @@ struct EditorContext
   LevelTabRefs levelTab;
   BreathTabRefs breathTab;
   PitchTabRefs pitchTab;
+  PanTabRefs panTab;
+  VariationTabRefs variationTab;
   AttackReleaseTabRefs attackReleaseTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
@@ -389,6 +418,12 @@ struct EditorContext
       SetDisabledState(*breathTab.actionsControl, true);
       SetDisabledState(*pitchTab.setShapeControl, true);
       SetDisabledState(*pitchTab.actionsControl, true);
+      SetDisabledState(*panTab.setShapeControl, true);
+      SetDisabledState(*panTab.actionsControl, true);
+      for(auto* control : *variationTab.setShapeControls)
+        SetDisabledState(control, true);
+      for(auto* control : *variationTab.actionsControls)
+        SetDisabledState(control, true);
       for(auto* control : *attackReleaseTab.setShapeControls)
         SetDisabledState(control, true);
       for(auto* control : *attackReleaseTab.actionsControls)
@@ -407,6 +442,12 @@ struct EditorContext
     SetDisabledState(*breathTab.actionsControl, !editable);
     SetDisabledState(*pitchTab.setShapeControl, !editable);
     SetDisabledState(*pitchTab.actionsControl, !editable);
+    SetDisabledState(*panTab.setShapeControl, !editable);
+    SetDisabledState(*panTab.actionsControl, !editable);
+    for(auto* control : *variationTab.setShapeControls)
+      SetDisabledState(control, !editable);
+    for(auto* control : *variationTab.actionsControls)
+      SetDisabledState(control, !editable);
     for(auto* control : *attackReleaseTab.setShapeControls)
       SetDisabledState(control, !editable);
     for(auto* control : *attackReleaseTab.actionsControls)
@@ -571,6 +612,10 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
     config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);
   else if(descriptor.parameter == OscillatorParameter::pitch)
     config.transform = GetSliderValueTransform(*context->pitchTab.pitchTransform);
+  else if(descriptor.parameter == OscillatorParameter::pan)
+    config.transform = GetSliderValueTransform(*context->panTab.panTransform);
+  else if(IsVariationParameter(descriptor.parameter))
+    config.transform = GetSliderValueTransform((*context->variationTab.transforms)[GetVariationTabIndex(descriptor.parameter)]);
   else if(descriptor.parameter == OscillatorParameter::attack)
     config.transform = GetSliderValueTransform(*context->attackReleaseTab.attackTransform);
   else if(descriptor.parameter == OscillatorParameter::release)

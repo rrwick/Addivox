@@ -104,6 +104,10 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
     AttachAttackReleaseTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
   else if(descriptor.parameter == OscillatorParameter::pitch)
     AttachPitchTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+  else if(descriptor.parameter == OscillatorParameter::pan)
+    AttachPanTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+  else if(IsVariationParameter(descriptor.parameter))
+    AttachVariationTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
   else
     AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
 
@@ -124,6 +128,10 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
     resizeFunc = ResizeAttackReleaseTabPage;
   else if(descriptor.parameter == OscillatorParameter::pitch)
     resizeFunc = ResizePitchTabPage;
+  else if(descriptor.parameter == OscillatorParameter::pan)
+    resizeFunc = ResizePanTabPage;
+  else if(IsVariationParameter(descriptor.parameter))
+    resizeFunc = ResizeVariationTabPage;
 
   return new EditorOscillatorTabPage(
     [context, styles, descriptor](IVTabPage* page, const IRECT&) {
@@ -196,6 +204,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
   context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
   context->pitchTab.pitchTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->pitchTransform);
+  context->panTab.panTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->panTransform);
+  context->variationTab.transforms = std::shared_ptr<std::array<EditorLevelTransform, 6>>(editorState, &editorState->variationTransforms);
   context->attackReleaseTab.attackTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->attackTransform);
   context->attackReleaseTab.releaseTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->releaseTransform);
   context->oscillatorTabControls.sliderControls =
@@ -216,6 +226,12 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->breathTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->pitchTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->pitchTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->panTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->panTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->variationTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 6>>();
+  context->variationTab.setShapeControls->fill(nullptr);
+  context->variationTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 6>>();
+  context->variationTab.actionsControls->fill(nullptr);
   context->attackReleaseTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
   context->attackReleaseTab.setShapeControls->fill(nullptr);
   context->attackReleaseTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
