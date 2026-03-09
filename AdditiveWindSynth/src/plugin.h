@@ -10,7 +10,15 @@
 #include "ui/editor_state.h"
 #include "visualizer/harmonic_visualizer_sender.h"
 
-const int kNumPresets = 1;
+constexpr int kMaxFactoryPresets = 128;
+
+namespace plugin_ui
+{
+namespace editor
+{
+struct EditorContext;
+} // namespace editor
+} // namespace plugin_ui
 
 #if IPLUG_DSP
 #include "synth/synth_engine.h"
@@ -35,6 +43,11 @@ class AdditiveWindSynth final : public Plugin
 public:
   AdditiveWindSynth(const InstanceInfo& info);
   void SendMidiMsgFromUI(const IMidiMsg& msg) override;
+  bool SerializeState(IByteChunk& chunk) const override;
+  int UnserializeState(const IByteChunk& chunk, int startPos) override;
+  void OnRestoreState() override;
+  void OnUIOpen() override;
+  void OnUIClose() override;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -47,9 +60,13 @@ public:
 #endif
 
 private:
+  void LoadBuiltInPresets();
+  void RefreshEditorUI();
+
   std::array<bool, 128> mActiveUIMIDINotes{};
   int mNumActiveUIMIDINotes{0};
   std::shared_ptr<plugin_ui::EditorState> mEditorState;
+  std::shared_ptr<plugin_ui::editor::EditorContext> mEditorContext;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;

@@ -101,6 +101,7 @@ public:
   explicit SimplePreset(const OscillatorArray& oscillatorSettings);
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
+  const OscillatorArray& GetOscillatorSettingsArray() const;
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   double GetIntensityWaveformRms() const;
@@ -148,6 +149,7 @@ public:
   const OscillatorSettings& GetOscillatorSettings(double midiNote, int oscillatorIndex) const;
   const SimplePreset& GetPresetForMidiNote(double midiNote) const;
   const SimplePreset* GetKeyNotePreset(double midiNote) const;
+  const std::map<int, SimplePreset>& GetKeyNotePresets() const;
   bool HasKeyNotePreset(double midiNote) const;
   int GetNumKeyNotePresets() const;
 

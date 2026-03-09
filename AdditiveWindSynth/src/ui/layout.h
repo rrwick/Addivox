@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IControls.h"
+#include "IVPresetManagerControls.h"
 #include "colour.h"
 #include "control_utils.h"
 #include "layered_svg_knob_control.h"
@@ -92,6 +93,27 @@ inline std::vector<OutMeterLEDRange> MakeOutputMeterLEDRanges()
   }
   return ranges;
 }
+
+class BakedPresetManagerControl final : public IVBakedPresetManagerControl
+{
+public:
+  using IVBakedPresetManagerControl::IVBakedPresetManagerControl;
+
+  void OnAttached() override
+  {
+    IVBakedPresetManagerControl::OnAttached();
+
+    auto* pluginBase = dynamic_cast<IPluginBase*>(GetDelegate());
+    auto* presetNameButton = NChildren() > 2 ? GetChild(2)->As<IVButtonControl>() : nullptr;
+    if(!pluginBase || !presetNameButton || pluginBase->NPresets() == 0)
+      return;
+
+    WDL_String label;
+    const int presetIdx = pluginBase->GetCurrentPresetIdx();
+    label.SetFormatted(32, "Preset %i: %s", presetIdx + 1, pluginBase->GetPresetName(presetIdx));
+    presetNameButton->SetLabelStr(label.Get());
+  }
+};
 
 struct PanelResources
 {
@@ -329,19 +351,23 @@ inline void AttachOutputPanelControls(IGraphics* pGraphics,
 }
 } // namespace layout
 
-inline void AttachMainControls(IGraphics* pGraphics,
-                               const std::shared_ptr<EditorState>& editorState,
-                               int harmonicVisualizerTag,
-                               int editorTabsTag,
-                               int keyboardTag,
-                               int benderTag,
-                               int breathMeterTag,
-                               int outMeterTag)
+inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGraphics,
+                                                                 const std::shared_ptr<EditorState>& editorState,
+                                                                 int harmonicVisualizerTag,
+                                                                 int editorTabsTag,
+                                                                 int keyboardTag,
+                                                                 int benderTag,
+                                                                 int breathMeterTag,
+                                                                 int outMeterTag)
 {
   const layout::PanelResources resources = layout::MakePanelResources(pGraphics);
 
   // Title panel: x=4, y=4, w=840, h=60
-  // TODO: add preset management controls here once implemented.
+  pGraphics->AttachControl(
+    new layout::BakedPresetManagerControl(
+      IRECT::MakeXYWH(528.f, 14.f, 250.f, 42.f),
+      "",
+      theme::PresetManagerStyle()));
 
   // Output meter panel: x=846, y=4, w=240, h=60
   layout::AttachOutputMeterPanel(pGraphics, resources, outMeterTag);
@@ -376,5 +402,7 @@ inline void AttachMainControls(IGraphics* pGraphics,
   
   // Effects panel: x=846, y=376, w=240, h=136
   // TODO: add controls for effects settings here once implemented
+
+  return context;
 }
 } // namespace plugin_ui

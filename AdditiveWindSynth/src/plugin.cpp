@@ -1,14 +1,85 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
+#include "IPlugPaths.h"
 #include "settings/params.h"
+#include "settings/preset_io.h"
 #include "editor_messages.h"
 #include "ui/transformations.h"
 #include "ui/layout.h"
 
 #include <cmath>
 
+namespace
+{
+GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const AdditiveWindSynth& plugin)
+{
+  GlobalVoiceSettings settings{};
+  for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+    global_settings::ApplyParam(paramIdx, plugin.GetParam(paramIdx)->Value(), settings);
+
+  return global_settings::Sanitize(settings);
+}
+
+void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin, const GlobalVoiceSettings& settings)
+{
+  const GlobalVoiceSettings sanitized = global_settings::Sanitize(settings);
+  plugin.GetParam(kParamGlobalLevel)->Set(sanitized.levelScale);
+  plugin.GetParam(kParamGlobalAttackScale)->Set(sanitized.attackScale);
+  plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitized.releaseScale);
+  plugin.GetParam(kParamGlobalPitchShift)->Set(sanitized.pitchOffsetCents);
+  plugin.GetParam(kParamGlobalPanShift)->Set(sanitized.panOffset);
+  plugin.GetParam(kParamGlobalIntensityVariationAmplitudeScale)->Set(sanitized.intensityVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalIntensityVariationRateScale)->Set(sanitized.intensityVariationRateScale);
+  plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitized.pitchVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalPitchVariationRateScale)->Set(sanitized.pitchVariationRateScale);
+  plugin.GetParam(kParamGlobalPanVariationAmplitudeScale)->Set(sanitized.panVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalPanVariationRateScale)->Set(sanitized.panVariationRateScale);
+  plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitized.portamentoTimeAtCC5MinSec);
+  plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitized.portamentoTimeAtCC5MaxSec);
+  plugin.OnParamReset(kPresetRecall);
+}
+
+int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int preferredMidiNote)
+{
+  const auto& keyNotePresets = compoundPreset.GetKeyNotePresets();
+  if(keyNotePresets.empty())
+    return preferredMidiNote;
+
+  auto upper = keyNotePresets.lower_bound(preferredMidiNote);
+  if(upper == keyNotePresets.begin())
+    return upper->first;
+  if(upper == keyNotePresets.end())
+    return std::prev(upper)->first;
+
+  const auto lower = std::prev(upper);
+  return (std::abs(preferredMidiNote - lower->first) <= std::abs(upper->first - preferredMidiNote))
+    ? lower->first
+    : upper->first;
+}
+
+bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chunk)
+{
+  const std::string toml = preset_io::SerializePresetToToml(document);
+  const GlobalVoiceSettings settings = global_settings::Sanitize(document.voiceSettings);
+  return chunk.PutStr(toml.c_str()) > 0
+    && chunk.Put(&settings.levelScale) > 0
+    && chunk.Put(&settings.attackScale) > 0
+    && chunk.Put(&settings.releaseScale) > 0
+    && chunk.Put(&settings.pitchOffsetCents) > 0
+    && chunk.Put(&settings.panOffset) > 0
+    && chunk.Put(&settings.intensityVariationAmplitudeScale) > 0
+    && chunk.Put(&settings.intensityVariationRateScale) > 0
+    && chunk.Put(&settings.pitchVariationAmplitudeScale) > 0
+    && chunk.Put(&settings.pitchVariationRateScale) > 0
+    && chunk.Put(&settings.panVariationAmplitudeScale) > 0
+    && chunk.Put(&settings.panVariationRateScale) > 0
+    && chunk.Put(&settings.portamentoTimeAtCC5MinSec) > 0
+    && chunk.Put(&settings.portamentoTimeAtCC5MaxSec) > 0;
+}
+} // namespace
+
 AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
-: iplug::Plugin(info, MakeConfig(kNumParams, kNumPresets))
+: iplug::Plugin(info, MakeConfig(kNumParams, kMaxFactoryPresets))
 , mEditorState(std::make_shared<plugin_ui::EditorState>())
 {
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
@@ -61,7 +132,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     pGraphics->LoadFont("Roboto-Bold", ROBOTO_BOLD_FN);
     pGraphics->LoadFont("Roboto-Black", ROBOTO_BLACK_FN);
-    plugin_ui::AttachMainControls(
+    mEditorContext = plugin_ui::AttachMainControls(
       pGraphics,
       mEditorState,
       kCtrlTagHarmonicVisualizer,
@@ -76,6 +147,9 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     });
   };
 #endif
+
+  LoadBuiltInPresets();
+  RestorePreset(0);
 }
 
 void AdditiveWindSynth::SendMidiMsgFromUI(const IMidiMsg& msg)
@@ -130,6 +204,57 @@ void AdditiveWindSynth::SendMidiMsgFromUI(const IMidiMsg& msg)
 
   if(releasedActiveUINote && mNumActiveUIMIDINotes == 0)
     sendBreathFromUI(0.0);
+}
+
+bool AdditiveWindSynth::SerializeState(IByteChunk& chunk) const
+{
+  preset_io::PresetDocument document;
+  document.name = GetPresetName(GetCurrentPresetIdx());
+  document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
+  document.compoundPreset = mEditorState->compoundPreset;
+
+  return chunk.PutStr(preset_io::SerializePresetToToml(document).c_str()) > 0
+    && SerializeParams(chunk);
+}
+
+int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
+{
+  WDL_String presetToml;
+  int position = chunk.GetStr(presetToml, startPos);
+  if(position < 0)
+    return position;
+
+  preset_io::PresetDocument document;
+  if(!preset_io::ParsePresetToml(presetToml.Get(), document))
+    return -1;
+
+  mEditorState->compoundPreset = document.compoundPreset;
+  mEditorState->selectedMidiNote = ChooseDefaultSelectedMidiNote(
+    document.compoundPreset,
+    mEditorState->selectedMidiNote);
+
+#if IPLUG_DSP
+  mDSP.SetCompoundPreset(document.compoundPreset);
+#endif
+
+  return UnserializeParams(chunk, position);
+}
+
+void AdditiveWindSynth::OnRestoreState()
+{
+  Plugin::OnRestoreState();
+  RefreshEditorUI();
+}
+
+void AdditiveWindSynth::OnUIOpen()
+{
+  Plugin::OnUIOpen();
+  RefreshEditorUI();
+}
+
+void AdditiveWindSynth::OnUIClose()
+{
+  mEditorContext.reset();
 }
 
 #if IPLUG_DSP
@@ -242,3 +367,64 @@ bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const v
   return false;
 }
 #endif
+
+void AdditiveWindSynth::LoadBuiltInPresets()
+{
+  WDL_String resourcePath;
+  BundleResourcePath(resourcePath, GetBundleID());
+
+  int numLoadedPresets = 0;
+  if(resourcePath.GetLength() > 0)
+  {
+    const auto presetPaths = preset_io::FindPresetFiles(preset_io::detail::JoinPath(resourcePath.Get(), "presets"));
+    for(const auto& presetPath : presetPaths)
+    {
+      preset_io::PresetDocument document;
+      if(!preset_io::LoadPresetFromFile(presetPath, document))
+        continue;
+
+      IByteChunk chunk;
+      if(!BuildPresetChunk(document, chunk))
+        continue;
+
+      const std::string presetName = document.name.empty() ? preset_io::detail::FileStem(presetPath) : document.name;
+      MakePresetFromChunk(presetName.c_str(), chunk);
+      ++numLoadedPresets;
+
+      if(numLoadedPresets >= kMaxFactoryPresets)
+        break;
+    }
+  }
+
+  if(numLoadedPresets == 0)
+  {
+    preset_io::PresetDocument fallbackDocument;
+    fallbackDocument.name = "Init";
+    fallbackDocument.voiceSettings = GlobalVoiceSettings{};
+    fallbackDocument.compoundPreset = CompoundPreset{};
+
+    IByteChunk chunk;
+    if(BuildPresetChunk(fallbackDocument, chunk))
+      MakePresetFromChunk(fallbackDocument.name.c_str(), chunk);
+  }
+
+  PruneUninitializedPresets();
+}
+
+void AdditiveWindSynth::RefreshEditorUI()
+{
+#if IPLUG_EDITOR
+  if(!GetUI() || !mEditorContext)
+    return;
+
+  if(auto* keyboard = plugin_ui::layout::GetKeyboardControl(GetUI(), kCtrlTagKeyboard))
+  {
+    plugin_ui::layout::RefreshKeyboardKeyNoteHighlights(keyboard, mEditorState->compoundPreset);
+    keyboard->SetSelectedMidiNote(mEditorState->selectedMidiNote);
+  }
+
+  mEditorContext->RefreshOscillatorTabs();
+  mEditorContext->RefreshEditorActionButtons();
+  GetUI()->SetAllControlsDirty();
+#endif
+}

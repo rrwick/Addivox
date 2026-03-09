@@ -20,6 +20,7 @@ public:
   void SetBreath(double breath);
   void SetPortamentoControl(double control);
   void SetGlobalVoiceSettings(const GlobalVoiceSettings& settings);
+  void SetCompoundPreset(const CompoundPreset& preset);
   bool AddKeyNotePreset(double midiNote);
   bool RemoveKeyNotePreset(double midiNote);
   bool SetKeyNoteOscillatorParameter(double midiNote,

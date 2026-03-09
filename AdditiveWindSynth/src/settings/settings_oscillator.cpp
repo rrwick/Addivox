@@ -1,7 +1,5 @@
 #include "settings_oscillator.h"
 
-#include "presets.h"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -106,6 +104,18 @@ bool ScaleParameters(SimplePreset::OscillatorArray& oscillatorSettings,
 
   return true;
 }
+
+const SimplePreset& GetDefaultPreset()
+{
+  static const SimplePreset preset = [] {
+    SimplePreset::OscillatorArray oscillatorSettings{};
+    oscillatorSettings.fill(OscillatorSettings{0.0});
+    oscillatorSettings[0] = OscillatorSettings{1.0};
+    return SimplePreset{oscillatorSettings};
+  }();
+
+  return preset;
+}
 } // namespace
 
 const char* OscillatorSettings::GetParameterName(Parameter parameter)
@@ -157,6 +167,11 @@ int SimplePreset::ClampOscillatorIndex(int oscillatorIndex)
 const OscillatorSettings& SimplePreset::GetOscillatorSettings(int oscillatorIndex) const
 {
   return mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)];
+}
+
+const SimplePreset::OscillatorArray& SimplePreset::GetOscillatorSettingsArray() const
+{
+  return mOscillatorSettings;
 }
 
 void SimplePreset::SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings)
@@ -395,6 +410,11 @@ const SimplePreset* CompoundPreset::GetKeyNotePreset(double midiNote) const
   return &keyNoteIt->second;
 }
 
+const std::map<int, SimplePreset>& CompoundPreset::GetKeyNotePresets() const
+{
+  return mKeyNotePresets;
+}
+
 bool CompoundPreset::HasKeyNotePreset(double midiNote) const
 {
   return GetKeyNotePreset(midiNote) != nullptr;
@@ -465,7 +485,7 @@ void CompoundPreset::RebuildInterpolatedPresets()
 {
   if(mKeyNotePresets.empty())
   {
-    mInterpolatedPresets.fill(presets::sine);
+    mInterpolatedPresets.fill(GetDefaultPreset());
     return;
   }
 

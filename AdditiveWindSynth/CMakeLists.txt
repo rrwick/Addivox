@@ -8,6 +8,9 @@ endif()
 include(${IPLUG2_DIR}/iPlug2.cmake)
 find_package(iPlug2 REQUIRED)
 
+file(GLOB BUILTIN_PRESET_RESOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/resources/presets/*.toml")
+
 iplug_add_plugin(${PROJECT_NAME}
   SOURCES
     src/plugin.cpp
@@ -29,7 +32,7 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/oscillator_slider_control.h
     src/synth/midi_synth.h
     src/synth/synth_engine.h
-    src/settings/presets.h
+    src/settings/preset_io.h
     src/ui/layered_svg_knob_control.h
     src/ui/layout.h
     src/ui/theme.h
@@ -38,6 +41,7 @@ iplug_add_plugin(${PROJECT_NAME}
     resources/fonts/Roboto-Regular.ttf
     resources/fonts/Roboto-Bold.ttf
     resources/fonts/Roboto-Black.ttf
+    ${BUILTIN_PRESET_RESOURCES}
     assets/knob.svg
     assets/knob-fixed.svg
     assets/knob-rotating.svg

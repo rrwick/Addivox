@@ -1,13 +1,10 @@
 #include "voice.h"
 
-#include "../settings/presets.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
 
 SynthVoice::SynthVoice()
-: mCompoundPreset(presets::MakeBrassCompoundPreset())
 {
   const uint32_t voiceSeed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
   for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
@@ -99,6 +96,12 @@ void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings)
 {
   mGlobalVoiceSettings = global_settings::Sanitize(settings);
 
+  UpdatePitch();
+}
+
+void SynthVoice::SetCompoundPreset(const CompoundPreset& preset)
+{
+  mCompoundPreset = preset;
   UpdatePitch();
 }
 

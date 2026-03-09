@@ -40,6 +40,11 @@ public:
       mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
   }
 
+  void SetCompoundPreset(const CompoundPreset& preset)
+  {
+    mSynth.GetVoice().SetCompoundPreset(preset);
+  }
+
   bool SetKeyNoteOscillatorParameter(double midiNote,
                                      int oscillatorIndex,
                                      OscillatorSettings::Parameter parameter,

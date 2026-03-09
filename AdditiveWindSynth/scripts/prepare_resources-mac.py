@@ -34,6 +34,11 @@ def copy_resources_to_destination(projectpath, dst, label=""):
       print("copying " + font + " to " + display_dst)
       shutil.copy(projectpath + "/resources/fonts/" + font, dst)
 
+  if os.path.exists(projectpath + "/resources/presets/"):
+    presets_dst = os.path.join(dst, "presets")
+    print("copying presets to " + display_dst)
+    shutil.copytree(projectpath + "/resources/presets/", presets_dst, dirs_exist_ok=True)
+
   if os.path.exists(projectpath + "/assets/"):
     for asset in os.listdir(projectpath + "/assets/"):
       print("copying " + asset + " to " + display_dst)

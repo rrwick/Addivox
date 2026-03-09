@@ -2,7 +2,6 @@
 
 #include <array>
 
-#include "../settings/presets.h"
 #include "../settings/settings_oscillator.h"
 
 namespace plugin_ui
@@ -17,8 +16,8 @@ enum class EditorLevelTransform
 
 struct EditorState
 {
-  CompoundPreset compoundPreset{presets::MakeBrassCompoundPreset()};
-  int selectedMidiNote{presets::kBrassCompoundPresetKeyNotes[3]};
+  CompoundPreset compoundPreset{};
+  int selectedMidiNote{60};
   bool editMode{false};
   int selectedTabIndex{0};
   int oscillatorXRangeMin{1};

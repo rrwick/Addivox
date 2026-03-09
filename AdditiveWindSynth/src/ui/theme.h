@@ -63,6 +63,14 @@ inline IVStyle VizEditButtonStyle()
     .WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
 }
 
+inline IVStyle PresetManagerStyle()
+{
+  return BaseStyle(true, false)
+    .WithLabelText(IText(15.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))
+    .WithColor(kFG, colour::ui::kControlBody)
+    .WithColor(kHL, colour::editor::kHoverOverlay);
+}
+
 inline IVStyle MainPanelModeSwitchStyle()
 {
   return BaseStyle(false, false)
