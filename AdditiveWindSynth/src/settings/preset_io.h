@@ -1,15 +1,19 @@
 #pragma once
 
+#include "IPlugPlatform.h"
+#include "IPlugUtilities.h"
+#include "dirscan.h"
+
 #include "settings_global.h"
 #include "settings_oscillator.h"
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
-#include <dirent.h>
-#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <sstream>
@@ -17,6 +21,10 @@
 #include <string_view>
 #include <sys/stat.h>
 #include <vector>
+
+#if defined(OS_WIN)
+#include <direct.h>
+#endif
 
 namespace preset_io
 {
@@ -365,71 +373,165 @@ inline std::string JoinPath(std::string_view lhs, std::string_view rhs)
     return std::string{lhs};
 
   std::string joined{lhs};
-  if(joined.back() != '/')
+  if(joined.back() != '/' && joined.back() != '\\')
+  {
+#if defined(OS_WIN)
+    joined.push_back('\\');
+#else
     joined.push_back('/');
+#endif
+  }
 
-  if(rhs.front() == '/')
-    joined.append(rhs.substr(1));
-  else
-    joined.append(rhs);
+  std::size_t rhsOffset = 0;
+  while(rhsOffset < rhs.size() && (rhs[rhsOffset] == '/' || rhs[rhsOffset] == '\\'))
+    ++rhsOffset;
+
+  joined.append(rhs.substr(rhsOffset));
 
   return joined;
 }
 
+inline bool IsRootPath(std::string_view path)
+{
+  if(path == "/" || path == "\\")
+    return true;
+
+#if defined(OS_WIN)
+  return path.size() == 3
+    && std::isalpha(static_cast<unsigned char>(path[0]))
+    && path[1] == ':'
+    && (path[2] == '/' || path[2] == '\\');
+#else
+  return false;
+#endif
+}
+
+inline std::string_view TrimTrailingPathSeparators(std::string_view path)
+{
+  while(path.size() > 1 && !IsRootPath(path) && (path.back() == '/' || path.back() == '\\'))
+    path.remove_suffix(1);
+  return path;
+}
+
+inline std::string_view FileNameView(std::string_view path)
+{
+  const std::size_t slashPos = path.find_last_of("/\\");
+  return slashPos == std::string_view::npos ? path : path.substr(slashPos + 1);
+}
+
+inline bool HasExtension(std::string_view path, std::string_view extension)
+{
+  const std::string_view fileName = FileNameView(path);
+  if(fileName.size() < extension.size())
+    return false;
+
+  const std::string_view suffix = fileName.substr(fileName.size() - extension.size());
+  for(std::size_t i = 0; i < extension.size(); ++i)
+  {
+    if(std::tolower(static_cast<unsigned char>(suffix[i]))
+       != std::tolower(static_cast<unsigned char>(extension[i])))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 inline std::string ParentPath(std::string_view path)
 {
-  const std::size_t slashPos = std::string{path}.find_last_of('/');
+  const std::string_view trimmedPath = TrimTrailingPathSeparators(path);
+  if(trimmedPath.empty() || IsRootPath(trimmedPath))
+    return std::string{trimmedPath};
+
+  const std::size_t slashPos = trimmedPath.find_last_of("/\\");
   if(slashPos == std::string::npos)
     return {};
   if(slashPos == 0)
     return "/";
-  return std::string{path.substr(0, slashPos)};
+
+#if defined(OS_WIN)
+  if(slashPos == 2
+     && std::isalpha(static_cast<unsigned char>(trimmedPath[0]))
+     && trimmedPath[1] == ':')
+  {
+    return std::string{trimmedPath.substr(0, 3)};
+  }
+#endif
+
+  return std::string{trimmedPath.substr(0, slashPos)};
 }
 
 inline std::string FileStem(std::string_view path)
 {
-  const std::size_t slashPos = std::string{path}.find_last_of('/');
-  const std::string_view fileName = slashPos == std::string::npos ? path : path.substr(slashPos + 1);
-  const std::size_t dotPos = std::string{fileName}.find_last_of('.');
+  const std::string_view fileName = FileNameView(path);
+  const std::size_t dotPos = fileName.find_last_of('.');
   return dotPos == std::string::npos ? std::string{fileName} : std::string{fileName.substr(0, dotPos)};
 }
 
-inline bool StatPath(std::string_view path, struct stat& info)
+inline bool PathExists(std::string_view path)
 {
+#if defined(OS_WIN)
+  struct _stat info{};
+  return _wstat(UTF8AsUTF16(std::string{path}.c_str()).Get(), &info) == 0;
+#else
+  struct stat info{};
   return ::stat(std::string{path}.c_str(), &info) == 0;
+#endif
 }
 
 inline bool IsDirectory(std::string_view path)
 {
+#if defined(OS_WIN)
+  struct _stat info{};
+  return _wstat(UTF8AsUTF16(std::string{path}.c_str()).Get(), &info) == 0
+    && (info.st_mode & _S_IFDIR) != 0;
+#else
   struct stat info{};
-  return StatPath(path, info) && S_ISDIR(info.st_mode);
+  return ::stat(std::string{path}.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+#endif
 }
 
 inline bool EnsureDirectoryExists(std::string_view path)
 {
-  if(path.empty() || path == "/")
+  const std::string_view trimmedPath = TrimTrailingPathSeparators(path);
+  if(trimmedPath.empty() || IsRootPath(trimmedPath))
     return true;
 
-  if(IsDirectory(path))
+  if(IsDirectory(trimmedPath))
     return true;
 
-  const std::string parent = ParentPath(path);
-  if(!parent.empty() && !EnsureDirectoryExists(parent))
+  const std::string parent = ParentPath(trimmedPath);
+  if(!parent.empty() && parent != std::string{trimmedPath} && !EnsureDirectoryExists(parent))
     return false;
 
-  return ::mkdir(std::string{path}.c_str(), 0755) == 0 || errno == EEXIST;
+  errno = 0;
+#if defined(OS_WIN)
+  return _wmkdir(UTF8AsUTF16(std::string{trimmedPath}.c_str()).Get()) == 0 || errno == EEXIST;
+#else
+  return ::mkdir(std::string{trimmedPath}.c_str(), 0755) == 0 || errno == EEXIST;
+#endif
 }
 
 inline bool ReadTextFile(std::string_view path, std::string& text)
 {
-  std::ifstream stream(std::string{path}, std::ios::binary);
+  text.clear();
+
+#if defined(OS_WIN)
+  FILE* stream = _wfopen(UTF8AsUTF16(std::string{path}.c_str()).Get(), L"rb");
+#else
+  FILE* stream = std::fopen(std::string{path}.c_str(), "rb");
+#endif
   if(!stream)
     return false;
 
-  std::ostringstream buffer;
-  buffer << stream.rdbuf();
-  text = buffer.str();
-  return true;
+  std::array<char, 4096> buffer{};
+  while(const std::size_t bytesRead = std::fread(buffer.data(), 1, buffer.size(), stream))
+    text.append(buffer.data(), bytesRead);
+
+  const bool success = std::ferror(stream) == 0;
+  std::fclose(stream);
+  return success;
 }
 
 inline bool WriteTextFile(std::string_view path, const std::string& text)
@@ -441,12 +543,27 @@ inline bool WriteTextFile(std::string_view path, const std::string& text)
       return false;
   }
 
-  std::ofstream stream(std::string{path}, std::ios::binary);
+#if defined(OS_WIN)
+  FILE* stream = _wfopen(UTF8AsUTF16(std::string{path}.c_str()).Get(), L"wb");
+#else
+  FILE* stream = std::fopen(std::string{path}.c_str(), "wb");
+#endif
   if(!stream)
     return false;
 
-  stream << text;
-  return stream.good();
+  const std::size_t bytesWritten = std::fwrite(text.data(), 1, text.size(), stream);
+  const bool success = bytesWritten == text.size() && std::ferror(stream) == 0;
+  std::fclose(stream);
+  return success;
+}
+
+inline bool DeleteFile(std::string_view path)
+{
+#if defined(OS_WIN)
+  return _wremove(UTF8AsUTF16(std::string{path}.c_str()).Get()) == 0;
+#else
+  return std::remove(std::string{path}.c_str()) == 0;
+#endif
 }
 } // namespace detail
 
@@ -730,32 +847,29 @@ inline bool SavePresetToFile(std::string_view path,
 
 inline void FindPresetFilesRecursive(std::string_view directory, std::vector<std::string>& paths)
 {
-  DIR* dir = opendir(std::string{directory}.c_str());
-  if(!dir)
+  WDL_DirScan scan;
+  if(scan.First(std::string{directory}.c_str()) != 0)
     return;
 
-  while(const dirent* entry = readdir(dir))
+  do
   {
-    const std::string_view entryName = entry->d_name;
-    if(entryName == "." || entryName == "..")
+    const char* entryName = scan.GetCurrentFN();
+    if(!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0)
       continue;
 
-    const std::string childPath = detail::JoinPath(directory, entryName);
-    struct stat info{};
-    if(!detail::StatPath(childPath, info))
-      continue;
-
-    if(S_ISDIR(info.st_mode))
+    WDL_FastString childPath;
+    scan.GetCurrentFullFN(&childPath);
+    const int directoryState = scan.GetCurrentIsDirectory();
+    if(directoryState != 0 && directoryState != 4)
     {
-      FindPresetFilesRecursive(childPath, paths);
+      FindPresetFilesRecursive(childPath.Get(), paths);
       continue;
     }
 
-    if(S_ISREG(info.st_mode) && childPath.size() >= 5 && childPath.substr(childPath.size() - 5) == ".toml")
-      paths.push_back(childPath);
+    if(detail::HasExtension(childPath.Get(), ".toml"))
+      paths.push_back(childPath.Get());
   }
-
-  closedir(dir);
+  while(scan.Next() == 0);
 }
 
 inline std::vector<std::string> FindPresetFiles(std::string_view directory)

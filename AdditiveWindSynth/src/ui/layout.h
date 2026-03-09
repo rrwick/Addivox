@@ -99,6 +99,14 @@ class BakedPresetManagerControl final : public IVBakedPresetManagerControl
 public:
   using IVBakedPresetManagerControl::IVBakedPresetManagerControl;
 
+  void SetPresetLabel(const char* label)
+  {
+    if(!mPresetNameButton)
+      return;
+
+    mPresetNameButton->SetLabelStr((label && label[0] != '\0') ? label : "Choose Preset...");
+  }
+
   void OnAttached() override
   {
     const auto restorePreset = [this](IPluginBase* pluginBase, int presetIdx) {
@@ -199,7 +207,7 @@ private:
     WDL_String label;
     const int presetIdx = pluginBase->GetCurrentPresetIdx();
     label.SetFormatted(32, "%s", pluginBase->GetPresetName(presetIdx));
-    mPresetNameButton->SetLabelStr(label.Get());
+    SetPresetLabel(label.Get());
   }
 
   IRECT GetSubControlBounds(ESubControl control) const
@@ -218,6 +226,50 @@ private:
   IPopupMenu mPresetMenu;
   IVButtonControl* mPresetNameButton = nullptr;
 };
+
+inline void AttachTitlePanelControls(IGraphics* pGraphics,
+                                     const std::shared_ptr<editor::EditorContext>& context)
+{
+  const auto sendPresetFileMessage = [](IControl* caller, int msgTag) {
+    if(!caller)
+      return;
+
+    if(auto* delegate = caller->GetDelegate())
+      delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
+  };
+
+  auto* loadPresetButton = new IVButtonControl(
+    IRECT::MakeXYWH(348.f, 14.f, 80.f, 42.f),
+    SplashClickActionFunc,
+    "Load",
+    theme::PresetActionButtonStyle(),
+    true,
+    false);
+  loadPresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
+    sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
+  });
+
+  auto* savePresetButton = new IVButtonControl(
+    IRECT::MakeXYWH(436.f, 14.f, 80.f, 42.f),
+    SplashClickActionFunc,
+    "Save",
+    theme::PresetActionButtonStyle(),
+    true,
+    false);
+  savePresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
+    sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
+  });
+
+  auto* presetManagerControl = new BakedPresetManagerControl(
+    IRECT::MakeXYWH(528.f, 14.f, 250.f, 42.f),
+    "",
+    theme::PresetManagerStyle());
+
+  pGraphics->AttachControl(loadPresetButton);
+  pGraphics->AttachControl(savePresetButton);
+  pGraphics->AttachControl(presetManagerControl);
+  *context->title.presetManagerControl = presetManagerControl;
+}
 
 struct PanelResources
 {
@@ -465,16 +517,15 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
                                                                  int outMeterTag)
 {
   const layout::PanelResources resources = layout::MakePanelResources(pGraphics);
+  auto context = AttachEditorMainControls(pGraphics, editorState, harmonicVisualizerTag, editorTabsTag, breathMeterTag);
 
   // Title panel: x=4, y=4, w=840, h=60
-  pGraphics->AttachControl(new layout::BakedPresetManagerControl(IRECT::MakeXYWH(528.f, 14.f, 250.f, 42.f), "", theme::PresetManagerStyle()));
+  layout::AttachTitlePanelControls(pGraphics, context);
 
   // Output meter panel: x=846, y=4, w=240, h=60
   layout::AttachOutputMeterPanel(pGraphics, resources, outMeterTag);
 
   // Main panel: x=4, y=66, w=840, h=360
-  auto context = AttachEditorMainControls(pGraphics, editorState, harmonicVisualizerTag, editorTabsTag, breathMeterTag);
-
   // Viz/edit panel: x=4, y=428, w=180, h=84
   const auto vizEditPanel = layout::AttachVizEditPanelControls(
     pGraphics, resources, context, harmonicVisualizerTag, editorTabsTag, keyboardTag, breathMeterTag);

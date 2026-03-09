@@ -10,6 +10,8 @@ inline constexpr int kMsgTagSetKeyNoteOscillatorParameter = 1000;
 inline constexpr int kMsgTagAddKeyNotePreset = 1001;
 inline constexpr int kMsgTagRemoveKeyNotePreset = 1002;
 inline constexpr int kMsgTagSetKeyNoteOscillatorParameterValues = 1003;
+inline constexpr int kMsgTagPromptLoadPresetFromFile = 1004;
+inline constexpr int kMsgTagPromptSavePresetToFile = 1005;
 
 struct SetKeyNoteOscillatorParameterPayload
 {

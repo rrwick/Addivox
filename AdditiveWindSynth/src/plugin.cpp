@@ -7,7 +7,9 @@
 #include "ui/transformations.h"
 #include "ui/layout.h"
 
+#include <cctype>
 #include <cmath>
+#include <cstdlib>
 
 namespace
 {
@@ -75,6 +77,83 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
     && chunk.Put(&settings.panVariationRateScale) > 0
     && chunk.Put(&settings.portamentoTimeAtCC5MinSec) > 0
     && chunk.Put(&settings.portamentoTimeAtCC5MaxSec) > 0;
+}
+
+std::string GetFullFileDialogPath(const WDL_String& fileName)
+{
+  return fileName.GetLength() > 0 ? std::string{fileName.Get()} : std::string{};
+}
+
+std::string EnsureTomlExtension(std::string path)
+{
+  if(preset_io::detail::HasExtension(path, ".toml"))
+    return path;
+
+  path += ".toml";
+  return path;
+}
+
+std::string SanitizePresetFileName(std::string_view presetName)
+{
+  std::string sanitized;
+  sanitized.reserve(presetName.size());
+
+  for(const char c : presetName)
+  {
+    const unsigned char uc = static_cast<unsigned char>(c);
+    if(std::isalnum(uc) || c == ' ' || c == '-' || c == '_')
+      sanitized.push_back(c);
+    else
+      sanitized.push_back('_');
+  }
+
+  while(!sanitized.empty() && (sanitized.back() == ' ' || sanitized.back() == '.'))
+    sanitized.pop_back();
+
+  if(sanitized.empty())
+    sanitized = "Preset";
+
+  return EnsureTomlExtension(sanitized);
+}
+
+std::string GetDefaultUserPresetDirectory()
+{
+  WDL_String appSupportPath;
+  AppSupportPath(appSupportPath, false);
+  if(appSupportPath.GetLength() == 0)
+    return {};
+
+  return preset_io::detail::JoinPath(
+    preset_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME),
+    "Presets");
+}
+
+std::string GetTemporaryDirectoryPath()
+{
+#if defined(OS_WIN)
+  const char* candidates[] = {std::getenv("TEMP"), std::getenv("TMP")};
+#else
+  const char* candidates[] = {std::getenv("TMPDIR"), std::getenv("TEMP"), std::getenv("TMP")};
+#endif
+
+  for(const char* candidate : candidates)
+  {
+    if(candidate && candidate[0] != '\0')
+      return std::string{candidate};
+  }
+
+#if defined(OS_WIN)
+  const std::string fallbackPath = GetDefaultUserPresetDirectory();
+  return fallbackPath.empty() ? "." : fallbackPath;
+#else
+  return "/tmp";
+#endif
+}
+
+void ShowPresetFileError(IGraphics* ui, const char* title, const std::string& message)
+{
+  if(ui)
+    ui->ShowMessageBox(message.c_str(), title, kMB_OK);
 }
 } // namespace
 
@@ -150,6 +229,142 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 
   LoadBuiltInPresets();
   RestorePreset(0);
+  if(mActivePresetDisplayName.empty() && NPresets() > 0)
+    mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
+}
+
+void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& document)
+{
+  mEditorState->compoundPreset = document.compoundPreset;
+  mEditorState->selectedMidiNote = ChooseDefaultSelectedMidiNote(
+    document.compoundPreset,
+    mEditorState->selectedMidiNote);
+
+#if IPLUG_DSP
+  mDSP.SetCompoundPreset(document.compoundPreset);
+#endif
+
+  SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
+
+  if(!document.name.empty())
+    mActivePresetDisplayName = document.name;
+  else if(mActivePresetDisplayName.empty())
+    mActivePresetDisplayName = "Preset";
+
+  RefreshEditorUI();
+}
+
+void AdditiveWindSynth::PromptLoadPresetFromFile()
+{
+#if IPLUG_EDITOR
+  IGraphics* ui = GetUI();
+  if(!ui)
+    return;
+
+  WDL_String fileName;
+  WDL_String directory;
+  const std::string initialDirectory = mUserPresetDirectory.empty()
+    ? GetDefaultUserPresetDirectory()
+    : mUserPresetDirectory;
+  if(!initialDirectory.empty())
+    directory.Set(initialDirectory.c_str());
+
+  ui->PromptForFile(
+    fileName,
+    directory,
+    EFileAction::Open,
+    "toml",
+    [this](const WDL_String& selectedFileName, const WDL_String&) {
+      const std::string fullPath = GetFullFileDialogPath(selectedFileName);
+      if(fullPath.empty())
+        return;
+
+      preset_io::PresetDocument document;
+      std::string errorMessage;
+      if(!preset_io::LoadPresetFromFile(fullPath, document, &errorMessage))
+      {
+        ShowPresetFileError(GetUI(), "Preset Load Failed", errorMessage);
+        return;
+      }
+
+      mUserPresetDirectory = preset_io::detail::ParentPath(fullPath);
+      ApplyPresetDocument(document);
+    });
+#endif
+}
+
+void AdditiveWindSynth::PromptSavePresetToFile()
+{
+#if IPLUG_EDITOR
+  IGraphics* ui = GetUI();
+  if(!ui)
+    return;
+
+  preset_io::PresetDocument document;
+  document.name = mActivePresetDisplayName.empty() ? "Preset" : mActivePresetDisplayName;
+  document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
+  document.compoundPreset = mEditorState->compoundPreset;
+
+  WDL_String fileName;
+  WDL_String directory;
+  const std::string defaultFileName = SanitizePresetFileName(document.name);
+  const std::string initialDirectory = mUserPresetDirectory.empty()
+    ? GetDefaultUserPresetDirectory()
+    : mUserPresetDirectory;
+
+#if defined(OS_IOS)
+  const std::string exportPath = preset_io::detail::JoinPath(GetTemporaryDirectoryPath(), defaultFileName);
+  std::string errorMessage;
+  if(!preset_io::SavePresetToFile(exportPath, document, &errorMessage))
+  {
+    ShowPresetFileError(ui, "Preset Save Failed", errorMessage);
+    return;
+  }
+
+  fileName.Set(defaultFileName.c_str());
+  directory.Set(exportPath.c_str());
+  ui->PromptForFile(
+    fileName,
+    directory,
+    EFileAction::Save,
+    "toml",
+    [this, exportPath](const WDL_String& selectedFileName, const WDL_String&) {
+      preset_io::detail::DeleteFile(exportPath);
+
+      const std::string destinationPath = GetFullFileDialogPath(selectedFileName);
+      if(destinationPath.empty())
+        return;
+
+      mUserPresetDirectory = preset_io::detail::ParentPath(destinationPath);
+    });
+#else
+  fileName.Set(defaultFileName.c_str());
+  if(!initialDirectory.empty())
+    directory.Set(initialDirectory.c_str());
+
+  ui->PromptForFile(
+    fileName,
+    directory,
+    EFileAction::Save,
+    "toml",
+    [this, document](const WDL_String& selectedFileName, const WDL_String&) {
+      std::string fullPath = GetFullFileDialogPath(selectedFileName);
+      if(fullPath.empty())
+        return;
+
+      fullPath = EnsureTomlExtension(std::move(fullPath));
+
+      std::string errorMessage;
+      if(!preset_io::SavePresetToFile(fullPath, document, &errorMessage))
+      {
+        ShowPresetFileError(GetUI(), "Preset Save Failed", errorMessage);
+        return;
+      }
+
+      mUserPresetDirectory = preset_io::detail::ParentPath(fullPath);
+    });
+#endif
+#endif
 }
 
 void AdditiveWindSynth::SendMidiMsgFromUI(const IMidiMsg& msg)
@@ -209,7 +424,7 @@ void AdditiveWindSynth::SendMidiMsgFromUI(const IMidiMsg& msg)
 bool AdditiveWindSynth::SerializeState(IByteChunk& chunk) const
 {
   preset_io::PresetDocument document;
-  document.name = GetPresetName(GetCurrentPresetIdx());
+  document.name = mActivePresetDisplayName.empty() ? GetPresetName(GetCurrentPresetIdx()) : mActivePresetDisplayName;
   document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
   document.compoundPreset = mEditorState->compoundPreset;
 
@@ -232,6 +447,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
   mEditorState->selectedMidiNote = ChooseDefaultSelectedMidiNote(
     document.compoundPreset,
     mEditorState->selectedMidiNote);
+  mPendingRestoredStatePresetName = document.name;
 
 #if IPLUG_DSP
   mDSP.SetCompoundPreset(document.compoundPreset);
@@ -243,6 +459,17 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
 void AdditiveWindSynth::OnRestoreState()
 {
   Plugin::OnRestoreState();
+
+  if(!mPendingRestoredStatePresetName.empty())
+  {
+    mActivePresetDisplayName = mPendingRestoredStatePresetName;
+    mPendingRestoredStatePresetName.clear();
+  }
+  else if(NPresets() > 0 && GetCurrentPresetIdx() >= 0 && GetCurrentPresetIdx() < NPresets())
+  {
+    mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
+  }
+
   RefreshEditorUI();
 }
 
@@ -314,6 +541,18 @@ void AdditiveWindSynth::OnParamChange(int paramIdx)
 
 bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
+  if(msgTag == editor_messages::kMsgTagPromptLoadPresetFromFile)
+  {
+    PromptLoadPresetFromFile();
+    return true;
+  }
+
+  if(msgTag == editor_messages::kMsgTagPromptSavePresetToFile)
+  {
+    PromptSavePresetToFile();
+    return true;
+  }
+
   if(ctrlTag == kCtrlTagEditorTabs
     && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameter
     && dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterPayload)
@@ -416,6 +655,18 @@ void AdditiveWindSynth::RefreshEditorUI()
 #if IPLUG_EDITOR
   if(!GetUI() || !mEditorContext)
     return;
+
+  if(mEditorContext->title.presetManagerControl && *mEditorContext->title.presetManagerControl)
+  {
+    if(auto* presetManager =
+         dynamic_cast<plugin_ui::layout::BakedPresetManagerControl*>(*mEditorContext->title.presetManagerControl))
+    {
+      const std::string label = mActivePresetDisplayName.empty()
+        ? (NPresets() > 0 ? std::string{GetPresetName(GetCurrentPresetIdx())} : std::string{"Choose Preset..."})
+        : mActivePresetDisplayName;
+      presetManager->SetPresetLabel(label.c_str());
+    }
+  }
 
   if(auto* keyboard = plugin_ui::layout::GetKeyboardControl(GetUI(), kCtrlTagKeyboard))
   {

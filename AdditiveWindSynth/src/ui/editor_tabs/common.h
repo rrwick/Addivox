@@ -231,6 +231,11 @@ struct EditorButtonRefs
   std::shared_ptr<IVButtonControl*> deleteButton;
 };
 
+struct TitleControlRefs
+{
+  std::shared_ptr<IControl*> presetManagerControl;
+};
+
 struct EditorContext
 {
   int editorTabsTag = kNoTag;
@@ -244,6 +249,7 @@ struct EditorContext
   AttackReleaseTabRefs attackReleaseTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
+  TitleControlRefs title;
 
   CompoundPreset& Preset() const
   {

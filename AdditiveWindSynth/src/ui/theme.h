@@ -71,6 +71,14 @@ inline IVStyle PresetManagerStyle()
     .WithColor(kHL, colour::editor::kHoverOverlay);
 }
 
+inline IVStyle PresetActionButtonStyle()
+{
+  return BaseStyle(true, false)
+    .WithLabelText(IText(14.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))
+    .WithColor(kFG, colour::ui::kControlBody)
+    .WithColor(kHL, colour::editor::kHoverOverlay);
+}
+
 inline IVStyle MainPanelModeSwitchStyle()
 {
   return BaseStyle(false, false)

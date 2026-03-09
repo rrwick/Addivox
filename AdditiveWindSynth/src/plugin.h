@@ -5,6 +5,7 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include <string>
 
 #include "settings/settings_oscillator.h"
 #include "ui/editor_state.h"
@@ -19,6 +20,11 @@ namespace editor
 struct EditorContext;
 } // namespace editor
 } // namespace plugin_ui
+
+namespace preset_io
+{
+struct PresetDocument;
+} // namespace preset_io
 
 #if IPLUG_DSP
 #include "synth/synth_engine.h"
@@ -60,6 +66,9 @@ public:
 #endif
 
 private:
+  void ApplyPresetDocument(const preset_io::PresetDocument& document);
+  void PromptLoadPresetFromFile();
+  void PromptSavePresetToFile();
   void LoadBuiltInPresets();
   void RefreshEditorUI();
 
@@ -67,6 +76,9 @@ private:
   int mNumActiveUIMIDINotes{0};
   std::shared_ptr<plugin_ui::EditorState> mEditorState;
   std::shared_ptr<plugin_ui::editor::EditorContext> mEditorContext;
+  std::string mActivePresetDisplayName;
+  std::string mPendingRestoredStatePresetName;
+  std::string mUserPresetDirectory;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;

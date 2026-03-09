@@ -238,6 +238,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->attackReleaseTab.actionsControls->fill(nullptr);
   context->buttons.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->buttons.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->title.presetManagerControl = std::make_shared<IControl*>(nullptr);
 
   *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePreset::kNumOscillators);
   *context->oscillatorView.xRangeMax =
