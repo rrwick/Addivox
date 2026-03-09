@@ -101,18 +101,122 @@ public:
 
   void OnAttached() override
   {
-    IVBakedPresetManagerControl::OnAttached();
+    const auto restorePreset = [this](IPluginBase* pluginBase, int presetIdx) {
+      if(!pluginBase || pluginBase->NPresets() == 0)
+        return;
+
+      pluginBase->RestorePreset(presetIdx);
+      UpdatePresetLabel(pluginBase);
+    };
+
+    const auto prevPresetFunc = [restorePreset](IControl* caller) {
+      auto* pluginBase = dynamic_cast<IPluginBase*>(caller->GetDelegate());
+      if(!pluginBase || pluginBase->NPresets() == 0)
+        return;
+
+      int presetIdx = pluginBase->GetCurrentPresetIdx() - 1;
+      if(presetIdx < 0)
+        presetIdx = pluginBase->NPresets() - 1;
+
+      restorePreset(pluginBase, presetIdx);
+    };
+
+    const auto nextPresetFunc = [restorePreset](IControl* caller) {
+      auto* pluginBase = dynamic_cast<IPluginBase*>(caller->GetDelegate());
+      if(!pluginBase || pluginBase->NPresets() == 0)
+        return;
+
+      int presetIdx = pluginBase->GetCurrentPresetIdx() + 1;
+      if(presetIdx >= pluginBase->NPresets())
+        presetIdx = 0;
+
+      restorePreset(pluginBase, presetIdx);
+    };
+
+    const auto choosePresetFunc = [this](IControl* caller) {
+      mPresetMenu.Clear();
+
+      auto* pluginBase = dynamic_cast<IPluginBase*>(caller->GetDelegate());
+      if(!pluginBase)
+        return;
+
+      const int currentPresetIdx = pluginBase->GetCurrentPresetIdx();
+      for(int i = 0; i < pluginBase->NPresets(); ++i)
+      {
+        const char* presetName = pluginBase->GetPresetName(i);
+        if(i == currentPresetIdx)
+          mPresetMenu.AddItem(presetName, -1, IPopupMenu::Item::kChecked);
+        else
+          mPresetMenu.AddItem(presetName);
+      }
+
+      caller->GetUI()->CreatePopupMenu(*this, mPresetMenu, caller->GetRECT());
+    };
+
+    AddChildControl(new IVButtonControl(IRECT(), SplashClickActionFunc, "<", mStyle))
+      ->SetAnimationEndActionFunction(prevPresetFunc);
+    AddChildControl(new IVButtonControl(IRECT(), SplashClickActionFunc, ">", mStyle))
+      ->SetAnimationEndActionFunction(nextPresetFunc);
+    AddChildControl(mPresetNameButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Choose Preset...", mStyle))
+      ->SetAnimationEndActionFunction(choosePresetFunc);
+
+    OnResize();
+    UpdatePresetLabel(dynamic_cast<IPluginBase*>(GetDelegate()));
+  }
+
+  void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
+  {
+    if(!selectedMenu)
+      return;
+
+    auto* selectedItem = selectedMenu->GetChosenItem();
+    if(!selectedItem)
+      return;
 
     auto* pluginBase = dynamic_cast<IPluginBase*>(GetDelegate());
-    auto* presetNameButton = NChildren() > 2 ? GetChild(2)->As<IVButtonControl>() : nullptr;
-    if(!pluginBase || !presetNameButton || pluginBase->NPresets() == 0)
+    if(!pluginBase)
+      return;
+
+    pluginBase->RestorePreset(selectedMenu->GetChosenItemIdx());
+    UpdatePresetLabel(pluginBase);
+  }
+
+  void OnResize() override
+  {
+    MakeRects(mRECT);
+
+    ForAllChildrenFunc([&](int childIdx, IControl* child) {
+      child->SetTargetAndDrawRECTs(GetSubControlBounds(static_cast<ESubControl>(childIdx)));
+    });
+  }
+
+private:
+  void UpdatePresetLabel(IPluginBase* pluginBase)
+  {
+    if(!pluginBase || !mPresetNameButton || pluginBase->NPresets() == 0)
       return;
 
     WDL_String label;
     const int presetIdx = pluginBase->GetCurrentPresetIdx();
-    label.SetFormatted(32, "Preset %i: %s", presetIdx + 1, pluginBase->GetPresetName(presetIdx));
-    presetNameButton->SetLabelStr(label.Get());
+    label.SetFormatted(32, "%s", pluginBase->GetPresetName(presetIdx));
+    mPresetNameButton->SetLabelStr(label.Get());
   }
+
+  IRECT GetSubControlBounds(ESubControl control) const
+  {
+    auto sections = mWidgetBounds;
+
+    std::array<IRECT, 3> rects = {
+      sections.ReduceFromLeft(50),
+      sections.ReduceFromLeft(50),
+      sections
+    };
+
+    return rects[static_cast<int>(control)];
+  }
+
+  IPopupMenu mPresetMenu;
+  IVButtonControl* mPresetNameButton = nullptr;
 };
 
 struct PanelResources
@@ -363,11 +467,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   const layout::PanelResources resources = layout::MakePanelResources(pGraphics);
 
   // Title panel: x=4, y=4, w=840, h=60
-  pGraphics->AttachControl(
-    new layout::BakedPresetManagerControl(
-      IRECT::MakeXYWH(528.f, 14.f, 250.f, 42.f),
-      "",
-      theme::PresetManagerStyle()));
+  pGraphics->AttachControl(new layout::BakedPresetManagerControl(IRECT::MakeXYWH(528.f, 14.f, 250.f, 42.f), "", theme::PresetManagerStyle()));
 
   // Output meter panel: x=846, y=4, w=240, h=60
   layout::AttachOutputMeterPanel(pGraphics, resources, outMeterTag);
