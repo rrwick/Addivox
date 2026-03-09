@@ -7,6 +7,7 @@
 #include "editor_panel.h"
 #include "theme.h"
 #include "../editor_messages.h"
+#include "../settings/params.h"
 
 #include <array>
 #include <functional>
@@ -262,12 +263,11 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachEnvelopePanelControls(IGraphics* pGraphics,
-                                        const PanelResources& resources,
-                                        const std::array<int, 10>& globalModifierParamIdxs)
+                                        const PanelResources& resources)
 {
   const std::array<LabelledKnobValueSpec, 2> envelopeKnobs{{
-    {{IRECT::MakeMidXYWH(216.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(245.f, 481.f, 70.f, 12.f), globalModifierParamIdxs[0]}, "Attack", IRECT::MakeXYWH(245.f, 468.f, 70.f, 12.f)},
-    {{IRECT::MakeMidXYWH(312.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(343.f, 481.f, 70.f, 12.f), globalModifierParamIdxs[5]}, "Release", IRECT::MakeXYWH(343.f, 468.f, 70.f, 12.f)}
+    {{IRECT::MakeMidXYWH(216.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(245.f, 481.f, 70.f, 12.f), kParamGlobalAttackScale}, "Attack", IRECT::MakeXYWH(245.f, 468.f, 70.f, 12.f)},
+    {{IRECT::MakeMidXYWH(312.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(343.f, 481.f, 70.f, 12.f), kParamGlobalReleaseScale}, "Release", IRECT::MakeXYWH(343.f, 468.f, 70.f, 12.f)}
   }};
 
   for(const auto& spec : envelopeKnobs)
@@ -275,25 +275,22 @@ inline void AttachEnvelopePanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachPitchPanelControls(IGraphics* pGraphics,
-                                     const PanelResources& resources,
-                                     const std::array<int, 10>& globalModifierParamIdxs,
-                                     int portamentoAtCC5MinParamIdx,
-                                     int portamentoAtCC5MaxParamIdx)
+                                     const PanelResources& resources)
 {
   const LabelledKnobValueSpec pitchKnob{
     {IRECT::MakeMidXYWH(431.f, 480.5f, resources.knobSize, resources.knobSize),
      IRECT::MakeXYWH(464.f, 481.f, 70.f, 12.f),
-     globalModifierParamIdxs[1]},
+     kParamGlobalPitchShift},
     "Pitch",
     IRECT::MakeXYWH(464.f, 468.f, 70.f, 12.f)
   };
 
   AttachLabelledKnobWithValue(pGraphics, resources.knobAssets, pitchKnob, resources.compactLabelText, resources.compactValueText);
-  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(527.5f, 470.f, 50.f, 20.f), portamentoAtCC5MinParamIdx, resources.portamentoValueText);
-  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(611.f, 489.f, 50.f, 20.f), portamentoAtCC5MaxParamIdx, resources.portamentoValueText);
+  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(527.5f, 470.f, 50.f, 20.f), kParamPortamentoAtCC5Min, resources.portamentoValueText);
+  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(611.f, 489.f, 50.f, 20.f), kParamPortamentoAtCC5Max, resources.portamentoValueText);
   pGraphics->AttachControl(new IVRangeSliderControl(
     IRECT::MakeXYWH(524.f, 474.f, 140.f, 30.f),
-    {portamentoAtCC5MinParamIdx, portamentoAtCC5MaxParamIdx},
+    {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max},
     "",
     resources.portamentoRangeSliderStyle,
     EDirection::Horizontal,
@@ -304,16 +301,15 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachVariationPanelControls(IGraphics* pGraphics,
-                                         const PanelResources& resources,
-                                         const std::array<int, 10>& globalModifierParamIdxs)
+                                         const PanelResources& resources)
 {
   const std::array<KnobValueSpec, 6> variationKnobs{{
-    {IRECT::MakeMidXYWH(923.f, 141.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(951.f, 134.f, 70.f, 12.f), globalModifierParamIdxs[2]},
-    {IRECT::MakeMidXYWH(1018.f, 141.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1046.f, 134.f, 70.f, 12.f), globalModifierParamIdxs[7]},
-    {IRECT::MakeMidXYWH(923.f, 195.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(951.f, 188.f, 70.f, 12.f), globalModifierParamIdxs[4]},
-    {IRECT::MakeMidXYWH(1018.f, 195.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1046.f, 188.f, 70.f, 12.f), globalModifierParamIdxs[9]},
-    {IRECT::MakeMidXYWH(923.f, 249.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(951.f, 242.f, 70.f, 12.f), globalModifierParamIdxs[3]},
-    {IRECT::MakeMidXYWH(1018.f, 249.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1046.f, 242.f, 70.f, 12.f), globalModifierParamIdxs[8]}
+    {IRECT::MakeMidXYWH(923.f, 141.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(951.f, 134.f, 70.f, 12.f), kParamGlobalIntensityVariationAmplitudeScale},
+    {IRECT::MakeMidXYWH(1018.f, 141.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1046.f, 134.f, 70.f, 12.f), kParamGlobalIntensityVariationRateScale},
+    {IRECT::MakeMidXYWH(923.f, 195.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(951.f, 188.f, 70.f, 12.f), kParamGlobalPanVariationAmplitudeScale},
+    {IRECT::MakeMidXYWH(1018.f, 195.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1046.f, 188.f, 70.f, 12.f), kParamGlobalPanVariationRateScale},
+    {IRECT::MakeMidXYWH(923.f, 249.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(951.f, 242.f, 70.f, 12.f), kParamGlobalPitchVariationAmplitudeScale},
+    {IRECT::MakeMidXYWH(1018.f, 249.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1046.f, 242.f, 70.f, 12.f), kParamGlobalPitchVariationRateScale}
   }};
 
   for(const auto& spec : variationKnobs)
@@ -321,13 +317,11 @@ inline void AttachVariationPanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachOutputPanelControls(IGraphics* pGraphics,
-                                      const PanelResources& resources,
-                                      int gainParamIdx,
-                                      const std::array<int, 10>& globalModifierParamIdxs)
+                                      const PanelResources& resources)
 {
   const std::array<LabelledKnobValueSpec, 2> outputKnobs{{
-    {{IRECT::MakeMidXYWH(886.f, 342.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(918.f, 343.f, 50.f, 12.f), globalModifierParamIdxs[6]}, "Pan", IRECT::MakeXYWH(918.f, 330.f, 50.f, 12.f)},
-    {{IRECT::MakeMidXYWH(992.f, 342.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1024.f, 343.f, 50.f, 12.f), gainParamIdx}, "Level", IRECT::MakeXYWH(1024.f, 330.f, 50.f, 12.f)}
+    {{IRECT::MakeMidXYWH(886.f, 342.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(918.f, 343.f, 50.f, 12.f), kParamGlobalPanShift}, "Pan", IRECT::MakeXYWH(918.f, 330.f, 50.f, 12.f)},
+    {{IRECT::MakeMidXYWH(992.f, 342.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1024.f, 343.f, 50.f, 12.f), kParamGlobalLevel}, "Level", IRECT::MakeXYWH(1024.f, 330.f, 50.f, 12.f)}
   }};
 
   for(const auto& spec : outputKnobs)
@@ -337,10 +331,6 @@ inline void AttachOutputPanelControls(IGraphics* pGraphics,
 
 inline void AttachMainControls(IGraphics* pGraphics,
                                const std::shared_ptr<EditorState>& editorState,
-                               int gainParamIdx,
-                               const std::array<int, 10>& globalModifierParamIdxs,
-                               int portamentoAtCC5MinParamIdx,
-                               int portamentoAtCC5MaxParamIdx,
                                int harmonicVisualizerTag,
                                int editorTabsTag,
                                int keyboardTag,
@@ -370,20 +360,19 @@ inline void AttachMainControls(IGraphics* pGraphics,
   vizEditPanel.modeSwitch->SetDirty(false);
 
   // Envelope panel: x=186, y=428, w=212, h=84
-  layout::AttachEnvelopePanelControls(pGraphics, resources, globalModifierParamIdxs);
+  layout::AttachEnvelopePanelControls(pGraphics, resources);
 
   // Pitch panel: x=400, y=428, w=262, h=84
-  layout::AttachPitchPanelControls(
-    pGraphics, resources, globalModifierParamIdxs, portamentoAtCC5MinParamIdx, portamentoAtCC5MaxParamIdx);
+  layout::AttachPitchPanelControls(pGraphics, resources);
 
   // Blip guard panel: x=664, y=428, w=180, h=84
   // TODO: add controls for blip guard settings here once implemented
 
   // Variation panel: x=846, y=66, w=240, h=222
-  layout::AttachVariationPanelControls(pGraphics, resources, globalModifierParamIdxs);
+  layout::AttachVariationPanelControls(pGraphics, resources);
 
   // Output panel: x=846, y=290, w=240, h=84
-  layout::AttachOutputPanelControls(pGraphics, resources, gainParamIdx, globalModifierParamIdxs);
+  layout::AttachOutputPanelControls(pGraphics, resources);
   
   // Effects panel: x=846, y=376, w=240, h=136
   // TODO: add controls for effects settings here once implemented

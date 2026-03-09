@@ -57,23 +57,23 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings&
 {
   const double harmonicPitchOffsetSemitones = 12.0 * std::log2(static_cast<double>(harmonic + 1));
   const double presetPitchOffsetSemitones =
-    (settings.pitch + mGlobalOscillatorModifiers.pitchOffsetCents) / 100.0;
+    (settings.pitch + mGlobalVoiceSettings.pitchOffsetCents) / 100.0;
   const double totalPitchSemitones =
     fundamentalPitchSemitones + harmonicPitchOffsetSemitones + presetPitchOffsetSemitones;
   mOscs[harmonic].SetPitch(totalPitchSemitones);
   mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
   mOscs[harmonic].SetPitchVariation(
-    (settings.pitch_variation_amplitude * mGlobalOscillatorModifiers.pitchVariationAmplitudeScale) / 100.0,
-    settings.pitch_variation_rate * mGlobalOscillatorModifiers.pitchVariationRateScale);
-  mOscs[harmonic].SetAttackTime(settings.attack * mGlobalOscillatorModifiers.attackScale);
-  mOscs[harmonic].SetReleaseTime(settings.release * mGlobalOscillatorModifiers.releaseScale);
-  mOscs[harmonic].SetPan(std::clamp(settings.pan + mGlobalOscillatorModifiers.panOffset, -1.0, 1.0));
+    (settings.pitch_variation_amplitude * mGlobalVoiceSettings.pitchVariationAmplitudeScale) / 100.0,
+    settings.pitch_variation_rate * mGlobalVoiceSettings.pitchVariationRateScale);
+  mOscs[harmonic].SetAttackTime(settings.attack * mGlobalVoiceSettings.attackScale);
+  mOscs[harmonic].SetReleaseTime(settings.release * mGlobalVoiceSettings.releaseScale);
+  mOscs[harmonic].SetPan(std::clamp(settings.pan + mGlobalVoiceSettings.panOffset, -1.0, 1.0));
   mOscs[harmonic].SetPanVariation(
-    settings.pan_variation_amplitude * mGlobalOscillatorModifiers.panVariationAmplitudeScale,
-    settings.pan_variation_rate * mGlobalOscillatorModifiers.panVariationRateScale);
+    settings.pan_variation_amplitude * mGlobalVoiceSettings.panVariationAmplitudeScale,
+    settings.pan_variation_rate * mGlobalVoiceSettings.panVariationRateScale);
   mOscs[harmonic].SetIntensityVariation(
-    settings.intensity_variation_amplitude * mGlobalOscillatorModifiers.intensityVariationAmplitudeScale,
-    settings.intensity_variation_rate * mGlobalOscillatorModifiers.intensityVariationRateScale);
+    settings.intensity_variation_amplitude * mGlobalVoiceSettings.intensityVariationAmplitudeScale,
+    settings.intensity_variation_rate * mGlobalVoiceSettings.intensityVariationRateScale);
 }
 
 void SynthVoice::SetBreath(double breath)
@@ -86,16 +86,6 @@ void SynthVoice::SetBreath(double breath)
   UpdateLevels();
 }
 
-void SynthVoice::SetMasterGain(double gain)
-{
-  const double clampedGain = std::max(0.0, gain);
-  if(clampedGain == mMasterGain)
-    return;
-
-  mMasterGain = clampedGain;
-  UpdateLevels();
-}
-
 void SynthVoice::SetPortamentoControl(double control)
 {
   const double clampedControl = std::clamp(control, 0.0, 1.0);
@@ -105,9 +95,9 @@ void SynthVoice::SetPortamentoControl(double control)
     osc.SetPitchTime(pitchTimeSec);
 }
 
-void SynthVoice::SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers)
+void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings)
 {
-  mGlobalOscillatorModifiers = global_settings::Sanitize(modifiers);
+  mGlobalVoiceSettings = global_settings::Sanitize(settings);
 
   UpdatePitch();
 }
@@ -183,8 +173,8 @@ void SynthVoice::Clear()
 
 double SynthVoice::GetPortamentoTimeSec() const
 {
-  return mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec
-    + (mGlobalOscillatorModifiers.portamentoTimeAtCC5MaxSec - mGlobalOscillatorModifiers.portamentoTimeAtCC5MinSec)
+  return mGlobalVoiceSettings.portamentoTimeAtCC5MinSec
+    + (mGlobalVoiceSettings.portamentoTimeAtCC5MaxSec - mGlobalVoiceSettings.portamentoTimeAtCC5MinSec)
       * mPortamentoControl;
 }
 
@@ -211,7 +201,11 @@ void SynthVoice::UpdateLevels()
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    const double level = (mBreath == 0.0) ? 0.0 : settings.intensity * std::pow(mBreath, settings.breath_power) * mMasterGain;
+    const double level = (mBreath == 0.0)
+      ? 0.0
+      : settings.intensity
+          * std::pow(mBreath, settings.breath_power)
+          * mGlobalVoiceSettings.levelScale;
     mOscs[harmonic].SetLevel(level);
   }
 }

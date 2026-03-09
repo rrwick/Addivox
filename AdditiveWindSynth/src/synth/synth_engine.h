@@ -26,8 +26,7 @@ public:
   {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
-    mSynth.GetVoice().SetMasterGain(mMasterGain);
-    mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
+    mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -37,15 +36,8 @@ public:
 
   void SetParam(int paramIdx, double value)
   {
-    if(paramIdx == kParamGain)
-    {
-      mMasterGain = static_cast<sample>(value);
-      mSynth.GetVoice().SetMasterGain(mMasterGain);
-      return;
-    }
-
-    if(global_settings::ApplyParam(paramIdx, value, mGlobalOscillatorModifiers))
-      mSynth.GetVoice().SetGlobalOscillatorModifiers(mGlobalOscillatorModifiers);
+    if(global_settings::ApplyParam(paramIdx, value, mGlobalVoiceSettings))
+      mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
   }
 
   bool SetKeyNoteOscillatorParameter(double midiNote,
@@ -81,6 +73,5 @@ public:
 
 public:
   MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
-  sample mMasterGain{1.};
-  GlobalOscillatorModifiers mGlobalOscillatorModifiers{};
+  GlobalVoiceSettings mGlobalVoiceSettings{};
 };

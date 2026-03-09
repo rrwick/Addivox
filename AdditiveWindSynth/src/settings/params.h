@@ -2,7 +2,7 @@
 
 enum EParams
 {
-  kParamGain = 0,
+  kParamGlobalLevel = 0,
   kParamGlobalAttackScale,
   kParamGlobalReleaseScale,
   kParamGlobalPitchShift,

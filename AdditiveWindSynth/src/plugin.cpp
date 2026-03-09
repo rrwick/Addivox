@@ -1,7 +1,6 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
 #include "settings/params.h"
-#include "settings/settings_global.h"
 #include "editor_messages.h"
 #include "ui/transformations.h"
 #include "ui/layout.h"
@@ -21,30 +20,27 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     str.SetFormatted(32, "%.*f\xC3\x97", decimals, rounded);
   };
 
-  GetParam(kParamGain)->InitDouble("Gain", 1.0, 0., 10.0, 0.01, "", 0, "",
-    transformations::GetGainPseudoLogShape(),
-    iplug::IParam::kUnitCustom,
-    formatPseudoLogScaleDisplay);
-
   const auto initPseudoLogScale = [this, formatPseudoLogScaleDisplay](int paramIdx, const char* name, double defaultValue = 1.0) {
     GetParam(paramIdx)->InitDouble(name, defaultValue, 0., 100., 0.01, "", 0, "",
       transformations::GetGlobalPseudoLogShape(),
       iplug::IParam::kUnitCustom,
       formatPseudoLogScaleDisplay);
   };
-  initPseudoLogScale(kParamGlobalAttackScale, "Global Attack");
-  initPseudoLogScale(kParamGlobalReleaseScale, "Global Release");
-  GetParam(kParamGlobalPitchShift)->InitDouble("Global Pitch Shift", 0., -50., 50., 0.1, "cents");
-  GetParam(kParamGlobalPanShift)->InitDouble("Global Pan Shift", 0., -1., 1., 0.01, "", iplug::IParam::kFlagSignDisplay);
-  initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Global Intensity Variation Amount", 0.0);
-  initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Global Intensity Variation Rate");
-  initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Global Pitch Variation Amount", 0.0);
-  initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Global Pitch Variation Rate");
-  initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Global Pan Variation Amount", 0.0);
-  initPseudoLogScale(kParamGlobalPanVariationRateScale, "Global Pan Variation Rate");
+
+  GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
+  initPseudoLogScale(kParamGlobalAttackScale, "Attack");
+  initPseudoLogScale(kParamGlobalReleaseScale, "Release");
+  GetParam(kParamGlobalPitchShift)->InitDouble("Pitch Shift", 0., -50., 50., 0.1, "cents");
+  GetParam(kParamGlobalPanShift)->InitDouble("Pan Shift", 0., -1., 1., 0.01, "", iplug::IParam::kFlagSignDisplay);
+  initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Level Variation Amount", 0.0);
+  initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Level Variation Rate");
+  initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Pitch Variation Amount", 0.0);
+  initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Pitch Variation Rate");
+  initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Pan Variation Amount", 0.0);
+  initPseudoLogScale(kParamGlobalPanVariationRateScale, "Pan Variation Rate");
   const auto& portamentoShape = transformations::GetPortamentoPseudoLogShape();
-  GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (CC5=0)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
-  GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (CC5=127)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
+  GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (min)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
+  GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (max)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -68,10 +64,6 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     plugin_ui::AttachMainControls(
       pGraphics,
       mEditorState,
-      kParamGain,
-      global_settings::kModifierParamIndices,
-      kParamPortamentoAtCC5Min,
-      kParamPortamentoAtCC5Max,
       kCtrlTagHarmonicVisualizer,
       kCtrlTagEditorTabs,
       kCtrlTagKeyboard,

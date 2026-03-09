@@ -6,22 +6,10 @@
 
 namespace global_settings
 {
-const std::array<int, 10> kModifierParamIndices{{
-  kParamGlobalAttackScale,
-  kParamGlobalPitchShift,
-  kParamGlobalIntensityVariationAmplitudeScale,
-  kParamGlobalPitchVariationAmplitudeScale,
-  kParamGlobalPanVariationAmplitudeScale,
-  kParamGlobalReleaseScale,
-  kParamGlobalPanShift,
-  kParamGlobalIntensityVariationRateScale,
-  kParamGlobalPitchVariationRateScale,
-  kParamGlobalPanVariationRateScale
-}};
-
-GlobalOscillatorModifiers Sanitize(const GlobalOscillatorModifiers& modifiers)
+GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings)
 {
-  GlobalOscillatorModifiers sanitized = modifiers;
+  GlobalVoiceSettings sanitized = settings;
+  sanitized.levelScale = std::max(0.0, sanitized.levelScale);
   sanitized.attackScale = std::max(0.0, sanitized.attackScale);
   sanitized.releaseScale = std::max(0.0, sanitized.releaseScale);
   sanitized.panOffset = std::clamp(sanitized.panOffset, -1.0, 1.0);
@@ -36,45 +24,48 @@ GlobalOscillatorModifiers Sanitize(const GlobalOscillatorModifiers& modifiers)
   return sanitized;
 }
 
-bool ApplyParam(int paramIdx, double value, GlobalOscillatorModifiers& modifiers)
+bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings)
 {
   switch(paramIdx)
   {
+    case kParamGlobalLevel:
+      settings.levelScale = std::max(0.0, value);
+      return true;
     case kParamGlobalAttackScale:
-      modifiers.attackScale = std::max(0.0, value);
+      settings.attackScale = std::max(0.0, value);
       return true;
     case kParamGlobalReleaseScale:
-      modifiers.releaseScale = std::max(0.0, value);
+      settings.releaseScale = std::max(0.0, value);
       return true;
     case kParamGlobalPitchShift:
-      modifiers.pitchOffsetCents = value;
+      settings.pitchOffsetCents = value;
       return true;
     case kParamGlobalPanShift:
-      modifiers.panOffset = std::clamp(value, -1.0, 1.0);
+      settings.panOffset = std::clamp(value, -1.0, 1.0);
       return true;
     case kParamGlobalIntensityVariationAmplitudeScale:
-      modifiers.intensityVariationAmplitudeScale = std::max(0.0, value);
+      settings.intensityVariationAmplitudeScale = std::max(0.0, value);
       return true;
     case kParamGlobalIntensityVariationRateScale:
-      modifiers.intensityVariationRateScale = std::max(0.0, value);
+      settings.intensityVariationRateScale = std::max(0.0, value);
       return true;
     case kParamGlobalPitchVariationAmplitudeScale:
-      modifiers.pitchVariationAmplitudeScale = std::max(0.0, value);
+      settings.pitchVariationAmplitudeScale = std::max(0.0, value);
       return true;
     case kParamGlobalPitchVariationRateScale:
-      modifiers.pitchVariationRateScale = std::max(0.0, value);
+      settings.pitchVariationRateScale = std::max(0.0, value);
       return true;
     case kParamGlobalPanVariationAmplitudeScale:
-      modifiers.panVariationAmplitudeScale = std::max(0.0, value);
+      settings.panVariationAmplitudeScale = std::max(0.0, value);
       return true;
     case kParamGlobalPanVariationRateScale:
-      modifiers.panVariationRateScale = std::max(0.0, value);
+      settings.panVariationRateScale = std::max(0.0, value);
       return true;
     case kParamPortamentoAtCC5Min:
-      modifiers.portamentoTimeAtCC5MinSec = std::max(0.0, value);
+      settings.portamentoTimeAtCC5MinSec = std::max(0.0, value);
       return true;
     case kParamPortamentoAtCC5Max:
-      modifiers.portamentoTimeAtCC5MaxSec = std::max(0.0, value);
+      settings.portamentoTimeAtCC5MaxSec = std::max(0.0, value);
       return true;
     default:
       return false;

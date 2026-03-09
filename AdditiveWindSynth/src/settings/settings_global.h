@@ -1,10 +1,9 @@
 #pragma once
 
-#include <array>
-
-struct GlobalOscillatorModifiers
+struct GlobalVoiceSettings
 {
-  // These are scalar modifiers, applied to all oscillators in a preset.
+  // These are global voice settings applied across the oscillators in a preset.
+  double levelScale{1.0};
   double attackScale{1.0};
   double releaseScale{1.0};
   double pitchOffsetCents{0.0};
@@ -23,7 +22,6 @@ struct GlobalOscillatorModifiers
 
 namespace global_settings
 {
-extern const std::array<int, 10> kModifierParamIndices;
-GlobalOscillatorModifiers Sanitize(const GlobalOscillatorModifiers& modifiers);
-bool ApplyParam(int paramIdx, double value, GlobalOscillatorModifiers& modifiers);
+GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings);
+bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings);
 } // namespace global_settings

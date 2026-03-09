@@ -18,9 +18,8 @@ public:
   void Stop();
   void SetPitchBend(double pitchBend);
   void SetBreath(double breath);
-  void SetMasterGain(double gain);
   void SetPortamentoControl(double control);
-  void SetGlobalOscillatorModifiers(const GlobalOscillatorModifiers& modifiers);
+  void SetGlobalVoiceSettings(const GlobalVoiceSettings& settings);
   bool AddKeyNotePreset(double midiNote);
   bool RemoveKeyNotePreset(double midiNote);
   bool SetKeyNoteOscillatorParameter(double midiNote,
@@ -53,10 +52,9 @@ private:
 
   // Breath is a linear value from 0 to 1.
   double mBreath{0.0};
-  double mMasterGain{1.0};
   double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
   CompoundPreset mCompoundPreset;
-  GlobalOscillatorModifiers mGlobalOscillatorModifiers;
+  GlobalVoiceSettings mGlobalVoiceSettings;
 };

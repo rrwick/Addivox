@@ -13,7 +13,7 @@ constexpr double kShapeEpsilon = 1.0e-9;
 // 2*ln(9) = 4.39, puts 1 right in the middle of 0-10
 constexpr double kGlobalPseudoLogShape = 9.19023970026918;
 constexpr double kPortamentoPseudoLogShape = 9.19023970026918;
-constexpr double kGainPseudoLogShape = 4.394449154672439;
+constexpr double kLevelPseudoLogShape = 4.394449154672439;
 } // namespace
 
 transformations::PseudoLogExpShape::PseudoLogExpShape(double shape)
@@ -139,8 +139,8 @@ const iplug::IParam::Shape& transformations::GetPortamentoPseudoLogShape()
   return shape;
 }
 
-const iplug::IParam::Shape& transformations::GetGainPseudoLogShape()
+const iplug::IParam::Shape& transformations::GetLevelPseudoLogShape()
 {
-  static const PseudoLogExpShape shape{kGainPseudoLogShape};
+  static const PseudoLogExpShape shape{kLevelPseudoLogShape};
   return shape;
 }
