@@ -251,7 +251,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
   else if(mActivePresetDisplayName.empty())
     mActivePresetDisplayName = "Preset";
 
-  RefreshEditorUI();
+  RefreshEditorUI(true);
 }
 
 void AdditiveWindSynth::PromptLoadPresetFromFile()
@@ -470,7 +470,7 @@ void AdditiveWindSynth::OnRestoreState()
     mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
   }
 
-  RefreshEditorUI();
+  RefreshEditorUI(true);
 }
 
 void AdditiveWindSynth::OnUIOpen()
@@ -650,7 +650,7 @@ void AdditiveWindSynth::LoadBuiltInPresets()
   PruneUninitializedPresets();
 }
 
-void AdditiveWindSynth::RefreshEditorUI()
+void AdditiveWindSynth::RefreshEditorUI(bool resetOscillatorRestoreStates)
 {
 #if IPLUG_EDITOR
   if(!GetUI() || !mEditorContext)
@@ -673,6 +673,9 @@ void AdditiveWindSynth::RefreshEditorUI()
     plugin_ui::layout::RefreshKeyboardKeyNoteHighlights(keyboard, mEditorState->compoundPreset);
     keyboard->SetSelectedMidiNote(mEditorState->selectedMidiNote);
   }
+
+  if(resetOscillatorRestoreStates)
+    mEditorContext->ResetOscillatorRestoreStates();
 
   mEditorContext->RefreshOscillatorTabs();
   mEditorContext->RefreshEditorActionButtons();

@@ -330,6 +330,15 @@ struct EditorContext
     }
   }
 
+  void ResetOscillatorRestoreStates() const
+  {
+    for(auto* control : *oscillatorTabControls.sliderControls)
+    {
+      if(control)
+        control->ClearRestoreState();
+    }
+  }
+
   void SendOscillatorParameterToDSP(IControl* sourceControl,
                                     int midiNote,
                                     int oscillatorIndex,

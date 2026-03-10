@@ -293,8 +293,18 @@ inline std::string FormatDouble(double value)
     value = 0.0;
 
   std::ostringstream stream;
-  stream << std::setprecision(std::numeric_limits<double>::max_digits10) << value;
+  stream << std::fixed << std::setprecision(12) << value;
   std::string result = stream.str();
+
+  const std::size_t decimalPos = result.find('.');
+  if(decimalPos != std::string::npos)
+  {
+    while(!result.empty() && result.back() == '0')
+      result.pop_back();
+
+    if(!result.empty() && result.back() == '.')
+      result += '0';
+  }
 
   if(result.find_first_of(".eE") == std::string::npos)
     result += ".0";

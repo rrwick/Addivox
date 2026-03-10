@@ -70,7 +70,7 @@ private:
   void PromptLoadPresetFromFile();
   void PromptSavePresetToFile();
   void LoadBuiltInPresets();
-  void RefreshEditorUI();
+  void RefreshEditorUI(bool resetOscillatorRestoreStates = false);
 
   std::array<bool, 128> mActiveUIMIDINotes{};
   int mNumActiveUIMIDINotes{0};
