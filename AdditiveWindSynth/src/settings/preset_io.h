@@ -2,6 +2,14 @@
 
 #include "IPlugPlatform.h"
 #include "IPlugUtilities.h"
+
+#if !defined(OS_WIN)
+#include <strings.h>
+#ifndef strnicmp
+#define strnicmp strncasecmp
+#endif
+#endif
+
 #include "dirscan.h"
 
 #include "settings_global.h"
@@ -342,24 +350,16 @@ inline void AppendOscillatorParameterArray(std::ostringstream& stream,
                                            const SimplePreset& preset,
                                            const OscillatorParameterDescriptor& descriptor)
 {
-  stream << descriptor.key << " = [\n";
-
-  constexpr int kValuesPerLine = 8;
+  stream << descriptor.key << " = [";
   const auto& oscillatorSettings = preset.GetOscillatorSettingsArray();
   for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
   {
-    if((oscillatorIndex % kValuesPerLine) == 0)
-      stream << "  ";
-
     stream << FormatDouble(
       oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter));
 
     const bool lastValue = oscillatorIndex == (SimplePreset::kNumOscillators - 1);
     if(!lastValue)
       stream << ", ";
-
-    if(((oscillatorIndex + 1) % kValuesPerLine) == 0 || lastValue)
-      stream << '\n';
   }
 
   stream << "]\n";

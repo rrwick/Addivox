@@ -109,7 +109,7 @@ public:
 
   void OnAttached() override
   {
-    const auto restorePreset = [this](IPluginBase* pluginBase, int presetIdx) {
+    const auto restorePreset = [this](iplug::IPluginBase* pluginBase, int presetIdx) {
       if(!pluginBase || pluginBase->NPresets() == 0)
         return;
 
@@ -118,7 +118,7 @@ public:
     };
 
     const auto prevPresetFunc = [restorePreset](IControl* caller) {
-      auto* pluginBase = dynamic_cast<IPluginBase*>(caller->GetDelegate());
+      auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(caller->GetDelegate());
       if(!pluginBase || pluginBase->NPresets() == 0)
         return;
 
@@ -130,7 +130,7 @@ public:
     };
 
     const auto nextPresetFunc = [restorePreset](IControl* caller) {
-      auto* pluginBase = dynamic_cast<IPluginBase*>(caller->GetDelegate());
+      auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(caller->GetDelegate());
       if(!pluginBase || pluginBase->NPresets() == 0)
         return;
 
@@ -144,7 +144,7 @@ public:
     const auto choosePresetFunc = [this](IControl* caller) {
       mPresetMenu.Clear();
 
-      auto* pluginBase = dynamic_cast<IPluginBase*>(caller->GetDelegate());
+      auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(caller->GetDelegate());
       if(!pluginBase)
         return;
 
@@ -169,7 +169,7 @@ public:
       ->SetAnimationEndActionFunction(choosePresetFunc);
 
     OnResize();
-    UpdatePresetLabel(dynamic_cast<IPluginBase*>(GetDelegate()));
+    UpdatePresetLabel(dynamic_cast<iplug::IPluginBase*>(GetDelegate()));
   }
 
   void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
@@ -181,7 +181,7 @@ public:
     if(!selectedItem)
       return;
 
-    auto* pluginBase = dynamic_cast<IPluginBase*>(GetDelegate());
+    auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(GetDelegate());
     if(!pluginBase)
       return;
 
@@ -199,7 +199,7 @@ public:
   }
 
 private:
-  void UpdatePresetLabel(IPluginBase* pluginBase)
+  void UpdatePresetLabel(iplug::IPluginBase* pluginBase)
   {
     if(!pluginBase || !mPresetNameButton || pluginBase->NPresets() == 0)
       return;
@@ -215,8 +215,8 @@ private:
     auto sections = mWidgetBounds;
 
     std::array<IRECT, 3> rects = {
-      sections.ReduceFromLeft(50),
-      sections.ReduceFromLeft(50),
+      sections.ReduceFromLeft(30),
+      sections.ReduceFromLeft(30),
       sections
     };
 
@@ -238,32 +238,17 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
       delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
   };
 
-  auto* loadPresetButton = new IVButtonControl(
-    IRECT::MakeXYWH(348.f, 14.f, 80.f, 42.f),
-    SplashClickActionFunc,
-    "Load",
-    theme::PresetActionButtonStyle(),
-    true,
-    false);
+  auto* loadPresetButton = new IVButtonControl(IRECT::MakeXYWH(735.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Load", theme::PresetActionButtonStyle(), true, false);
   loadPresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
     sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
   });
 
-  auto* savePresetButton = new IVButtonControl(
-    IRECT::MakeXYWH(436.f, 14.f, 80.f, 42.f),
-    SplashClickActionFunc,
-    "Save",
-    theme::PresetActionButtonStyle(),
-    true,
-    false);
+  auto* savePresetButton = new IVButtonControl(IRECT::MakeXYWH(785.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Save", theme::PresetActionButtonStyle(), true, false);
   savePresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
     sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
   });
 
-  auto* presetManagerControl = new BakedPresetManagerControl(
-    IRECT::MakeXYWH(528.f, 14.f, 250.f, 42.f),
-    "",
-    theme::PresetManagerStyle());
+  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(450.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
 
   pGraphics->AttachControl(loadPresetButton);
   pGraphics->AttachControl(savePresetButton);
