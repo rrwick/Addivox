@@ -108,6 +108,7 @@ struct EditorStyles
     .WithColor(kFG, barColor)
     .WithColor(kX1, barColor)
     .WithColor(kHL, colour::editor::kHoverOverlay);
+  IText tabTitleText{16.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Near, EVAlign::Top};
   IText descriptionText{13.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Near, EVAlign::Top};
   IVStyle restoreButtonStyle = BaseStyle(true, false)
     .WithLabelText(IText(13.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))

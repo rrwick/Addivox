@@ -95,15 +95,17 @@ inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescripto
 {
   descriptors.push_back({
     kOscillatorTabTitles[2],
+    "Attack Time",
     OscillatorParameter::attack,
     {0.0, 1.0},
-    "Controls how\nquickly each\nharmonic ramps\nup at note start."
+    help_text::oscillator_tabs::Get(OscillatorParameter::attack)
   });
   descriptors.push_back({
     kOscillatorTabTitles[3],
+    "Release Time",
     OscillatorParameter::release,
     {0.0, 1.0},
-    "Controls how\nquickly each\nharmonic fades\nafter note release."
+    help_text::oscillator_tabs::Get(OscillatorParameter::release)
   });
 }
 
@@ -231,7 +233,7 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page,
   (*context->attackReleaseTab.setShapeControls)[attackReleaseIndex] = setShapeControl;
   (*context->attackReleaseTab.actionsControls)[attackReleaseIndex] = actionsControl;
 
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

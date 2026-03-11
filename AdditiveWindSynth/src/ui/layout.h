@@ -6,6 +6,7 @@
 #include "control_utils.h"
 #include "layered_svg_knob_control.h"
 #include "editor_panel.h"
+#include "help_text.h"
 #include "theme.h"
 #include "../editor_messages.h"
 #include "../settings/params.h"
@@ -363,6 +364,7 @@ inline VizEditPanelControls AttachVizEditPanelControls(IGraphics* pGraphics,
 
   auto* addButtonControl = new IVButtonControl(
     addButtonBounds, SplashClickActionFunc, "ADD", resources.vizEditButtonStyle, true, false);
+  addButtonControl->SetTooltip(help_text::oscillator_tabs::kAddButton);
   addButtonControl->SetAnimationEndActionFunction(
     [pGraphics, keyboardTag, context](IControl* caller) {
       if(!caller || !context->HasValidSelectedMidiNote())
@@ -381,6 +383,7 @@ inline VizEditPanelControls AttachVizEditPanelControls(IGraphics* pGraphics,
 
   auto* deleteButtonControl = new IVButtonControl(
     deleteButtonBounds, SplashClickActionFunc, "DELETE", resources.vizEditButtonStyle, true, false);
+  deleteButtonControl->SetTooltip(help_text::oscillator_tabs::kDeleteButton);
   deleteButtonControl->SetAnimationEndActionFunction(
     [pGraphics, keyboardTag, context](IControl* caller) {
       if(!caller || !context->HasValidSelectedMidiNote())
@@ -538,6 +541,9 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   
   // Effects panel: x=846, y=376, w=240, h=136
   // TODO: add controls for effects settings here once implemented
+
+  if(pGraphics->TooltipsEnabled())
+    pGraphics->UpdateTooltips();
 
   return context;
 }

@@ -144,9 +144,10 @@ inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& desc
 {
   descriptors.push_back({
     kOscillatorTabTitles[0],
+    "Level",
     OscillatorParameter::intensity,
     {0.0, 1.0},
-    "Controls the\nintensity of each\nharmonic at full\nbreath."
+    help_text::oscillator_tabs::Get(OscillatorParameter::intensity)
   });
 }
 
@@ -288,7 +289,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   *context->levelTab.setShapeControl = setShapeControl;
   *context->levelTab.actionsControl = actionsControl;
 
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

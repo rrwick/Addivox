@@ -67,9 +67,10 @@ inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& des
 {
   descriptors.push_back({
     kOscillatorTabTitles[1],
+    "Breath Power",
     OscillatorParameter::breath_power,
     {0.0, 100.0},
-    "Controls how\nstrongly breath\nscales each\nharmonic level."
+    help_text::oscillator_tabs::Get(OscillatorParameter::breath_power)
   });
 }
 
@@ -193,7 +194,7 @@ inline void AttachBreathTabChildren(IVTabPage* page,
   *context->breathTab.setShapeControl = setShapeControl;
   *context->breathTab.actionsControl = actionsControl;
 
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

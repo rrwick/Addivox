@@ -2,6 +2,7 @@
 
 #include "IControls.h"
 #include "../control_utils.h"
+#include "../help_text.h"
 #include "../action_selection_control.h"
 #include "../editor_state.h"
 #include "../oscillator_slider_control.h"
@@ -32,6 +33,7 @@ using EditorStyles = theme::EditorStyles;
 struct OscillatorTabDescriptor
 {
   const char* title;
+  const char* panelTitle;
   OscillatorParameter parameter;
   SliderRange range;
   const char* description;
@@ -104,6 +106,17 @@ inline void SetDisabledState(IControl* control, bool disabled)
 
   control->SetDisabled(disabled);
   control->SetDirty(false);
+}
+
+inline ITextControl* CreateTabTitleControl(const OscillatorTabDescriptor& descriptor, const EditorStyles& styles)
+{
+  auto* control = new IMultiLineTextControl(IRECT(), descriptor.panelTitle, styles.tabTitleText, COLOR_TRANSPARENT);
+  // Native macOS tooltips in iPlug2 resolve from the hovered control, so this
+  // text control must participate in mouse-over even though it is not clickable.
+  control->SetIgnoreMouse(false);
+  control->SetTooltip(descriptor.description);
+  control->DisablePrompt(true);
+  return control;
 }
 
 inline int RoundOscillatorRangeValue(double value)
@@ -670,6 +683,8 @@ inline XRangeControls CreateXRangeControls(const std::shared_ptr<EditorContext>&
     static_cast<double>(context->XRangeMax()), 1.0, static_cast<double>(SimplePreset::kNumOscillators), "%0.0f", false);
   minControl->SetDrawTriangle(false);
   maxControl->SetDrawTriangle(false);
+  minControl->SetTooltip(help_text::oscillator_tabs::kXRangeMin);
+  maxControl->SetTooltip(help_text::oscillator_tabs::kXRangeMax);
 
   auto rangeGuard = std::make_shared<bool>(false);
   const auto clampEditedControl = [rangeGuard, minControl, maxControl](IVNumberBoxControl* editedControl) {

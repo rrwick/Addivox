@@ -72,7 +72,7 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
                                      OscillatorSliderControl* sliderControl)
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);
@@ -179,6 +179,9 @@ inline void RestoreSelectedTab(IVTabbedPagesControl* editorTabsControl, const st
 
     if(auto* switchControl = caller ? caller->As<IVTabSwitchControl>() : nullptr)
       *selectedTabIndex = switchControl->GetSelectedIdx();
+
+    if(caller && caller->GetUI() && caller->GetUI()->TooltipsEnabled())
+      caller->GetUI()->UpdateTooltips();
   });
 
   const int maxTabIndex = static_cast<int>(GetOscillatorTabDescriptors().size()) - 1;
@@ -276,6 +279,8 @@ inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics
   pGraphics->AttachControl(editorTabsControl, editorTabsTag);
   RestoreSelectedTab(editorTabsControl, context->model.selectedTabIndex);
   context->RefreshOscillatorTabs();
+  if(pGraphics->TooltipsEnabled())
+    pGraphics->UpdateTooltips();
   return context;
 }
 

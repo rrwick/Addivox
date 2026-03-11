@@ -67,39 +67,45 @@ inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& 
 {
   descriptors.push_back({
     kOscillatorTabTitles[6],
+    "Level Variation Amount",
     OscillatorParameter::intensity_variation_amplitude,
     {0.0, 10.0},
-    "Controls depth of\nintensity variation\nfor each harmonic."
+    help_text::oscillator_tabs::Get(OscillatorParameter::intensity_variation_amplitude)
   });
   descriptors.push_back({
     kOscillatorTabTitles[7],
+    "Level Variation Rate",
     OscillatorParameter::intensity_variation_rate,
     {0.0, 10.0},
-    "Controls speed of\nintensity variation\nfor each harmonic."
+    help_text::oscillator_tabs::Get(OscillatorParameter::intensity_variation_rate)
   });
   descriptors.push_back({
     kOscillatorTabTitles[8],
+    "Pitch Variation Amount",
     OscillatorParameter::pitch_variation_amplitude,
     {0.0, 10.0},
-    "Controls depth of\npitch variation for\neach harmonic."
+    help_text::oscillator_tabs::Get(OscillatorParameter::pitch_variation_amplitude)
   });
   descriptors.push_back({
     kOscillatorTabTitles[9],
+    "Pitch Variation Rate",
     OscillatorParameter::pitch_variation_rate,
     {0.0, 10.0},
-    "Controls speed of\npitch variation for\neach harmonic."
+    help_text::oscillator_tabs::Get(OscillatorParameter::pitch_variation_rate)
   });
   descriptors.push_back({
     kOscillatorTabTitles[10],
+    "Pan Variation Amount",
     OscillatorParameter::pan_variation_amplitude,
     {0.0, 10.0},
-    "Controls depth of\npan variation for\neach harmonic."
+    help_text::oscillator_tabs::Get(OscillatorParameter::pan_variation_amplitude)
   });
   descriptors.push_back({
     kOscillatorTabTitles[11],
+    "Pan Variation Rate",
     OscillatorParameter::pan_variation_rate,
     {0.0, 10.0},
-    "Controls speed of\npan variation for\neach harmonic."
+    help_text::oscillator_tabs::Get(OscillatorParameter::pan_variation_rate)
   });
 }
 
@@ -224,7 +230,7 @@ inline void AttachVariationTabChildren(IVTabPage* page,
   (*context->variationTab.setShapeControls)[variationIndex] = setShapeControl;
   (*context->variationTab.actionsControls)[variationIndex] = actionsControl;
 
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

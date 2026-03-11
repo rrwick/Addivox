@@ -98,9 +98,10 @@ inline void AppendPitchTabDescriptors(std::vector<OscillatorTabDescriptor>& desc
 {
   descriptors.push_back({
     kOscillatorTabTitles[4],
+    "Pitch Offset",
     OscillatorParameter::pitch,
     {-100.0, 100.0},
-    "Controls static pitch\noffset per harmonic\nin cents."
+    help_text::oscillator_tabs::Get(OscillatorParameter::pitch)
   });
 }
 
@@ -220,7 +221,7 @@ inline void AttachPitchTabChildren(IVTabPage* page,
   *context->pitchTab.setShapeControl = setShapeControl;
   *context->pitchTab.actionsControl = actionsControl;
 
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

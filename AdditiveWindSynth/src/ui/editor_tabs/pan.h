@@ -108,9 +108,10 @@ inline void AppendPanTabDescriptors(std::vector<OscillatorTabDescriptor>& descri
 {
   descriptors.push_back({
     kOscillatorTabTitles[5],
+    "Pan Offset",
     OscillatorParameter::pan,
     {-1.0, 1.0},
-    "Controls stereo\nposition of each\nharmonic from left\nto right."
+    help_text::oscillator_tabs::Get(OscillatorParameter::pan)
   });
 }
 
@@ -230,7 +231,7 @@ inline void AttachPanTabChildren(IVTabPage* page,
   *context->panTab.setShapeControl = setShapeControl;
   *context->panTab.actionsControl = actionsControl;
 
-  page->AddChildControl(MakePassiveControl(new IMultiLineTextControl(IRECT(), descriptor.description, styles.descriptionText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

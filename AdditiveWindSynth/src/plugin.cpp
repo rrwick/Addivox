@@ -201,6 +201,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
     pGraphics->AttachSVGBackground("background.svg");
     pGraphics->EnableMouseOver(true);
+    pGraphics->EnableTooltips(true);
     pGraphics->EnableMultiTouch(true);
     
 #ifdef OS_WEB
