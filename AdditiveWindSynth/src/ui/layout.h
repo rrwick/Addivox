@@ -498,11 +498,7 @@ inline void AttachEffectsPanelControls(IGraphics* pGraphics,
                                        const PanelResources& resources)
 {
   const LabelledKnobValueSpec reverbKnob{
-    {IRECT::MakeMidXYWH(980.f, 460.f, resources.knobSize, resources.knobSize),
-     IRECT::MakeXYWH(1012.f, 461.f, 60.f, 12.f),
-     kParamEffectsReverb},
-    "Reverb",
-    IRECT::MakeXYWH(1012.f, 448.f, 60.f, 12.f)
+    {IRECT::MakeMidXYWH(992.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1024.f, 483.f, 60.f, 12.f), kParamEffectsReverb}, "Reverb", IRECT::MakeXYWH(1024.f, 470.f, 60.f, 12.f)
   };
 
   AttachLabelledKnobWithValue(

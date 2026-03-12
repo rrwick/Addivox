@@ -176,6 +176,9 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
       iplug::IParam::kUnitCustom,
       formatPseudoLogScaleDisplay);
   };
+  const auto formatPercentDisplay = [](double value, WDL_String& str) {
+    str.SetFormatted(32, "%.1f%%", value);
+  };
 
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
@@ -191,7 +194,18 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   const auto& portamentoShape = transformations::GetPortamentoPseudoLogShape();
   GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (min)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
   GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (max)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
-  GetParam(kParamEffectsReverb)->InitDouble("Reverb", 0., 0., 100.0, 0.1, "%");
+  GetParam(kParamEffectsReverb)->InitDouble(
+    "Reverb",
+    0.,
+    0.,
+    100.0,
+    0.1,
+    "",
+    0,
+    "",
+    iplug::IParam::ShapeLinear(),
+    iplug::IParam::kUnitCustom,
+    formatPercentDisplay);
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {

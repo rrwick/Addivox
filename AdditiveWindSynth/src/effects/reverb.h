@@ -17,8 +17,9 @@ public:
   void ProcessBlock(iplug::sample** outputs, int nFrames);
 
 private:
-  static constexpr int kNumDiffusers = 3;
-  static constexpr int kNumDelayLines = 4;
+  static constexpr int kNumEarlyTaps = 8;
+  static constexpr int kNumDiffusers = 4;
+  static constexpr int kNumDelayLines = 8;
 
   struct DelayLine
   {
@@ -69,10 +70,18 @@ private:
   double mAmount{0.0};
   bool mActive{false};
   double mWetMix{0.0};
+  double mEarlyMix{0.0};
+  double mLateMix{0.0};
+  double mEarlySideScale{0.0};
+  double mLateSideScale{0.0};
   double mPreDelaySamples{0.0};
   OnePoleLowpass mInputLowpass;
   OnePoleHighpass mInputHighpass;
+  DelayLine mEarlyDelay;
   DelayLine mPreDelay;
+  OnePoleLowpass mOutputLowpassLeft;
+  OnePoleLowpass mOutputLowpassRight;
+  std::array<double, kNumEarlyTaps> mEarlyTapSamples{};
   std::array<AllpassDiffuser, kNumDiffusers> mDiffusers{};
   std::array<DelayLine, kNumDelayLines> mDelayLines{};
   std::array<OnePoleLowpass, kNumDelayLines> mLoopDampingFilters{};

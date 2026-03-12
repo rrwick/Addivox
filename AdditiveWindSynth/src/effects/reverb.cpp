@@ -8,18 +8,67 @@ namespace
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
-constexpr int kNumDiffusers = 3;
-constexpr int kNumDelayLines = 4;
+constexpr double kHadamardScale = 0.3535533905932738;
+constexpr int kNumEarlyTaps = 8;
+constexpr int kNumDiffusers = 4;
+constexpr int kNumDelayLines = 8;
 
-constexpr std::array<double, kNumDiffusers> kDiffuserDelayMs{5.7, 9.9, 14.8};
-constexpr std::array<double, kNumDiffusers> kDiffuserFeedbacks{0.69, 0.63, 0.57};
-constexpr std::array<double, kNumDelayLines> kDelayTimesMs{34.7, 45.9, 58.8, 72.4};
-constexpr std::array<double, kNumDelayLines> kModDepthMs{0.11, 0.17, 0.23, 0.31};
-constexpr std::array<double, kNumDelayLines> kModRateHz{0.11, 0.07, 0.17, 0.13};
+constexpr std::array<double, kNumEarlyTaps> kEarlyTapTimesMs{4.9, 7.3, 10.8, 15.1, 21.4, 29.2, 39.7, 53.6};
+constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsL{0.62, 0.48, 0.34, 0.24, 0.17, 0.12, 0.09, 0.07};
+constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsR{0.10, 0.15, 0.23, 0.36, 0.47, 0.31, 0.19, 0.11};
+constexpr std::array<double, kNumDiffusers> kDiffuserDelayMs{4.8, 7.2, 10.9, 15.7};
+constexpr std::array<double, kNumDiffusers> kDiffuserFeedbacks{0.72, 0.68, 0.63, 0.57};
+constexpr std::array<double, kNumDelayLines> kDelayTimesMs{21.7, 27.3, 33.1, 39.9, 46.9, 55.7, 66.1, 78.7};
+constexpr std::array<double, kNumDelayLines> kModDepthMs{0.10, 0.12, 0.14, 0.17, 0.20, 0.24, 0.28, 0.33};
+constexpr std::array<double, kNumDelayLines> kModRateHz{0.11, 0.07, 0.13, 0.17, 0.09, 0.19, 0.05, 0.15};
+constexpr std::array<double, kNumDelayLines> kModPhaseOffsets{
+  0.00,
+  0.37 * kPi,
+  0.71 * kPi,
+  1.13 * kPi,
+  1.61 * kPi,
+  0.52 * kPi,
+  1.87 * kPi,
+  1.29 * kPi,
+};
+constexpr std::array<double, kNumDelayLines> kInputSigns{1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0};
+constexpr std::array<double, kNumDelayLines> kSideSigns{1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0};
 
 double FlushDenormal(double value)
 {
   return std::abs(value) < kDenormalFloor ? 0.0 : value;
+}
+
+std::array<double, kNumDelayLines> Hadamard8(const std::array<double, kNumDelayLines>& input)
+{
+  const double a0 = input[0] + input[1];
+  const double a1 = input[0] - input[1];
+  const double a2 = input[2] + input[3];
+  const double a3 = input[2] - input[3];
+  const double a4 = input[4] + input[5];
+  const double a5 = input[4] - input[5];
+  const double a6 = input[6] + input[7];
+  const double a7 = input[6] - input[7];
+
+  const double b0 = a0 + a2;
+  const double b1 = a1 + a3;
+  const double b2 = a0 - a2;
+  const double b3 = a1 - a3;
+  const double b4 = a4 + a6;
+  const double b5 = a5 + a7;
+  const double b6 = a4 - a6;
+  const double b7 = a5 - a7;
+
+  return {
+    (b0 + b4) * kHadamardScale,
+    (b1 + b5) * kHadamardScale,
+    (b2 + b6) * kHadamardScale,
+    (b3 + b7) * kHadamardScale,
+    (b0 - b4) * kHadamardScale,
+    (b1 - b5) * kHadamardScale,
+    (b2 - b6) * kHadamardScale,
+    (b3 - b7) * kHadamardScale,
+  };
 }
 } // namespace
 
@@ -130,8 +179,14 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
 {
   (void) blockSize;
 
+  constexpr double kMaxEarlyTapScale = 1.30;
+  constexpr double kMaxPreDelayMs = 24.0;
+  constexpr double kMaxDelayScale = 1.36;
+
   mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  mPreDelay.Resize(static_cast<int>(std::ceil(MillisecondsToSamples(24.0, mSampleRate))) + 2);
+  mEarlyDelay.Resize(
+    static_cast<int>(std::ceil(MillisecondsToSamples((kEarlyTapTimesMs.back() * kMaxEarlyTapScale) + 2.0, mSampleRate))) + 2);
+  mPreDelay.Resize(static_cast<int>(std::ceil(MillisecondsToSamples(kMaxPreDelayMs, mSampleRate))) + 2);
 
   for(int i = 0; i < kNumDiffusers; ++i)
   {
@@ -141,8 +196,9 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
 
   for(int i = 0; i < kNumDelayLines; ++i)
   {
-    const double maxDelayMs = kDelayTimesMs[static_cast<std::size_t>(i)] + kModDepthMs[static_cast<std::size_t>(i)] + 2.0;
-    mDelayLines[static_cast<std::size_t>(i)].Resize(static_cast<int>(std::ceil(MillisecondsToSamples(maxDelayMs, mSampleRate))) + 2);
+    const std::size_t index = static_cast<std::size_t>(i);
+    const double maxDelayMs = (kDelayTimesMs[index] * kMaxDelayScale) + kModDepthMs[index] + 2.0;
+    mDelayLines[index].Resize(static_cast<int>(std::ceil(MillisecondsToSamples(maxDelayMs, mSampleRate))) + 2);
   }
 
   Clear();
@@ -153,6 +209,9 @@ void effects::Reverb::Clear()
 {
   mInputLowpass.Clear();
   mInputHighpass.Clear();
+  mOutputLowpassLeft.Clear();
+  mOutputLowpassRight.Clear();
+  mEarlyDelay.Clear();
   mPreDelay.Clear();
 
   for(auto& diffuser : mDiffusers)
@@ -164,8 +223,8 @@ void effects::Reverb::Clear()
   for(auto& filter : mLoopDampingFilters)
     filter.Clear();
 
-  for(auto& phase : mModPhase)
-    phase = 0.0;
+  for(int i = 0; i < kNumDelayLines; ++i)
+    mModPhase[static_cast<std::size_t>(i)] = kModPhaseOffsets[static_cast<std::size_t>(i)];
 }
 
 void effects::Reverb::SetAmount(double amount)
@@ -187,28 +246,45 @@ void effects::Reverb::SetAmount(double amount)
 void effects::Reverb::UpdateParameters()
 {
   const double space = std::clamp(mAmount * 0.01, 0.0, 1.0);
-  const double decayShape = space * space;
-  const double rt60Seconds = 0.40 + (1.90 * decayShape);
-  const double preDelayMs = 7.0 + (11.0 * space);
-  const double inputLowpassHz = 9600.0 - (3600.0 * space);
-  const double loopDampingHz = 5200.0 - (2400.0 * space);
-  const double modulationScale = 0.35 + (0.65 * space);
+  const double hall = space * space;
+  const double delayScale = 0.78 + (0.22 * space) + (0.36 * hall);
+  const double earlyTapScale = 0.80 + (0.18 * space) + (0.32 * hall);
+  const double rt60Seconds = 0.38 + (0.55 * space) + (2.10 * hall);
+  const double preDelayMs = 2.0 + (3.5 * space) + (16.0 * hall);
+  const double inputLowpassHz = 11000.0 - (2000.0 * space) - (1200.0 * hall);
+  const double loopDampingHz = 7000.0 - (1200.0 * space) - (2600.0 * hall);
+  const double outputLowpassHz = 9000.0 - (800.0 * space) - (2200.0 * hall);
+  const double modulationScale = 0.18 + (0.22 * space) + (0.65 * hall);
 
-  mWetMix = 0.28 * space;
+  mEarlyMix = (0.12 * space) + (0.06 * hall);
+  mLateMix = (0.04 * space) + (0.24 * hall);
+  mWetMix = mEarlyMix + mLateMix;
+  mEarlySideScale = 0.16 - (0.04 * hall);
+  mLateSideScale = 0.04 + (0.08 * space) + (0.02 * hall);
   mPreDelaySamples = std::max(1.0, MillisecondsToSamples(preDelayMs, mSampleRate));
+
   mInputLowpass.SetCutoffHz(mSampleRate, inputLowpassHz);
-  mInputHighpass.SetCutoffHz(mSampleRate, 220.0);
+  mInputHighpass.SetCutoffHz(mSampleRate, 180.0 + (50.0 * space));
+  mOutputLowpassLeft.SetCutoffHz(mSampleRate, outputLowpassHz);
+  mOutputLowpassRight.SetCutoffHz(mSampleRate, outputLowpassHz);
+
+  for(int i = 0; i < kNumEarlyTaps; ++i)
+  {
+    const std::size_t index = static_cast<std::size_t>(i);
+    mEarlyTapSamples[index] = MillisecondsToSamples(kEarlyTapTimesMs[index] * earlyTapScale, mSampleRate);
+  }
 
   for(int i = 0; i < kNumDelayLines; ++i)
   {
     const std::size_t index = static_cast<std::size_t>(i);
-    mBaseDelaySamples[index] = MillisecondsToSamples(kDelayTimesMs[index], mSampleRate);
-    mFeedbackGains[index] = std::pow(10.0, (-3.0 * kDelayTimesMs[index] * 0.001) / rt60Seconds);
+    const double scaledDelayMs = kDelayTimesMs[index] * delayScale;
+    mBaseDelaySamples[index] = MillisecondsToSamples(scaledDelayMs, mSampleRate);
+    mFeedbackGains[index] = std::pow(10.0, (-3.0 * scaledDelayMs * 0.001) / rt60Seconds);
     mModDepthSamples[index] = MillisecondsToSamples(kModDepthMs[index] * modulationScale, mSampleRate);
     mModPhaseIncrement[index] = (2.0 * kPi * kModRateHz[index]) / mSampleRate;
     mLoopDampingFilters[index].SetCutoffHz(
       mSampleRate,
-      std::max(1800.0, loopDampingHz * (1.0 - (0.12 * static_cast<double>(i)))));
+      std::max(1600.0, loopDampingHz * (1.0 - (0.06 * static_cast<double>(i)))));
   }
 }
 
@@ -222,50 +298,64 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
     const double dryLeft = outputs[0][sampleIndex];
     const double dryRight = outputs[1][sampleIndex];
     const double mid = 0.5 * (dryLeft + dryRight);
-    const double side = 0.2 * (dryLeft - dryRight);
+    const double side = 0.5 * (dryLeft - dryRight);
 
-    double diffusedInput = mInputLowpass.Process(mid);
-    diffusedInput = mInputHighpass.Process(diffusedInput);
+    double conditioned = mInputLowpass.Process(mid);
+    conditioned = mInputHighpass.Process(conditioned);
+
+    double earlyLeft = mEarlySideScale * side;
+    double earlyRight = -mEarlySideScale * side;
+    for(int tapIndex = 0; tapIndex < kNumEarlyTaps; ++tapIndex)
+    {
+      const std::size_t index = static_cast<std::size_t>(tapIndex);
+      const double tap = mEarlyDelay.Read(mEarlyTapSamples[index]);
+      earlyLeft += kEarlyTapGainsL[index] * tap;
+      earlyRight += kEarlyTapGainsR[index] * tap;
+    }
+    mEarlyDelay.Write(conditioned);
+
     const double predelayed = mPreDelay.Read(mPreDelaySamples);
-    mPreDelay.Write(diffusedInput);
+    mPreDelay.Write(conditioned);
 
     double diffused = predelayed;
     for(auto& diffuser : mDiffusers)
       diffused = diffuser.Process(diffused);
 
-    std::array<double, kNumDelayLines> delayOutputs{};
     std::array<double, kNumDelayLines> dampedOutputs{};
-
     for(int i = 0; i < kNumDelayLines; ++i)
     {
       const std::size_t index = static_cast<std::size_t>(i);
       double delaySamples = mBaseDelaySamples[index];
-      if(mModDepthSamples[index] > 0.0)
-      {
-        delaySamples += mModDepthSamples[index] * std::sin(mModPhase[index]);
-        mModPhase[index] += mModPhaseIncrement[index];
-        if(mModPhase[index] >= (2.0 * kPi))
-          mModPhase[index] -= (2.0 * kPi);
-      }
+      delaySamples += mModDepthSamples[index] * std::sin(mModPhase[index]);
+      mModPhase[index] += mModPhaseIncrement[index];
+      if(mModPhase[index] >= (2.0 * kPi))
+        mModPhase[index] -= (2.0 * kPi);
 
-      delayOutputs[index] = mDelayLines[index].Read(delaySamples);
-      dampedOutputs[index] = mLoopDampingFilters[index].Process(delayOutputs[index]);
+      const double delayOutput = mDelayLines[index].Read(delaySamples);
+      dampedOutputs[index] = mLoopDampingFilters[index].Process(delayOutput);
     }
 
-    const double feedback0 = 0.5 * (dampedOutputs[0] + dampedOutputs[1] + dampedOutputs[2] + dampedOutputs[3]);
-    const double feedback1 = 0.5 * (dampedOutputs[0] - dampedOutputs[1] + dampedOutputs[2] - dampedOutputs[3]);
-    const double feedback2 = 0.5 * (dampedOutputs[0] + dampedOutputs[1] - dampedOutputs[2] - dampedOutputs[3]);
-    const double feedback3 = 0.5 * (dampedOutputs[0] - dampedOutputs[1] - dampedOutputs[2] + dampedOutputs[3]);
+    const auto mixedFeedback = Hadamard8(dampedOutputs);
+    const double monoInjection = 0.25 * diffused;
+    const double sideInjection = mLateSideScale * side;
+    for(int i = 0; i < kNumDelayLines; ++i)
+    {
+      const std::size_t index = static_cast<std::size_t>(i);
+      const double inputInjection = (kInputSigns[index] * monoInjection) + (kSideSigns[index] * sideInjection);
+      mDelayLines[index].Write(inputInjection + (mFeedbackGains[index] * mixedFeedback[index]));
+    }
 
-    mDelayLines[0].Write((0.5 * (diffused + side)) + (mFeedbackGains[0] * feedback0));
-    mDelayLines[1].Write((0.5 * (diffused - side)) + (mFeedbackGains[1] * feedback1));
-    mDelayLines[2].Write((0.5 * (-diffused + side)) + (mFeedbackGains[2] * feedback2));
-    mDelayLines[3].Write((0.5 * (-diffused - side)) + (mFeedbackGains[3] * feedback3));
+    const double lateLeft = kHadamardScale
+      * (dampedOutputs[0] + dampedOutputs[1] - dampedOutputs[2] - dampedOutputs[3]
+        + dampedOutputs[4] + dampedOutputs[5] - dampedOutputs[6] - dampedOutputs[7]);
+    const double lateRight = kHadamardScale
+      * (dampedOutputs[0] - dampedOutputs[1] + dampedOutputs[2] - dampedOutputs[3]
+        - dampedOutputs[4] + dampedOutputs[5] - dampedOutputs[6] + dampedOutputs[7]);
 
-    const double wetLeft = 0.5 * (dampedOutputs[0] + dampedOutputs[1] - dampedOutputs[2] - dampedOutputs[3]);
-    const double wetRight = 0.5 * (dampedOutputs[0] - dampedOutputs[1] + dampedOutputs[2] - dampedOutputs[3]);
+    const double wetLeft = mOutputLowpassLeft.Process((mEarlyMix * earlyLeft) + (mLateMix * lateLeft));
+    const double wetRight = mOutputLowpassRight.Process((mEarlyMix * earlyRight) + (mLateMix * lateRight));
 
-    outputs[0][sampleIndex] = static_cast<iplug::sample>(dryLeft + (mWetMix * wetLeft));
-    outputs[1][sampleIndex] = static_cast<iplug::sample>(dryRight + (mWetMix * wetRight));
+    outputs[0][sampleIndex] = static_cast<iplug::sample>(dryLeft + wetLeft);
+    outputs[1][sampleIndex] = static_cast<iplug::sample>(dryRight + wetRight);
   }
 }
