@@ -15,5 +15,6 @@ enum EParams
   kParamGlobalPanVariationRateScale,
   kParamPortamentoAtCC5Min,
   kParamPortamentoAtCC5Max,
+  kParamEffectsReverb,
   kNumParams
 };

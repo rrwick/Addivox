@@ -26,6 +26,10 @@ iplug_add_plugin(${PROJECT_NAME}
     src/settings/settings_oscillator.h
     src/settings/settings_global.cpp
     src/settings/settings_global.h
+    src/settings/settings_effects.cpp
+    src/settings/settings_effects.h
+    src/effects/reverb.cpp
+    src/effects/reverb.h
     src/ui/transformations.cpp
     src/ui/transformations.h
     src/ui/oscillator_slider_control.cpp

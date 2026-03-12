@@ -493,6 +493,25 @@ inline void AttachOutputPanelControls(IGraphics* pGraphics,
   for(const auto& spec : outputKnobs)
     AttachLabelledKnobWithValue(pGraphics, resources.knobAssets, spec, resources.compactLabelText, resources.compactValueText);
 }
+
+inline void AttachEffectsPanelControls(IGraphics* pGraphics,
+                                       const PanelResources& resources)
+{
+  const LabelledKnobValueSpec reverbKnob{
+    {IRECT::MakeMidXYWH(980.f, 460.f, resources.knobSize, resources.knobSize),
+     IRECT::MakeXYWH(1012.f, 461.f, 60.f, 12.f),
+     kParamEffectsReverb},
+    "Reverb",
+    IRECT::MakeXYWH(1012.f, 448.f, 60.f, 12.f)
+  };
+
+  AttachLabelledKnobWithValue(
+    pGraphics,
+    resources.knobAssets,
+    reverbKnob,
+    resources.compactLabelText,
+    resources.compactValueText);
+}
 } // namespace layout
 
 inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGraphics,
@@ -540,7 +559,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachOutputPanelControls(pGraphics, resources);
   
   // Effects panel: x=846, y=376, w=240, h=136
-  // TODO: add controls for effects settings here once implemented
+  layout::AttachEffectsPanelControls(pGraphics, resources);
 
   if(pGraphics->TooltipsEnabled())
     pGraphics->UpdateTooltips();

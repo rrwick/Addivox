@@ -590,7 +590,6 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
            << detail::FormatDouble(document.voiceSettings.*(descriptor.member))
            << '\n';
   }
-
   bool wroteAllKeyNotes = false;
   for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
   {

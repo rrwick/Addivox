@@ -2,7 +2,9 @@
 
 #include "midi_synth.h"
 #include "../settings/params.h"
+#include "../settings/settings_effects.h"
 #include "voice.h"
+#include "../effects/reverb.h"
 #include <cstring>
 
 using namespace iplug;
@@ -20,6 +22,9 @@ public:
       memset(outputs[i], 0, nFrames * sizeof(sample));
 
     mSynth.ProcessBlock(outputs, nFrames);
+
+    if(mReverb.IsActive())
+      mReverb.ProcessBlock(outputs, nFrames);
   }
 
   void Reset(double sampleRate, int blockSize)
@@ -27,6 +32,8 @@ public:
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
+    mReverb.Reset(sampleRate, blockSize);
+    mReverb.SetAmount(mEffectsSettings.reverb);
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg)
@@ -37,7 +44,13 @@ public:
   void SetParam(int paramIdx, double value)
   {
     if(global_settings::ApplyParam(paramIdx, value, mGlobalVoiceSettings))
+    {
       mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
+      return;
+    }
+
+    if(effects_settings::ApplyParam(paramIdx, value, mEffectsSettings))
+      mReverb.SetAmount(mEffectsSettings.reverb);
   }
 
   void SetCompoundPreset(const CompoundPreset& preset)
@@ -79,4 +92,6 @@ public:
 public:
   MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
   GlobalVoiceSettings mGlobalVoiceSettings{};
+  EffectsSettings mEffectsSettings{};
+  effects::Reverb mReverb;
 };

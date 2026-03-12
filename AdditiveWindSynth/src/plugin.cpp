@@ -22,23 +22,23 @@ GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const AdditiveWindSynth& pl
   return global_settings::Sanitize(settings);
 }
 
-void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin, const GlobalVoiceSettings& settings)
+void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin,
+                                  const GlobalVoiceSettings& voiceSettings)
 {
-  const GlobalVoiceSettings sanitized = global_settings::Sanitize(settings);
-  plugin.GetParam(kParamGlobalLevel)->Set(sanitized.levelScale);
-  plugin.GetParam(kParamGlobalAttackScale)->Set(sanitized.attackScale);
-  plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitized.releaseScale);
-  plugin.GetParam(kParamGlobalPitchShift)->Set(sanitized.pitchOffsetCents);
-  plugin.GetParam(kParamGlobalPanShift)->Set(sanitized.panOffset);
-  plugin.GetParam(kParamGlobalIntensityVariationAmplitudeScale)->Set(sanitized.intensityVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalIntensityVariationRateScale)->Set(sanitized.intensityVariationRateScale);
-  plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitized.pitchVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalPitchVariationRateScale)->Set(sanitized.pitchVariationRateScale);
-  plugin.GetParam(kParamGlobalPanVariationAmplitudeScale)->Set(sanitized.panVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalPanVariationRateScale)->Set(sanitized.panVariationRateScale);
-  plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitized.portamentoTimeAtCC5MinSec);
-  plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitized.portamentoTimeAtCC5MaxSec);
-  plugin.OnParamReset(kPresetRecall);
+  const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
+  plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
+  plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
+  plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
+  plugin.GetParam(kParamGlobalPitchShift)->Set(sanitizedVoiceSettings.pitchOffsetCents);
+  plugin.GetParam(kParamGlobalPanShift)->Set(sanitizedVoiceSettings.panOffset);
+  plugin.GetParam(kParamGlobalIntensityVariationAmplitudeScale)->Set(sanitizedVoiceSettings.intensityVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalIntensityVariationRateScale)->Set(sanitizedVoiceSettings.intensityVariationRateScale);
+  plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitizedVoiceSettings.pitchVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalPitchVariationRateScale)->Set(sanitizedVoiceSettings.pitchVariationRateScale);
+  plugin.GetParam(kParamGlobalPanVariationAmplitudeScale)->Set(sanitizedVoiceSettings.panVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalPanVariationRateScale)->Set(sanitizedVoiceSettings.panVariationRateScale);
+  plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MinSec);
+  plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MaxSec);
 }
 
 int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int preferredMidiNote)
@@ -62,21 +62,21 @@ int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int pref
 bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chunk)
 {
   const std::string toml = preset_io::SerializePresetToToml(document);
-  const GlobalVoiceSettings settings = global_settings::Sanitize(document.voiceSettings);
+  const GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
   return chunk.PutStr(toml.c_str()) > 0
-    && chunk.Put(&settings.levelScale) > 0
-    && chunk.Put(&settings.attackScale) > 0
-    && chunk.Put(&settings.releaseScale) > 0
-    && chunk.Put(&settings.pitchOffsetCents) > 0
-    && chunk.Put(&settings.panOffset) > 0
-    && chunk.Put(&settings.intensityVariationAmplitudeScale) > 0
-    && chunk.Put(&settings.intensityVariationRateScale) > 0
-    && chunk.Put(&settings.pitchVariationAmplitudeScale) > 0
-    && chunk.Put(&settings.pitchVariationRateScale) > 0
-    && chunk.Put(&settings.panVariationAmplitudeScale) > 0
-    && chunk.Put(&settings.panVariationRateScale) > 0
-    && chunk.Put(&settings.portamentoTimeAtCC5MinSec) > 0
-    && chunk.Put(&settings.portamentoTimeAtCC5MaxSec) > 0;
+    && chunk.Put(&voiceSettings.levelScale) > 0
+    && chunk.Put(&voiceSettings.attackScale) > 0
+    && chunk.Put(&voiceSettings.releaseScale) > 0
+    && chunk.Put(&voiceSettings.pitchOffsetCents) > 0
+    && chunk.Put(&voiceSettings.panOffset) > 0
+    && chunk.Put(&voiceSettings.intensityVariationAmplitudeScale) > 0
+    && chunk.Put(&voiceSettings.intensityVariationRateScale) > 0
+    && chunk.Put(&voiceSettings.pitchVariationAmplitudeScale) > 0
+    && chunk.Put(&voiceSettings.pitchVariationRateScale) > 0
+    && chunk.Put(&voiceSettings.panVariationAmplitudeScale) > 0
+    && chunk.Put(&voiceSettings.panVariationRateScale) > 0
+    && chunk.Put(&voiceSettings.portamentoTimeAtCC5MinSec) > 0
+    && chunk.Put(&voiceSettings.portamentoTimeAtCC5MaxSec) > 0;
 }
 
 std::string GetFullFileDialogPath(const WDL_String& fileName)
@@ -191,6 +191,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   const auto& portamentoShape = transformations::GetPortamentoPseudoLogShape();
   GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (min)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
   GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (max)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
+  GetParam(kParamEffectsReverb)->InitDouble("Reverb", 0., 0., 100.0, 0.1, "%");
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -246,6 +247,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
 #endif
 
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
+  OnParamReset(kPresetRecall);
 
   if(!document.name.empty())
     mActivePresetDisplayName = document.name;
@@ -449,12 +451,28 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
     document.compoundPreset,
     mEditorState->selectedMidiNote);
   mPendingRestoredStatePresetName = document.name;
+  SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
 
 #if IPLUG_DSP
   mDSP.SetCompoundPreset(document.compoundPreset);
 #endif
 
-  return UnserializeParams(chunk, position);
+  int pos = position;
+  ENTER_PARAMS_MUTEX
+  for(int paramIdx = 0; paramIdx < NParams(); ++paramIdx)
+  {
+    double value = 0.0;
+    const int nextPos = chunk.Get(&value, pos);
+    if(nextPos < 0)
+      break;
+
+    GetParam(paramIdx)->Set(value);
+    pos = nextPos;
+  }
+  OnParamReset(kPresetRecall);
+  LEAVE_PARAMS_MUTEX
+
+  return pos;
 }
 
 void AdditiveWindSynth::OnRestoreState()
