@@ -39,6 +39,18 @@ double FlushDenormal(double value)
   return std::abs(value) < kDenormalFloor ? 0.0 : value;
 }
 
+double SmoothValue(double current, double target, double coefficient)
+{
+  return current + (coefficient * (target - current));
+}
+
+double CutoffHzToCoefficient(double sampleRate, double cutoffHz)
+{
+  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+  const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
+  return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
+}
+
 std::array<double, kNumDelayLines> Hadamard8(const std::array<double, kNumDelayLines>& input)
 {
   const double a0 = input[0] + input[1];
@@ -113,9 +125,7 @@ double effects::Reverb::DelayLine::Read(double delaySamples) const
 
 void effects::Reverb::OnePoleLowpass::SetCutoffHz(double sampleRate, double cutoffHz)
 {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
-  coefficient = 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
+  coefficient = CutoffHzToCoefficient(sampleRate, cutoffHz);
 }
 
 void effects::Reverb::OnePoleLowpass::Clear()
@@ -132,9 +142,7 @@ double effects::Reverb::OnePoleLowpass::Process(double input)
 
 void effects::Reverb::OnePoleHighpass::SetCutoffHz(double sampleRate, double cutoffHz)
 {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
-  coefficient = 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
+  coefficient = CutoffHzToCoefficient(sampleRate, cutoffHz);
 }
 
 void effects::Reverb::OnePoleHighpass::Clear()
@@ -184,6 +192,9 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
   constexpr double kMaxDelayScale = 1.36;
 
   mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+  mMixSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.020 * mSampleRate));
+  mToneSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.060 * mSampleRate));
+  mStructureSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.180 * mSampleRate));
   mEarlyDelay.Resize(
     static_cast<int>(std::ceil(MillisecondsToSamples((kEarlyTapTimesMs.back() * kMaxEarlyTapScale) + 2.0, mSampleRate))) + 2);
   mPreDelay.Resize(static_cast<int>(std::ceil(MillisecondsToSamples(kMaxPreDelayMs, mSampleRate))) + 2);
@@ -199,10 +210,14 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
     const std::size_t index = static_cast<std::size_t>(i);
     const double maxDelayMs = (kDelayTimesMs[index] * kMaxDelayScale) + kModDepthMs[index] + 2.0;
     mDelayLines[index].Resize(static_cast<int>(std::ceil(MillisecondsToSamples(maxDelayMs, mSampleRate))) + 2);
+    mModPhaseIncrement[index] = (2.0 * kPi * kModRateHz[index]) / mSampleRate;
   }
 
+  mAmount = 0.0;
+  mActive = false;
   Clear();
-  UpdateParameters();
+  UpdateTargetParameters();
+  SnapCurrentParametersToTargets(true);
 }
 
 void effects::Reverb::Clear()
@@ -230,20 +245,29 @@ void effects::Reverb::Clear()
 void effects::Reverb::SetAmount(double amount)
 {
   const double sanitizedAmount = std::clamp(amount, 0.0, 100.0);
-  const bool shouldBeActive = sanitizedAmount > kBypassThreshold;
-  const bool activeStateChanged = shouldBeActive != mActive;
-
   mAmount = sanitizedAmount;
-  mActive = shouldBeActive;
 
-  if(activeStateChanged)
+  if(sanitizedAmount <= kBypassThreshold)
+  {
+    mTargetWetMix = 0.0;
+    mTargetEarlyMix = 0.0;
+    mTargetLateMix = 0.0;
+    mTargetEarlySideScale = 0.0;
+    mTargetLateSideScale = 0.0;
+    return;
+  }
+
+  UpdateTargetParameters();
+
+  if(!mActive)
+  {
     Clear();
-
-  if(mActive)
-    UpdateParameters();
+    SnapCurrentParametersToTargets(true);
+    mActive = true;
+  }
 }
 
-void effects::Reverb::UpdateParameters()
+void effects::Reverb::UpdateTargetParameters()
 {
   const double space = std::clamp(mAmount * 0.01, 0.0, 1.0);
   const double hall = space * space;
@@ -256,35 +280,58 @@ void effects::Reverb::UpdateParameters()
   const double outputLowpassHz = 9000.0 - (800.0 * space) - (2200.0 * hall);
   const double modulationScale = 0.18 + (0.22 * space) + (0.65 * hall);
 
-  mEarlyMix = (0.12 * space) + (0.06 * hall);
-  mLateMix = (0.04 * space) + (0.24 * hall);
-  mWetMix = mEarlyMix + mLateMix;
-  mEarlySideScale = 0.16 - (0.04 * hall);
-  mLateSideScale = 0.04 + (0.08 * space) + (0.02 * hall);
-  mPreDelaySamples = std::max(1.0, MillisecondsToSamples(preDelayMs, mSampleRate));
-
-  mInputLowpass.SetCutoffHz(mSampleRate, inputLowpassHz);
-  mInputHighpass.SetCutoffHz(mSampleRate, 180.0 + (50.0 * space));
-  mOutputLowpassLeft.SetCutoffHz(mSampleRate, outputLowpassHz);
-  mOutputLowpassRight.SetCutoffHz(mSampleRate, outputLowpassHz);
+  mTargetEarlyMix = (0.12 * space) + (0.06 * hall);
+  mTargetLateMix = (0.04 * space) + (0.24 * hall);
+  mTargetWetMix = mTargetEarlyMix + mTargetLateMix;
+  mTargetEarlySideScale = 0.16 - (0.04 * hall);
+  mTargetLateSideScale = 0.04 + (0.08 * space) + (0.02 * hall);
+  mTargetPreDelaySamples = std::max(1.0, MillisecondsToSamples(preDelayMs, mSampleRate));
+  mTargetInputLowpassCoefficient = CutoffHzToCoefficient(mSampleRate, inputLowpassHz);
+  mTargetInputHighpassCoefficient = CutoffHzToCoefficient(mSampleRate, 180.0 + (50.0 * space));
+  mTargetOutputLowpassCoefficient = CutoffHzToCoefficient(mSampleRate, outputLowpassHz);
 
   for(int i = 0; i < kNumEarlyTaps; ++i)
   {
     const std::size_t index = static_cast<std::size_t>(i);
-    mEarlyTapSamples[index] = MillisecondsToSamples(kEarlyTapTimesMs[index] * earlyTapScale, mSampleRate);
+    mTargetEarlyTapSamples[index] = MillisecondsToSamples(kEarlyTapTimesMs[index] * earlyTapScale, mSampleRate);
   }
 
   for(int i = 0; i < kNumDelayLines; ++i)
   {
     const std::size_t index = static_cast<std::size_t>(i);
     const double scaledDelayMs = kDelayTimesMs[index] * delayScale;
-    mBaseDelaySamples[index] = MillisecondsToSamples(scaledDelayMs, mSampleRate);
-    mFeedbackGains[index] = std::pow(10.0, (-3.0 * scaledDelayMs * 0.001) / rt60Seconds);
-    mModDepthSamples[index] = MillisecondsToSamples(kModDepthMs[index] * modulationScale, mSampleRate);
-    mModPhaseIncrement[index] = (2.0 * kPi * kModRateHz[index]) / mSampleRate;
-    mLoopDampingFilters[index].SetCutoffHz(
+    mTargetBaseDelaySamples[index] = MillisecondsToSamples(scaledDelayMs, mSampleRate);
+    mTargetFeedbackGains[index] = std::pow(10.0, (-3.0 * scaledDelayMs * 0.001) / rt60Seconds);
+    mTargetModDepthSamples[index] = MillisecondsToSamples(kModDepthMs[index] * modulationScale, mSampleRate);
+    mTargetLoopDampingCoefficients[index] = CutoffHzToCoefficient(
       mSampleRate,
       std::max(1600.0, loopDampingHz * (1.0 - (0.06 * static_cast<double>(i)))));
+  }
+}
+
+void effects::Reverb::SnapCurrentParametersToTargets(bool startWetAtZero)
+{
+  mEarlyMix = startWetAtZero ? 0.0 : mTargetEarlyMix;
+  mLateMix = startWetAtZero ? 0.0 : mTargetLateMix;
+  mWetMix = mEarlyMix + mLateMix;
+  mEarlySideScale = startWetAtZero ? 0.0 : mTargetEarlySideScale;
+  mLateSideScale = startWetAtZero ? 0.0 : mTargetLateSideScale;
+  mPreDelaySamples = mTargetPreDelaySamples;
+  mInputLowpass.coefficient = mTargetInputLowpassCoefficient;
+  mInputHighpass.coefficient = mTargetInputHighpassCoefficient;
+  mOutputLowpassLeft.coefficient = mTargetOutputLowpassCoefficient;
+  mOutputLowpassRight.coefficient = mTargetOutputLowpassCoefficient;
+
+  for(int i = 0; i < kNumEarlyTaps; ++i)
+    mEarlyTapSamples[static_cast<std::size_t>(i)] = mTargetEarlyTapSamples[static_cast<std::size_t>(i)];
+
+  for(int i = 0; i < kNumDelayLines; ++i)
+  {
+    const std::size_t index = static_cast<std::size_t>(i);
+    mBaseDelaySamples[index] = mTargetBaseDelaySamples[index];
+    mFeedbackGains[index] = mTargetFeedbackGains[index];
+    mModDepthSamples[index] = mTargetModDepthSamples[index];
+    mLoopDampingFilters[index].coefficient = mTargetLoopDampingCoefficients[index];
   }
 }
 
@@ -295,6 +342,59 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
 
   for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
   {
+    mEarlyMix = SmoothValue(mEarlyMix, mTargetEarlyMix, mMixSmoothingCoefficient);
+    mLateMix = SmoothValue(mLateMix, mTargetLateMix, mMixSmoothingCoefficient);
+    mWetMix = mEarlyMix + mLateMix;
+    mEarlySideScale = SmoothValue(mEarlySideScale, mTargetEarlySideScale, mMixSmoothingCoefficient);
+    mLateSideScale = SmoothValue(mLateSideScale, mTargetLateSideScale, mMixSmoothingCoefficient);
+    mPreDelaySamples = SmoothValue(mPreDelaySamples, mTargetPreDelaySamples, mStructureSmoothingCoefficient);
+    mInputLowpass.coefficient = SmoothValue(
+      mInputLowpass.coefficient,
+      mTargetInputLowpassCoefficient,
+      mToneSmoothingCoefficient);
+    mInputHighpass.coefficient = SmoothValue(
+      mInputHighpass.coefficient,
+      mTargetInputHighpassCoefficient,
+      mToneSmoothingCoefficient);
+    mOutputLowpassLeft.coefficient = SmoothValue(
+      mOutputLowpassLeft.coefficient,
+      mTargetOutputLowpassCoefficient,
+      mToneSmoothingCoefficient);
+    mOutputLowpassRight.coefficient = SmoothValue(
+      mOutputLowpassRight.coefficient,
+      mTargetOutputLowpassCoefficient,
+      mToneSmoothingCoefficient);
+
+    for(int i = 0; i < kNumEarlyTaps; ++i)
+    {
+      const std::size_t index = static_cast<std::size_t>(i);
+      mEarlyTapSamples[index] = SmoothValue(
+        mEarlyTapSamples[index],
+        mTargetEarlyTapSamples[index],
+        mStructureSmoothingCoefficient);
+    }
+
+    for(int i = 0; i < kNumDelayLines; ++i)
+    {
+      const std::size_t index = static_cast<std::size_t>(i);
+      mBaseDelaySamples[index] = SmoothValue(
+        mBaseDelaySamples[index],
+        mTargetBaseDelaySamples[index],
+        mStructureSmoothingCoefficient);
+      mFeedbackGains[index] = SmoothValue(
+        mFeedbackGains[index],
+        mTargetFeedbackGains[index],
+        mToneSmoothingCoefficient);
+      mModDepthSamples[index] = SmoothValue(
+        mModDepthSamples[index],
+        mTargetModDepthSamples[index],
+        mStructureSmoothingCoefficient);
+      mLoopDampingFilters[index].coefficient = SmoothValue(
+        mLoopDampingFilters[index].coefficient,
+        mTargetLoopDampingCoefficients[index],
+        mToneSmoothingCoefficient);
+    }
+
     const double dryLeft = outputs[0][sampleIndex];
     const double dryRight = outputs[1][sampleIndex];
     const double mid = 0.5 * (dryLeft + dryRight);
@@ -357,5 +457,11 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
 
     outputs[0][sampleIndex] = static_cast<iplug::sample>(dryLeft + wetLeft);
     outputs[1][sampleIndex] = static_cast<iplug::sample>(dryRight + wetRight);
+  }
+
+  if(mTargetWetMix <= kBypassThreshold && mWetMix <= 1.0e-4)
+  {
+    Clear();
+    mActive = false;
   }
 }
