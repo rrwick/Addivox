@@ -138,6 +138,7 @@ class CompoundPreset
 {
 public:
   using KeyNotePreset = std::pair<int, SimplePreset>;
+  using OscillatorParameterValues = std::array<double, SimplePreset::kNumOscillators>;
 
   static constexpr int kMinMidiNote = 0;
   static constexpr int kMaxMidiNote = 127;
@@ -152,6 +153,8 @@ public:
   const std::map<int, SimplePreset>& GetKeyNotePresets() const;
   bool HasKeyNotePreset(double midiNote) const;
   int GetNumKeyNotePresets() const;
+  bool IsAllKeyNotesEnabled(OscillatorSettings::Parameter parameter) const;
+  const OscillatorParameterValues& GetAllKeyNotesValues(OscillatorSettings::Parameter parameter) const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
   bool SetKeyNoteOscillatorParameter(double midiNote,
@@ -162,14 +165,23 @@ public:
     double midiNote,
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
+  void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
+  void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled);
   bool RemoveKeyNotePreset(int midiNote);
   void ClearKeyNotePresets();
 
 private:
   static int ClampMidiNote(int midiNote);
   static int RoundAndClampMidiNote(double midiNote);
+  static std::size_t ParameterIndex(OscillatorSettings::Parameter parameter);
+  void ApplyAllKeyNotesValues(SimplePreset& preset) const;
+  void ApplyAllKeyNotesValues(SimplePreset& preset,
+                              OscillatorSettings::Parameter parameter,
+                              const OscillatorParameterValues& values) const;
   void RebuildInterpolatedPresets();
 
   std::map<int, SimplePreset> mKeyNotePresets{};
   std::array<SimplePreset, kNumMidiNotes> mInterpolatedPresets{};
+  std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
+  std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};
 };

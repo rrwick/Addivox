@@ -111,7 +111,7 @@ inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& 
 
 inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 12)
+  if(pTab->NChildren() < 14)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -123,8 +123,9 @@ inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kTightGap = 4.f;
   constexpr float kBottomPad = 8.f;
   constexpr float kHalfGap = 6.f;
+  constexpr float kToggleLabelGap = 8.f;
   constexpr float kControlsBlockHeight =
-    (kLabelHeight * 4.f) + (kControlHeight * 4.f) + (kGap * 3.f) + (kTightGap * 4.f);
+    (kLabelHeight * 4.f) + (kControlHeight * 5.f) + (kGap * 4.f) + (kTightGap * 4.f);
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
@@ -143,7 +144,7 @@ inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
     leftColumnBounds.R - 4.f,
     leftColumnBounds.T + 2.f + kDescriptionHeight);
 
-  const float controlsTop = std::min(descriptionBounds.B, restoreTop - kControlsBlockHeight);
+  const float controlsTop = std::min(descriptionBounds.B, restoreTop - kGap - kControlsBlockHeight);
   float y = controlsTop;
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
@@ -164,6 +165,12 @@ inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
   auto actionsLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
   y += kLabelHeight + kTightGap;
   auto actionsBounds = IRECT(rowL, y, rowR, y + kControlHeight);
+  auto allKeyNotesToggleBounds = IRECT(rowL, actionsBounds.B + kGap, rowL + kControlHeight, actionsBounds.B + kGap + kControlHeight);
+  auto allKeyNotesLabelBounds = IRECT(
+    allKeyNotesToggleBounds.R + kToggleLabelGap,
+    allKeyNotesToggleBounds.T,
+    rowR,
+    allKeyNotesToggleBounds.B);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
@@ -175,8 +182,10 @@ inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeBounds);
   pTab->GetChild(8)->SetTargetAndDrawRECTs(actionsLabelBounds);
   pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(10)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(11)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(12)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(13)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void AttachVariationTabChildren(IVTabPage* page,
@@ -187,6 +196,7 @@ inline void AttachVariationTabChildren(IVTabPage* page,
                                        OscillatorSliderControl* sliderControl)
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
+  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   const auto variationIndex = GetVariationTabIndex(descriptor.parameter);
   auto* yTransformControl = CreateYTransformControl(
     std::shared_ptr<EditorLevelTransform>(context->variationTab.transforms, &(*context->variationTab.transforms)[variationIndex]),
@@ -240,6 +250,8 @@ inline void AttachVariationTabChildren(IVTabPage* page,
   page->AddChildControl(setShapeControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(actionsControl);
+  page->AddChildControl(allKeyNotesControls.toggleControl);
+  page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
   page->AddChildControl(sliderControl);
 }

@@ -45,6 +45,20 @@ double Lerp(double lo, double hi, double t)
   return lo + (hi - lo) * t;
 }
 
+using OscillatorParameterValues = CompoundPreset::OscillatorParameterValues;
+
+OscillatorParameterValues GetParameterValues(const SimplePreset& preset, Parameter parameter)
+{
+  OscillatorParameterValues values{};
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    values[static_cast<std::size_t>(oscillatorIndex)] =
+      preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+  }
+
+  return values;
+}
+
 // Existing presets are normalized so the sum of squared harmonic levels is 1.
 // For a harmonic sine sum at full breath, that corresponds to a waveform RMS of 1/sqrt(2).
 constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
@@ -376,6 +390,11 @@ int CompoundPreset::RoundAndClampMidiNote(double midiNote)
   return ClampMidiNote(static_cast<int>(std::lround(midiNote)));
 }
 
+std::size_t CompoundPreset::ParameterIndex(OscillatorSettings::Parameter parameter)
+{
+  return static_cast<std::size_t>(parameter);
+}
+
 CompoundPreset::CompoundPreset()
 : CompoundPreset({})
 {
@@ -415,6 +434,17 @@ const std::map<int, SimplePreset>& CompoundPreset::GetKeyNotePresets() const
   return mKeyNotePresets;
 }
 
+bool CompoundPreset::IsAllKeyNotesEnabled(OscillatorSettings::Parameter parameter) const
+{
+  return mAllKeyNotesEnabled[ParameterIndex(parameter)];
+}
+
+const CompoundPreset::OscillatorParameterValues& CompoundPreset::GetAllKeyNotesValues(
+  OscillatorSettings::Parameter parameter) const
+{
+  return mAllKeyNotesValues[ParameterIndex(parameter)];
+}
+
 bool CompoundPreset::HasKeyNotePreset(double midiNote) const
 {
   return GetKeyNotePreset(midiNote) != nullptr;
@@ -427,7 +457,9 @@ int CompoundPreset::GetNumKeyNotePresets() const
 
 void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
 {
-  mKeyNotePresets[ClampMidiNote(midiNote)] = preset;
+  SimplePreset updatedPreset = preset;
+  ApplyAllKeyNotesValues(updatedPreset);
+  mKeyNotePresets[ClampMidiNote(midiNote)] = updatedPreset;
   RebuildInterpolatedPresets();
 }
 
@@ -437,11 +469,19 @@ bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
                                                    double value)
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
-  const auto keyNoteIt = mKeyNotePresets.find(clampedNote);
-  if(keyNoteIt == mKeyNotePresets.end())
+  if(mKeyNotePresets.find(clampedNote) == mKeyNotePresets.end())
     return false;
 
-  keyNoteIt->second.SetOscillatorParameter(oscillatorIndex, parameter, value);
+  if(IsAllKeyNotesEnabled(parameter))
+  {
+    auto& sharedValues = mAllKeyNotesValues[ParameterIndex(parameter)];
+    sharedValues[static_cast<std::size_t>(oscillatorIndex)] = value;
+    for(auto& [_, preset] : mKeyNotePresets)
+      preset.SetOscillatorParameter(oscillatorIndex, parameter, value);
+  }
+  else
+    mKeyNotePresets[clampedNote].SetOscillatorParameter(oscillatorIndex, parameter, value);
+
   RebuildInterpolatedPresets();
   return true;
 }
@@ -452,15 +492,45 @@ bool CompoundPreset::SetKeyNoteOscillatorParameterValues(
   const std::array<double, SimplePreset::kNumOscillators>& values)
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
-  const auto keyNoteIt = mKeyNotePresets.find(clampedNote);
-  if(keyNoteIt == mKeyNotePresets.end())
+  if(mKeyNotePresets.find(clampedNote) == mKeyNotePresets.end())
     return false;
 
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-    keyNoteIt->second.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
+  if(IsAllKeyNotesEnabled(parameter))
+  {
+    mAllKeyNotesValues[ParameterIndex(parameter)] = values;
+    for(auto& [_, preset] : mKeyNotePresets)
+      ApplyAllKeyNotesValues(preset, parameter, values);
+  }
+  else
+    ApplyAllKeyNotesValues(mKeyNotePresets[clampedNote], parameter, values);
 
   RebuildInterpolatedPresets();
   return true;
+}
+
+void CompoundPreset::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values)
+{
+  const auto parameterIndex = ParameterIndex(parameter);
+  mAllKeyNotesValues[parameterIndex] = values;
+  mAllKeyNotesEnabled[parameterIndex] = true;
+
+  for(auto& [_, preset] : mKeyNotePresets)
+    ApplyAllKeyNotesValues(preset, parameter, values);
+
+  RebuildInterpolatedPresets();
+}
+
+void CompoundPreset::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled)
+{
+  mAllKeyNotesEnabled[ParameterIndex(parameter)] = enabled;
+
+  if(enabled)
+  {
+    for(auto& [_, preset] : mKeyNotePresets)
+      ApplyAllKeyNotesValues(preset, parameter, GetAllKeyNotesValues(parameter));
+
+    RebuildInterpolatedPresets();
+  }
 }
 
 bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
@@ -479,6 +549,28 @@ void CompoundPreset::ClearKeyNotePresets()
 {
   mKeyNotePresets.clear();
   RebuildInterpolatedPresets();
+}
+
+void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset) const
+{
+  for(auto parameter : OscillatorSettings::AllParameters())
+  {
+    if(IsAllKeyNotesEnabled(parameter))
+      ApplyAllKeyNotesValues(preset, parameter, GetAllKeyNotesValues(parameter));
+  }
+}
+
+void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset,
+                                            OscillatorSettings::Parameter parameter,
+                                            const OscillatorParameterValues& values) const
+{
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    preset.SetOscillatorParameter(
+      oscillatorIndex,
+      parameter,
+      values[static_cast<std::size_t>(oscillatorIndex)]);
+  }
 }
 
 void CompoundPreset::RebuildInterpolatedPresets()

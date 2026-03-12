@@ -591,13 +591,42 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
            << '\n';
   }
 
+  bool wroteAllKeyNotes = false;
+  for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
+  {
+    if(!document.compoundPreset.IsAllKeyNotesEnabled(descriptor.parameter))
+      continue;
+
+    if(!wroteAllKeyNotes)
+    {
+      stream << "\n[all_key_notes]\n";
+      wroteAllKeyNotes = true;
+    }
+
+    stream << descriptor.key << " = [";
+    const auto& values = document.compoundPreset.GetAllKeyNotesValues(descriptor.parameter);
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)]);
+      if(oscillatorIndex != (SimplePreset::kNumOscillators - 1))
+        stream << ", ";
+    }
+
+    stream << "]\n";
+  }
+
   for(const auto& [midiNote, preset] : document.compoundPreset.GetKeyNotePresets())
   {
     stream << "\n[[key_notes]]\n";
     stream << "midi_note = " << midiNote << '\n';
     stream << "note_name = \"" << detail::EscapeTomlString(detail::MidiNoteToName(midiNote)) << "\"\n";
     for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
+    {
+      if(document.compoundPreset.IsAllKeyNotesEnabled(descriptor.parameter))
+        continue;
+
       detail::AppendOscillatorParameterArray(stream, preset, descriptor);
+    }
   }
 
   return stream.str();
@@ -609,6 +638,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   {
     Root,
     VoiceSettings,
+    AllKeyNotes,
     KeyNote,
     Ignored
   };
@@ -618,6 +648,12 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     int midiNote = 60;
     bool hasMidiNote = false;
     SimplePreset preset = detail::MakeDefaultKeyNotePreset();
+  };
+
+  struct ParsedAllKeyNotesParameter
+  {
+    bool present = false;
+    CompoundPreset::OscillatorParameterValues values{};
   };
 
   const auto fail = [errorMessage](const std::string& message) {
@@ -630,6 +666,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
 
   Section currentSection = Section::Root;
   std::vector<ParsedKeyNote> keyNotes;
+  std::array<ParsedAllKeyNotesParameter, OscillatorSettings::kNumParameters> allKeyNotesParameters{};
   ParsedKeyNote* currentKeyNote = nullptr;
   bool sawFormatVersion = false;
 
@@ -677,6 +714,35 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
         return fail("Invalid voice setting on line " + std::to_string(assignmentLine));
 
       document.voiceSettings.*(descriptor->member) = parsedValue;
+      return true;
+    }
+
+    if(section == Section::AllKeyNotes)
+    {
+      const auto* descriptor = detail::FindOscillatorParameterDescriptor(key);
+      if(!descriptor)
+        return true;
+
+      std::vector<double> values;
+      if(!detail::ParseDoubleArray(value, values))
+        return fail("Invalid all_key_notes array on line " + std::to_string(assignmentLine));
+      if(static_cast<int>(values.size()) != SimplePreset::kNumOscillators)
+      {
+        return fail(
+          "All-key-notes array must contain "
+          + std::to_string(SimplePreset::kNumOscillators)
+          + " values on line "
+          + std::to_string(assignmentLine));
+      }
+
+      auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor->parameter)];
+      parsedParameter.present = true;
+      for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      {
+        parsedParameter.values[static_cast<std::size_t>(oscillatorIndex)] =
+          values[static_cast<std::size_t>(oscillatorIndex)];
+      }
+
       return true;
     }
 
@@ -763,6 +829,13 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
       continue;
     }
 
+    if(trimmedLine == "[all_key_notes]")
+    {
+      currentSection = Section::AllKeyNotes;
+      currentKeyNote = nullptr;
+      continue;
+    }
+
     if(trimmedLine == "[[key_notes]]")
     {
       keyNotes.emplace_back();
@@ -813,6 +886,13 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     if(!keyNote.hasMidiNote)
       return fail("Each [[key_notes]] table must define midi_note");
     compoundPreset.SetKeyNotePreset(keyNote.midiNote, keyNote.preset);
+  }
+
+  for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
+  {
+    const auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor.parameter)];
+    if(parsedParameter.present)
+      compoundPreset.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
   }
 
   document.voiceSettings = global_settings::Sanitize(document.voiceSettings);

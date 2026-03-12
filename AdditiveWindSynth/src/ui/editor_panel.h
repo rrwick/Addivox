@@ -72,10 +72,13 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
                                      OscillatorSliderControl* sliderControl)
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
+  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   page->AddChildControl(CreateTabTitleControl(descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);
+  page->AddChildControl(allKeyNotesControls.toggleControl);
+  page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
   page->AddChildControl(sliderControl);
 }
@@ -220,6 +223,9 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorTabControls.xRangeMaxControls =
     std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.xRangeMaxControls->fill(nullptr);
+  context->oscillatorTabControls.allKeyNotesToggles =
+    std::make_shared<std::array<IVToggleControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.allKeyNotesToggles->fill(nullptr);
   context->oscillatorTabControls.restoreButtons =
     std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.restoreButtons->fill(nullptr);

@@ -120,6 +120,12 @@ struct EditorStyles
     .WithColor(kFG, colour::editor::kUtilityBody)
     .WithColor(kFR, colour::ui::kControlFrame)
     .WithColor(kHL, colour::editor::kHoverOverlay);
+  IVStyle utilityToggleStyle = BaseStyle(false, true)
+    .WithValueText(IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))
+    .WithColor(kBG, darkTab)
+    .WithColor(kFG, colour::editor::kUtilityBody)
+    .WithColor(kFR, colour::ui::kControlFrame)
+    .WithColor(kHL, colour::editor::kHoverOverlay);
   IText utilityLabelText{13.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Near, EVAlign::Middle};
   IText utilityDropdownText{13.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle};
   IText utilityActionTitleText{13.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle};

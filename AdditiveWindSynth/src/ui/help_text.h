@@ -58,6 +58,9 @@ inline constexpr const char* kAddButton =
 inline constexpr const char* kDeleteButton =
   "Removes the selected key note.";
 
+inline constexpr const char* kAllKeyNotes =
+  "When enabled, this parameter stays synchronized across every key note. Turning it on copies the currently selected key note values to all key notes immediately.";
+
 inline const char* Get(OscillatorParameter parameter)
 {
   switch(parameter)
