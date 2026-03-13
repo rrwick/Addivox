@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "settings/settings_oscillator.h"
+#include "settings/oscillator.h"
 
 namespace editor_messages
 {

@@ -194,8 +194,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   const auto& portamentoShape = transformations::GetPortamentoPseudoLogShape();
   GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (min)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
   GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (max)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
-  GetParam(kParamEffectsWarmth)->InitDouble(
-    "Warmth",
+  GetParam(kParamEffectsDrive)->InitDouble(
+    "Drive",
     0.,
     0.,
     100.0,

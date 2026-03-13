@@ -8,7 +8,7 @@
 #include "../oscillator_slider_control.h"
 #include "../theme.h"
 #include "../../editor_messages.h"
-#include "../../settings/settings_oscillator.h"
+#include "../../settings/oscillator.h"
 
 #include <algorithm>
 #include <array>

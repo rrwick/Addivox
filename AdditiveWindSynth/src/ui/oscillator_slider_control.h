@@ -3,7 +3,7 @@
 #include "IControls.h"
 #include "colour.h"
 #include "transformations.h"
-#include "../settings/settings_oscillator.h"
+#include "../settings/oscillator.h"
 
 #include <algorithm>
 #include <array>

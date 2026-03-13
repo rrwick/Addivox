@@ -4,7 +4,7 @@ class EffectsSettings
 {
 public:
   // Effect macro controls are stored in user-facing units.
-  double warmth{0.0};
+  double drive{0.0};
   double reverb{0.0};
 };
 

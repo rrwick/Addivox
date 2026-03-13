@@ -22,14 +22,14 @@ iplug_add_plugin(${PROJECT_NAME}
     src/visualizer/harmonic_visualizer_frame.h
     src/visualizer/harmonic_visualizer_sender.h
     src/visualizer/harmonic_visualizer_control.h
-    src/settings/settings_oscillator.cpp
-    src/settings/settings_oscillator.h
-    src/settings/settings_global.cpp
-    src/settings/settings_global.h
-    src/settings/settings_effects.cpp
-    src/settings/settings_effects.h
-    src/effects/warmth.cpp
-    src/effects/warmth.h
+    src/settings/oscillator.cpp
+    src/settings/oscillator.h
+    src/settings/global.cpp
+    src/settings/global.h
+    src/settings/effects.cpp
+    src/settings/effects.h
+    src/effects/drive.cpp
+    src/effects/drive.h
     src/effects/reverb.cpp
     src/effects/reverb.h
     src/ui/transformations.cpp

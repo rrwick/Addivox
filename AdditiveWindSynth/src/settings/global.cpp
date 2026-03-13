@@ -1,4 +1,4 @@
-#include "settings_global.h"
+#include "global.h"
 
 #include "params.h"
 

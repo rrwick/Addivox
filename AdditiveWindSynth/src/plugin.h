@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "settings/settings_oscillator.h"
+#include "settings/oscillator.h"
 #include "ui/editor_state.h"
 #include "visualizer/harmonic_visualizer_sender.h"
 

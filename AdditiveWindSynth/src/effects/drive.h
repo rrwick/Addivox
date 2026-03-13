@@ -7,7 +7,7 @@
 
 namespace effects
 {
-class Warmth
+class Drive
 {
 public:
   void Reset(double sampleRate, int blockSize);

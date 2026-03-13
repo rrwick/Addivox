@@ -12,8 +12,8 @@
 
 #include "dirscan.h"
 
-#include "settings_global.h"
-#include "settings_oscillator.h"
+#include "global.h"
+#include "oscillator.h"
 
 #include <algorithm>
 #include <array>

@@ -1,4 +1,4 @@
-#include "warmth.h"
+#include "drive.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,57 +10,57 @@ constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
 } // namespace
 
-double effects::Warmth::FlushDenormal(double value)
+double effects::Drive::FlushDenormal(double value)
 {
   return std::abs(value) < kDenormalFloor ? 0.0 : value;
 }
 
-double effects::Warmth::SmoothValue(double current, double target, double coefficient)
+double effects::Drive::SmoothValue(double current, double target, double coefficient)
 {
   return current + (coefficient * (target - current));
 }
 
-double effects::Warmth::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
+double effects::Drive::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
 {
   const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
   const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
-double effects::Warmth::DCBlockerCoefficient(double sampleRate, double cutoffHz)
+double effects::Drive::DCBlockerCoefficient(double sampleRate, double cutoffHz)
 {
   const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
   const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
   return std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
-void effects::Warmth::OnePoleLowpass::Clear()
+void effects::Drive::OnePoleLowpass::Clear()
 {
   state = 0.0;
 }
 
-double effects::Warmth::OnePoleLowpass::Process(double input)
+double effects::Drive::OnePoleLowpass::Process(double input)
 {
   state += coefficient * (input - state);
-  state = Warmth::FlushDenormal(state);
+  state = Drive::FlushDenormal(state);
   return state;
 }
 
-void effects::Warmth::DCBlocker::Clear()
+void effects::Drive::DCBlocker::Clear()
 {
   previousInput = 0.0;
   previousOutput = 0.0;
 }
 
-double effects::Warmth::DCBlocker::Process(double input)
+double effects::Drive::DCBlocker::Process(double input)
 {
   const double output = (input - previousInput) + (coefficient * previousOutput);
   previousInput = input;
-  previousOutput = Warmth::FlushDenormal(output);
+  previousOutput = Drive::FlushDenormal(output);
   return previousOutput;
 }
 
-void effects::Warmth::Reset(double sampleRate, int blockSize)
+void effects::Drive::Reset(double sampleRate, int blockSize)
 {
   (void) blockSize;
 
@@ -73,7 +73,7 @@ void effects::Warmth::Reset(double sampleRate, int blockSize)
   Clear();
 }
 
-void effects::Warmth::Clear()
+void effects::Drive::Clear()
 {
   for(auto& channel : mChannels)
   {
@@ -87,7 +87,7 @@ void effects::Warmth::Clear()
   }
 }
 
-void effects::Warmth::SetAmount(double amount)
+void effects::Drive::SetAmount(double amount)
 {
   mTargetAmount = std::clamp(amount, 0.0, 100.0);
 
@@ -99,7 +99,7 @@ void effects::Warmth::SetAmount(double amount)
   }
 }
 
-effects::Warmth::Parameters effects::Warmth::ComputeParameters(double amount) const
+effects::Drive::Parameters effects::Drive::ComputeParameters(double amount) const
 {
   const double t = std::clamp(amount * 0.01, 0.0, 1.0);
   const double driveShape = t * t;
@@ -115,7 +115,7 @@ effects::Warmth::Parameters effects::Warmth::ComputeParameters(double amount) co
   return parameters;
 }
 
-double effects::Warmth::ProcessOversampledSample(std::size_t channelIndex,
+double effects::Drive::ProcessOversampledSample(std::size_t channelIndex,
                                                  double input,
                                                  const Parameters& parameters)
 {
@@ -132,7 +132,7 @@ double effects::Warmth::ProcessOversampledSample(std::size_t channelIndex,
   return FlushDenormal(mixed);
 }
 
-void effects::Warmth::ProcessBlock(iplug::sample** outputs, int nFrames)
+void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
 {
   if(!mActive || nFrames <= 0)
     return;

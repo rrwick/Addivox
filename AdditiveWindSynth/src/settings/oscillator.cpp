@@ -1,4 +1,4 @@
-#include "settings_oscillator.h"
+#include "oscillator.h"
 
 #include <algorithm>
 #include <cmath>

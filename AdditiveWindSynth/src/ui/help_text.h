@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../settings/settings_oscillator.h"
+#include "../settings/oscillator.h"
 
 namespace plugin_ui
 {
