@@ -28,6 +28,8 @@ iplug_add_plugin(${PROJECT_NAME}
     src/settings/settings_global.h
     src/settings/settings_effects.cpp
     src/settings/settings_effects.h
+    src/effects/warmth.cpp
+    src/effects/warmth.h
     src/effects/reverb.cpp
     src/effects/reverb.h
     src/ui/transformations.cpp

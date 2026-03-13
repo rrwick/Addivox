@@ -4,6 +4,7 @@
 #include "../settings/params.h"
 #include "../settings/settings_effects.h"
 #include "voice.h"
+#include "../effects/warmth.h"
 #include "../effects/reverb.h"
 #include <cstring>
 
@@ -23,6 +24,9 @@ public:
 
     mSynth.ProcessBlock(outputs, nFrames);
 
+    if(mWarmth.IsActive())
+      mWarmth.ProcessBlock(outputs, nFrames);
+
     if(mReverb.IsActive())
       mReverb.ProcessBlock(outputs, nFrames);
   }
@@ -32,6 +36,8 @@ public:
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
+    mWarmth.Reset(sampleRate, blockSize);
+    mWarmth.SetAmount(mEffectsSettings.warmth);
     mReverb.Reset(sampleRate, blockSize);
     mReverb.SetAmount(mEffectsSettings.reverb);
   }
@@ -50,7 +56,10 @@ public:
     }
 
     if(effects_settings::ApplyParam(paramIdx, value, mEffectsSettings))
+    {
+      mWarmth.SetAmount(mEffectsSettings.warmth);
       mReverb.SetAmount(mEffectsSettings.reverb);
+    }
   }
 
   void SetCompoundPreset(const CompoundPreset& preset)
@@ -93,5 +102,6 @@ public:
   MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
   GlobalVoiceSettings mGlobalVoiceSettings{};
   EffectsSettings mEffectsSettings{};
+  effects::Warmth mWarmth;
   effects::Reverb mReverb;
 };

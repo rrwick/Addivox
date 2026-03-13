@@ -497,16 +497,20 @@ inline void AttachOutputPanelControls(IGraphics* pGraphics,
 inline void AttachEffectsPanelControls(IGraphics* pGraphics,
                                        const PanelResources& resources)
 {
-  const LabelledKnobValueSpec reverbKnob{
-    {IRECT::MakeMidXYWH(992.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1024.f, 483.f, 60.f, 12.f), kParamEffectsReverb}, "Reverb", IRECT::MakeXYWH(1024.f, 470.f, 60.f, 12.f)
-  };
+  const std::array<LabelledKnobValueSpec, 2> effectKnobs{{
+    {{IRECT::MakeMidXYWH(886.f, 430.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(918.f, 431.f, 60.f, 12.f), kParamEffectsWarmth}, "Warmth", IRECT::MakeXYWH(918.f, 418.f, 60.f, 12.f)},
+    {{IRECT::MakeMidXYWH(992.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1024.f, 483.f, 60.f, 12.f), kParamEffectsReverb}, "Reverb", IRECT::MakeXYWH(1024.f, 470.f, 60.f, 12.f)}
+  }};
 
-  AttachLabelledKnobWithValue(
-    pGraphics,
-    resources.knobAssets,
-    reverbKnob,
-    resources.compactLabelText,
-    resources.compactValueText);
+  for(const auto& spec : effectKnobs)
+  {
+    AttachLabelledKnobWithValue(
+      pGraphics,
+      resources.knobAssets,
+      spec,
+      resources.compactLabelText,
+      resources.compactValueText);
+  }
 }
 } // namespace layout
 

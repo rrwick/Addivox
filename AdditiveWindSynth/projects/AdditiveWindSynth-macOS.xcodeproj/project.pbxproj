@@ -306,6 +306,14 @@
 		A1B2C3013C7F000100000026 /* reverb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000004 /* reverb.cpp */; };
 		A1B2C3013C7F000100000027 /* reverb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000004 /* reverb.cpp */; };
 		A1B2C3013C7F000100000028 /* reverb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000004 /* reverb.cpp */; };
+		A1B2C3013C7F000100000031 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000032 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000033 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000034 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000035 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000036 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000037 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
+		A1B2C3013C7F000100000038 /* warmth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* warmth.cpp */; };
 		B885CBC52304AE7300D73128 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
 		B8E22A0C220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */; };
 /* End PBXBuildFile section */
@@ -513,6 +521,8 @@
 		4F6E674721C5614C005991A9 /* transformations.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = transformations.cpp; path = ../src/ui/transformations.cpp; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000003 /* reverb.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = reverb.h; path = ../src/effects/reverb.h; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000004 /* reverb.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = reverb.cpp; path = ../src/effects/reverb.cpp; sourceTree = SOURCE_ROOT; };
+		A1B2C3013C7F000100000005 /* warmth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = warmth.h; path = ../src/effects/warmth.h; sourceTree = SOURCE_ROOT; };
+		A1B2C3013C7F000100000006 /* warmth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = warmth.cpp; path = ../src/effects/warmth.cpp; sourceTree = SOURCE_ROOT; };
 		4F6FD2AD22675B6300FC59E6 /* IGraphicsCoreText.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IGraphicsCoreText.h; path = ../../iPlug2/IGraphics/Platforms/IGraphicsCoreText.h; sourceTree = "<group>"; };
 		4F6FD2AF22675B6300FC59E6 /* IGraphicsCoreText.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = IGraphicsCoreText.mm; path = ../../iPlug2/IGraphics/Platforms/IGraphicsCoreText.mm; sourceTree = "<group>"; };
 		4F72201E225C1EB100FF0E7C /* commoniids.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = commoniids.cpp; sourceTree = "<group>"; };
@@ -1189,6 +1199,8 @@
 				A1B2C3013C7F000100000002 /* settings_effects.cpp */,
 				A1B2C3013C7F000100000003 /* reverb.h */,
 				A1B2C3013C7F000100000004 /* reverb.cpp */,
+				A1B2C3013C7F000100000005 /* warmth.h */,
+				A1B2C3013C7F000100000006 /* warmth.cpp */,
 				4F6E674621C5614C005991A9 /* transformations.h */,
 				4F6E674721C5614C005991A9 /* transformations.cpp */,
 			);
@@ -2356,6 +2368,7 @@
 				4FF231D22BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231DA2BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000012 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000032 /* warmth.cpp in Sources */,
 				4FF231E22BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000022 /* reverb.cpp in Sources */,
 				4FDAC0EB207D76C600299363 /* IPlugTimer.cpp in Sources */,
@@ -2416,6 +2429,7 @@
 				4FF231D32BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231DB2BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000013 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000033 /* warmth.cpp in Sources */,
 				4FF231E32BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000023 /* reverb.cpp in Sources */,
 			);
@@ -2457,6 +2471,7 @@
 				4FF231D62BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231DE2BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000016 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000036 /* warmth.cpp in Sources */,
 				4FF231E62BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000026 /* reverb.cpp in Sources */,
 				4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */,
@@ -2497,6 +2512,7 @@
 				4FF231D72BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231DF2BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000017 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000037 /* warmth.cpp in Sources */,
 				4FF231E72BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000027 /* reverb.cpp in Sources */,
 				4F78BE2922E7406D00AD537E /* IPlugTimer.cpp in Sources */,
@@ -2530,6 +2546,7 @@
 				4FF231D42BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231DC2BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000014 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000034 /* warmth.cpp in Sources */,
 				4FF231E42BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000024 /* reverb.cpp in Sources */,
 				4F815989205D50EB00393585 /* funknown.cpp in Sources */,
@@ -2595,6 +2612,7 @@
 				4FF231D52BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231DD2BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000015 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000035 /* warmth.cpp in Sources */,
 				4FF231E52BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000025 /* reverb.cpp in Sources */,
 				4FB600281567CB0A0020189A /* IPlugAAX_Describe.cpp in Sources */,
@@ -2638,6 +2656,7 @@
 				4FF231D12BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231D92BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000011 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000031 /* warmth.cpp in Sources */,
 				4FF231E12BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000021 /* reverb.cpp in Sources */,
 				4F9A82F7213DE80400BE63A4 /* IPopupMenuControl.cpp in Sources */,
@@ -2665,6 +2684,7 @@
 				4FF231D82BFA0B300040797B /* settings_oscillator.cpp in Sources */,
 				4FF231E02BFA0B300040797B /* settings_global.cpp in Sources */,
 				A1B2C3013C7F000100000018 /* settings_effects.cpp in Sources */,
+				A1B2C3013C7F000100000038 /* warmth.cpp in Sources */,
 				4FF231E82BFA0B300040797B /* transformations.cpp in Sources */,
 				A1B2C3013C7F000100000028 /* reverb.cpp in Sources */,
 				4FD8699827206006005A5F28 /* IGraphicsMac.mm in Sources */,
