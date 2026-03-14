@@ -3,7 +3,11 @@
 #include "IPlugConstants.h"
 
 #include <array>
+#include <cassert>
 #include <cstddef>
+
+#include "HIIR/FPUDownsampler2x.h"
+#include "HIIR/FPUUpsampler2x.h"
 
 namespace effects
 {
@@ -18,7 +22,9 @@ public:
 
 private:
   static constexpr int kNumChannels = 2;
-  static constexpr int kOversamplingFactor = 2;
+  static constexpr int kOversamplingFactor = 4;
+  static constexpr int kFirstStageNumCoefs = 12;
+  static constexpr int kSecondStageNumCoefs = 4;
 
   struct OnePoleLowpass
   {
@@ -41,10 +47,13 @@ private:
 
   struct ChannelState
   {
-    double previousInput{0.0};
     DCBlocker inputDcBlocker;
     DCBlocker outputDcBlocker;
     OnePoleLowpass toneFilter;
+    hiir::Upsampler2xFPU<kFirstStageNumCoefs, double> upsampler2x;
+    hiir::Upsampler2xFPU<kSecondStageNumCoefs, double> upsampler4x;
+    hiir::Downsampler2xFPU<kSecondStageNumCoefs, double> downsampler4x;
+    hiir::Downsampler2xFPU<kFirstStageNumCoefs, double> downsampler2x;
   };
 
   struct Parameters

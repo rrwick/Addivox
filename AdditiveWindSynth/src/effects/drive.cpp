@@ -8,6 +8,26 @@ namespace
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
+constexpr std::array<double, 12> kOversamplingCoefs2x{
+  0.036681502163648017,
+  0.13654762463195794,
+  0.27463175937945444,
+  0.42313861743656711,
+  0.56109869787919531,
+  0.67754004997416184,
+  0.76974183386322703,
+  0.83988962484963892,
+  0.89226081800387902,
+  0.9315419599631839,
+  0.96209454837808417,
+  0.98781637073289585,
+};
+constexpr std::array<double, 4> kOversamplingCoefs4x{
+  0.041893991997656171,
+  0.16890348243995201,
+  0.39056077292116603,
+  0.74389574826847926,
+};
 } // namespace
 
 double effects::Drive::FlushDenormal(double value)
@@ -70,6 +90,15 @@ void effects::Drive::Reset(double sampleRate, int blockSize)
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mActive = false;
+
+  for(auto& channel : mChannels)
+  {
+    channel.upsampler2x.set_coefs(kOversamplingCoefs2x.data());
+    channel.upsampler4x.set_coefs(kOversamplingCoefs4x.data());
+    channel.downsampler4x.set_coefs(kOversamplingCoefs4x.data());
+    channel.downsampler2x.set_coefs(kOversamplingCoefs2x.data());
+  }
+
   Clear();
 }
 
@@ -77,13 +106,16 @@ void effects::Drive::Clear()
 {
   for(auto& channel : mChannels)
   {
-    channel.previousInput = 0.0;
     channel.inputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, 12.0);
     channel.inputDcBlocker.Clear();
     channel.outputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, 8.0);
     channel.outputDcBlocker.Clear();
     channel.toneFilter.coefficient = CutoffHzToCoefficient(mOversampledRate, 18000.0);
     channel.toneFilter.Clear();
+    channel.upsampler2x.clear_buffers();
+    channel.upsampler4x.clear_buffers();
+    channel.downsampler4x.clear_buffers();
+    channel.downsampler2x.clear_buffers();
   }
 }
 
@@ -146,11 +178,22 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
     {
       ChannelState& channel = mChannels[static_cast<std::size_t>(channelIndex)];
       const double input = outputs[channelIndex][frame];
-      const double midpoint = 0.5 * (channel.previousInput + input);
-      const double subSample0 = ProcessOversampledSample(static_cast<std::size_t>(channelIndex), midpoint, parameters);
-      const double subSample1 = ProcessOversampledSample(static_cast<std::size_t>(channelIndex), input, parameters);
-      outputs[channelIndex][frame] = static_cast<iplug::sample>(0.5 * (subSample0 + subSample1));
-      channel.previousInput = input;
+      std::array<double, 2> up2xSamples{};
+      std::array<double, 4> up4xSamples{};
+      std::array<double, 2> down2xSamples{};
+
+      channel.upsampler2x.process_sample(up2xSamples[0], up2xSamples[1], input);
+      channel.upsampler4x.process_sample(up4xSamples[0], up4xSamples[1], up2xSamples[0]);
+      channel.upsampler4x.process_sample(up4xSamples[2], up4xSamples[3], up2xSamples[1]);
+
+      for(double& oversampledSample : up4xSamples)
+      {
+        oversampledSample = ProcessOversampledSample(static_cast<std::size_t>(channelIndex), oversampledSample, parameters);
+      }
+
+      down2xSamples[0] = channel.downsampler4x.process_sample(up4xSamples.data());
+      down2xSamples[1] = channel.downsampler4x.process_sample(up4xSamples.data() + 2);
+      outputs[channelIndex][frame] = static_cast<iplug::sample>(channel.downsampler2x.process_sample(down2xSamples.data()));
     }
   }
 
