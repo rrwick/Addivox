@@ -48,7 +48,19 @@
     <ClCompile Include="..\src\synth\oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\settings\settings_oscillator.cpp">
+    <ClCompile Include="..\src\settings\oscillator.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\settings\global.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\settings\effects.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\effects\drive.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\effects\reverb.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
     <ClCompile Include="..\src\synth\voice.cpp">
@@ -193,7 +205,19 @@
     <ClInclude Include="..\..\iPlug2\IGraphics\Controls\ITextEntryControl.h">
       <Filter>IGraphics\Controls</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\settings\settings_oscillator.h">
+    <ClInclude Include="..\src\settings\oscillator.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\settings\global.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\settings\effects.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\effects\drive.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\effects\reverb.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\synth\midi_synth.h">

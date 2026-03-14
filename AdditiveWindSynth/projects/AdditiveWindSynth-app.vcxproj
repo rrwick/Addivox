@@ -301,7 +301,11 @@
     <ClInclude Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\APP\IPlugAPP.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\APP\IPlugAPP_host.h" />
-    <ClInclude Include="..\src\settings\settings_oscillator.h" />
+    <ClInclude Include="..\src\settings\oscillator.h" />
+    <ClInclude Include="..\src\settings\global.h" />
+    <ClInclude Include="..\src\settings\effects.h" />
+    <ClInclude Include="..\src\effects\drive.h" />
+    <ClInclude Include="..\src\effects\reverb.h" />
     <ClInclude Include="..\src\synth\midi_synth.h" />
     <ClInclude Include="..\src\synth\synth_engine.h" />
     <ClInclude Include="..\src\synth\voice.h" />
@@ -360,7 +364,11 @@
     <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP_host.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP_main.cpp" />
     <ClCompile Include="..\src\synth\oscillator.cpp" />
-    <ClCompile Include="..\src\settings\settings_oscillator.cpp" />
+    <ClCompile Include="..\src\settings\oscillator.cpp" />
+    <ClCompile Include="..\src\settings\global.cpp" />
+    <ClCompile Include="..\src\settings\effects.cpp" />
+    <ClCompile Include="..\src\effects\drive.cpp" />
+    <ClCompile Include="..\src\effects\reverb.cpp" />
     <ClCompile Include="..\src\synth\voice.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugParameter.cpp" />
