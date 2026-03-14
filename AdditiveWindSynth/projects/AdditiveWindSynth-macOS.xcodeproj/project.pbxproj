@@ -314,6 +314,14 @@
 		A1B2C3013C7F000100000036 /* drive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* drive.cpp */; };
 		A1B2C3013C7F000100000037 /* drive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* drive.cpp */; };
 		A1B2C3013C7F000100000038 /* drive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000006 /* drive.cpp */; };
+		A1B2C3013C7F000100000041 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000042 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000043 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000044 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000045 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000046 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000047 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
+		A1B2C3013C7F000100000048 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3013C7F000100000008 /* chorus.cpp */; };
 		B885CBC52304AE7300D73128 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F8F61A8202807B9003F2573 /* IPlugProcessor.cpp */; };
 		B8E22A0C220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */; };
 /* End PBXBuildFile section */
@@ -523,6 +531,8 @@
 		A1B2C3013C7F000100000004 /* reverb.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = reverb.cpp; path = ../src/effects/reverb.cpp; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000005 /* drive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = drive.h; path = ../src/effects/drive.h; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000006 /* drive.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = drive.cpp; path = ../src/effects/drive.cpp; sourceTree = SOURCE_ROOT; };
+		A1B2C3013C7F000100000007 /* chorus.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = chorus.h; path = ../src/effects/chorus.h; sourceTree = SOURCE_ROOT; };
+		A1B2C3013C7F000100000008 /* chorus.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = chorus.cpp; path = ../src/effects/chorus.cpp; sourceTree = SOURCE_ROOT; };
 		4F6FD2AD22675B6300FC59E6 /* IGraphicsCoreText.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IGraphicsCoreText.h; path = ../../iPlug2/IGraphics/Platforms/IGraphicsCoreText.h; sourceTree = "<group>"; };
 		4F6FD2AF22675B6300FC59E6 /* IGraphicsCoreText.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = IGraphicsCoreText.mm; path = ../../iPlug2/IGraphics/Platforms/IGraphicsCoreText.mm; sourceTree = "<group>"; };
 		4F72201E225C1EB100FF0E7C /* commoniids.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = commoniids.cpp; sourceTree = "<group>"; };
@@ -1197,11 +1207,13 @@
 				4F6E674521C5614C005991A9 /* global.cpp */,
 				A1B2C3013C7F000100000001 /* effects.h */,
 				A1B2C3013C7F000100000002 /* effects.cpp */,
-				A1B2C3013C7F000100000003 /* reverb.h */,
-				A1B2C3013C7F000100000004 /* reverb.cpp */,
-				A1B2C3013C7F000100000005 /* drive.h */,
-				A1B2C3013C7F000100000006 /* drive.cpp */,
-				4F6E674621C5614C005991A9 /* transformations.h */,
+					A1B2C3013C7F000100000003 /* reverb.h */,
+					A1B2C3013C7F000100000004 /* reverb.cpp */,
+					A1B2C3013C7F000100000005 /* drive.h */,
+					A1B2C3013C7F000100000006 /* drive.cpp */,
+					A1B2C3013C7F000100000007 /* chorus.h */,
+					A1B2C3013C7F000100000008 /* chorus.cpp */,
+					4F6E674621C5614C005991A9 /* transformations.h */,
 				4F6E674721C5614C005991A9 /* transformations.cpp */,
 			);
 			path = Synth;
@@ -2366,11 +2378,12 @@
 				4FF231BB2BFA0B020040797B /* voice.cpp in Sources */,
 				4FF231BC2BFA0B020040797B /* oscillator.cpp in Sources */,
 				4FF231D22BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231DA2BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000012 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000032 /* drive.cpp in Sources */,
-				4FF231E22BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000022 /* reverb.cpp in Sources */,
+					4FF231DA2BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000012 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000032 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000042 /* chorus.cpp in Sources */,
+					4FF231E22BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000022 /* reverb.cpp in Sources */,
 				4FDAC0EB207D76C600299363 /* IPlugTimer.cpp in Sources */,
 				4F63696E20A463090022C370 /* IControls.cpp in Sources */,
 				4F03A5AD20A4621100EBDFFB /* IGraphics.cpp in Sources */,
@@ -2427,11 +2440,12 @@
 				4FF231BF2BFA0B030040797B /* voice.cpp in Sources */,
 				4FF231C02BFA0B030040797B /* oscillator.cpp in Sources */,
 				4FF231D32BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231DB2BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000013 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000033 /* drive.cpp in Sources */,
-				4FF231E32BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000023 /* reverb.cpp in Sources */,
+					4FF231DB2BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000013 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000033 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000043 /* chorus.cpp in Sources */,
+					4FF231E32BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000023 /* reverb.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2469,11 +2483,12 @@
 				4FF231C92BFA0B070040797B /* voice.cpp in Sources */,
 				4FF231CA2BFA0B070040797B /* oscillator.cpp in Sources */,
 				4FF231D62BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231DE2BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000016 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000036 /* drive.cpp in Sources */,
-				4FF231E62BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000026 /* reverb.cpp in Sources */,
+					4FF231DE2BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000016 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000036 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000046 /* chorus.cpp in Sources */,
+					4FF231E62BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000026 /* reverb.cpp in Sources */,
 				4F3EE1DF231438D000004786 /* IPopupMenuControl.cpp in Sources */,
 				4F3EE1E0231438D000004786 /* IPlugAPIBase.cpp in Sources */,
 				4F3EE1E1231438D000004786 /* IPlugPluginBase.cpp in Sources */,
@@ -2510,11 +2525,12 @@
 				4FF231CB2BFA0B080040797B /* voice.cpp in Sources */,
 				4FF231CC2BFA0B080040797B /* oscillator.cpp in Sources */,
 				4FF231D72BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231DF2BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000017 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000037 /* drive.cpp in Sources */,
-				4FF231E72BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000027 /* reverb.cpp in Sources */,
+					4FF231DF2BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000017 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000037 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000047 /* chorus.cpp in Sources */,
+					4FF231E72BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000027 /* reverb.cpp in Sources */,
 				4F78BE2922E7406D00AD537E /* IPlugTimer.cpp in Sources */,
 				4F78BE2A22E7406D00AD537E /* IPlugPaths.mm in Sources */,
 			);
@@ -2544,11 +2560,12 @@
 				4FF231BD2BFA0B030040797B /* voice.cpp in Sources */,
 				4FF231BE2BFA0B030040797B /* oscillator.cpp in Sources */,
 				4FF231D42BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231DC2BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000014 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000034 /* drive.cpp in Sources */,
-				4FF231E42BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000024 /* reverb.cpp in Sources */,
+					4FF231DC2BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000014 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000034 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000044 /* chorus.cpp in Sources */,
+					4FF231E42BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000024 /* reverb.cpp in Sources */,
 				4F815989205D50EB00393585 /* funknown.cpp in Sources */,
 				4FB1F58B20E4B006004157C8 /* IGraphicsMac.mm in Sources */,
 				4F81598E205D51F000393585 /* vstbus.cpp in Sources */,
@@ -2610,11 +2627,12 @@
 				4FF231C12BFA0B040040797B /* voice.cpp in Sources */,
 				4FF231C22BFA0B040040797B /* oscillator.cpp in Sources */,
 				4FF231D52BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231DD2BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000015 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000035 /* drive.cpp in Sources */,
-				4FF231E52BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000025 /* reverb.cpp in Sources */,
+					4FF231DD2BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000015 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000035 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000045 /* chorus.cpp in Sources */,
+					4FF231E52BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000025 /* reverb.cpp in Sources */,
 				4FB600281567CB0A0020189A /* IPlugAAX_Describe.cpp in Sources */,
 				4FB1F58D20E4B007004157C8 /* IGraphicsMac.mm in Sources */,
 			);
@@ -2654,11 +2672,12 @@
 				4FF231B92BFA0B020040797B /* voice.cpp in Sources */,
 				4FF231BA2BFA0B020040797B /* oscillator.cpp in Sources */,
 				4FF231D12BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231D92BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000011 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000031 /* drive.cpp in Sources */,
-				4FF231E12BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000021 /* reverb.cpp in Sources */,
+					4FF231D92BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000011 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000031 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000041 /* chorus.cpp in Sources */,
+					4FF231E12BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000021 /* reverb.cpp in Sources */,
 				4F9A82F7213DE80400BE63A4 /* IPopupMenuControl.cpp in Sources */,
 				4F78D90B13B63BA50032E0F3 /* IPlugAPIBase.cpp in Sources */,
 				4F35DEAD207E5C5A00867D8F /* IPlugPluginBase.cpp in Sources */,
@@ -2682,11 +2701,12 @@
 				4FF231CF2BFA0B260040797B /* oscillator.cpp in Sources */,
 				4FF231D02BFA0B260040797B /* voice.cpp in Sources */,
 				4FF231D82BFA0B300040797B /* oscillator.cpp in Sources */,
-				4FF231E02BFA0B300040797B /* global.cpp in Sources */,
-				A1B2C3013C7F000100000018 /* effects.cpp in Sources */,
-				A1B2C3013C7F000100000038 /* drive.cpp in Sources */,
-				4FF231E82BFA0B300040797B /* transformations.cpp in Sources */,
-				A1B2C3013C7F000100000028 /* reverb.cpp in Sources */,
+					4FF231E02BFA0B300040797B /* global.cpp in Sources */,
+					A1B2C3013C7F000100000018 /* effects.cpp in Sources */,
+					A1B2C3013C7F000100000038 /* drive.cpp in Sources */,
+					A1B2C3013C7F000100000048 /* chorus.cpp in Sources */,
+					4FF231E82BFA0B300040797B /* transformations.cpp in Sources */,
+					A1B2C3013C7F000100000028 /* reverb.cpp in Sources */,
 				4FD8699827206006005A5F28 /* IGraphicsMac.mm in Sources */,
 				4FD8699927206006005A5F28 /* ITextEntryControl.cpp in Sources */,
 				4FD8699A27206006005A5F28 /* IPopupMenuControl.cpp in Sources */,

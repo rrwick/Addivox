@@ -150,6 +150,9 @@
     <ClCompile Include="..\src\effects\reverb.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\effects\chorus.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\synth\voice.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
@@ -281,6 +284,9 @@
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\effects\reverb.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\effects\chorus.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\synth\midi_synth.h">

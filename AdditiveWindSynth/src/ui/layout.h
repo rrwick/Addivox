@@ -497,8 +497,9 @@ inline void AttachOutputPanelControls(IGraphics* pGraphics,
 inline void AttachEffectsPanelControls(IGraphics* pGraphics,
                                        const PanelResources& resources)
 {
-  const std::array<LabelledKnobValueSpec, 2> effectKnobs{{
+  const std::array<LabelledKnobValueSpec, 3> effectKnobs{{
     {{IRECT::MakeMidXYWH(886.f, 430.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(918.f, 431.f, 60.f, 12.f), kParamEffectsDrive}, "Drive", IRECT::MakeXYWH(918.f, 418.f, 60.f, 12.f)},
+    {{IRECT::MakeMidXYWH(886.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(918.f, 483.f, 60.f, 12.f), kParamEffectsChorus}, "Chorus", IRECT::MakeXYWH(918.f, 470.f, 60.f, 12.f)},
     {{IRECT::MakeMidXYWH(992.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1024.f, 483.f, 60.f, 12.f), kParamEffectsReverb}, "Reverb", IRECT::MakeXYWH(1024.f, 470.f, 60.f, 12.f)}
   }};
 

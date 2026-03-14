@@ -17,5 +17,6 @@ enum EParams
   kParamPortamentoAtCC5Max,
   kParamEffectsReverb,
   kParamEffectsDrive,
+  kParamEffectsChorus,
   kNumParams
 };

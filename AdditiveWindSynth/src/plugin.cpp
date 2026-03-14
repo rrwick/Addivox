@@ -206,6 +206,18 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     iplug::IParam::ShapeLinear(),
     iplug::IParam::kUnitCustom,
     formatPercentDisplay);
+  GetParam(kParamEffectsChorus)->InitDouble(
+    "Chorus",
+    0.,
+    0.,
+    100.0,
+    0.1,
+    "",
+    0,
+    "",
+    iplug::IParam::ShapeLinear(),
+    iplug::IParam::kUnitCustom,
+    formatPercentDisplay);
   GetParam(kParamEffectsReverb)->InitDouble(
     "Reverb",
     0.,
