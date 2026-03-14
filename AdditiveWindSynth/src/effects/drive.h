@@ -83,8 +83,11 @@ private:
   double mSampleRate{44100.0};
   double mOversampledRate{44100.0 * kOversamplingFactor};
   double mAmountSmoothingCoefficient{1.0};
+  double mActivationSmoothingCoefficient{1.0};
   double mTargetAmount{0.0};
   double mCurrentAmount{0.0};
+  double mTargetActiveMix{0.0};
+  double mCurrentActiveMix{0.0};
   bool mActive{false};
   std::array<ChannelState, kNumChannels> mChannels{};
 };

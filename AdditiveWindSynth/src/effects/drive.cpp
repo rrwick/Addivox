@@ -95,8 +95,11 @@ void effects::Drive::Reset(double sampleRate, int blockSize)
   mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
   mOversampledRate = mSampleRate * static_cast<double>(kOversamplingFactor);
   mAmountSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.028 * mSampleRate));
+  mActivationSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.012 * mSampleRate));
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
+  mTargetActiveMix = 0.0;
+  mCurrentActiveMix = 0.0;
   mActive = false;
 
   for(auto& channel : mChannels)
@@ -132,11 +135,13 @@ void effects::Drive::Clear()
 void effects::Drive::SetAmount(double amount)
 {
   mTargetAmount = std::clamp(amount, 0.0, 100.0);
+  mTargetActiveMix = mTargetAmount > kBypassThreshold ? 1.0 : 0.0;
 
   if(mTargetAmount > kBypassThreshold && !mActive)
   {
     Clear();
     mCurrentAmount = 0.0;
+    mCurrentActiveMix = 0.0;
     mActive = true;
   }
 }
@@ -220,7 +225,9 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
   for(int frame = 0; frame < nFrames; ++frame)
   {
     mCurrentAmount = SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    mCurrentActiveMix = SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
     const Parameters parameters = ComputeParameters(mCurrentAmount);
+    const double activeMix = mCurrentActiveMix;
 
     for(int channelIndex = 0; channelIndex < kNumChannels; ++channelIndex)
     {
@@ -241,13 +248,19 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
 
       down2xSamples[0] = channel.downsampler4x.process_sample(up4xSamples.data());
       down2xSamples[1] = channel.downsampler4x.process_sample(up4xSamples.data() + 2);
-      outputs[channelIndex][frame] = static_cast<iplug::sample>(channel.downsampler2x.process_sample(down2xSamples.data()));
+      const double processed = channel.downsampler2x.process_sample(down2xSamples.data());
+      const double output = input + (activeMix * (processed - input));
+      outputs[channelIndex][frame] = static_cast<iplug::sample>(FlushDenormal(output));
     }
   }
 
-  if(mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold)
+  if(mTargetAmount <= kBypassThreshold
+     && mCurrentAmount <= kBypassThreshold
+     && mCurrentActiveMix <= kBypassThreshold)
   {
     mCurrentAmount = 0.0;
+    mCurrentActiveMix = 0.0;
+    mTargetActiveMix = 0.0;
     mActive = false;
     Clear();
   }
