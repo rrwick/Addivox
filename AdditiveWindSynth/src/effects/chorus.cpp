@@ -8,18 +8,19 @@ namespace
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
-constexpr int kNumVoices = 3;
-constexpr double kWetNormalization = 0.50;
-constexpr double kMaxBaseDelayMs = 19.0;
-constexpr double kMaxDepthMs = 8.5;
+constexpr int kNumVoices = 4;
+constexpr double kWetNormalization = 0.48;
+constexpr double kMaxBaseDelayMs = 21.0;
+constexpr double kMaxDepthMs = 10.5;
 constexpr double kBufferMarginMs = 4.0;
-constexpr std::array<double, kNumVoices> kVoiceDelayOffsetsMs{0.0, 4.8, 9.8};
-constexpr std::array<double, kNumVoices> kVoiceBaseRateHz{0.17, 0.23, 0.31};
-constexpr std::array<double, kNumVoices> kVoicePanPositions{-0.85, 0.0, 0.85};
+constexpr std::array<double, kNumVoices> kVoiceDelayOffsetsMs{0.0, 3.6, 7.5, 11.8};
+constexpr std::array<double, kNumVoices> kVoiceBaseRateHz{0.17, 0.23, 0.31, 0.41};
+constexpr std::array<double, kNumVoices> kVoicePanPositions{-0.92, -0.28, 0.28, 0.92};
 constexpr std::array<uint32_t, kNumVoices> kVoiceSeeds{
   0x51A3C0DEu,
   0x79B4E281u,
   0xA56D9F33u,
+  0x3EC7B41Fu,
 };
 } // namespace
 
@@ -223,14 +224,14 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames)
     const double t = std::clamp(mCurrentAmount * 0.01, 0.0, 1.0);
     const double presence = std::sqrt(t);
     const double lush = t * t;
-    const double wetMix = (0.16 * presence) + (0.66 * t);
-    const double baseDelayMs = 8.0 + (4.5 * presence) + (5.5 * lush);
-    const double depthMs = 0.25 + (2.10 * presence) + (6.0 * lush);
-    const double width = 0.32 + (0.50 * presence) + (0.30 * t);
-    const double rateScale = 0.65 + (0.65 * presence) + (1.00 * t);
+    const double wetMix = (0.16 * presence) + (0.78 * t);
+    const double baseDelayMs = 8.0 + (4.5 * presence) + (7.0 * lush);
+    const double depthMs = 0.25 + (2.10 * presence) + (7.8 * lush);
+    const double width = 0.32 + (0.50 * presence) + (0.38 * t);
+    const double rateScale = 0.65 + (0.65 * presence) + (1.12 * t);
     const double toneCoefficientTarget = CutoffHzToCoefficient(
       mSampleRate,
-      12000.0 - (1200.0 * presence) - (700.0 * lush));
+      12000.0 - (1100.0 * presence) - (600.0 * lush));
     const double baseDelaySamples = MillisecondsToSamples(baseDelayMs, mSampleRate);
     const double depthSamples = MillisecondsToSamples(depthMs, mSampleRate);
     const double monoInput =

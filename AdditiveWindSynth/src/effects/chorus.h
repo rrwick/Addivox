@@ -18,7 +18,7 @@ public:
   void ProcessBlock(iplug::sample** outputs, int nFrames);
 
 private:
-  static constexpr int kNumVoices = 3;
+  static constexpr int kNumVoices = 4;
 
   struct DelayLine
   {

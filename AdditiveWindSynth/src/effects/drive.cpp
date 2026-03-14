@@ -144,18 +144,20 @@ void effects::Drive::SetAmount(double amount)
 effects::Drive::Parameters effects::Drive::ComputeParameters(double amount) const
 {
   const double t = std::clamp(amount * 0.01, 0.0, 1.0);
+  const double presence = std::sqrt(t);
   const double driveShape = t * t;
+  const double density = (0.35 * presence) + (0.65 * driveShape);
 
   Parameters parameters;
-  parameters.blend = (0.20 * t) + (0.80 * driveShape);
-  parameters.drive = 1.0 + (16.0 * driveShape);
-  parameters.bias = 0.04 * driveShape * (0.35 + (0.65 * t));
+  parameters.blend = (0.18 * presence) + (0.74 * t);
+  parameters.drive = 1.0 + (26.0 * density);
+  parameters.bias = 0.07 * density * (0.25 + (0.75 * t));
   parameters.biasOffset = std::tanh(parameters.drive * parameters.bias);
   parameters.inverseDrive = 1.0 / parameters.drive;
-  parameters.trim = std::pow(parameters.drive, -0.32) * (1.0 - (0.08 * t));
+  parameters.trim = std::pow(parameters.drive, -0.27) * (1.0 - (0.05 * t));
   parameters.toneCoefficient = CutoffHzToCoefficient(
     mOversampledRate,
-    19000.0 - (12500.0 * std::pow(t, 1.15)));
+    19000.0 - (9000.0 * presence) - (5000.0 * driveShape));
   return parameters;
 }
 
