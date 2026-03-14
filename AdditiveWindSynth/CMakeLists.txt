@@ -9,7 +9,7 @@ include(${IPLUG2_DIR}/iPlug2.cmake)
 find_package(iPlug2 REQUIRED)
 
 file(GLOB BUILTIN_PRESET_RESOURCES CONFIGURE_DEPENDS
-  "${CMAKE_CURRENT_SOURCE_DIR}/resources/presets/*.toml")
+  "${CMAKE_CURRENT_SOURCE_DIR}/presets/*.toml")
 
 iplug_add_plugin(${PROJECT_NAME}
   SOURCES
