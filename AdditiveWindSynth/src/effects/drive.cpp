@@ -8,6 +8,8 @@ namespace
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
+constexpr double kAdaaDeltaThreshold = 1.0e-4;
+constexpr double kLogTwo = 0.69314718055994530942;
 constexpr std::array<double, 12> kOversamplingCoefs2x{
   0.036681502163648017,
   0.13654762463195794,
@@ -52,6 +54,12 @@ double effects::Drive::DCBlockerCoefficient(double sampleRate, double cutoffHz)
   const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
   const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
   return std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
+}
+
+double effects::Drive::StableLogCosh(double value)
+{
+  const double magnitude = std::abs(value);
+  return magnitude + std::log1p(std::exp(-2.0 * magnitude)) - kLogTwo;
 }
 
 void effects::Drive::OnePoleLowpass::Clear()
@@ -116,6 +124,8 @@ void effects::Drive::Clear()
     channel.upsampler4x.clear_buffers();
     channel.downsampler4x.clear_buffers();
     channel.downsampler2x.clear_buffers();
+    channel.previousShaperInput = 0.0;
+    channel.shaperStateInitialized = false;
   }
 }
 
@@ -140,11 +150,24 @@ effects::Drive::Parameters effects::Drive::ComputeParameters(double amount) cons
   parameters.blend = (0.20 * t) + (0.80 * driveShape);
   parameters.drive = 1.0 + (16.0 * driveShape);
   parameters.bias = 0.04 * driveShape * (0.35 + (0.65 * t));
+  parameters.biasOffset = std::tanh(parameters.drive * parameters.bias);
+  parameters.inverseDrive = 1.0 / parameters.drive;
   parameters.trim = std::pow(parameters.drive, -0.32) * (1.0 - (0.08 * t));
   parameters.toneCoefficient = CutoffHzToCoefficient(
     mOversampledRate,
     19000.0 - (12500.0 * std::pow(t, 1.15)));
   return parameters;
+}
+
+double effects::Drive::EvaluateShaper(double input, const Parameters& parameters)
+{
+  return std::tanh(parameters.drive * (input + parameters.bias)) - parameters.biasOffset;
+}
+
+double effects::Drive::EvaluateShaperAntiderivative(double input, const Parameters& parameters)
+{
+  const double drivenInput = parameters.drive * (input + parameters.bias);
+  return (StableLogCosh(drivenInput) * parameters.inverseDrive) - (parameters.biasOffset * input);
 }
 
 double effects::Drive::ProcessOversampledSample(std::size_t channelIndex,
@@ -156,8 +179,31 @@ double effects::Drive::ProcessOversampledSample(std::size_t channelIndex,
 
   const double clean = input;
   const double filteredInput = channel.inputDcBlocker.Process(input);
-  const double biasOffset = std::tanh(parameters.drive * parameters.bias);
-  const double saturated = std::tanh(parameters.drive * (filteredInput + parameters.bias)) - biasOffset;
+  double saturated = 0.0;
+
+  if(!channel.shaperStateInitialized)
+  {
+    saturated = EvaluateShaper(filteredInput, parameters);
+    channel.shaperStateInitialized = true;
+  }
+  else
+  {
+    const double delta = filteredInput - channel.previousShaperInput;
+
+    if(std::abs(delta) > kAdaaDeltaThreshold)
+    {
+      const double antiderivative = EvaluateShaperAntiderivative(filteredInput, parameters);
+      const double previousAntiderivative = EvaluateShaperAntiderivative(channel.previousShaperInput, parameters);
+      saturated = (antiderivative - previousAntiderivative) / delta;
+    }
+    else
+    {
+      const double midpointInput = 0.5 * (filteredInput + channel.previousShaperInput);
+      saturated = EvaluateShaper(midpointInput, parameters);
+    }
+  }
+
+  channel.previousShaperInput = filteredInput;
   const double softened = channel.toneFilter.Process(saturated);
   const double trimmed = channel.outputDcBlocker.Process(softened * parameters.trim);
   const double mixed = clean + (parameters.blend * (trimmed - clean));

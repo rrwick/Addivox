@@ -54,6 +54,8 @@ private:
     hiir::Upsampler2xFPU<kSecondStageNumCoefs, double> upsampler4x;
     hiir::Downsampler2xFPU<kSecondStageNumCoefs, double> downsampler4x;
     hiir::Downsampler2xFPU<kFirstStageNumCoefs, double> downsampler2x;
+    double previousShaperInput{0.0};
+    bool shaperStateInitialized{false};
   };
 
   struct Parameters
@@ -61,6 +63,8 @@ private:
     double blend{0.0};
     double drive{1.0};
     double bias{0.0};
+    double biasOffset{0.0};
+    double inverseDrive{1.0};
     double trim{1.0};
     double toneCoefficient{1.0};
   };
@@ -69,8 +73,11 @@ private:
   static double SmoothValue(double current, double target, double coefficient);
   static double CutoffHzToCoefficient(double sampleRate, double cutoffHz);
   static double DCBlockerCoefficient(double sampleRate, double cutoffHz);
+  static double StableLogCosh(double value);
 
   Parameters ComputeParameters(double amount) const;
+  static double EvaluateShaper(double input, const Parameters& parameters);
+  static double EvaluateShaperAntiderivative(double input, const Parameters& parameters);
   double ProcessOversampledSample(std::size_t channelIndex, double input, const Parameters& parameters);
 
   double mSampleRate{44100.0};
