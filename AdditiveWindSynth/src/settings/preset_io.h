@@ -85,11 +85,10 @@ inline constexpr std::array<GlobalVoiceSettingDescriptor, 13> kGlobalVoiceSettin
   {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
 }};
 
-inline constexpr std::array<EffectsSettingDescriptor, 4> kEffectsSettingDescriptors{{
+inline constexpr std::array<EffectsSettingDescriptor, 3> kEffectsSettingDescriptors{{
   {"drive", &EffectsSettings::drive},
   {"tone", &EffectsSettings::tone},
   {"chorus", &EffectsSettings::chorus},
-  {"reverb", &EffectsSettings::reverb},
 }};
 
 inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::kNumParameters>

@@ -52,13 +52,15 @@ void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin,
 }
 
 void SetEffectsSettingsParams(AdditiveWindSynth& plugin,
-                              const EffectsSettings& effectsSettings)
+                              const EffectsSettings& effectsSettings,
+                              bool includeReverb = true)
 {
   const EffectsSettings sanitizedEffectsSettings = effects_settings::Sanitize(effectsSettings);
   plugin.GetParam(kParamEffectsDrive)->Set(sanitizedEffectsSettings.drive);
   plugin.GetParam(kParamEffectsTone)->Set(sanitizedEffectsSettings.tone);
   plugin.GetParam(kParamEffectsChorus)->Set(sanitizedEffectsSettings.chorus);
-  plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
+  if(includeReverb)
+    plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
 }
 
 void SyncParamDefaultsToCurrentValues(AdditiveWindSynth& plugin)
@@ -111,6 +113,85 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
     && chunk.Put(&effectsSettings.drive) > 0
     && chunk.Put(&effectsSettings.chorus) > 0
     && chunk.Put(&effectsSettings.tone) > 0;
+}
+
+bool SetParamFromChunkValue(AdditiveWindSynth& plugin,
+                            const IByteChunk& chunk,
+                            int paramIdx,
+                            int& position)
+{
+  double value = 0.0;
+  const int nextPos = chunk.Get(&value, position);
+  if(nextPos < 0)
+    return false;
+
+  if(paramIdx == kParamEffectsTone && std::abs(value) > 1.0)
+    value *= 0.01;
+
+  plugin.GetParam(paramIdx)->Set(value);
+  position = nextPos;
+  return true;
+}
+
+int RestoreStateParamsFromChunk(AdditiveWindSynth& plugin,
+                                const IByteChunk& chunk,
+                                int startPos)
+{
+  const int remainingBytes = chunk.Size() - startPos;
+  if(remainingBytes <= 0)
+    return startPos;
+
+  const int bytesPerValue = static_cast<int>(sizeof(double));
+  const bool hasWholeDoublePayload = (remainingBytes % bytesPerValue) == 0;
+  const int remainingValues = hasWholeDoublePayload ? (remainingBytes / bytesPerValue) : -1;
+  int position = startPos;
+
+  if(remainingValues == kNumParams)
+  {
+    for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+    {
+      if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
+        break;
+    }
+    return position;
+  }
+
+  constexpr int kPresetChunkParamCountWithReverb = kParamEffectsTone + 1;
+  constexpr int kPresetChunkParamCountWithoutReverb = kPresetChunkParamCountWithReverb - 1;
+  if(remainingValues == kPresetChunkParamCountWithReverb
+     || remainingValues == kPresetChunkParamCountWithoutReverb)
+  {
+    for(int paramIdx = 0; paramIdx <= kParamPortamentoAtCC5Max; ++paramIdx)
+    {
+      if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
+        return position;
+    }
+
+    if(remainingValues == kPresetChunkParamCountWithReverb)
+    {
+      double ignoredReverbValue = 0.0;
+      const int nextPos = chunk.Get(&ignoredReverbValue, position);
+      if(nextPos < 0)
+        return position;
+      position = nextPos;
+    }
+
+    for(int paramIdx = kParamEffectsDrive; paramIdx <= kParamEffectsTone; ++paramIdx)
+    {
+      if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
+        break;
+    }
+
+    return position;
+  }
+
+  for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+  {
+    if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
+      break;
+  }
+
+  return position;
 }
 
 std::string GetFullFileDialogPath(const WDL_String& fileName)
@@ -355,7 +436,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
 #endif
 
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
-  SetEffectsSettingsParams(*this, document.effectsSettings);
+  SetEffectsSettingsParams(*this, document.effectsSettings, false);
   OnParamReset(kPresetRecall);
   SyncParamDefaultsToCurrentValues(*this);
 
@@ -564,7 +645,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
     mEditorState->selectedMidiNote);
   mPendingRestoredStatePresetName = document.name;
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
-  SetEffectsSettingsParams(*this, document.effectsSettings);
+  SetEffectsSettingsParams(*this, document.effectsSettings, false);
 
 #if IPLUG_DSP
   mDSP.SetCompoundPreset(document.compoundPreset);
@@ -572,19 +653,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
 
   int pos = position;
   ENTER_PARAMS_MUTEX
-  for(int paramIdx = 0; paramIdx < NParams(); ++paramIdx)
-  {
-    double value = 0.0;
-    const int nextPos = chunk.Get(&value, pos);
-    if(nextPos < 0)
-      break;
-
-    if(paramIdx == kParamEffectsTone && std::abs(value) > 1.0)
-      value *= 0.01;
-
-    GetParam(paramIdx)->Set(value);
-    pos = nextPos;
-  }
+  pos = RestoreStateParamsFromChunk(*this, chunk, pos);
   OnParamReset(kPresetRecall);
   SyncParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX

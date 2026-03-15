@@ -20,7 +20,6 @@ portamentoTimeAtCC5MaxSec = 0.025
 drive = 10.0
 tone = 0.0
 chorus = 75.0
-reverb = 0.0
 
 [[key_notes]]
 midi_note = 60
