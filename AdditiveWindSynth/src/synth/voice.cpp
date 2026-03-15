@@ -92,6 +92,16 @@ void SynthVoice::SetPortamentoControl(double control)
     osc.SetPitchTime(pitchTimeSec);
 }
 
+void SynthVoice::SetTransposeSemitones(double transposeSemitones)
+{
+  const double clampedTransposeSemitones = std::clamp(std::round(transposeSemitones), -36.0, 36.0);
+  if(clampedTransposeSemitones == mTransposeSemitones)
+    return;
+
+  mTransposeSemitones = clampedTransposeSemitones;
+  UpdatePitch();
+}
+
 void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings)
 {
   mGlobalVoiceSettings = global_settings::Sanitize(settings);
@@ -181,9 +191,14 @@ double SynthVoice::GetPortamentoTimeSec() const
       * mPortamentoControl;
 }
 
+double SynthVoice::GetEffectiveMidiPitch() const
+{
+  return mPitch + mPitchBend + mTransposeSemitones;
+}
+
 void SynthVoice::UpdatePitch()
 {
-  const double midiPitch = mPitch + mPitchBend;
+  const double midiPitch = GetEffectiveMidiPitch();
   const double fundamentalPitchSemitones = midiPitch - 69.0;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
@@ -198,7 +213,7 @@ void SynthVoice::UpdatePitch()
 
 void SynthVoice::UpdateLevels()
 {
-  const double midiPitch = mPitch + mPitchBend;
+  const double midiPitch = GetEffectiveMidiPitch();
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)

@@ -19,5 +19,6 @@ enum EParams
   kParamEffectsDrive,
   kParamEffectsChorus,
   kParamEffectsTone,
+  kParamTranspose,
   kNumParams
 };

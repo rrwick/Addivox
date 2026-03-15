@@ -5,6 +5,7 @@
 #include "colour.h"
 #include "control_utils.h"
 #include "layered_svg_knob_control.h"
+#include "number_box_control.h"
 #include "editor_panel.h"
 #include "help_text.h"
 #include "theme.h"
@@ -268,6 +269,8 @@ struct PanelResources
   IVStyle meterStyle = theme::MeterStyle();
   IVStyle vizEditButtonStyle = theme::VizEditButtonStyle();
   IVStyle mainPanelModeSwitchStyle = theme::MainPanelModeSwitchStyle();
+  IVStyle numberBoxStyle = theme::BaseStyle(false, false)
+    .WithValueText(IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
   IVStyle portamentoRangeSliderStyle = theme::PortamentoRangeSliderStyle();
   IText compactLabelText = theme::CompactLabelText();
   IText compactValueText = theme::CompactValueText();
@@ -464,6 +467,16 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
     9.f,
     3.f));
   AttachPassiveText(pGraphics, IRECT::MakeXYWH(532.5f, 455.f, 70.f, 12.f), "Portamento", resources.compactLabelText);
+  AttachPassiveText(pGraphics, IRECT::MakeXYWH(670.f, 460.f, 80.f, 12.f), "Transpose", resources.compactLabelText);
+  auto* transposeControl = new NumberBoxControl(
+    IRECT::MakeXYWH(670.f, 474.f, 58.f, 30.f),
+    kParamTranspose,
+    resources.numberBoxStyle,
+    0.0,
+    -36.0,
+    36.0,
+    "%0.0f");
+  pGraphics->AttachControl(transposeControl);
 }
 
 inline void AttachVariationPanelControls(IGraphics* pGraphics,

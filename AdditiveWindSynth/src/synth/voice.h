@@ -19,6 +19,7 @@ public:
   void SetPitchBend(double pitchBend);
   void SetBreath(double breath);
   void SetPortamentoControl(double control);
+  void SetTransposeSemitones(double transposeSemitones);
   void SetGlobalVoiceSettings(const GlobalVoiceSettings& settings);
   void SetCompoundPreset(const CompoundPreset& preset);
   bool AddKeyNotePreset(double midiNote);
@@ -37,6 +38,7 @@ public:
   void GetVisualizerFrame(VisualizerFrame& frame) const;
 
 private:
+  double GetEffectiveMidiPitch() const;
   void UpdatePitch();
   void UpdateLevels();
   double GetPortamentoTimeSec() const;
@@ -50,6 +52,8 @@ private:
 
   // Pitch bend is a semitone offset in MIDI-note units.
   double mPitchBend{0.0};
+
+  double mTransposeSemitones{0.0};
 
   // Breath is a linear value from 0 to 1.
   double mBreath{0.0};

@@ -44,6 +44,7 @@ public:
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
+    mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
     mDrive.Reset(sampleRate, blockSize);
     mDrive.SetAmount(mEffectsSettings.drive);
     mTone.Reset(sampleRate, blockSize);
@@ -61,6 +62,13 @@ public:
 
   void SetParam(int paramIdx, double value)
   {
+    if(paramIdx == kParamTranspose)
+    {
+      mTransposeSemitones = value;
+      mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
+      return;
+    }
+
     if(global_settings::ApplyParam(paramIdx, value, mGlobalVoiceSettings))
     {
       mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
@@ -116,6 +124,7 @@ public:
   MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
   GlobalVoiceSettings mGlobalVoiceSettings{};
   EffectsSettings mEffectsSettings{};
+  double mTransposeSemitones{0.0};
   effects::Drive mDrive;
   effects::Tone mTone;
   effects::Chorus mChorus;

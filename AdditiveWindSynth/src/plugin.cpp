@@ -259,6 +259,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     iplug::IParam::ShapeLinear(),
     iplug::IParam::kUnitCustom,
     formatSignedUnitDisplay);
+  GetParam(kParamTranspose)->InitInt("Transpose", 0, -36, 36, "st", iplug::IParam::kFlagSignDisplay);
   GetParam(kParamEffectsChorus)->InitDouble(
     "Chorus",
     0.,
