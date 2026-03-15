@@ -179,6 +179,13 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   const auto formatPercentDisplay = [](double value, WDL_String& str) {
     str.SetFormatted(32, "%.1f%%", value);
   };
+  const auto formatSignedUnitDisplay = [](double value, WDL_String& str) {
+    const double normalized = std::round(value * 100.0) / 100.0;
+    if(normalized > 0.0)
+      str.SetFormatted(32, "+%.2f", normalized);
+    else
+      str.SetFormatted(32, "%.2f", normalized);
+  };
 
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
@@ -209,15 +216,15 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   GetParam(kParamEffectsTone)->InitDouble(
     "Tone",
     0.,
-    -100.0,
-    100.0,
-    0.1,
+    -1.0,
+    1.0,
+    0.01,
     "",
     0,
     "",
     iplug::IParam::ShapeLinear(),
     iplug::IParam::kUnitCustom,
-    formatPercentDisplay);
+    formatSignedUnitDisplay);
   GetParam(kParamEffectsChorus)->InitDouble(
     "Chorus",
     0.,
@@ -515,6 +522,9 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
     const int nextPos = chunk.Get(&value, pos);
     if(nextPos < 0)
       break;
+
+    if(paramIdx == kParamEffectsTone && std::abs(value) > 1.0)
+      value *= 0.01;
 
     GetParam(paramIdx)->Set(value);
     pos = nextPos;

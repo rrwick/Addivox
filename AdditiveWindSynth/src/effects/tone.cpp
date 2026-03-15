@@ -72,7 +72,7 @@ void effects::Tone::Clear()
 
 void effects::Tone::SetAmount(double amount)
 {
-  mTargetAmount = std::clamp(amount, -100.0, 100.0);
+  mTargetAmount = std::clamp(amount, -1.0, 1.0);
   mTargetActiveMix = std::abs(mTargetAmount) > kBypassThreshold ? 1.0 : 0.0;
 
   if(std::abs(mTargetAmount) > kBypassThreshold && !mActive)
@@ -86,17 +86,20 @@ void effects::Tone::SetAmount(double amount)
 
 effects::Tone::Parameters effects::Tone::ComputeParameters(double amount) const
 {
-  const double t = std::clamp(amount * 0.01, -1.0, 1.0);
+  const double t = std::clamp(amount, -1.0, 1.0);
   const double magnitude = std::abs(t);
   const double presence = std::sqrt(magnitude);
-  const double shaped = std::copysign((0.2 * magnitude) + (0.8 * presence), t);
-  const double tiltDb = 10.0 * shaped;
+  const double shaped = std::copysign((0.1 * magnitude) + (0.9 * presence), t);
+  const double tiltDb = 24.0 * shaped;
 
   Parameters parameters;
   parameters.lowGain = DbToLinear(-0.5 * tiltDb);
   parameters.highGain = DbToLinear(0.5 * tiltDb);
-  parameters.trim = DbToLinear(-0.15 * std::abs(tiltDb));
-  parameters.lowpassCoefficient = CutoffHzToCoefficient(mSampleRate, 1300.0 - (250.0 * shaped));
+  const double energyNormalization = std::sqrt(
+    0.5 * ((parameters.lowGain * parameters.lowGain)
+           + (parameters.highGain * parameters.highGain)));
+  parameters.trim = 1.0 / std::max(energyNormalization, 1.0e-9);
+  parameters.lowpassCoefficient = CutoffHzToCoefficient(mSampleRate, 1300.0);
   return parameters;
 }
 
