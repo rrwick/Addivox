@@ -5,6 +5,7 @@
 #include "../settings/effects.h"
 #include "voice.h"
 #include "../effects/drive.h"
+#include "../effects/tone.h"
 #include "../effects/chorus.h"
 #include "../effects/reverb.h"
 #include <cstring>
@@ -28,6 +29,9 @@ public:
     if(mDrive.IsActive())
       mDrive.ProcessBlock(outputs, nFrames);
 
+    if(mTone.IsActive())
+      mTone.ProcessBlock(outputs, nFrames);
+
     if(mChorus.IsActive())
       mChorus.ProcessBlock(outputs, nFrames);
 
@@ -42,6 +46,8 @@ public:
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
     mDrive.Reset(sampleRate, blockSize);
     mDrive.SetAmount(mEffectsSettings.drive);
+    mTone.Reset(sampleRate, blockSize);
+    mTone.SetAmount(mEffectsSettings.tone);
     mChorus.Reset(sampleRate, blockSize);
     mChorus.SetAmount(mEffectsSettings.chorus);
     mReverb.Reset(sampleRate, blockSize);
@@ -64,6 +70,7 @@ public:
     if(effects_settings::ApplyParam(paramIdx, value, mEffectsSettings))
     {
       mDrive.SetAmount(mEffectsSettings.drive);
+      mTone.SetAmount(mEffectsSettings.tone);
       mChorus.SetAmount(mEffectsSettings.chorus);
       mReverb.SetAmount(mEffectsSettings.reverb);
     }
@@ -110,6 +117,7 @@ public:
   GlobalVoiceSettings mGlobalVoiceSettings{};
   EffectsSettings mEffectsSettings{};
   effects::Drive mDrive;
+  effects::Tone mTone;
   effects::Chorus mChorus;
   effects::Reverb mReverb;
 };

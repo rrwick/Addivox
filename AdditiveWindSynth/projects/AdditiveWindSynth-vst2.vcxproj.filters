@@ -60,6 +60,9 @@
     <ClCompile Include="..\src\effects\drive.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\effects\tone.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\effects\reverb.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
@@ -218,6 +221,9 @@
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\effects\drive.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\effects\tone.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\effects\reverb.h">

@@ -286,6 +286,7 @@
     <ClInclude Include="..\src\settings\global.h" />
     <ClInclude Include="..\src\settings\effects.h" />
     <ClInclude Include="..\src\effects\drive.h" />
+    <ClInclude Include="..\src\effects\tone.h" />
     <ClInclude Include="..\src\effects\reverb.h" />
     <ClInclude Include="..\src\effects\chorus.h" />
     <ClInclude Include="..\src\synth\midi_synth.h" />
@@ -340,6 +341,7 @@
     <ClCompile Include="..\src\settings\global.cpp" />
     <ClCompile Include="..\src\settings\effects.cpp" />
     <ClCompile Include="..\src\effects\drive.cpp" />
+    <ClCompile Include="..\src\effects\tone.cpp" />
     <ClCompile Include="..\src\effects\reverb.cpp" />
     <ClCompile Include="..\src\effects\chorus.cpp" />
     <ClCompile Include="..\src\synth\voice.cpp" />

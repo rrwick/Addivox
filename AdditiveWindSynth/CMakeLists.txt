@@ -30,6 +30,8 @@ iplug_add_plugin(${PROJECT_NAME}
     src/settings/effects.h
     src/effects/drive.cpp
     src/effects/drive.h
+    src/effects/tone.cpp
+    src/effects/tone.h
     src/effects/chorus.cpp
     src/effects/chorus.h
     src/effects/reverb.cpp
