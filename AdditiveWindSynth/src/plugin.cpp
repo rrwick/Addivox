@@ -33,14 +33,18 @@ EffectsSettings GetEffectsSettingsFromParams(const AdditiveWindSynth& plugin)
 }
 
 void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin,
-                                  const GlobalVoiceSettings& voiceSettings)
+                                  const GlobalVoiceSettings& voiceSettings,
+                                  bool includePitchShift = true,
+                                  bool includePanShift = true)
 {
   const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
   plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
   plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
   plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
-  plugin.GetParam(kParamGlobalPitchShift)->Set(sanitizedVoiceSettings.pitchOffsetCents);
-  plugin.GetParam(kParamGlobalPanShift)->Set(sanitizedVoiceSettings.panOffset);
+  if(includePitchShift)
+    plugin.GetParam(kParamGlobalPitchShift)->Set(sanitizedVoiceSettings.pitchOffsetCents);
+  if(includePanShift)
+    plugin.GetParam(kParamGlobalPanShift)->Set(sanitizedVoiceSettings.panOffset);
   plugin.GetParam(kParamGlobalIntensityVariationAmplitudeScale)->Set(sanitizedVoiceSettings.intensityVariationAmplitudeScale);
   plugin.GetParam(kParamGlobalIntensityVariationRateScale)->Set(sanitizedVoiceSettings.intensityVariationRateScale);
   plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitizedVoiceSettings.pitchVariationAmplitudeScale);
@@ -118,17 +122,21 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
 bool SetParamFromChunkValue(AdditiveWindSynth& plugin,
                             const IByteChunk& chunk,
                             int paramIdx,
-                            int& position)
+                            int& position,
+                            bool applyValue = true)
 {
   double value = 0.0;
   const int nextPos = chunk.Get(&value, position);
   if(nextPos < 0)
     return false;
 
-  if(paramIdx == kParamEffectsTone && std::abs(value) > 1.0)
-    value *= 0.01;
+  if(applyValue)
+  {
+    if(paramIdx == kParamEffectsTone && std::abs(value) > 1.0)
+      value *= 0.01;
 
-  plugin.GetParam(paramIdx)->Set(value);
+    plugin.GetParam(paramIdx)->Set(value);
+  }
   position = nextPos;
   return true;
 }
@@ -163,17 +171,15 @@ int RestoreStateParamsFromChunk(AdditiveWindSynth& plugin,
   {
     for(int paramIdx = 0; paramIdx <= kParamPortamentoAtCC5Max; ++paramIdx)
     {
-      if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
+      const bool applyValue = (paramIdx != kParamGlobalPitchShift) && (paramIdx != kParamGlobalPanShift);
+      if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position, applyValue))
         return position;
     }
 
     if(remainingValues == kPresetChunkParamCountWithReverb)
     {
-      double ignoredReverbValue = 0.0;
-      const int nextPos = chunk.Get(&ignoredReverbValue, position);
-      if(nextPos < 0)
+      if(!SetParamFromChunkValue(plugin, chunk, kParamEffectsReverb, position, false))
         return position;
-      position = nextPos;
     }
 
     for(int paramIdx = kParamEffectsDrive; paramIdx <= kParamEffectsTone; ++paramIdx)
@@ -435,7 +441,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
   mDSP.SetCompoundPreset(document.compoundPreset);
 #endif
 
-  SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
+  SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
   SetEffectsSettingsParams(*this, document.effectsSettings, false);
   OnParamReset(kPresetRecall);
   SyncParamDefaultsToCurrentValues(*this);
@@ -644,7 +650,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
     document.compoundPreset,
     mEditorState->selectedMidiNote);
   mPendingRestoredStatePresetName = document.name;
-  SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
+  SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
   SetEffectsSettingsParams(*this, document.effectsSettings, false);
 
 #if IPLUG_DSP
