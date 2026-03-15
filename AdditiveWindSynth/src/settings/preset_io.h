@@ -12,6 +12,7 @@
 
 #include "dirscan.h"
 
+#include "effects.h"
 #include "global.h"
 #include "oscillator.h"
 
@@ -40,6 +41,7 @@ struct PresetDocument
 {
   std::string name;
   GlobalVoiceSettings voiceSettings{};
+  EffectsSettings effectsSettings{};
   CompoundPreset compoundPreset{};
 };
 
@@ -53,6 +55,12 @@ struct GlobalVoiceSettingDescriptor
 {
   const char* key;
   double GlobalVoiceSettings::* member;
+};
+
+struct EffectsSettingDescriptor
+{
+  const char* key;
+  double EffectsSettings::* member;
 };
 
 struct OscillatorParameterDescriptor
@@ -75,6 +83,13 @@ inline constexpr std::array<GlobalVoiceSettingDescriptor, 13> kGlobalVoiceSettin
   {"panVariationRateScale", &GlobalVoiceSettings::panVariationRateScale},
   {"portamentoTimeAtCC5MinSec", &GlobalVoiceSettings::portamentoTimeAtCC5MinSec},
   {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
+}};
+
+inline constexpr std::array<EffectsSettingDescriptor, 4> kEffectsSettingDescriptors{{
+  {"drive", &EffectsSettings::drive},
+  {"tone", &EffectsSettings::tone},
+  {"chorus", &EffectsSettings::chorus},
+  {"reverb", &EffectsSettings::reverb},
 }};
 
 inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::kNumParameters>
@@ -247,6 +262,15 @@ inline const OscillatorParameterDescriptor* FindOscillatorParameterDescriptor(st
     kOscillatorParameterDescriptors.end(),
     [key](const auto& descriptor) { return key == descriptor.key; });
   return it == kOscillatorParameterDescriptors.end() ? nullptr : &(*it);
+}
+
+inline const EffectsSettingDescriptor* FindEffectsSettingDescriptor(std::string_view key)
+{
+  const auto it = std::find_if(
+    kEffectsSettingDescriptors.begin(),
+    kEffectsSettingDescriptors.end(),
+    [key](const auto& descriptor) { return key == descriptor.key; });
+  return it == kEffectsSettingDescriptors.end() ? nullptr : &(*it);
 }
 
 inline SimplePreset MakeDefaultKeyNotePreset()
@@ -590,6 +614,15 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
            << detail::FormatDouble(document.voiceSettings.*(descriptor.member))
            << '\n';
   }
+
+  stream << "\n[effects_settings]\n";
+  for(const auto& descriptor : detail::kEffectsSettingDescriptors)
+  {
+    stream << descriptor.key << " = "
+           << detail::FormatDouble(document.effectsSettings.*(descriptor.member))
+           << '\n';
+  }
+
   bool wroteAllKeyNotes = false;
   for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
   {
@@ -637,6 +670,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   {
     Root,
     VoiceSettings,
+    EffectsSettings,
     AllKeyNotes,
     KeyNote,
     Ignored
@@ -713,6 +747,23 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
         return fail("Invalid voice setting on line " + std::to_string(assignmentLine));
 
       document.voiceSettings.*(descriptor->member) = parsedValue;
+      return true;
+    }
+
+    if(section == Section::EffectsSettings)
+    {
+      const auto* descriptor = detail::FindEffectsSettingDescriptor(key);
+      if(!descriptor)
+        return true;
+
+      double parsedValue = 0.0;
+      if(!detail::ParseDouble(value, parsedValue))
+        return fail("Invalid effects setting on line " + std::to_string(assignmentLine));
+
+      if(descriptor->member == &EffectsSettings::tone && std::abs(parsedValue) > 1.0)
+        parsedValue *= 0.01;
+
+      document.effectsSettings.*(descriptor->member) = parsedValue;
       return true;
     }
 
@@ -828,6 +879,13 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
       continue;
     }
 
+    if(trimmedLine == "[effects_settings]")
+    {
+      currentSection = Section::EffectsSettings;
+      currentKeyNote = nullptr;
+      continue;
+    }
+
     if(trimmedLine == "[all_key_notes]")
     {
       currentSection = Section::AllKeyNotes;
@@ -895,6 +953,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   }
 
   document.voiceSettings = global_settings::Sanitize(document.voiceSettings);
+  document.effectsSettings = effects_settings::Sanitize(document.effectsSettings);
   document.compoundPreset = compoundPreset;
   return true;
 }

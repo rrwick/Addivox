@@ -1,6 +1,7 @@
 #include "plugin.h"
 #include "IPlug_include_in_plug_src.h"
 #include "IPlugPaths.h"
+#include "settings/effects.h"
 #include "settings/params.h"
 #include "settings/preset_io.h"
 #include "editor_messages.h"
@@ -22,6 +23,15 @@ GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const AdditiveWindSynth& pl
   return global_settings::Sanitize(settings);
 }
 
+EffectsSettings GetEffectsSettingsFromParams(const AdditiveWindSynth& plugin)
+{
+  EffectsSettings settings{};
+  for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+    effects_settings::ApplyParam(paramIdx, plugin.GetParam(paramIdx)->Value(), settings);
+
+  return effects_settings::Sanitize(settings);
+}
+
 void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin,
                                   const GlobalVoiceSettings& voiceSettings)
 {
@@ -39,6 +49,16 @@ void SetGlobalVoiceSettingsParams(AdditiveWindSynth& plugin,
   plugin.GetParam(kParamGlobalPanVariationRateScale)->Set(sanitizedVoiceSettings.panVariationRateScale);
   plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MinSec);
   plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MaxSec);
+}
+
+void SetEffectsSettingsParams(AdditiveWindSynth& plugin,
+                              const EffectsSettings& effectsSettings)
+{
+  const EffectsSettings sanitizedEffectsSettings = effects_settings::Sanitize(effectsSettings);
+  plugin.GetParam(kParamEffectsDrive)->Set(sanitizedEffectsSettings.drive);
+  plugin.GetParam(kParamEffectsTone)->Set(sanitizedEffectsSettings.tone);
+  plugin.GetParam(kParamEffectsChorus)->Set(sanitizedEffectsSettings.chorus);
+  plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
 }
 
 int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int preferredMidiNote)
@@ -63,6 +83,7 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
 {
   const std::string toml = preset_io::SerializePresetToToml(document);
   const GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
+  const EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
   return chunk.PutStr(toml.c_str()) > 0
     && chunk.Put(&voiceSettings.levelScale) > 0
     && chunk.Put(&voiceSettings.attackScale) > 0
@@ -76,7 +97,11 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
     && chunk.Put(&voiceSettings.panVariationAmplitudeScale) > 0
     && chunk.Put(&voiceSettings.panVariationRateScale) > 0
     && chunk.Put(&voiceSettings.portamentoTimeAtCC5MinSec) > 0
-    && chunk.Put(&voiceSettings.portamentoTimeAtCC5MaxSec) > 0;
+    && chunk.Put(&voiceSettings.portamentoTimeAtCC5MaxSec) > 0
+    && chunk.Put(&effectsSettings.reverb) > 0
+    && chunk.Put(&effectsSettings.drive) > 0
+    && chunk.Put(&effectsSettings.chorus) > 0
+    && chunk.Put(&effectsSettings.tone) > 0;
 }
 
 std::string GetFullFileDialogPath(const WDL_String& fileName)
@@ -304,6 +329,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
 #endif
 
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
+  SetEffectsSettingsParams(*this, document.effectsSettings);
   OnParamReset(kPresetRecall);
 
   if(!document.name.empty())
@@ -363,6 +389,7 @@ void AdditiveWindSynth::PromptSavePresetToFile()
   preset_io::PresetDocument document;
   document.name = mActivePresetDisplayName.empty() ? "Preset" : mActivePresetDisplayName;
   document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
+  document.effectsSettings = GetEffectsSettingsFromParams(*this);
   document.compoundPreset = mEditorState->compoundPreset;
 
   WDL_String fileName;
@@ -486,6 +513,7 @@ bool AdditiveWindSynth::SerializeState(IByteChunk& chunk) const
   preset_io::PresetDocument document;
   document.name = mActivePresetDisplayName.empty() ? GetPresetName(GetCurrentPresetIdx()) : mActivePresetDisplayName;
   document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
+  document.effectsSettings = GetEffectsSettingsFromParams(*this);
   document.compoundPreset = mEditorState->compoundPreset;
 
   return chunk.PutStr(preset_io::SerializePresetToToml(document).c_str()) > 0
@@ -509,6 +537,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
     mEditorState->selectedMidiNote);
   mPendingRestoredStatePresetName = document.name;
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
+  SetEffectsSettingsParams(*this, document.effectsSettings);
 
 #if IPLUG_DSP
   mDSP.SetCompoundPreset(document.compoundPreset);
@@ -719,6 +748,7 @@ void AdditiveWindSynth::LoadBuiltInPresets()
     preset_io::PresetDocument fallbackDocument;
     fallbackDocument.name = "Init";
     fallbackDocument.voiceSettings = GlobalVoiceSettings{};
+    fallbackDocument.effectsSettings = EffectsSettings{};
     fallbackDocument.compoundPreset = CompoundPreset{};
 
     IByteChunk chunk;
