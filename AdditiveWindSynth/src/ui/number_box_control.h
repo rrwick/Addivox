@@ -29,6 +29,19 @@ public:
     mFormatString.Set(fmtStr ? fmtStr : "%0.0f");
   }
 
+  void SetTooltip(const char* tooltip)
+  {
+    IControl::SetTooltip(tooltip);
+    mTooltip.Set(tooltip ? tooltip : "");
+
+    if(mNumberBox)
+      mNumberBox->SetTooltip(mTooltip.Get());
+    if(mIncrementButton)
+      mIncrementButton->SetTooltip(mTooltip.Get());
+    if(mDecrementButton)
+      mDecrementButton->SetTooltip(mTooltip.Get());
+  }
+
   void OnAttached() override
   {
     mNumberBox = new SteppedNumberBoxControl(
@@ -54,6 +67,10 @@ public:
     AddChildControl(mNumberBox);
     AddChildControl(mIncrementButton);
     AddChildControl(mDecrementButton);
+
+    if(mTooltip.GetLength() > 0)
+      SetTooltip(mTooltip.Get());
+
     OnResize();
   }
 
@@ -225,6 +242,7 @@ private:
   double mMinValue{0.0};
   double mMaxValue{100.0};
   WDL_String mFormatString{};
+  WDL_String mTooltip{};
   SteppedNumberBoxControl* mNumberBox{nullptr};
   ArrowButtonControl* mIncrementButton{nullptr};
   ArrowButtonControl* mDecrementButton{nullptr};

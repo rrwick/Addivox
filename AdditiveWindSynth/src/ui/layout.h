@@ -43,19 +43,43 @@ struct LabelledKnobValueSpec : KnobValueSpec
   IRECT labelBounds;
 };
 
-inline void AttachKnob(IGraphics* pGraphics, const KnobAssets& assets, const IRECT& bounds, int paramIdx)
+inline void SetTooltipIfPresent(IControl* control, const char* tooltip)
 {
-  pGraphics->AttachControl(new LayeredSVGKnobControl(bounds, assets.fixed, assets.rotating, paramIdx));
+  if(control && tooltip && tooltip[0] != '\0')
+    control->SetTooltip(tooltip);
 }
 
-inline void AttachPassiveText(IGraphics* pGraphics, const IRECT& bounds, const char* text, const IText& style)
+inline void AttachKnob(IGraphics* pGraphics,
+                       const KnobAssets& assets,
+                       const IRECT& bounds,
+                       int paramIdx,
+                       const char* tooltip = nullptr)
 {
-  pGraphics->AttachControl(MakePassiveControl(new ITextControl(bounds, text, style, COLOR_TRANSPARENT)));
+  auto* control = new LayeredSVGKnobControl(bounds, assets.fixed, assets.rotating, paramIdx);
+  SetTooltipIfPresent(control, tooltip);
+  pGraphics->AttachControl(control);
 }
 
-inline void AttachPassiveCaption(IGraphics* pGraphics, const IRECT& bounds, int paramIdx, const IText& style)
+inline void AttachPassiveText(IGraphics* pGraphics,
+                              const IRECT& bounds,
+                              const char* text,
+                              const IText& style,
+                              const char* tooltip = nullptr)
 {
-  pGraphics->AttachControl(MakePassiveControl(new ICaptionControl(bounds, paramIdx, style, COLOR_TRANSPARENT, true)));
+  auto* control = MakePassiveControl(new ITextControl(bounds, text, style, COLOR_TRANSPARENT));
+  SetTooltipIfPresent(control, tooltip);
+  pGraphics->AttachControl(control);
+}
+
+inline void AttachPassiveCaption(IGraphics* pGraphics,
+                                 const IRECT& bounds,
+                                 int paramIdx,
+                                 const IText& style,
+                                 const char* tooltip = nullptr)
+{
+  auto* control = MakePassiveControl(new ICaptionControl(bounds, paramIdx, style, COLOR_TRANSPARENT, true));
+  SetTooltipIfPresent(control, tooltip);
+  pGraphics->AttachControl(control);
 }
 
 inline void AttachKnobWithValue(IGraphics* pGraphics,
@@ -63,8 +87,9 @@ inline void AttachKnobWithValue(IGraphics* pGraphics,
                                 const KnobValueSpec& spec,
                                 const IText& valueText)
 {
-  AttachPassiveCaption(pGraphics, spec.valueBounds, spec.paramIdx, valueText);
-  AttachKnob(pGraphics, assets, spec.knobBounds, spec.paramIdx);
+  const char* const tooltip = help_text::main_ui::GetParam(spec.paramIdx);
+  AttachPassiveCaption(pGraphics, spec.valueBounds, spec.paramIdx, valueText, tooltip);
+  AttachKnob(pGraphics, assets, spec.knobBounds, spec.paramIdx, tooltip);
 }
 
 inline void AttachLabelledKnobWithValue(IGraphics* pGraphics,
@@ -74,7 +99,12 @@ inline void AttachLabelledKnobWithValue(IGraphics* pGraphics,
                                         const IText& valueText)
 {
   AttachKnobWithValue(pGraphics, assets, spec, valueText);
-  AttachPassiveText(pGraphics, spec.labelBounds, spec.label, labelText);
+  AttachPassiveText(
+    pGraphics,
+    spec.labelBounds,
+    spec.label,
+    labelText,
+    help_text::main_ui::GetParam(spec.paramIdx));
 }
 
 using OutMeterLEDRange = IVLEDMeterControl<2>::LEDRange;
@@ -426,8 +456,11 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
     context->RefreshEditorActionButtons();
   });
   keyboardControl->SetSelectedMidiNote(context->SelectedMidiNote());
+  keyboardControl->SetTooltip(help_text::main_ui::kKeyboard);
 
-  pGraphics->AttachControl(new IWheelControl(wheelsBounds), benderTag);
+  auto* wheelControl = new IWheelControl(wheelsBounds);
+  wheelControl->SetTooltip(help_text::main_ui::kPitchBendWheel);
+  pGraphics->AttachControl(wheelControl, benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);
 }
 
@@ -455,13 +488,44 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
   };
 
   AttachLabelledKnobWithValue(pGraphics, resources.knobAssets, pitchKnob, resources.compactLabelText, resources.compactValueText);
-  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(588.5f, 470.f, 50.f, 20.f), kParamPortamentoAtCC5Min, resources.portamentoValueText);
-  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(664.f, 489.f, 50.f, 20.f), kParamPortamentoAtCC5Max, resources.portamentoValueText);
-  pGraphics->AttachControl(new IVRangeSliderControl(IRECT::MakeXYWH(585.f, 474.f, 132.f, 30.f), {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max}, "", resources.portamentoRangeSliderStyle, EDirection::Horizontal, true, 9.f, 3.f));
-  AttachPassiveText(pGraphics, IRECT::MakeXYWH(594.f, 458.f, 70.f, 12.f), "Portamento", resources.compactLabelText);
-  AttachPassiveText(pGraphics, IRECT::MakeXYWH(410.f, 458.f, 80.f, 12.f), "Transpose", resources.compactLabelText);
+  AttachPassiveCaption(
+    pGraphics,
+    IRECT::MakeXYWH(588.5f, 470.f, 50.f, 20.f),
+    kParamPortamentoAtCC5Min,
+    resources.portamentoValueText,
+    help_text::main_ui::kPortamento);
+  AttachPassiveCaption(
+    pGraphics,
+    IRECT::MakeXYWH(664.f, 489.f, 50.f, 20.f),
+    kParamPortamentoAtCC5Max,
+    resources.portamentoValueText,
+    help_text::main_ui::kPortamento);
+  auto* portamentoControl = new IVRangeSliderControl(
+    IRECT::MakeXYWH(585.f, 474.f, 132.f, 30.f),
+    {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max},
+    "",
+    resources.portamentoRangeSliderStyle,
+    EDirection::Horizontal,
+    true,
+    9.f,
+    3.f);
+  portamentoControl->SetTooltip(help_text::main_ui::kPortamento);
+  pGraphics->AttachControl(portamentoControl);
+  AttachPassiveText(
+    pGraphics,
+    IRECT::MakeXYWH(594.f, 458.f, 70.f, 12.f),
+    "Portamento",
+    resources.compactLabelText,
+    help_text::main_ui::kPortamento);
+  AttachPassiveText(
+    pGraphics,
+    IRECT::MakeXYWH(410.f, 458.f, 80.f, 12.f),
+    "Transpose",
+    resources.compactLabelText,
+    help_text::main_ui::kTranspose);
   auto* transposeControl = new NumberBoxControl(IRECT::MakeXYWH(410.f, 474.f, 58.f, 30.f), kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%0.0f");
   pGraphics->AttachControl(transposeControl);
+  transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 }
 
 inline void AttachVariationPanelControls(IGraphics* pGraphics,

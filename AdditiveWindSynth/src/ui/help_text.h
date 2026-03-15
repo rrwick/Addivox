@@ -1,11 +1,116 @@
 #pragma once
 
 #include "../settings/oscillator.h"
+#include "../settings/params.h"
 
 namespace plugin_ui
 {
 namespace help_text
 {
+namespace main_ui
+{
+inline constexpr const char* kKeyboard =
+  "Click the keyboard to audition notes and choose which key note preset you are editing.";
+
+inline constexpr const char* kPitchBendWheel =
+  "Bends the pitch of held notes. The bend range follows the synth pitch-bend settings.";
+
+inline constexpr const char* kAttack =
+  "Scales the note attack time for the whole synth (all oscillators). Higher values make notes bloom more slowly.";
+
+inline constexpr const char* kRelease =
+  "Scales the note release time for the whole synth (all oscillators). Higher values let notes ring out longer after release.";
+
+inline constexpr const char* kTranspose =
+  "Transposes every played note in semitones. This control is not tied to a preset and will hold its value as the preset changes.";
+
+inline constexpr const char* kPitchShift =
+  "Applies a global pitch offset in cents to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
+
+inline constexpr const char* kPanShift =
+  "Applies a global stereo pan offset to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
+
+inline constexpr const char* kPortamento =
+  "Sets the portamento time range, from the minimum at low CC5 values to the maximum at high CC5 values.";
+
+inline constexpr const char* kIntensityVariationAmplitude =
+  "Scales the depth of level variation across the whole synth (all oscillators).";
+
+inline constexpr const char* kIntensityVariationRate =
+  "Scales the speed of level variation across the whole synth (all oscillators).";
+
+inline constexpr const char* kPanVariationAmplitude =
+  "Scales the depth of pan variation across the whole synth (all oscillators).";
+
+inline constexpr const char* kPanVariationRate =
+  "Scales the speed of pan variation across the whole synth (all oscillators).";
+
+inline constexpr const char* kPitchVariationAmplitude =
+  "Scales the depth of pitch variation across the whole synth (all oscillators).";
+
+inline constexpr const char* kPitchVariationRate =
+  "Scales the speed of pitch variation across the whole synth (all oscillators).";
+
+inline constexpr const char* kLevel =
+  "Sets the overall output level of the synth (all oscillators).";
+
+inline constexpr const char* kDrive =
+  "Effect 1/4: Saturation. Adds warmth and harmonics to the sound. Higher values lead to a more distorted tone.";
+
+inline constexpr const char* kTone =
+  "Effect 2/4: Tilt EQ. Negative values darken the sound, positive values brighten it.";
+
+inline constexpr const char* kChorus =
+  "Effect 3/4: Chorus. Adds a stereo chorus effect to widen and thicken the sound.";
+
+inline constexpr const char* kReverb =
+  "Effect 4/4: Reverb. This control is not tied to a preset and will hold its value as the preset changes.";
+
+inline const char* GetParam(int paramIdx)
+{
+  switch(paramIdx)
+  {
+    case kParamGlobalAttackScale:
+      return kAttack;
+    case kParamGlobalReleaseScale:
+      return kRelease;
+    case kParamGlobalPitchShift:
+      return kPitchShift;
+    case kParamGlobalPanShift:
+      return kPanShift;
+    case kParamGlobalIntensityVariationAmplitudeScale:
+      return kIntensityVariationAmplitude;
+    case kParamGlobalIntensityVariationRateScale:
+      return kIntensityVariationRate;
+    case kParamGlobalPitchVariationAmplitudeScale:
+      return kPitchVariationAmplitude;
+    case kParamGlobalPitchVariationRateScale:
+      return kPitchVariationRate;
+    case kParamGlobalPanVariationAmplitudeScale:
+      return kPanVariationAmplitude;
+    case kParamGlobalPanVariationRateScale:
+      return kPanVariationRate;
+    case kParamPortamentoAtCC5Min:
+    case kParamPortamentoAtCC5Max:
+      return kPortamento;
+    case kParamGlobalLevel:
+      return kLevel;
+    case kParamEffectsReverb:
+      return kReverb;
+    case kParamEffectsDrive:
+      return kDrive;
+    case kParamEffectsChorus:
+      return kChorus;
+    case kParamEffectsTone:
+      return kTone;
+    case kParamTranspose:
+      return kTranspose;
+    default:
+      return "";
+  }
+}
+} // namespace main_ui
+
 namespace oscillator_tabs
 {
 using OscillatorParameter = OscillatorSettings::Parameter;
