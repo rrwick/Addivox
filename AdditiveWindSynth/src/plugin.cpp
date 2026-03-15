@@ -61,6 +61,15 @@ void SetEffectsSettingsParams(AdditiveWindSynth& plugin,
   plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
 }
 
+void SyncParamDefaultsToCurrentValues(AdditiveWindSynth& plugin)
+{
+  for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+  {
+    IParam* const param = plugin.GetParam(paramIdx);
+    param->SetDefault(param->Value());
+  }
+}
+
 int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int preferredMidiNote)
 {
   const auto& keyNotePresets = compoundPreset.GetKeyNotePresets();
@@ -331,6 +340,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings);
   SetEffectsSettingsParams(*this, document.effectsSettings);
   OnParamReset(kPresetRecall);
+  SyncParamDefaultsToCurrentValues(*this);
 
   if(!document.name.empty())
     mActivePresetDisplayName = document.name;
@@ -559,6 +569,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
     pos = nextPos;
   }
   OnParamReset(kPresetRecall);
+  SyncParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX
 
   return pos;
