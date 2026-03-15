@@ -265,8 +265,8 @@ inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics
   using namespace editor;
 
   const IRECT breathMeterBounds = IRECT::MakeXYWH(12.f, 113.f, 20.f, 266.f);
-  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 798.f, 344.f);
-  const IRECT editorTabsBounds = IRECT::MakeXYWH(12.f, 74.f, 824.f, 344.f);
+  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 858.f, 344.f);
+  const IRECT editorTabsBounds = IRECT::MakeXYWH(12.f, 74.f, 884.f, 344.f);
   const IVStyle meterStyle = theme::MeterStyle();
   const EditorStyles styles{};
 

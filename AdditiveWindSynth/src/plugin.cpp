@@ -213,6 +213,11 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   const auto formatPercentDisplay = [](double value, WDL_String& str) {
     str.SetFormatted(32, "%.1f%%", value);
   };
+  const auto formatCentsDisplay = [](double value, WDL_String& str) {
+    const double roundedValue = std::round(value * 10.0) / 10.0;
+    const double normalizedValue = (roundedValue == 0.0) ? 0.0 : roundedValue;
+    str.SetFormatted(32, "%.1f\xC2\xA2", normalizedValue);
+  };
   const auto formatSignedUnitDisplay = [](double value, WDL_String& str) {
     const double normalized = std::round(value * 100.0) / 100.0;
     if(normalized > 0.0)
@@ -224,7 +229,18 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
-  GetParam(kParamGlobalPitchShift)->InitDouble("Pitch Shift", 0., -50., 50., 0.1, "cents");
+  GetParam(kParamGlobalPitchShift)->InitDouble(
+    "Pitch Shift",
+    0.,
+    -50.,
+    50.,
+    0.1,
+    "",
+    0,
+    "",
+    iplug::IParam::ShapeLinear(),
+    iplug::IParam::kUnitCents,
+    formatCentsDisplay);
   GetParam(kParamGlobalPanShift)->InitDouble("Pan Shift", 0., -1., 1., 0.01, "", iplug::IParam::kFlagSignDisplay);
   initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Level Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Level Variation Rate");

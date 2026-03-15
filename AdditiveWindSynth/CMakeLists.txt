@@ -40,7 +40,6 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/transformations.h
     src/ui/oscillator_slider_control.cpp
     src/ui/oscillator_slider_control.h
-    src/ui/number_box_control.cpp
     src/ui/number_box_control.h
     src/synth/midi_synth.h
     src/synth/synth_engine.h
