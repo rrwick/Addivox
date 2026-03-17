@@ -270,17 +270,17 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
       delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
   };
 
-  auto* loadPresetButton = new IVButtonControl(IRECT::MakeXYWH(735.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Load", theme::PresetActionButtonStyle(), true, false);
+  auto* loadPresetButton = new IVButtonControl(IRECT::MakeXYWH(795.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Load", theme::PresetActionButtonStyle(), true, false);
   loadPresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
     sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
   });
 
-  auto* savePresetButton = new IVButtonControl(IRECT::MakeXYWH(785.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Save", theme::PresetActionButtonStyle(), true, false);
+  auto* savePresetButton = new IVButtonControl(IRECT::MakeXYWH(845.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Save", theme::PresetActionButtonStyle(), true, false);
   savePresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
     sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
   });
 
-  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(450.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
+  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(510.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
 
   pGraphics->AttachControl(loadPresetButton);
   pGraphics->AttachControl(savePresetButton);
