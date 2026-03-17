@@ -528,6 +528,17 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
   transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 }
 
+inline void AttachBlipGuardPanelControls(IGraphics* pGraphics,
+                                         const PanelResources& resources)
+{
+  const LabelledKnobValueSpec delayKnob{{IRECT::MakeMidXYWH(760.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(792.f, 481.f, 44.f, 12.f), kParamBlipGuardDelay}, "Delay", IRECT::MakeXYWH(792.f, 468.f, 44.f, 12.f)};
+  AttachLabelledKnobWithValue(pGraphics,resources.knobAssets,delayKnob,resources.compactLabelText,resources.compactValueText);
+  AttachPassiveText(pGraphics,IRECT::MakeXYWH(837.f, 458.f, 70.f, 12.f),"Interval",resources.compactLabelText,help_text::main_ui::kBlipGuardInterval);
+  auto* intervalControl = new NumberBoxControl(IRECT::MakeXYWH(837.f, 474.f, 58.f, 30.f), kParamBlipGuardInterval, resources.numberBoxStyle, 7.0, 2.0, 12.0, "%0.0f");
+  pGraphics->AttachControl(intervalControl);
+  intervalControl->SetTooltip(help_text::main_ui::kBlipGuardInterval);
+}
+
 inline void AttachVariationPanelControls(IGraphics* pGraphics,
                                          const PanelResources& resources)
 {
@@ -609,7 +620,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachPitchPanelControls(pGraphics, resources);
 
   // Blip guard panel: x=724, y=428, w=180, h=84
-  // TODO: add controls for blip guard settings here once implemented
+  layout::AttachBlipGuardPanelControls(pGraphics, resources);
 
   // Variation panel: x=906, y=66, w=240, h=222
   layout::AttachVariationPanelControls(pGraphics, resources);

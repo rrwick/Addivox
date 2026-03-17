@@ -282,6 +282,11 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
 : iplug::Plugin(info, MakeConfig(kNumParams, kMaxFactoryPresets))
 , mEditorState(std::make_shared<plugin_ui::EditorState>())
 {
+  constexpr double kBlipGuardMaxDelayMs = 500.0;
+  constexpr int kBlipGuardMinIntervalSemitones = 2;
+  constexpr int kBlipGuardDefaultIntervalSemitones = 7;
+  constexpr int kBlipGuardMaxIntervalSemitones = 12;
+
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
     int decimals = 2;
     if (value >= 10.0)  decimals = 1;
@@ -311,6 +316,9 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
       str.SetFormatted(32, "+%.2f", normalized);
     else
       str.SetFormatted(32, "%.2f", normalized);
+  };
+  const auto formatDelayMsDisplay = [](double value, WDL_String& str) {
+    str.SetFormatted(32, "%d ms", static_cast<int>(std::lround(value)));
   };
 
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
@@ -387,6 +395,23 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     iplug::IParam::ShapeLinear(),
     iplug::IParam::kUnitCustom,
     formatPercentDisplay);
+  GetParam(kParamBlipGuardDelay)->InitDouble(
+    "Blip Guard Delay",
+    0.0,
+    0.0,
+    kBlipGuardMaxDelayMs,
+    1.0,
+    "",
+    0,
+    "",
+    transformations::GetLevelPseudoLogShape(),
+    iplug::IParam::kUnitCustom,
+    formatDelayMsDisplay);
+  GetParam(kParamBlipGuardInterval)->InitInt(
+    "Blip Guard Interval",
+    kBlipGuardDefaultIntervalSemitones,
+    kBlipGuardMinIntervalSemitones,
+    kBlipGuardMaxIntervalSemitones);
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {

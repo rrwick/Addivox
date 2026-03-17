@@ -8,6 +8,7 @@
 #include "../effects/tone.h"
 #include "../effects/chorus.h"
 #include "../effects/reverb.h"
+#include <cmath>
 #include <cstring>
 
 using namespace iplug;
@@ -43,6 +44,8 @@ public:
   {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
+    mSynth.SetBlipGuardDelayMs(mBlipGuardDelayMs);
+    mSynth.SetBlipGuardIntervalSemitones(mBlipGuardIntervalSemitones);
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
     mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
     mDrive.Reset(sampleRate, blockSize);
@@ -66,6 +69,23 @@ public:
     {
       mTransposeSemitones = value;
       mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
+      return;
+    }
+
+    if(paramIdx == kParamBlipGuardDelay)
+    {
+      mBlipGuardDelayMs = value;
+      mSynth.SetBlipGuardDelayMs(mBlipGuardDelayMs);
+      return;
+    }
+
+    if(paramIdx == kParamBlipGuardInterval)
+    {
+      mBlipGuardIntervalSemitones = Clip(
+        static_cast<int>(std::lround(value)),
+        BlipGuard::kMinIntervalSemitones,
+        BlipGuard::kMaxIntervalSemitones);
+      mSynth.SetBlipGuardIntervalSemitones(mBlipGuardIntervalSemitones);
       return;
     }
 
@@ -125,6 +145,8 @@ public:
   GlobalVoiceSettings mGlobalVoiceSettings{};
   EffectsSettings mEffectsSettings{};
   double mTransposeSemitones{0.0};
+  double mBlipGuardDelayMs{0.0};
+  int mBlipGuardIntervalSemitones{BlipGuard::kDefaultIntervalSemitones};
   effects::Drive mDrive;
   effects::Tone mTone;
   effects::Chorus mChorus;

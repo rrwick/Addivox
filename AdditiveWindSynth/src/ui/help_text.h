@@ -33,6 +33,12 @@ inline constexpr const char* kPanShift =
 inline constexpr const char* kPortamento =
   "Sets the portamento time range, from the minimum at low CC5 values to the maximum at high CC5 values.";
 
+inline constexpr const char* kBlipGuardDelay =
+  "Sets the delay used to suppress large legato note blips. At 0 ms blip guard is off. This control is not tied to a preset and will hold its value as the preset changes.";
+
+inline constexpr const char* kBlipGuardInterval =
+  "Sets the smallest out-of-range interval, in semitones, that blip guard will delay. This control is not tied to a preset and will hold its value as the preset changes.";
+
 inline constexpr const char* kIntensityVariationAmplitude =
   "Scales the depth of level variation across the whole synth (all oscillators).";
 
@@ -93,6 +99,10 @@ inline const char* GetParam(int paramIdx)
     case kParamPortamentoAtCC5Min:
     case kParamPortamentoAtCC5Max:
       return kPortamento;
+    case kParamBlipGuardDelay:
+      return kBlipGuardDelay;
+    case kParamBlipGuardInterval:
+      return kBlipGuardInterval;
     case kParamGlobalLevel:
       return kLevel;
     case kParamEffectsReverb:
