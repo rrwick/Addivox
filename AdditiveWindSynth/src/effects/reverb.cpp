@@ -12,12 +12,21 @@ constexpr double kHadamardScale = 0.3535533905932738;
 constexpr int kNumEarlyTaps = 8;
 constexpr int kNumDiffusers = 4;
 constexpr int kNumDelayLines = 8;
+constexpr int kNumLateDiffuserStages = 2;
 
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapTimesMs{4.9, 7.3, 10.8, 15.1, 21.4, 29.2, 39.7, 53.6};
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsL{0.62, 0.48, 0.34, 0.24, 0.17, 0.12, 0.09, 0.07};
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsR{0.10, 0.15, 0.23, 0.36, 0.47, 0.31, 0.19, 0.11};
 constexpr std::array<double, kNumDiffusers> kDiffuserDelayMs{4.8, 7.2, 10.9, 15.7};
 constexpr std::array<double, kNumDiffusers> kDiffuserFeedbacks{0.72, 0.68, 0.63, 0.57};
+constexpr std::array<std::array<double, kNumDelayLines>, kNumLateDiffuserStages> kLateDiffuserDelayMs{{
+  {1.7, 2.3, 3.1, 4.2, 5.4, 6.8, 8.6, 10.7},
+  {2.9, 4.1, 5.3, 6.7, 8.4, 10.5, 12.8, 15.6},
+}};
+constexpr std::array<std::array<double, kNumDelayLines>, kNumLateDiffuserStages> kLateDiffuserFeedbacks{{
+  {0.58, 0.56, 0.54, 0.52, 0.50, 0.48, 0.46, 0.44},
+  {0.46, 0.44, 0.42, 0.40, 0.38, 0.36, 0.34, 0.32},
+}};
 constexpr std::array<double, kNumDelayLines> kDelayTimesMs{21.7, 27.3, 33.1, 39.9, 46.9, 55.7, 66.1, 78.7};
 constexpr std::array<double, kNumDelayLines> kModDepthMs{0.10, 0.12, 0.14, 0.17, 0.20, 0.24, 0.28, 0.33};
 constexpr std::array<double, kNumDelayLines> kModRateHz{0.11, 0.07, 0.13, 0.17, 0.09, 0.19, 0.05, 0.15};
@@ -37,6 +46,15 @@ constexpr std::array<double, kNumDelayLines> kSideSigns{1.0, -1.0, 1.0, -1.0, -1
 double FlushDenormal(double value)
 {
   return std::abs(value) < kDenormalFloor ? 0.0 : value;
+}
+
+double SmoothStep(double edge0, double edge1, double value)
+{
+  if(edge0 == edge1)
+    return value >= edge1 ? 1.0 : 0.0;
+
+  const double t = std::clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+  return t * t * (3.0 - (2.0 * t));
 }
 
 double SmoothValue(double current, double target, double coefficient)
@@ -187,9 +205,10 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
 {
   (void) blockSize;
 
-  constexpr double kMaxEarlyTapScale = 1.30;
-  constexpr double kMaxPreDelayMs = 24.0;
-  constexpr double kMaxDelayScale = 1.36;
+  constexpr double kMaxEarlyTapScale = 1.55;
+  constexpr double kMaxPreDelayMs = 44.0;
+  constexpr double kMaxDelayScale = 2.50;
+  constexpr double kMaxModulationScale = 2.75;
 
   mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
   mMixSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.020 * mSampleRate));
@@ -207,8 +226,21 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
 
   for(int i = 0; i < kNumDelayLines; ++i)
   {
+    const std::size_t delayIndex = static_cast<std::size_t>(i);
+    for(int stage = 0; stage < kNumLateDiffuserStages; ++stage)
+    {
+      const std::size_t stageIndex = static_cast<std::size_t>(stage);
+      mLateDiffusers[delayIndex][stageIndex].Reset(
+        mSampleRate,
+        kLateDiffuserDelayMs[stageIndex][delayIndex],
+        kLateDiffuserFeedbacks[stageIndex][delayIndex]);
+    }
+  }
+
+  for(int i = 0; i < kNumDelayLines; ++i)
+  {
     const std::size_t index = static_cast<std::size_t>(i);
-    const double maxDelayMs = (kDelayTimesMs[index] * kMaxDelayScale) + kModDepthMs[index] + 2.0;
+    const double maxDelayMs = (kDelayTimesMs[index] * kMaxDelayScale) + (kModDepthMs[index] * kMaxModulationScale) + 2.0;
     mDelayLines[index].Resize(static_cast<int>(std::ceil(MillisecondsToSamples(maxDelayMs, mSampleRate))) + 2);
     mModPhaseIncrement[index] = (2.0 * kPi * kModRateHz[index]) / mSampleRate;
   }
@@ -232,6 +264,12 @@ void effects::Reverb::Clear()
   for(auto& diffuser : mDiffusers)
     diffuser.Clear();
 
+  for(auto& lateDiffuserStages : mLateDiffusers)
+  {
+    for(auto& lateDiffuser : lateDiffuserStages)
+      lateDiffuser.Clear();
+  }
+
   for(auto& delayLine : mDelayLines)
     delayLine.Clear();
 
@@ -254,6 +292,7 @@ void effects::Reverb::SetAmount(double amount)
     mTargetLateMix = 0.0;
     mTargetEarlySideScale = 0.0;
     mTargetLateSideScale = 0.0;
+    mTargetLateDensity = 0.0;
     return;
   }
 
@@ -269,25 +308,31 @@ void effects::Reverb::SetAmount(double amount)
 
 void effects::Reverb::UpdateTargetParameters()
 {
-  const double space = std::clamp(mAmount * 0.01, 0.0, 1.0);
-  const double hall = space * space;
-  const double delayScale = 0.78 + (0.22 * space) + (0.36 * hall);
-  const double earlyTapScale = 0.80 + (0.18 * space) + (0.32 * hall);
-  const double rt60Seconds = 0.38 + (0.55 * space) + (2.10 * hall);
-  const double preDelayMs = 2.0 + (3.5 * space) + (16.0 * hall);
-  const double inputLowpassHz = 11000.0 - (2000.0 * space) - (1200.0 * hall);
-  const double loopDampingHz = 7000.0 - (1200.0 * space) - (2600.0 * hall);
-  const double outputLowpassHz = 9000.0 - (800.0 * space) - (2200.0 * hall);
-  const double modulationScale = 0.18 + (0.22 * space) + (0.65 * hall);
+  const double amount = std::clamp(mAmount * 0.01, 0.0, 1.0);
+  const double room = SmoothStep(0.0, 0.32, amount);
+  const double hall = SmoothStep(0.22, 0.72, amount);
+  const double ambient = SmoothStep(0.68, 1.0, amount);
+  const double ambientSquared = ambient * ambient;
+  const double delayScale = 0.72 + (0.20 * room) + (0.38 * hall) + (0.95 * ambient) + (0.15 * ambientSquared);
+  const double earlyTapScale = 0.72 + (0.16 * room) + (0.22 * hall) + (0.38 * ambient);
+  const double rt60Seconds = 0.22 + (0.85 * room) + (1.90 * hall) + (3.80 * ambient) + (1.20 * ambientSquared);
+  const double preDelayMs = 1.5 + (4.0 * room) + (12.0 * hall) + (17.0 * ambient) + (6.0 * ambientSquared);
+  const double inputLowpassHz = 15000.0 - (1500.0 * room) - (2200.0 * hall) - (3200.0 * ambient);
+  const double loopDampingHz = 9200.0 - (1600.0 * room) - (2800.0 * hall) - (2000.0 * ambient);
+  const double outputLowpassHz = 11000.0 - (1000.0 * room) - (1700.0 * hall) - (1900.0 * ambient);
+  const double modulationScale = 0.15 + (0.35 * room) + (0.85 * hall) + (1.15 * ambient) + (0.25 * ambientSquared);
 
-  mTargetEarlyMix = (0.12 * space) + (0.06 * hall);
-  mTargetLateMix = (0.04 * space) + (0.24 * hall);
+  mTargetEarlyMix = (0.05 * room) + (0.04 * hall) + (0.01 * ambient);
+  mTargetLateMix = (0.01 * room) + (0.35 * hall) + (0.08 * ambient) + (0.07 * ambientSquared);
   mTargetWetMix = mTargetEarlyMix + mTargetLateMix;
-  mTargetEarlySideScale = 0.16 - (0.04 * hall);
-  mTargetLateSideScale = 0.04 + (0.08 * space) + (0.02 * hall);
+  mTargetEarlySideScale = 0.18 - (0.05 * hall) - (0.04 * ambient);
+  mTargetLateSideScale = 0.02 + (0.10 * hall) + (0.14 * ambient);
+  mTargetLateDensity = ambient;
   mTargetPreDelaySamples = std::max(1.0, MillisecondsToSamples(preDelayMs, mSampleRate));
   mTargetInputLowpassCoefficient = CutoffHzToCoefficient(mSampleRate, inputLowpassHz);
-  mTargetInputHighpassCoefficient = CutoffHzToCoefficient(mSampleRate, 180.0 + (50.0 * space));
+  mTargetInputHighpassCoefficient = CutoffHzToCoefficient(
+    mSampleRate,
+    160.0 + (25.0 * hall) + (50.0 * ambient));
   mTargetOutputLowpassCoefficient = CutoffHzToCoefficient(mSampleRate, outputLowpassHz);
 
   for(int i = 0; i < kNumEarlyTaps; ++i)
@@ -300,12 +345,13 @@ void effects::Reverb::UpdateTargetParameters()
   {
     const std::size_t index = static_cast<std::size_t>(i);
     const double scaledDelayMs = kDelayTimesMs[index] * delayScale;
+    const double lineDampingScale = 1.0 - ((0.045 + (0.01 * ambient)) * static_cast<double>(i));
     mTargetBaseDelaySamples[index] = MillisecondsToSamples(scaledDelayMs, mSampleRate);
     mTargetFeedbackGains[index] = std::pow(10.0, (-3.0 * scaledDelayMs * 0.001) / rt60Seconds);
     mTargetModDepthSamples[index] = MillisecondsToSamples(kModDepthMs[index] * modulationScale, mSampleRate);
     mTargetLoopDampingCoefficients[index] = CutoffHzToCoefficient(
       mSampleRate,
-      std::max(1600.0, loopDampingHz * (1.0 - (0.06 * static_cast<double>(i)))));
+      std::max(1700.0, loopDampingHz * lineDampingScale));
   }
 }
 
@@ -316,6 +362,7 @@ void effects::Reverb::SnapCurrentParametersToTargets(bool startWetAtZero)
   mWetMix = mEarlyMix + mLateMix;
   mEarlySideScale = startWetAtZero ? 0.0 : mTargetEarlySideScale;
   mLateSideScale = startWetAtZero ? 0.0 : mTargetLateSideScale;
+  mLateDensity = startWetAtZero ? 0.0 : mTargetLateDensity;
   mPreDelaySamples = mTargetPreDelaySamples;
   mInputLowpass.coefficient = mTargetInputLowpassCoefficient;
   mInputHighpass.coefficient = mTargetInputHighpassCoefficient;
@@ -347,6 +394,7 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
     mWetMix = mEarlyMix + mLateMix;
     mEarlySideScale = SmoothValue(mEarlySideScale, mTargetEarlySideScale, mMixSmoothingCoefficient);
     mLateSideScale = SmoothValue(mLateSideScale, mTargetLateSideScale, mMixSmoothingCoefficient);
+    mLateDensity = SmoothValue(mLateDensity, mTargetLateDensity, mStructureSmoothingCoefficient);
     mPreDelaySamples = SmoothValue(mPreDelaySamples, mTargetPreDelaySamples, mStructureSmoothingCoefficient);
     mInputLowpass.coefficient = SmoothValue(
       mInputLowpass.coefficient,
@@ -421,7 +469,8 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
     for(auto& diffuser : mDiffusers)
       diffused = diffuser.Process(diffused);
 
-    std::array<double, kNumDelayLines> dampedOutputs{};
+    std::array<double, kNumDelayLines> feedbackOutputs{};
+    std::array<double, kNumDelayLines> lateOutputs{};
     for(int i = 0; i < kNumDelayLines; ++i)
     {
       const std::size_t index = static_cast<std::size_t>(i);
@@ -432,10 +481,22 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
         mModPhase[index] -= (2.0 * kPi);
 
       const double delayOutput = mDelayLines[index].Read(delaySamples);
-      dampedOutputs[index] = mLoopDampingFilters[index].Process(delayOutput);
+      const double dampedOutput = mLoopDampingFilters[index].Process(delayOutput);
+
+      double denseOutput = dampedOutput;
+      if(mLateDensity > 1.0e-4)
+      {
+        for(auto& lateDiffuser : mLateDiffusers[index])
+          denseOutput = lateDiffuser.Process(denseOutput);
+      }
+
+      const double feedbackDensity = mLateDensity;
+      const double outputDensity = 0.20 * feedbackDensity * feedbackDensity;
+      feedbackOutputs[index] = dampedOutput + (feedbackDensity * (denseOutput - dampedOutput));
+      lateOutputs[index] = dampedOutput + (outputDensity * (denseOutput - dampedOutput));
     }
 
-    const auto mixedFeedback = Hadamard8(dampedOutputs);
+    const auto mixedFeedback = Hadamard8(feedbackOutputs);
     const double monoInjection = 0.25 * diffused;
     const double sideInjection = mLateSideScale * side;
     for(int i = 0; i < kNumDelayLines; ++i)
@@ -446,11 +507,11 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
     }
 
     const double lateLeft = kHadamardScale
-      * (dampedOutputs[0] + dampedOutputs[1] - dampedOutputs[2] - dampedOutputs[3]
-        + dampedOutputs[4] + dampedOutputs[5] - dampedOutputs[6] - dampedOutputs[7]);
+      * (lateOutputs[0] + lateOutputs[1] - lateOutputs[2] - lateOutputs[3]
+        + lateOutputs[4] + lateOutputs[5] - lateOutputs[6] - lateOutputs[7]);
     const double lateRight = kHadamardScale
-      * (dampedOutputs[0] - dampedOutputs[1] + dampedOutputs[2] - dampedOutputs[3]
-        - dampedOutputs[4] + dampedOutputs[5] - dampedOutputs[6] + dampedOutputs[7]);
+      * (lateOutputs[0] - lateOutputs[1] + lateOutputs[2] - lateOutputs[3]
+        - lateOutputs[4] + lateOutputs[5] - lateOutputs[6] + lateOutputs[7]);
 
     const double wetLeft = mOutputLowpassLeft.Process((mEarlyMix * earlyLeft) + (mLateMix * lateLeft));
     const double wetRight = mOutputLowpassRight.Process((mEarlyMix * earlyRight) + (mLateMix * lateRight));
@@ -463,5 +524,14 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
   {
     Clear();
     mActive = false;
+  }
+
+  if(mTargetLateDensity <= kBypassThreshold && mLateDensity <= 1.0e-4)
+  {
+    for(auto& lateDiffuserStages : mLateDiffusers)
+    {
+      for(auto& lateDiffuser : lateDiffuserStages)
+        lateDiffuser.Clear();
+    }
   }
 }
