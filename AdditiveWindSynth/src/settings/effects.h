@@ -1,5 +1,14 @@
 #pragma once
 
+namespace effects_settings
+{
+#if defined(APP_API)
+inline constexpr double kDefaultReverb = 75.0;
+#else
+inline constexpr double kDefaultReverb = 0.0;
+#endif
+} // namespace effects_settings
+
 class EffectsSettings
 {
 public:
@@ -7,7 +16,7 @@ public:
   double drive{0.0};
   double tone{0.0};
   double chorus{0.0};
-  double reverb{0.0};
+  double reverb{effects_settings::kDefaultReverb};
 };
 
 namespace effects_settings

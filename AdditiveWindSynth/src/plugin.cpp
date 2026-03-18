@@ -385,7 +385,7 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     formatPercentDisplay);
   GetParam(kParamEffectsReverb)->InitDouble(
     "Reverb",
-    0.,
+    effects_settings::kDefaultReverb,
     0.,
     100.0,
     0.1,
