@@ -3,7 +3,7 @@
 namespace effects_settings
 {
 #if defined(APP_API)
-inline constexpr double kDefaultReverb = 75.0;
+inline constexpr double kDefaultReverb = 50.0;
 #else
 inline constexpr double kDefaultReverb = 0.0;
 #endif

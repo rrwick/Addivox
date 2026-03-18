@@ -20,6 +20,7 @@ private:
   static constexpr int kNumEarlyTaps = 8;
   static constexpr int kNumDiffusers = 4;
   static constexpr int kNumDelayLines = 8;
+  static constexpr int kNumTailDiffusers = 2;
   static constexpr int kNumLateDiffuserStages = 2;
 
   struct DelayLine
@@ -79,14 +80,14 @@ private:
   double mLateMix{0.0};
   double mEarlySideScale{0.0};
   double mLateSideScale{0.0};
-  double mLateDensity{0.0};
+  double mAmbientBloom{0.0};
   double mPreDelaySamples{0.0};
   double mTargetWetMix{0.0};
   double mTargetEarlyMix{0.0};
   double mTargetLateMix{0.0};
   double mTargetEarlySideScale{0.0};
   double mTargetLateSideScale{0.0};
-  double mTargetLateDensity{0.0};
+  double mTargetAmbientBloom{0.0};
   double mTargetPreDelaySamples{0.0};
   double mTargetInputLowpassCoefficient{1.0};
   double mTargetInputHighpassCoefficient{1.0};
@@ -100,6 +101,7 @@ private:
   std::array<double, kNumEarlyTaps> mEarlyTapSamples{};
   std::array<double, kNumEarlyTaps> mTargetEarlyTapSamples{};
   std::array<AllpassDiffuser, kNumDiffusers> mDiffusers{};
+  std::array<AllpassDiffuser, kNumTailDiffusers> mTailDiffusers{};
   std::array<std::array<AllpassDiffuser, kNumLateDiffuserStages>, kNumDelayLines> mLateDiffusers{};
   std::array<DelayLine, kNumDelayLines> mDelayLines{};
   std::array<OnePoleLowpass, kNumDelayLines> mLoopDampingFilters{};
