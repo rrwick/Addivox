@@ -65,6 +65,15 @@ private:
     double feedback{0.7};
   };
 
+  using EarlyTapArray = std::array<double, kNumEarlyTaps>;
+  using DelayValueArray = std::array<double, kNumDelayLines>;
+  using DiffuserArray = std::array<AllpassDiffuser, kNumDiffusers>;
+  using TailDiffuserArray = std::array<AllpassDiffuser, kNumTailDiffusers>;
+  using LateDiffuserStageArray = std::array<AllpassDiffuser, kNumLateDiffuserStages>;
+  using LateDiffuserArray = std::array<LateDiffuserStageArray, kNumDelayLines>;
+  using DelayLineArray = std::array<DelayLine, kNumDelayLines>;
+  using FilterArray = std::array<OnePoleLowpass, kNumDelayLines>;
+
   static double MillisecondsToSamples(double milliseconds, double sampleRate);
   void UpdateTargetParameters();
   void SnapCurrentParametersToTargets(bool startWetAtZero);
@@ -98,21 +107,21 @@ private:
   DelayLine mPreDelay;
   OnePoleLowpass mOutputLowpassLeft;
   OnePoleLowpass mOutputLowpassRight;
-  std::array<double, kNumEarlyTaps> mEarlyTapSamples{};
-  std::array<double, kNumEarlyTaps> mTargetEarlyTapSamples{};
-  std::array<AllpassDiffuser, kNumDiffusers> mDiffusers{};
-  std::array<AllpassDiffuser, kNumTailDiffusers> mTailDiffusers{};
-  std::array<std::array<AllpassDiffuser, kNumLateDiffuserStages>, kNumDelayLines> mLateDiffusers{};
-  std::array<DelayLine, kNumDelayLines> mDelayLines{};
-  std::array<OnePoleLowpass, kNumDelayLines> mLoopDampingFilters{};
-  std::array<double, kNumDelayLines> mBaseDelaySamples{};
-  std::array<double, kNumDelayLines> mTargetBaseDelaySamples{};
-  std::array<double, kNumDelayLines> mFeedbackGains{};
-  std::array<double, kNumDelayLines> mTargetFeedbackGains{};
-  std::array<double, kNumDelayLines> mModDepthSamples{};
-  std::array<double, kNumDelayLines> mTargetModDepthSamples{};
-  std::array<double, kNumDelayLines> mModPhase{};
-  std::array<double, kNumDelayLines> mModPhaseIncrement{};
-  std::array<double, kNumDelayLines> mTargetLoopDampingCoefficients{};
+  EarlyTapArray mEarlyTapSamples{};
+  EarlyTapArray mTargetEarlyTapSamples{};
+  DiffuserArray mDiffusers{};
+  TailDiffuserArray mTailDiffusers{};
+  LateDiffuserArray mLateDiffusers{};
+  DelayLineArray mDelayLines{};
+  FilterArray mLoopDampingFilters{};
+  DelayValueArray mBaseDelaySamples{};
+  DelayValueArray mTargetBaseDelaySamples{};
+  DelayValueArray mFeedbackGains{};
+  DelayValueArray mTargetFeedbackGains{};
+  DelayValueArray mModDepthSamples{};
+  DelayValueArray mTargetModDepthSamples{};
+  DelayValueArray mModPhase{};
+  DelayValueArray mModPhaseIncrement{};
+  DelayValueArray mTargetLoopDampingCoefficients{};
 };
 } // namespace effects

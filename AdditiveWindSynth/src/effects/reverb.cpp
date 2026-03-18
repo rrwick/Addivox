@@ -6,14 +6,21 @@
 namespace
 {
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kDefaultSampleRate = 44100.0;
 constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
 constexpr double kHadamardScale = 0.3535533905932738;
+constexpr double kMixSmoothingTimeSeconds = 0.020;
+constexpr double kToneSmoothingTimeSeconds = 0.060;
+constexpr double kStructureSmoothingTimeSeconds = 0.180;
 constexpr int kNumEarlyTaps = 8;
 constexpr int kNumDiffusers = 4;
 constexpr int kNumDelayLines = 8;
 constexpr int kNumTailDiffusers = 2;
 constexpr int kNumLateDiffuserStages = 2;
+
+using DelayValueArray = std::array<double, kNumDelayLines>;
+using StereoPair = std::array<double, 2>;
 
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapTimesMs{4.9, 7.3, 10.8, 15.1, 21.4, 29.2, 39.7, 53.6};
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsL{0.62, 0.48, 0.34, 0.24, 0.17, 0.12, 0.09, 0.07};
@@ -56,14 +63,19 @@ double SmoothValue(double current, double target, double coefficient)
   return current + (coefficient * (target - current));
 }
 
+void SmoothTowards(double& current, double target, double coefficient)
+{
+  current = SmoothValue(current, target, coefficient);
+}
+
 double CutoffHzToCoefficient(double sampleRate, double cutoffHz)
 {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
   const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
-std::array<double, kNumDelayLines> Hadamard8(const std::array<double, kNumDelayLines>& input)
+DelayValueArray Hadamard8(const DelayValueArray& input)
 {
   const double a0 = input[0] + input[1];
   const double a1 = input[0] - input[1];
@@ -93,6 +105,33 @@ std::array<double, kNumDelayLines> Hadamard8(const std::array<double, kNumDelayL
     (b2 - b6) * kHadamardScale,
     (b3 - b7) * kHadamardScale,
   };
+}
+
+StereoPair DecodeStereo(const DelayValueArray& values)
+{
+  return {
+    kHadamardScale
+      * (values[0] + values[1] - values[2] - values[3]
+        + values[4] + values[5] - values[6] - values[7]),
+    kHadamardScale
+      * (values[0] - values[1] + values[2] - values[3]
+        - values[4] + values[5] - values[6] + values[7]),
+  };
+}
+
+template <typename DiffuserBank>
+double ProcessDiffuserChain(DiffuserBank& diffusers, double input)
+{
+  for(auto& diffuser : diffusers)
+    input = diffuser.Process(input);
+  return input;
+}
+
+void AdvanceWrappedPhase(double& phase, double increment)
+{
+  phase += increment;
+  if(phase >= (2.0 * kPi))
+    phase -= (2.0 * kPi);
 }
 } // namespace
 
@@ -204,10 +243,10 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
   constexpr double kMaxDelayScale = 2.50;
   constexpr double kMaxModulationScale = 2.75;
 
-  mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  mMixSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.020 * mSampleRate));
-  mToneSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.060 * mSampleRate));
-  mStructureSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.180 * mSampleRate));
+  mSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
+  mMixSmoothingCoefficient = 1.0 - std::exp(-1.0 / (kMixSmoothingTimeSeconds * mSampleRate));
+  mToneSmoothingCoefficient = 1.0 - std::exp(-1.0 / (kToneSmoothingTimeSeconds * mSampleRate));
+  mStructureSmoothingCoefficient = 1.0 - std::exp(-1.0 / (kStructureSmoothingTimeSeconds * mSampleRate));
   mEarlyDelay.Resize(
     static_cast<int>(std::ceil(MillisecondsToSamples((kEarlyTapTimesMs.back() * kMaxEarlyTapScale) + 2.0, mSampleRate))) + 2);
   mPreDelay.Resize(static_cast<int>(std::ceil(MillisecondsToSamples(kMaxPreDelayMs, mSampleRate))) + 2);
@@ -390,29 +429,17 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
 
   for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
   {
-    mEarlyMix = SmoothValue(mEarlyMix, mTargetEarlyMix, mMixSmoothingCoefficient);
-    mLateMix = SmoothValue(mLateMix, mTargetLateMix, mMixSmoothingCoefficient);
+    SmoothTowards(mEarlyMix, mTargetEarlyMix, mMixSmoothingCoefficient);
+    SmoothTowards(mLateMix, mTargetLateMix, mMixSmoothingCoefficient);
     mWetMix = mEarlyMix + mLateMix;
-    mEarlySideScale = SmoothValue(mEarlySideScale, mTargetEarlySideScale, mMixSmoothingCoefficient);
-    mLateSideScale = SmoothValue(mLateSideScale, mTargetLateSideScale, mMixSmoothingCoefficient);
-    mAmbientBloom = SmoothValue(mAmbientBloom, mTargetAmbientBloom, mStructureSmoothingCoefficient);
-    mPreDelaySamples = SmoothValue(mPreDelaySamples, mTargetPreDelaySamples, mStructureSmoothingCoefficient);
-    mInputLowpass.coefficient = SmoothValue(
-      mInputLowpass.coefficient,
-      mTargetInputLowpassCoefficient,
-      mToneSmoothingCoefficient);
-    mInputHighpass.coefficient = SmoothValue(
-      mInputHighpass.coefficient,
-      mTargetInputHighpassCoefficient,
-      mToneSmoothingCoefficient);
-    mOutputLowpassLeft.coefficient = SmoothValue(
-      mOutputLowpassLeft.coefficient,
-      mTargetOutputLowpassCoefficient,
-      mToneSmoothingCoefficient);
-    mOutputLowpassRight.coefficient = SmoothValue(
-      mOutputLowpassRight.coefficient,
-      mTargetOutputLowpassCoefficient,
-      mToneSmoothingCoefficient);
+    SmoothTowards(mEarlySideScale, mTargetEarlySideScale, mMixSmoothingCoefficient);
+    SmoothTowards(mLateSideScale, mTargetLateSideScale, mMixSmoothingCoefficient);
+    SmoothTowards(mAmbientBloom, mTargetAmbientBloom, mStructureSmoothingCoefficient);
+    SmoothTowards(mPreDelaySamples, mTargetPreDelaySamples, mStructureSmoothingCoefficient);
+    SmoothTowards(mInputLowpass.coefficient, mTargetInputLowpassCoefficient, mToneSmoothingCoefficient);
+    SmoothTowards(mInputHighpass.coefficient, mTargetInputHighpassCoefficient, mToneSmoothingCoefficient);
+    SmoothTowards(mOutputLowpassLeft.coefficient, mTargetOutputLowpassCoefficient, mToneSmoothingCoefficient);
+    SmoothTowards(mOutputLowpassRight.coefficient, mTargetOutputLowpassCoefficient, mToneSmoothingCoefficient);
 
     for(int i = 0; i < kNumEarlyTaps; ++i)
     {
@@ -426,22 +453,10 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
     for(int i = 0; i < kNumDelayLines; ++i)
     {
       const std::size_t index = static_cast<std::size_t>(i);
-      mBaseDelaySamples[index] = SmoothValue(
-        mBaseDelaySamples[index],
-        mTargetBaseDelaySamples[index],
-        mStructureSmoothingCoefficient);
-      mFeedbackGains[index] = SmoothValue(
-        mFeedbackGains[index],
-        mTargetFeedbackGains[index],
-        mToneSmoothingCoefficient);
-      mModDepthSamples[index] = SmoothValue(
-        mModDepthSamples[index],
-        mTargetModDepthSamples[index],
-        mStructureSmoothingCoefficient);
-      mLoopDampingFilters[index].coefficient = SmoothValue(
-        mLoopDampingFilters[index].coefficient,
-        mTargetLoopDampingCoefficients[index],
-        mToneSmoothingCoefficient);
+      SmoothTowards(mBaseDelaySamples[index], mTargetBaseDelaySamples[index], mStructureSmoothingCoefficient);
+      SmoothTowards(mFeedbackGains[index], mTargetFeedbackGains[index], mToneSmoothingCoefficient);
+      SmoothTowards(mModDepthSamples[index], mTargetModDepthSamples[index], mStructureSmoothingCoefficient);
+      SmoothTowards(mLoopDampingFilters[index].coefficient, mTargetLoopDampingCoefficients[index], mToneSmoothingCoefficient);
     }
 
     const double dryLeft = outputs[0][sampleIndex];
@@ -466,23 +481,17 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
     const double predelayed = mPreDelay.Read(mPreDelaySamples);
     mPreDelay.Write(conditioned);
 
-    double diffused = predelayed;
-    for(auto& diffuser : mDiffusers)
-      diffused = diffuser.Process(diffused);
-    for(auto& diffuser : mTailDiffusers)
-      diffused = diffuser.Process(diffused);
+    const double diffused = ProcessDiffuserChain(mTailDiffusers, ProcessDiffuserChain(mDiffusers, predelayed));
 
-    std::array<double, kNumDelayLines> feedbackOutputs{};
-    std::array<double, kNumDelayLines> lateOutputs{};
-    std::array<double, kNumDelayLines> ambientOutputs{};
+    DelayValueArray feedbackOutputs{};
+    DelayValueArray lateOutputs{};
+    DelayValueArray ambientOutputs{};
     for(int i = 0; i < kNumDelayLines; ++i)
     {
       const std::size_t index = static_cast<std::size_t>(i);
       double delaySamples = mBaseDelaySamples[index];
       delaySamples += mModDepthSamples[index] * std::sin(mModPhase[index]);
-      mModPhase[index] += mModPhaseIncrement[index];
-      if(mModPhase[index] >= (2.0 * kPi))
-        mModPhase[index] -= (2.0 * kPi);
+      AdvanceWrappedPhase(mModPhase[index], mModPhaseIncrement[index]);
 
       const double delayOutput = mDelayLines[index].Read(delaySamples);
       const double dampedOutput = mLoopDampingFilters[index].Process(delayOutput);
@@ -509,24 +518,14 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
       mDelayLines[index].Write(inputInjection + (mFeedbackGains[index] * mixedFeedback[index]));
     }
 
-    const double lateLeft = kHadamardScale
-      * (lateOutputs[0] + lateOutputs[1] - lateOutputs[2] - lateOutputs[3]
-        + lateOutputs[4] + lateOutputs[5] - lateOutputs[6] - lateOutputs[7]);
-    const double lateRight = kHadamardScale
-      * (lateOutputs[0] - lateOutputs[1] + lateOutputs[2] - lateOutputs[3]
-        - lateOutputs[4] + lateOutputs[5] - lateOutputs[6] + lateOutputs[7]);
-    const double ambientLeft = kHadamardScale
-      * (ambientOutputs[0] + ambientOutputs[1] - ambientOutputs[2] - ambientOutputs[3]
-        + ambientOutputs[4] + ambientOutputs[5] - ambientOutputs[6] - ambientOutputs[7]);
-    const double ambientRight = kHadamardScale
-      * (ambientOutputs[0] - ambientOutputs[1] + ambientOutputs[2] - ambientOutputs[3]
-        - ambientOutputs[4] + ambientOutputs[5] - ambientOutputs[6] + ambientOutputs[7]);
+    const auto lateStereo = DecodeStereo(lateOutputs);
+    const auto ambientStereo = DecodeStereo(ambientOutputs);
     const double ambientMix = 0.35 * mAmbientBloom * mLateMix;
 
     const double wetLeft = mOutputLowpassLeft.Process(
-      (mEarlyMix * earlyLeft) + (mLateMix * lateLeft) + (ambientMix * ambientLeft));
+      (mEarlyMix * earlyLeft) + (mLateMix * lateStereo[0]) + (ambientMix * ambientStereo[0]));
     const double wetRight = mOutputLowpassRight.Process(
-      (mEarlyMix * earlyRight) + (mLateMix * lateRight) + (ambientMix * ambientRight));
+      (mEarlyMix * earlyRight) + (mLateMix * lateStereo[1]) + (ambientMix * ambientStereo[1]));
 
     outputs[0][sampleIndex] = static_cast<iplug::sample>(dryLeft + wetLeft);
     outputs[1][sampleIndex] = static_cast<iplug::sample>(dryRight + wetRight);
