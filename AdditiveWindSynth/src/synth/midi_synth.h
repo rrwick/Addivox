@@ -39,8 +39,8 @@ public:
     mMidiState.currentPitchBend = 0.0;
     mMidiState.currentBreath = 1.0;
     mMidiState.currentPortamento = 0.0;
-    mActiveChannel = 0;
-    mActiveKey = kNoKey;
+    mTargetChannel = 0;
+    mTargetKey = kNoKey;
     mOutputKey = kNoKey;
     StopVoice();
     mBlipGuard.ResetRuntime();
@@ -69,13 +69,13 @@ public:
   void SetBlipGuardDelayMs(double delayMs)
   {
     mBlipGuard.SetDelayMs(delayMs);
-    MaybeApplyPendingOutputChange();
+    ApplyPendingOutputChangeIfReady();
   }
 
   void SetBlipGuardIntervalSemitones(int intervalSemitones)
   {
     mBlipGuard.SetIntervalSemitones(intervalSemitones);
-    MaybeApplyPendingOutputChange();
+    ApplyPendingOutputChangeIfReady();
   }
 
   /** Processes a block of audio samples
@@ -83,49 +83,52 @@ public:
    * @param nFrames The number of sample frames to process */
   void ProcessBlock(sample** outputs, int nFrames)
   {
-    if(mVoice.IsActive() || !mMidiQueue.Empty() || mBlipGuard.HasPending())
+    if(!HasPendingWork())
     {
-      int startIndex = 0;
+      AdvanceTime(nFrames);
+      return;
+    }
 
-      while(startIndex < nFrames)
+    int startIndex = 0;
+
+    while(startIndex < nFrames)
+    {
+      // Apply any events scheduled for the current sample before rendering audio.
+      while(!mMidiQueue.Empty())
       {
-        // Apply any events scheduled for the current sample before rendering audio.
-        while(!mMidiQueue.Empty())
-        {
-          IMidiMsg msg = mMidiQueue.Peek();
-          if(msg.mOffset > startIndex)
-            break;
+        IMidiMsg msg = mMidiQueue.Peek();
+        if(msg.mOffset > startIndex)
+          break;
 
-          if(IsRPNMessage(msg))
-            HandleRPN(msg);
-          else
-            HandlePerformanceMessage(msg);
+        if(IsRPNMessage(msg))
+          HandleRPN(msg);
+        else
+          HandlePerformanceMessage(msg);
 
-          mMidiQueue.Remove();
-        }
-
-        MaybeApplyPendingOutputChange();
-
-        int renderEnd = nFrames;
-        if(!mMidiQueue.Empty())
-          renderEnd = Clip(static_cast<int>(mMidiQueue.Peek().mOffset), startIndex, nFrames);
-
-        if(mBlipGuard.HasPending())
-          renderEnd = std::min(renderEnd, startIndex + mBlipGuard.GetFramesUntilOutputChange());
-
-        const int numFrames = renderEnd - startIndex;
-        if(numFrames <= 0)
-          continue;
-
-        if(mVoice.IsActive())
-          mVoice.ProcessSamplesAccumulating(outputs, startIndex, numFrames);
-
-        mBlipGuard.Advance(numFrames);
-        startIndex = renderEnd;
+        mMidiQueue.Remove();
       }
 
-      mMidiQueue.Flush(nFrames);
+      ApplyPendingOutputChangeIfReady();
+
+      int renderEnd = nFrames;
+      if(!mMidiQueue.Empty())
+        renderEnd = Clip(static_cast<int>(mMidiQueue.Peek().mOffset), startIndex, nFrames);
+
+      if(mBlipGuard.HasPending())
+        renderEnd = std::min(renderEnd, startIndex + mBlipGuard.GetFramesUntilOutputChange());
+
+      const int numFrames = renderEnd - startIndex;
+      if(numFrames <= 0)
+        continue;
+
+      if(mVoice.IsActive())
+        mVoice.ProcessSamplesAccumulating(outputs, startIndex, numFrames);
+
+      AdvanceTime(numFrames);
+      startIndex = renderEnd;
     }
+
+    mMidiQueue.Flush(nFrames);
   }
 
   const VoiceT& GetVoice() const
@@ -139,6 +142,12 @@ public:
   }
 
 private:
+  enum class OutputNoteSource
+  {
+    Immediate,
+    Delayed
+  };
+
   struct MonoMidiState
   {
     uint8_t paramMSB;
@@ -171,20 +180,14 @@ private:
       case IMidiMsg::kNoteOn:
       {
         if(msg.Velocity() == 0)
-        {
-          if(IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key)))
-            StopVoice();
-        }
+          HandleNoteOff(channel, key);
         else
-        {
           HandleNoteOn(channel, key);
-        }
         break;
       }
       case IMidiMsg::kNoteOff:
       {
-        if(IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key)))
-          StopVoice();
+        HandleNoteOff(channel, key);
         break;
       }
       case IMidiMsg::kPitchWheel:
@@ -220,7 +223,7 @@ private:
   void HandleRPN(const IMidiMsg& msg)
   {
     const int channel = msg.Channel();
-    if(mActiveKey != kNoKey && channel != mActiveChannel)
+    if(mTargetKey != kNoKey && channel != mTargetChannel)
       return;
 
     MonoMidiState& state = mMidiState;
@@ -262,29 +265,35 @@ private:
     }
   }
 
-  void StartVoice(int channel, int key, double pitch)
+  void StartVoice(uint8_t channel, uint8_t key, OutputNoteSource outputNoteSource = OutputNoteSource::Immediate)
   {
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
-    mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath);
-    mActiveChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
-    mActiveKey = static_cast<uint8_t>(Clip(key, 0, 127));
-    mOutputKey = mActiveKey;
-    mBlipGuard.NotifyOutputNote(mOutputKey);
+    mVoice.Start(static_cast<double>(key), mMidiState.currentPitchBend, mMidiState.currentBreath);
+    mTargetChannel = channel;
+    mTargetKey = key;
+    mOutputKey = mTargetKey;
+    if(outputNoteSource == OutputNoteSource::Delayed)
+      mBlipGuard.NotifyDelayedOutputNote(mOutputKey);
+    else
+      mBlipGuard.NotifyImmediateOutputNote(mOutputKey);
   }
 
   void StopVoice()
   {
     mBreathGateOpen = false;
-    mOutputKey = kNoKey;
-    mBlipGuard.ClearWindow();
+    ClearOutputContext();
     mVoice.Stop();
-    mActiveKey = kNoKey;
+    mTargetKey = kNoKey;
   }
 
-  void StopOutputKeepAssignment()
+  void StopOutputClearContext()
   {
-    mOutputKey = kNoKey;
-    mBlipGuard.ClearWindow();
+    ClearOutputContext();
+    mVoice.Stop();
+  }
+
+  void StopOutputKeepRecentContext()
+  {
     mVoice.Stop();
   }
 
@@ -292,63 +301,103 @@ private:
   {
     const uint8_t clippedChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
     const uint8_t clippedKey = static_cast<uint8_t>(Clip(key, 0, 127));
-    mActiveChannel = clippedChannel;
-    mActiveKey = clippedKey;
+    mTargetChannel = clippedChannel;
+    mTargetKey = clippedKey;
 
     if(mMidiState.currentBreath < kBreathGateOnThreshold)
     {
       mBreathGateOpen = false;
-      StopOutputKeepAssignment();
+      StopOutputClearContext();
       return;
     }
 
     mBreathGateOpen = true;
 
-    if(mOutputKey == kNoKey || !mVoice.IsActive())
+    if(!HasRecentOutputContext())
     {
-      StartVoice(channel, key, static_cast<double>(clippedKey));
+      StartVoice(clippedChannel, clippedKey);
       return;
     }
 
-    const auto action = mBlipGuard.HandleNoteOn(mOutputKey, true, clippedKey);
-    if(action == BlipGuard::NoteChangeAction::kOutputNow)
-    {
-      if(mOutputKey != clippedKey)
-        StartVoice(channel, key, static_cast<double>(clippedKey));
-    }
+    const bool shouldOutputNow =
+      mBlipGuard.HandleNoteOn(mOutputKey, HasCurrentOutput(), clippedKey) == BlipGuard::NoteChangeAction::kOutputNow;
+    if(shouldOutputNow && (mOutputKey != clippedKey || !mVoice.IsActive()))
+      StartVoice(clippedChannel, clippedKey);
   }
 
-  void MaybeApplyPendingOutputChange()
+  void HandleNoteOff(int channel, int key)
+  {
+    const uint8_t clippedChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+    const uint8_t clippedKey = static_cast<uint8_t>(Clip(key, 0, 127));
+
+    if(!IsRelevantNoteChannel(clippedChannel))
+      return;
+
+    // Pending note-offs must cancel the pending candidate before they are allowed
+    // to silence the currently sounding note.
+    if(CancelPendingNoteIfMatched(clippedKey))
+      return;
+
+    if(mOutputKey == clippedKey)
+    {
+      StopOutputKeepRecentContext();
+      ClearTargetIfMatched(clippedKey);
+      return;
+    }
+
+    ClearTargetIfMatched(clippedKey);
+  }
+
+  void ApplyPendingOutputChangeIfReady()
   {
     if(!mBlipGuard.HasPending())
       return;
 
-    if(!mBreathGateOpen || mActiveKey == kNoKey)
+    if(!mBreathGateOpen)
     {
-      mBlipGuard.ClearWindow();
+      ClearOutputContext();
       return;
     }
 
-    if(!mBlipGuard.ShouldOutputNow(mOutputKey, mOutputKey != kNoKey))
+    if(mTargetKey == kNoKey)
+    {
+      mBlipGuard.CancelPending();
+      return;
+    }
+
+    const auto resolution = mBlipGuard.GetPendingResolution(mOutputKey, HasCurrentOutput());
+    if(resolution == BlipGuard::PendingResolution::kNone)
       return;
 
     const uint8_t targetKey = mBlipGuard.PendingInputNote();
     if(mOutputKey != targetKey || !mVoice.IsActive())
-      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(targetKey), static_cast<double>(targetKey));
+    {
+      const OutputNoteSource outputNoteSource =
+        (resolution == BlipGuard::PendingResolution::kTimeout) ? OutputNoteSource::Delayed : OutputNoteSource::Immediate;
+      StartVoice(mTargetChannel, targetKey, outputNoteSource);
+    }
     else
       mBlipGuard.CancelPending();
+  }
+
+  void AdvanceTime(int numFrames)
+  {
+    mBlipGuard.Advance(numFrames);
+
+    if(!mVoice.IsActive() && !mBlipGuard.HasPending() && !mBlipGuard.HasRecentTrustedContext())
+      mOutputKey = kNoKey;
   }
 
   void PitchBend(int channel, double value)
   {
     const uint8_t bendChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
-    if(mActiveKey != kNoKey && !IsActiveChannel(bendChannel))
+    if(mTargetKey != kNoKey && !IsTargetChannel(bendChannel))
       return;
 
     mMidiState.currentPitchBend = value;
 
-    if(mActiveKey != kNoKey)
+    if(mTargetKey != kNoKey)
       mVoice.SetPitchBend(value);
   }
 
@@ -356,20 +405,27 @@ private:
   {
     const uint8_t breathChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
-    if(mActiveKey != kNoKey && !IsActiveChannel(breathChannel))
+    if(mTargetKey != kNoKey && !IsTargetChannel(breathChannel))
       return;
 
     mMidiState.currentBreath = value;
 
-    if(mActiveKey == kNoKey)
+    if(mTargetKey == kNoKey)
+    {
+      if(value <= kBreathGateOffThreshold)
+      {
+        mBreathGateOpen = false;
+        StopOutputClearContext();
+      }
       return;
+    }
 
     if(mBreathGateOpen)
     {
       if(value <= kBreathGateOffThreshold)
       {
         mBreathGateOpen = false;
-        StopOutputKeepAssignment();
+        StopOutputClearContext();
       }
       else
       {
@@ -379,7 +435,7 @@ private:
     else if(value >= kBreathGateOnThreshold)
     {
       mBreathGateOpen = true;
-      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(mActiveKey), static_cast<double>(mActiveKey));
+      StartVoice(mTargetChannel, mTargetKey);
     }
   }
 
@@ -387,21 +443,63 @@ private:
   {
     const uint8_t portamentoChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
 
-    if(mActiveKey != kNoKey && !IsActiveChannel(portamentoChannel))
+    if(mTargetKey != kNoKey && !IsTargetChannel(portamentoChannel))
       return;
 
     mMidiState.currentPortamento = Clip(value, 0.0, 1.0);
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
   }
 
-  bool IsActiveChannel(uint8_t channel) const
+  bool HasPendingWork() const
   {
-    return mActiveKey != kNoKey && mActiveChannel == channel;
+    return mVoice.IsActive() || !mMidiQueue.Empty() || mBlipGuard.HasPending();
   }
 
-  bool IsActiveNote(uint8_t channel, uint8_t key) const
+  bool HasTrackedNoteState() const
   {
-    return IsActiveChannel(channel) && mActiveKey == key;
+    return mTargetKey != kNoKey || mOutputKey != kNoKey || mBlipGuard.HasPending();
+  }
+
+  bool IsRelevantNoteChannel(uint8_t channel) const
+  {
+    return !HasTrackedNoteState() || channel == mTargetChannel;
+  }
+
+  bool IsTargetChannel(uint8_t channel) const
+  {
+    return mTargetKey != kNoKey && mTargetChannel == channel;
+  }
+
+  bool HasCurrentOutput() const
+  {
+    return mVoice.IsActive() && mOutputKey != kNoKey;
+  }
+
+  bool HasRecentOutputContext() const
+  {
+    return mOutputKey != kNoKey && (HasCurrentOutput() || mBlipGuard.HasRecentTrustedContext());
+  }
+
+  void ClearOutputContext()
+  {
+    mOutputKey = kNoKey;
+    mBlipGuard.ClearWindow();
+  }
+
+  void ClearTargetIfMatched(uint8_t key)
+  {
+    if(mTargetKey == key)
+      mTargetKey = kNoKey;
+  }
+
+  bool CancelPendingNoteIfMatched(uint8_t key)
+  {
+    if(!mBlipGuard.HasPending() || key != mBlipGuard.PendingInputNote())
+      return false;
+
+    mBlipGuard.CancelPending();
+    ClearTargetIfMatched(key);
+    return true;
   }
 
   void ClearVoiceControls()
@@ -417,8 +515,12 @@ private:
   IMidiQueue mMidiQueue;
   MonoMidiState mMidiState{};
   VoiceT mVoice{};
-  uint8_t mActiveChannel{0};
-  uint8_t mActiveKey{kNoKey};
+  uint8_t mTargetChannel{0};
+  // Latest input note we are targeting. This can differ from mOutputKey while a
+  // new note is still waiting behind the blip guard.
+  uint8_t mTargetKey{kNoKey};
+  // Current sounding note, or the most recent sounding note while we keep a
+  // short post-release context window for fast note transitions.
   uint8_t mOutputKey{kNoKey};
   bool mBreathGateOpen{false};
   BlipGuard mBlipGuard{};

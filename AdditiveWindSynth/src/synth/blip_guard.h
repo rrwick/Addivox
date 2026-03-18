@@ -21,6 +21,13 @@ public:
     kWait
   };
 
+  enum class PendingResolution
+  {
+    kNone,
+    kImmediate,
+    kTimeout
+  };
+
   void ResetRuntime()
   {
     mCurrentSample = 0;
@@ -47,11 +54,17 @@ public:
     return mHasPending;
   }
 
+  bool HasRecentTrustedContext() const
+  {
+    return mTrustedCount > 0 || HasRecoveryContext();
+  }
+
   NoteChangeAction HandleNoteOn(uint8_t currentOutputNote, bool hasCurrentOutput, uint8_t inputNote)
   {
-    PruneTrustedHistory();
+    PruneState();
 
-    if(IsTrustedByHistory(currentOutputNote, hasCurrentOutput, inputNote) || !IsEnabled())
+    const bool shouldOutputNow = !IsEnabled() || IsConnectedToTrustedContext(currentOutputNote, hasCurrentOutput, inputNote);
+    if(shouldOutputNow)
     {
       CancelPending();
       return NoteChangeAction::kOutputNow;
@@ -68,7 +81,7 @@ public:
   void Advance(int numFrames)
   {
     mCurrentSample += static_cast<int64_t>(std::max(numFrames, 0));
-    PruneTrustedHistory();
+    PruneState();
   }
 
   int GetFramesUntilOutputChange() const
@@ -85,18 +98,19 @@ public:
       : static_cast<int>(remainingSamples);
   }
 
-  bool ShouldOutputNow(uint8_t currentOutputNote, bool hasCurrentOutput) const
+  PendingResolution GetPendingResolution(uint8_t currentOutputNote, bool hasCurrentOutput) const
   {
     if(!mHasPending)
-      return false;
+      return PendingResolution::kNone;
 
-    if(!IsEnabled())
-      return true;
+    const bool shouldOutputNow = !IsEnabled()
+      || IsConnectedToTrustedContext(currentOutputNote, hasCurrentOutput, mPendingInputNote);
+    if(shouldOutputNow)
+      return PendingResolution::kImmediate;
 
-    if(IsTrustedByHistory(currentOutputNote, hasCurrentOutput, mPendingInputNote))
-      return true;
-
-    return GetPendingElapsedSamples() >= GetDelaySamples();
+    return GetPendingElapsedSamples() >= GetDelaySamples()
+      ? PendingResolution::kTimeout
+      : PendingResolution::kNone;
   }
 
   uint8_t PendingInputNote() const
@@ -104,21 +118,23 @@ public:
     return mPendingInputNote;
   }
 
-  void NotifyOutputNote(uint8_t outputNote)
+  void NotifyImmediateOutputNote(uint8_t outputNote)
   {
     AppendTrustedNote(outputNote);
     CancelPending();
   }
 
-  void ClearHistory()
+  void NotifyDelayedOutputNote(uint8_t outputNote)
   {
-    mTrustedHead = 0;
-    mTrustedCount = 0;
+    CaptureRecoveryContext();
+    AppendTrustedNote(outputNote);
+    CancelPending();
   }
 
   void ClearWindow()
   {
-    ClearHistory();
+    ClearTrustedHistory();
+    ClearRecoveryContext();
     CancelPending();
   }
 
@@ -148,7 +164,7 @@ private:
     return std::abs(static_cast<int>(toNote) - static_cast<int>(fromNote)) < mIntervalSemitones;
   }
 
-  bool IsTrustedByHistory(uint8_t currentOutputNote, bool hasCurrentOutput, uint8_t inputNote) const
+  bool IsConnectedToTrustedContext(uint8_t currentOutputNote, bool hasCurrentOutput, uint8_t inputNote) const
   {
     if(hasCurrentOutput && IsInRange(currentOutputNote, inputNote))
       return true;
@@ -156,8 +172,17 @@ private:
     for(std::size_t i = 0; i < mTrustedCount; ++i)
     {
       const TrustedNote& trustedNote = GetTrustedNoteFromNewest(i);
-      if(IsTrustedNoteInWindow(trustedNote) && IsInRange(trustedNote.note, inputNote))
+      if(IsTrustedNoteInRollingWindow(trustedNote) && IsInRange(trustedNote.note, inputNote))
         return true;
+    }
+
+    if(HasRecoveryContext())
+    {
+      for(std::size_t i = 0; i < mRecoveryCount; ++i)
+      {
+        if(IsInRange(mRecoveryNotes[i], inputNote))
+          return true;
+      }
     }
 
     return false;
@@ -176,7 +201,7 @@ private:
     return mCurrentSample - mPendingStartSample;
   }
 
-  bool IsTrustedNoteInWindow(const TrustedNote& trustedNote) const
+  bool IsTrustedNoteInRollingWindow(const TrustedNote& trustedNote) const
   {
     return (mCurrentSample - trustedNote.sample) <= GetDelaySamples();
   }
@@ -197,13 +222,57 @@ private:
     }
   }
 
+  void CaptureRecoveryContext()
+  {
+    ClearRecoveryContext();
+
+    if(!IsEnabled())
+      return;
+
+    // If a delayed note turns out to be a transient, keep the pre-timeout window
+    // alive briefly so the intended note can still reconnect to it immediately.
+    for(std::size_t i = 0; i < mTrustedCount && mRecoveryCount < kMaxTrustedNotes; ++i)
+    {
+      const TrustedNote& trustedNote = GetTrustedNoteFromNewest(i);
+      if(IsTrustedNoteInRollingWindow(trustedNote))
+        mRecoveryNotes[mRecoveryCount++] = trustedNote.note;
+    }
+
+    if(mRecoveryCount > 0)
+      mRecoveryUntilSample = mCurrentSample + GetDelaySamples();
+  }
+
+  bool HasRecoveryContext() const
+  {
+    return mRecoveryCount > 0 && mCurrentSample <= mRecoveryUntilSample;
+  }
+
+  void ClearRecoveryContext()
+  {
+    mRecoveryCount = 0;
+    mRecoveryUntilSample = 0;
+  }
+
+  void ClearTrustedHistory()
+  {
+    mTrustedHead = 0;
+    mTrustedCount = 0;
+  }
+
   void PruneTrustedHistory()
   {
-    while(mTrustedCount > 0 && !IsTrustedNoteInWindow(mTrustedNotes[mTrustedHead]))
+    while(mTrustedCount > 0 && !IsTrustedNoteInRollingWindow(mTrustedNotes[mTrustedHead]))
     {
       mTrustedHead = (mTrustedHead + 1) % kMaxTrustedNotes;
       --mTrustedCount;
     }
+  }
+
+  void PruneState()
+  {
+    PruneTrustedHistory();
+    if(!HasRecoveryContext())
+      ClearRecoveryContext();
   }
 
   const TrustedNote& GetTrustedNoteFromNewest(std::size_t indexFromNewest) const
@@ -223,4 +292,7 @@ private:
   std::array<TrustedNote, kMaxTrustedNotes> mTrustedNotes{};
   std::size_t mTrustedHead{0};
   std::size_t mTrustedCount{0};
+  std::array<uint8_t, kMaxTrustedNotes> mRecoveryNotes{};
+  std::size_t mRecoveryCount{0};
+  int64_t mRecoveryUntilSample{0};
 };
