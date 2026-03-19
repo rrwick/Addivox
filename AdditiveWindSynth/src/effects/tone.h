@@ -21,6 +21,7 @@ private:
   static constexpr int kNumCrossovers = 8;
   static constexpr int kNumBands = kNumCrossovers + 1;
   static constexpr int kTrimTableSize = 257;
+  using BandGains = std::array<double, kNumBands>;
 
   struct OnePoleLowpass
   {
@@ -38,19 +39,22 @@ private:
 
   struct Parameters
   {
-    std::array<double, kNumBands> bandGains{};
+    BandGains bandGains{};
     double trim{1.0};
   };
 
   static double FlushDenormal(double value);
   static double SmoothValue(double current, double target, double coefficient);
   static double ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds);
+  static double ShapeAmount(double amount);
   static double CutoffHzToCoefficient(double sampleRate, double cutoffHz);
   static double DbToLinear(double decibels);
   static std::complex<double> EvaluateLowpassResponse(double coefficient, double angularFrequency);
+  static BandGains ComputeBandGains(double amount);
 
   Parameters ComputeParameters(double amount) const;
   double ComputeTrimForAmount(double amount) const;
+  std::complex<double> EvaluateTiltResponse(const BandGains& bandGains, double angularFrequency) const;
   double LookupTrim(double amount) const;
   void UpdateCrossoverCoefficients();
   void UpdateTrimTable();
