@@ -67,10 +67,31 @@ void SetEffectsSettingsParams(AdditiveWindSynth& plugin,
     plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
 }
 
-void SyncParamDefaultsToCurrentValues(AdditiveWindSynth& plugin)
+bool IsPresetOwnedParam(int paramIdx)
+{
+  // These controls intentionally persist across preset changes, so reset should
+  // keep their constructor defaults instead of following the last recalled preset.
+  switch(paramIdx)
+  {
+    case kParamGlobalPitchShift:
+    case kParamGlobalPanShift:
+    case kParamEffectsReverb:
+    case kParamTranspose:
+    case kParamBlipGuardDelay:
+    case kParamBlipGuardInterval:
+      return false;
+    default:
+      return paramIdx >= 0 && paramIdx < kNumParams;
+  }
+}
+
+void SyncPresetOwnedParamDefaultsToCurrentValues(AdditiveWindSynth& plugin)
 {
   for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
   {
+    if(!IsPresetOwnedParam(paramIdx))
+      continue;
+
     IParam* const param = plugin.GetParam(paramIdx);
     param->SetDefault(param->Value());
   }
@@ -400,7 +421,7 @@ void AdditiveWindSynth::ApplyPresetDocument(const preset_io::PresetDocument& doc
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
   SetEffectsSettingsParams(*this, document.effectsSettings, false);
   OnParamReset(kPresetRecall);
-  SyncParamDefaultsToCurrentValues(*this);
+  SyncPresetOwnedParamDefaultsToCurrentValues(*this);
 
   if(!document.name.empty())
     mActivePresetDisplayName = document.name;
@@ -617,7 +638,7 @@ int AdditiveWindSynth::UnserializeState(const IByteChunk& chunk, int startPos)
   ENTER_PARAMS_MUTEX
   pos = RestoreStateParamsFromChunk(*this, chunk, pos);
   OnParamReset(kPresetRecall);
-  SyncParamDefaultsToCurrentValues(*this);
+  SyncPresetOwnedParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX
 
   return pos;
