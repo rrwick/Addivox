@@ -21,6 +21,7 @@ public:
   void ProcessBlock(iplug::sample** outputs, int nFrames);
 
 private:
+  static constexpr double kDefaultSampleRate = 44100.0;
   static constexpr int kNumChannels = 2;
   static constexpr int kOversamplingFactor = 4;
   static constexpr int kFirstStageNumCoefs = 12;
@@ -71,6 +72,7 @@ private:
 
   static double FlushDenormal(double value);
   static double SmoothValue(double current, double target, double coefficient);
+  static double ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds);
   static double CutoffHzToCoefficient(double sampleRate, double cutoffHz);
   static double DCBlockerCoefficient(double sampleRate, double cutoffHz);
   static double StableLogCosh(double value);
@@ -78,10 +80,10 @@ private:
   Parameters ComputeParameters(double amount) const;
   static double EvaluateShaper(double input, const Parameters& parameters);
   static double EvaluateShaperAntiderivative(double input, const Parameters& parameters);
+  static double EvaluateShaperAdaa(ChannelState& channel, double input, const Parameters& parameters);
   double ProcessOversampledSample(std::size_t channelIndex, double input, const Parameters& parameters);
 
-  double mSampleRate{44100.0};
-  double mOversampledRate{44100.0 * kOversamplingFactor};
+  double mOversampledRate{kDefaultSampleRate * kOversamplingFactor};
   double mAmountSmoothingCoefficient{1.0};
   double mActivationSmoothingCoefficient{1.0};
   double mTargetAmount{0.0};

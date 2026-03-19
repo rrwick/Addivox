@@ -10,6 +10,13 @@ constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
 constexpr double kAdaaDeltaThreshold = 1.0e-4;
 constexpr double kLogTwo = 0.69314718055994530942;
+constexpr double kMinimumCutoffHz = 1.0;
+constexpr double kMaximumCutoffScale = 0.49;
+constexpr double kAmountSmoothingTimeSeconds = 0.028;
+constexpr double kActivationSmoothingTimeSeconds = 0.012;
+constexpr double kInputDcCutoffHz = 12.0;
+constexpr double kOutputDcCutoffHz = 8.0;
+constexpr double kInitialToneCutoffHz = 18000.0;
 constexpr std::array<double, 12> kOversamplingCoefs2x{
   0.036681502163648017,
   0.13654762463195794,
@@ -42,17 +49,22 @@ double effects::Drive::SmoothValue(double current, double target, double coeffic
   return current + (coefficient * (target - current));
 }
 
+double effects::Drive::ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds)
+{
+  return 1.0 - std::exp(-1.0 / (sampleRate * timeSeconds));
+}
+
 double effects::Drive::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
 {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
+  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
+  const double safeCutoff = std::clamp(cutoffHz, kMinimumCutoffHz, kMaximumCutoffScale * safeSampleRate);
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
 double effects::Drive::DCBlockerCoefficient(double sampleRate, double cutoffHz)
 {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  const double safeCutoff = std::clamp(cutoffHz, 1.0, 0.49 * safeSampleRate);
+  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
+  const double safeCutoff = std::clamp(cutoffHz, kMinimumCutoffHz, kMaximumCutoffScale * safeSampleRate);
   return std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
@@ -92,10 +104,11 @@ void effects::Drive::Reset(double sampleRate, int blockSize)
 {
   (void) blockSize;
 
-  mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  mOversampledRate = mSampleRate * static_cast<double>(kOversamplingFactor);
-  mAmountSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.028 * mSampleRate));
-  mActivationSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.012 * mSampleRate));
+  const double baseSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
+
+  mOversampledRate = baseSampleRate * static_cast<double>(kOversamplingFactor);
+  mAmountSmoothingCoefficient = ExponentialSmoothingCoefficient(baseSampleRate, kAmountSmoothingTimeSeconds);
+  mActivationSmoothingCoefficient = ExponentialSmoothingCoefficient(baseSampleRate, kActivationSmoothingTimeSeconds);
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mTargetActiveMix = 0.0;
@@ -117,11 +130,11 @@ void effects::Drive::Clear()
 {
   for(auto& channel : mChannels)
   {
-    channel.inputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, 12.0);
+    channel.inputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, kInputDcCutoffHz);
     channel.inputDcBlocker.Clear();
-    channel.outputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, 8.0);
+    channel.outputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, kOutputDcCutoffHz);
     channel.outputDcBlocker.Clear();
-    channel.toneFilter.coefficient = CutoffHzToCoefficient(mOversampledRate, 18000.0);
+    channel.toneFilter.coefficient = CutoffHzToCoefficient(mOversampledRate, kInitialToneCutoffHz);
     channel.toneFilter.Clear();
     channel.upsampler2x.clear_buffers();
     channel.upsampler4x.clear_buffers();
@@ -148,21 +161,20 @@ void effects::Drive::SetAmount(double amount)
 
 effects::Drive::Parameters effects::Drive::ComputeParameters(double amount) const
 {
-  const double t = std::clamp(amount * 0.01, 0.0, 1.0);
-  const double presence = std::sqrt(t);
-  const double driveShape = t * t;
-  const double density = (0.35 * presence) + (0.65 * driveShape);
+  const double t = std::clamp(amount * 0.01, 0.0, 1.0);  // convert from [0, 100] to [0, 1]
+  const double tSquared = t * t;
+  const double density = (0.35 * t) + (0.65 * tSquared);
+  const double drive = 1.0 + (26.0 * density);
+  const double bias = 0.1 * tSquared;
 
   Parameters parameters;
-  parameters.blend = (0.18 * presence) + (0.74 * t);
-  parameters.drive = 1.0 + (26.0 * density);
-  parameters.bias = 0.07 * density * (0.25 + (0.75 * t));
-  parameters.biasOffset = std::tanh(parameters.drive * parameters.bias);
-  parameters.inverseDrive = 1.0 / parameters.drive;
-  parameters.trim = std::pow(parameters.drive, -0.27) * (1.0 - (0.05 * t));
-  parameters.toneCoefficient = CutoffHzToCoefficient(
-    mOversampledRate,
-    19000.0 - (9000.0 * presence) - (5000.0 * driveShape));
+  parameters.blend = t;
+  parameters.drive = drive;
+  parameters.bias = bias;
+  parameters.biasOffset = std::tanh(drive * bias);
+  parameters.inverseDrive = 1.0 / drive;
+  parameters.trim = std::pow(drive, -0.20);
+  parameters.toneCoefficient = CutoffHzToCoefficient(mOversampledRate, 19000.0 - (14000.0 * t));
   return parameters;
 }
 
@@ -177,44 +189,46 @@ double effects::Drive::EvaluateShaperAntiderivative(double input, const Paramete
   return (StableLogCosh(drivenInput) * parameters.inverseDrive) - (parameters.biasOffset * input);
 }
 
-double effects::Drive::ProcessOversampledSample(std::size_t channelIndex,
-                                                 double input,
-                                                 const Parameters& parameters)
+double effects::Drive::EvaluateShaperAdaa(ChannelState& channel, double input, const Parameters& parameters)
 {
-  ChannelState& channel = mChannels[channelIndex];
-  channel.toneFilter.coefficient = parameters.toneCoefficient;
-
-  const double clean = input;
-  const double filteredInput = channel.inputDcBlocker.Process(input);
   double saturated = 0.0;
 
   if(!channel.shaperStateInitialized)
   {
-    saturated = EvaluateShaper(filteredInput, parameters);
     channel.shaperStateInitialized = true;
+    saturated = EvaluateShaper(input, parameters);
   }
   else
   {
-    const double delta = filteredInput - channel.previousShaperInput;
+    const double previousInput = channel.previousShaperInput;
+    const double delta = input - previousInput;
 
-    if(std::abs(delta) > kAdaaDeltaThreshold)
+    if(std::abs(delta) <= kAdaaDeltaThreshold)
     {
-      const double antiderivative = EvaluateShaperAntiderivative(filteredInput, parameters);
-      const double previousAntiderivative = EvaluateShaperAntiderivative(channel.previousShaperInput, parameters);
-      saturated = (antiderivative - previousAntiderivative) / delta;
+      saturated = EvaluateShaper(0.5 * (input + previousInput), parameters);
     }
     else
     {
-      const double midpointInput = 0.5 * (filteredInput + channel.previousShaperInput);
-      saturated = EvaluateShaper(midpointInput, parameters);
+      saturated =
+        (EvaluateShaperAntiderivative(input, parameters) - EvaluateShaperAntiderivative(previousInput, parameters))
+        / delta;
     }
   }
 
-  channel.previousShaperInput = filteredInput;
+  channel.previousShaperInput = input;
+  return saturated;
+}
+
+double effects::Drive::ProcessOversampledSample(std::size_t channelIndex, double input, const Parameters& parameters)
+{
+  ChannelState& channel = mChannels[channelIndex];
+  channel.toneFilter.coefficient = parameters.toneCoefficient;
+
+  const double filteredInput = channel.inputDcBlocker.Process(input);
+  const double saturated = EvaluateShaperAdaa(channel, filteredInput, parameters);
   const double softened = channel.toneFilter.Process(saturated);
-  const double trimmed = channel.outputDcBlocker.Process(softened * parameters.trim);
-  const double mixed = clean + (parameters.blend * (trimmed - clean));
-  return FlushDenormal(mixed);
+  const double processed = channel.outputDcBlocker.Process(softened * parameters.trim);
+  return FlushDenormal(input + (parameters.blend * (processed - input)));
 }
 
 void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
@@ -229,26 +243,26 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
     const Parameters parameters = ComputeParameters(mCurrentAmount);
     const double activeMix = mCurrentActiveMix;
 
-    for(int channelIndex = 0; channelIndex < kNumChannels; ++channelIndex)
+    for(std::size_t channelIndex = 0; channelIndex < mChannels.size(); ++channelIndex)
     {
-      ChannelState& channel = mChannels[static_cast<std::size_t>(channelIndex)];
+      ChannelState& channel = mChannels[channelIndex];
       const double input = outputs[channelIndex][frame];
-      std::array<double, 2> up2xSamples{};
-      std::array<double, 4> up4xSamples{};
-      std::array<double, 2> down2xSamples{};
+      std::array<double, 2> upsampled2x{};
+      std::array<double, 4> upsampled4x{};
+      std::array<double, 2> downsampled2x{};
 
-      channel.upsampler2x.process_sample(up2xSamples[0], up2xSamples[1], input);
-      channel.upsampler4x.process_sample(up4xSamples[0], up4xSamples[1], up2xSamples[0]);
-      channel.upsampler4x.process_sample(up4xSamples[2], up4xSamples[3], up2xSamples[1]);
+      channel.upsampler2x.process_sample(upsampled2x[0], upsampled2x[1], input);
+      channel.upsampler4x.process_sample(upsampled4x[0], upsampled4x[1], upsampled2x[0]);
+      channel.upsampler4x.process_sample(upsampled4x[2], upsampled4x[3], upsampled2x[1]);
 
-      for(double& oversampledSample : up4xSamples)
+      for(double& oversampledSample : upsampled4x)
       {
-        oversampledSample = ProcessOversampledSample(static_cast<std::size_t>(channelIndex), oversampledSample, parameters);
+        oversampledSample = ProcessOversampledSample(channelIndex, oversampledSample, parameters);
       }
 
-      down2xSamples[0] = channel.downsampler4x.process_sample(up4xSamples.data());
-      down2xSamples[1] = channel.downsampler4x.process_sample(up4xSamples.data() + 2);
-      const double processed = channel.downsampler2x.process_sample(down2xSamples.data());
+      downsampled2x[0] = channel.downsampler4x.process_sample(upsampled4x.data());
+      downsampled2x[1] = channel.downsampler4x.process_sample(upsampled4x.data() + 2);
+      const double processed = channel.downsampler2x.process_sample(downsampled2x.data());
       const double output = input + (activeMix * (processed - input));
       outputs[channelIndex][frame] = static_cast<iplug::sample>(FlushDenormal(output));
     }
