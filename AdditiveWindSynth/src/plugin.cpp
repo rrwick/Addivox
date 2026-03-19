@@ -311,7 +311,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
     str.SetFormatted(32, "%.1f\xC2\xA2", normalizedValue);
   };
   const auto formatSignedUnitDisplay = [](double value, WDL_String& str) {
-    const double normalized = std::round(value * 100.0) / 100.0;
+    const double roundedValue = std::round(value * 100.0) / 100.0;
+    const double normalized = (roundedValue == 0.0) ? 0.0 : roundedValue;
     if(normalized > 0.0)
       str.SetFormatted(32, "+%.2f", normalized);
     else
@@ -324,19 +325,8 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
-  GetParam(kParamGlobalPitchShift)->InitDouble(
-    "Pitch Shift",
-    0.,
-    -50.,
-    50.,
-    0.1,
-    "",
-    0,
-    "",
-    iplug::IParam::ShapeLinear(),
-    iplug::IParam::kUnitCents,
-    formatCentsDisplay);
-  GetParam(kParamGlobalPanShift)->InitDouble("Pan Shift", 0., -1., 1., 0.01, "", iplug::IParam::kFlagSignDisplay);
+  GetParam(kParamGlobalPitchShift)->InitDouble("Pitch Shift", 0., -50., 50., 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCents, formatCentsDisplay);
+  GetParam(kParamGlobalPanShift)->InitDouble("Pan Shift", 0., -1., 1., 0.01, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatSignedUnitDisplay);
   initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Level Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Level Variation Rate");
   initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Pitch Variation Amount", 0.0);
@@ -346,72 +336,13 @@ AdditiveWindSynth::AdditiveWindSynth(const InstanceInfo& info)
   const auto& portamentoShape = transformations::GetPortamentoPseudoLogShape();
   GetParam(kParamPortamentoAtCC5Min)->InitDouble("Portamento (min)", 0.001, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
   GetParam(kParamPortamentoAtCC5Max)->InitDouble("Portamento (max)", 0.025, 0., 1.0, 0.0001, "s", 0, "", portamentoShape);
-  GetParam(kParamEffectsDrive)->InitDouble(
-    "Drive",
-    0.,
-    0.,
-    100.0,
-    0.1,
-    "",
-    0,
-    "",
-    iplug::IParam::ShapeLinear(),
-    iplug::IParam::kUnitCustom,
-    formatPercentDisplay);
-  GetParam(kParamEffectsTone)->InitDouble(
-    "Tone",
-    0.,
-    -1.0,
-    1.0,
-    0.01,
-    "",
-    0,
-    "",
-    iplug::IParam::ShapeLinear(),
-    iplug::IParam::kUnitCustom,
-    formatSignedUnitDisplay);
+  GetParam(kParamEffectsDrive)->InitDouble("Drive", 0., 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
+  GetParam(kParamEffectsTone)->InitDouble("Tone", 0., -1.0, 1.0, 0.01, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatSignedUnitDisplay);
   GetParam(kParamTranspose)->InitInt("Transpose", 0, -36, 36, "st", iplug::IParam::kFlagSignDisplay);
-  GetParam(kParamEffectsChorus)->InitDouble(
-    "Chorus",
-    0.,
-    0.,
-    100.0,
-    0.1,
-    "",
-    0,
-    "",
-    iplug::IParam::ShapeLinear(),
-    iplug::IParam::kUnitCustom,
-    formatPercentDisplay);
-  GetParam(kParamEffectsReverb)->InitDouble(
-    "Reverb",
-    effects_settings::kDefaultReverb,
-    0.,
-    100.0,
-    0.1,
-    "",
-    0,
-    "",
-    iplug::IParam::ShapeLinear(),
-    iplug::IParam::kUnitCustom,
-    formatPercentDisplay);
-  GetParam(kParamBlipGuardDelay)->InitDouble(
-    "Blip Guard Delay",
-    0.0,
-    0.0,
-    kBlipGuardMaxDelayMs,
-    1.0,
-    "",
-    0,
-    "",
-    transformations::GetLevelPseudoLogShape(),
-    iplug::IParam::kUnitCustom,
-    formatDelayMsDisplay);
-  GetParam(kParamBlipGuardInterval)->InitInt(
-    "Blip Guard Interval",
-    kBlipGuardDefaultIntervalSemitones,
-    kBlipGuardMinIntervalSemitones,
-    kBlipGuardMaxIntervalSemitones);
+  GetParam(kParamEffectsChorus)->InitDouble("Chorus", 0., 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
+  GetParam(kParamEffectsReverb)->InitDouble("Reverb", effects_settings::kDefaultReverb, 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
+  GetParam(kParamBlipGuardDelay)->InitDouble("Blip Guard Delay", 0.0, 0.0, kBlipGuardMaxDelayMs, 1.0, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatDelayMsDisplay);
+  GetParam(kParamBlipGuardInterval)->InitInt("Blip Guard Interval", kBlipGuardDefaultIntervalSemitones, kBlipGuardMinIntervalSemitones, kBlipGuardMaxIntervalSemitones);
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
