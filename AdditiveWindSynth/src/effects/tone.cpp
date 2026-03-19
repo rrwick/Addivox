@@ -6,8 +6,37 @@
 namespace
 {
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kDefaultSampleRate = 44100.0;
 constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
+constexpr double kAmountSmoothingTimeSeconds = 0.024;
+constexpr double kActivationSmoothingTimeSeconds = 0.012;
+constexpr double kMaxSlopeDbPerOctave = 12.0;
+constexpr double kMinimumResponseMagnitude = 1.0e-9;
+constexpr double kTrimPeakBlend = 0.5;
+constexpr int kTrimProbeCount = 256;
+constexpr std::array<double, 8> kCrossoverFrequenciesHz{
+  80.0,
+  160.0,
+  320.0,
+  640.0,
+  1280.0,
+  2560.0,
+  5120.0,
+  10240.0,
+};
+// One octave-wide bands around the pivot let the knob apply a true dB/octave tilt.
+constexpr std::array<double, 9> kBandOctaveOffsets{
+  -4.5,
+  -3.5,
+  -2.5,
+  -1.5,
+  -0.5,
+  0.5,
+  1.5,
+  2.5,
+  3.5,
+};
 } // namespace
 
 double effects::Tone::FlushDenormal(double value)
@@ -20,9 +49,14 @@ double effects::Tone::SmoothValue(double current, double target, double coeffici
   return current + (coefficient * (target - current));
 }
 
+double effects::Tone::ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds)
+{
+  return 1.0 - std::exp(-1.0 / (sampleRate * timeSeconds));
+}
+
 double effects::Tone::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
 {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
   const double safeCutoff = std::clamp(cutoffHz, 20.0, 0.45 * safeSampleRate);
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
@@ -30,6 +64,13 @@ double effects::Tone::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
 double effects::Tone::DbToLinear(double decibels)
 {
   return std::pow(10.0, decibels / 20.0);
+}
+
+std::complex<double> effects::Tone::EvaluateLowpassResponse(double coefficient, double angularFrequency)
+{
+  const double pole = 1.0 - coefficient;
+  const std::complex<double> unitDelay = std::polar(1.0, -angularFrequency);
+  return coefficient / (1.0 - (pole * unitDelay));
 }
 
 void effects::Tone::OnePoleLowpass::Clear()
@@ -48,25 +89,30 @@ void effects::Tone::Reset(double sampleRate, int blockSize)
 {
   (void) blockSize;
 
-  mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
-  mAmountSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.024 * mSampleRate));
-  mActivationSmoothingCoefficient = 1.0 - std::exp(-1.0 / (0.012 * mSampleRate));
+  mSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
+  mAmountSmoothingCoefficient =
+    ExponentialSmoothingCoefficient(mSampleRate, kAmountSmoothingTimeSeconds);
+  mActivationSmoothingCoefficient =
+    ExponentialSmoothingCoefficient(mSampleRate, kActivationSmoothingTimeSeconds);
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mTargetActiveMix = 0.0;
   mCurrentActiveMix = 0.0;
   mActive = false;
+  UpdateCrossoverCoefficients();
+  UpdateTrimTable();
   Clear();
 }
 
 void effects::Tone::Clear()
 {
-  const double defaultCoefficient = CutoffHzToCoefficient(mSampleRate, 1300.0);
-
   for(auto& channel : mChannels)
   {
-    channel.lowpass.coefficient = defaultCoefficient;
-    channel.lowpass.Clear();
+    for(std::size_t index = 0; index < channel.crossovers.size(); ++index)
+    {
+      channel.crossovers[index].coefficient = mCrossoverCoefficients[index];
+      channel.crossovers[index].Clear();
+    }
   }
 }
 
@@ -86,21 +132,104 @@ void effects::Tone::SetAmount(double amount)
 
 effects::Tone::Parameters effects::Tone::ComputeParameters(double amount) const
 {
-  const double t = std::clamp(amount, -1.0, 1.0);
-  const double magnitude = std::abs(t);
-  const double presence = std::sqrt(magnitude);
-  const double shaped = std::copysign((0.1 * magnitude) + (0.9 * presence), t);
-  const double tiltDb = 24.0 * shaped;
+  const double clampedAmount = std::clamp(amount, -1.0, 1.0);
+  const double slopeDbPerOctave = kMaxSlopeDbPerOctave * clampedAmount;
 
   Parameters parameters;
-  parameters.lowGain = DbToLinear(-0.5 * tiltDb);
-  parameters.highGain = DbToLinear(0.5 * tiltDb);
-  const double energyNormalization = std::sqrt(
-    0.5 * ((parameters.lowGain * parameters.lowGain)
-           + (parameters.highGain * parameters.highGain)));
-  parameters.trim = 1.0 / std::max(energyNormalization, 1.0e-9);
-  parameters.lowpassCoefficient = CutoffHzToCoefficient(mSampleRate, 1300.0);
+
+  for(std::size_t index = 0; index < parameters.bandGains.size(); ++index)
+  {
+    parameters.bandGains[index] = DbToLinear(slopeDbPerOctave * kBandOctaveOffsets[index]);
+  }
+
+  parameters.trim = LookupTrim(clampedAmount);
   return parameters;
+}
+
+double effects::Tone::ComputeTrimForAmount(double amount) const
+{
+  Parameters parameters;
+  const double slopeDbPerOctave = kMaxSlopeDbPerOctave * std::clamp(amount, -1.0, 1.0);
+
+  for(std::size_t index = 0; index < parameters.bandGains.size(); ++index)
+  {
+    parameters.bandGains[index] = DbToLinear(slopeDbPerOctave * kBandOctaveOffsets[index]);
+  }
+
+  const double maxFrequencyHz = 0.5 * mSampleRate;
+  double magnitudeSquareSum = 0.0;
+  double peakMagnitude = 0.0;
+
+  for(int probeIndex = 0; probeIndex < kTrimProbeCount; ++probeIndex)
+  {
+    const double frequencyT = (static_cast<double>(probeIndex) + 0.5) / static_cast<double>(kTrimProbeCount);
+    const double probeFrequencyHz = 20.0 * std::pow(maxFrequencyHz / 20.0, frequencyT);
+    const double angularFrequency = (2.0 * kPi * probeFrequencyHz) / mSampleRate;
+
+    std::complex<double> response = parameters.bandGains.back();
+
+    for(std::size_t index = 0; index < mCrossoverCoefficients.size(); ++index)
+    {
+      response += (parameters.bandGains[index] - parameters.bandGains[index + 1])
+                  * EvaluateLowpassResponse(mCrossoverCoefficients[index], angularFrequency);
+    }
+
+    const double magnitude = std::abs(response);
+    magnitudeSquareSum += magnitude * magnitude;
+    peakMagnitude = std::max(peakMagnitude, magnitude);
+  }
+
+  const double rmsMagnitude = std::sqrt(magnitudeSquareSum / static_cast<double>(kTrimProbeCount));
+  const double rmsTrim = 1.0 / std::max(rmsMagnitude, kMinimumResponseMagnitude);
+  const double peakTrim = 1.0 / std::max(peakMagnitude, kMinimumResponseMagnitude);
+  // Blend average and worst-case normalization in log space to reduce overloads without neutering the effect.
+  return std::pow(rmsTrim, 1.0 - kTrimPeakBlend) * std::pow(peakTrim, kTrimPeakBlend);
+}
+
+double effects::Tone::LookupTrim(double amount) const
+{
+  const double tablePosition =
+    0.5 * (std::clamp(amount, -1.0, 1.0) + 1.0) * static_cast<double>(kTrimTableSize - 1);
+  const std::size_t index = static_cast<std::size_t>(tablePosition);
+  const std::size_t nextIndex = std::min(index + 1, mTrimTable.size() - 1);
+  const double fraction = tablePosition - static_cast<double>(index);
+  return mTrimTable[index] + (fraction * (mTrimTable[nextIndex] - mTrimTable[index]));
+}
+
+void effects::Tone::UpdateCrossoverCoefficients()
+{
+  for(std::size_t index = 0; index < mCrossoverCoefficients.size(); ++index)
+  {
+    mCrossoverCoefficients[index] = CutoffHzToCoefficient(mSampleRate, kCrossoverFrequenciesHz[index]);
+  }
+}
+
+void effects::Tone::UpdateTrimTable()
+{
+  for(std::size_t index = 0; index < mTrimTable.size(); ++index)
+  {
+    const double amount = -1.0 + (2.0 * static_cast<double>(index) / static_cast<double>(mTrimTable.size() - 1));
+    mTrimTable[index] = ComputeTrimForAmount(amount);
+  }
+}
+
+double effects::Tone::ProcessTiltedSample(ChannelState& channel,
+                                          double input,
+                                          const Parameters& parameters)
+{
+  double tilted = 0.0;
+  double previousLow = 0.0;
+
+  for(std::size_t index = 0; index < channel.crossovers.size(); ++index)
+  {
+    const double currentLow = channel.crossovers[index].Process(input);
+    const double band = currentLow - previousLow;
+    tilted += parameters.bandGains[index] * band;
+    previousLow = currentLow;
+  }
+
+  tilted += parameters.bandGains.back() * (input - previousLow);
+  return FlushDenormal(parameters.trim * tilted);
 }
 
 void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
@@ -118,13 +247,8 @@ void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
     for(int channelIndex = 0; channelIndex < kNumChannels; ++channelIndex)
     {
       ChannelState& channel = mChannels[static_cast<std::size_t>(channelIndex)];
-      channel.lowpass.coefficient = parameters.lowpassCoefficient;
-
       const double input = outputs[channelIndex][frame];
-      const double low = channel.lowpass.Process(input);
-      const double high = input - low;
-      const double toned =
-        parameters.trim * ((parameters.lowGain * low) + (parameters.highGain * high));
+      const double toned = ProcessTiltedSample(channel, input, parameters);
       const double output = input + (activeMix * (toned - input));
       outputs[channelIndex][frame] = static_cast<iplug::sample>(FlushDenormal(output));
     }
