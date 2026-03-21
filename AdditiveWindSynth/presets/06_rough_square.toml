@@ -17,7 +17,7 @@ portamentoTimeAtCC5MaxSec = 0.025
 [effects_settings]
 drive = 10.0
 tone = 0.0
-chorus = 75.0
+chorus = 40.0
 
 [[key_notes]]
 midi_note = 60
