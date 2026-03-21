@@ -74,8 +74,7 @@ void effects::Drive::Reset(double sampleRate, int blockSize)
 
   mOversampledRate = baseSampleRate * static_cast<double>(kOversamplingFactor);
   mAmountSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(baseSampleRate, kAmountSmoothingTimeSeconds);
-  mActivationSmoothingCoefficient =
-    dsp::ExponentialSmoothingCoefficient(baseSampleRate, kActivationSmoothingTimeSeconds);
+  mActivationSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(baseSampleRate, kActivationSmoothingTimeSeconds);
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mTargetActiveMix = 0.0;
@@ -186,9 +185,8 @@ double effects::Drive::EvaluateShaperAdaa(ChannelState& channel, double input, c
   return saturated;
 }
 
-double effects::Drive::ProcessOversampledSample(std::size_t channelIndex, double input, const Parameters& parameters)
+double effects::Drive::ProcessOversampledSample(ChannelState& channel, double input, const Parameters& parameters)
 {
-  ChannelState& channel = mChannels[channelIndex];
   channel.toneFilter.coefficient = parameters.toneCoefficient;
 
   const double filteredInput = channel.inputDcBlocker.Process(input);
@@ -225,7 +223,7 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
 
       for(double& oversampledSample : upsampled4x)
       {
-        oversampledSample = ProcessOversampledSample(channelIndex, oversampledSample, parameters);
+        oversampledSample = ProcessOversampledSample(channel, oversampledSample, parameters);
       }
 
       downsampled2x[0] = channel.downsampler4x.process_sample(upsampled4x.data());

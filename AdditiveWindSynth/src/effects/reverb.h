@@ -45,11 +45,16 @@ private:
   using LateDiffuserArray = std::array<LateDiffuserStageArray, kNumDelayLines>;
   using DelayLineArray = std::array<DelayLine, kNumDelayLines>;
   using FilterArray = std::array<OnePoleLowpass, kNumDelayLines>;
+  using StereoPair = std::array<double, 2>;
 
   void UpdateTargetParameters();
   void SnapCurrentParametersToTargets(bool startWetAtZero);
+  void SmoothParameters();
+  StereoPair ProcessEarlyReflections(double conditioned, double side);
+  StereoPair ProcessLateReverb(double diffused, double side);
+  void ClearLateDiffusers();
 
-  double mSampleRate{44100.0};
+  double mSampleRate{shared::kDefaultSampleRate};
   double mAmount{0.0};
   bool mActive{false};
   double mMixSmoothingCoefficient{1.0};

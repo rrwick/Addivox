@@ -33,7 +33,7 @@ private:
 
   void InitializeVoiceStates();
 
-  double mSampleRate{44100.0};
+  double mSampleRate{shared::kDefaultSampleRate};
   double mTargetAmount{0.0};
   double mCurrentAmount{0.0};
   bool mActive{false};

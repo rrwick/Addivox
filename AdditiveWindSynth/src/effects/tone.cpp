@@ -14,15 +14,10 @@ constexpr double kMaxSlopeDbPerOctave = 12.0;
 constexpr double kMinimumResponseMagnitude = 1.0e-9;
 constexpr double kTrimPeakBlend = 0.5;
 constexpr int kTrimProbeCount = 256;
+constexpr double kTrimProbeMinimumFrequencyHz = 20.0;
+constexpr double kCrossoverMaximumScale = 0.45;
 constexpr std::array<double, 8> kCrossoverFrequenciesHz{
-  80.0,
-  160.0,
-  320.0,
-  640.0,
-  1280.0,
-  2560.0,
-  5120.0,
-  10240.0,
+  80.0, 160.0, 320.0, 640.0, 1280.0, 2560.0, 5120.0, 10240.0,
 };
 // One octave-wide bands around the pivot let the knob apply a true dB/octave tilt.
 constexpr std::array<double, 9> kBandOctaveOffsets{
@@ -115,7 +110,6 @@ void effects::Tone::SetAmount(double amount)
 effects::Tone::Parameters effects::Tone::ComputeParameters(double amount) const
 {
   const double clampedAmount = std::clamp(amount, -1.0, 1.0);
-
   Parameters parameters;
   parameters.bandGains = ComputeBandGains(clampedAmount);
   parameters.trim = LookupTrim(clampedAmount);
@@ -132,7 +126,8 @@ double effects::Tone::ComputeTrimForAmount(double amount) const
   for(int probeIndex = 0; probeIndex < kTrimProbeCount; ++probeIndex)
   {
     const double frequencyT = (static_cast<double>(probeIndex) + 0.5) / static_cast<double>(kTrimProbeCount);
-    const double probeFrequencyHz = 20.0 * std::pow(maxFrequencyHz / 20.0, frequencyT);
+    const double probeFrequencyHz =
+      kTrimProbeMinimumFrequencyHz * std::pow(maxFrequencyHz / kTrimProbeMinimumFrequencyHz, frequencyT);
     const double angularFrequency = (2.0 * dsp::kPi * probeFrequencyHz) / mSampleRate;
     const std::complex<double> response = EvaluateTiltResponse(bandGains, angularFrequency);
     const double magnitude = std::abs(response);
@@ -155,8 +150,7 @@ std::complex<double> effects::Tone::EvaluateTiltResponse(const BandGains& bandGa
 
   for(std::size_t index = 0; index < mCrossoverCoefficients.size(); ++index)
   {
-    response += (bandGains[index] - bandGains[index + 1])
-                * EvaluateLowpassResponse(mCrossoverCoefficients[index], angularFrequency);
+    response += (bandGains[index] - bandGains[index + 1]) * EvaluateLowpassResponse(mCrossoverCoefficients[index], angularFrequency);
   }
 
   return response;
@@ -177,7 +171,11 @@ void effects::Tone::UpdateCrossoverCoefficients()
   for(std::size_t index = 0; index < mCrossoverCoefficients.size(); ++index)
   {
     mCrossoverCoefficients[index] =
-      dsp::CutoffHzToCoefficient(mSampleRate, kCrossoverFrequenciesHz[index], 20.0, 0.45);
+      dsp::CutoffHzToCoefficient(
+        mSampleRate,
+        kCrossoverFrequenciesHz[index],
+        kTrimProbeMinimumFrequencyHz,
+        kCrossoverMaximumScale);
   }
 }
 
@@ -190,9 +188,7 @@ void effects::Tone::UpdateTrimTable()
   }
 }
 
-double effects::Tone::ProcessTiltedSample(ChannelState& channel,
-                                          double input,
-                                          const Parameters& parameters)
+double effects::Tone::ProcessTiltedSample(ChannelState& channel, double input, const Parameters& parameters)
 {
   double tilted = 0.0;
   double previousLow = 0.0;
@@ -217,8 +213,7 @@ void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
   for(int frame = 0; frame < nFrames; ++frame)
   {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
-    mCurrentActiveMix =
-      dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
+    mCurrentActiveMix = dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
     const Parameters parameters = ComputeParameters(mCurrentAmount);
     const double activeMix = mCurrentActiveMix;
 

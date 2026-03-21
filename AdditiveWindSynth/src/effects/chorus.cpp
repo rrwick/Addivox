@@ -224,10 +224,7 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames)
       const double voiceLevel = parameters.voiceLevels[static_cast<std::size_t>(voiceIndex)];
       const double rateHz = setup.baseRateHz * parameters.rateScale;
       voice.modPosition += rateHz / mSampleRate;
-      voice.toneFilter.coefficient = dsp::SmoothValue(
-        voice.toneFilter.coefficient,
-        parameters.toneCoefficient,
-        mToneSmoothingCoefficient);
+      voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
 
       const double noise = GradientNoise1D(voice.modPosition, voice.modSeed);
       const double delaySamples = std::max(

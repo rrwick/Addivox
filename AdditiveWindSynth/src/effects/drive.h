@@ -70,7 +70,7 @@ private:
   static double EvaluateShaper(double input, const Parameters& parameters);
   static double EvaluateShaperAntiderivative(double input, const Parameters& parameters);
   static double EvaluateShaperAdaa(ChannelState& channel, double input, const Parameters& parameters);
-  double ProcessOversampledSample(std::size_t channelIndex, double input, const Parameters& parameters);
+  static double ProcessOversampledSample(ChannelState& channel, double input, const Parameters& parameters);
 
   double mOversampledRate{kDefaultSampleRate * kOversamplingFactor};
   double mAmountSmoothingCoefficient{1.0};
