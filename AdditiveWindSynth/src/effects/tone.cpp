@@ -3,11 +3,10 @@
 #include <algorithm>
 #include <cmath>
 
+namespace dsp = effects::shared;
+
 namespace
 {
-constexpr double kPi = 3.14159265358979323846;
-constexpr double kDefaultSampleRate = 44100.0;
-constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
 constexpr double kAmountSmoothingTimeSeconds = 0.024;
 constexpr double kActivationSmoothingTimeSeconds = 0.012;
@@ -39,32 +38,10 @@ constexpr std::array<double, 9> kBandOctaveOffsets{
 };
 } // namespace
 
-double effects::Tone::FlushDenormal(double value)
-{
-  return std::abs(value) < kDenormalFloor ? 0.0 : value;
-}
-
-double effects::Tone::SmoothValue(double current, double target, double coefficient)
-{
-  return current + (coefficient * (target - current));
-}
-
-double effects::Tone::ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds)
-{
-  return 1.0 - std::exp(-1.0 / (sampleRate * timeSeconds));
-}
-
 double effects::Tone::ShapeAmount(double amount)
 {
   const double clampedAmount = std::clamp(amount, -1.0, 1.0);
   return 2.0 * clampedAmount * std::abs(clampedAmount);
-}
-
-double effects::Tone::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
-{
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
-  const double safeCutoff = std::clamp(cutoffHz, 20.0, 0.45 * safeSampleRate);
-  return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
 double effects::Tone::DbToLinear(double decibels)
@@ -92,27 +69,13 @@ effects::Tone::BandGains effects::Tone::ComputeBandGains(double amount)
   return bandGains;
 }
 
-void effects::Tone::OnePoleLowpass::Clear()
-{
-  state = 0.0;
-}
-
-double effects::Tone::OnePoleLowpass::Process(double input)
-{
-  state += coefficient * (input - state);
-  state = Tone::FlushDenormal(state);
-  return state;
-}
-
 void effects::Tone::Reset(double sampleRate, int blockSize)
 {
   (void) blockSize;
 
-  mSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
-  mAmountSmoothingCoefficient =
-    ExponentialSmoothingCoefficient(mSampleRate, kAmountSmoothingTimeSeconds);
-  mActivationSmoothingCoefficient =
-    ExponentialSmoothingCoefficient(mSampleRate, kActivationSmoothingTimeSeconds);
+  mSampleRate = sampleRate > 0.0 ? sampleRate : dsp::kDefaultSampleRate;
+  mAmountSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kAmountSmoothingTimeSeconds);
+  mActivationSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kActivationSmoothingTimeSeconds);
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mTargetActiveMix = 0.0;
@@ -170,7 +133,7 @@ double effects::Tone::ComputeTrimForAmount(double amount) const
   {
     const double frequencyT = (static_cast<double>(probeIndex) + 0.5) / static_cast<double>(kTrimProbeCount);
     const double probeFrequencyHz = 20.0 * std::pow(maxFrequencyHz / 20.0, frequencyT);
-    const double angularFrequency = (2.0 * kPi * probeFrequencyHz) / mSampleRate;
+    const double angularFrequency = (2.0 * dsp::kPi * probeFrequencyHz) / mSampleRate;
     const std::complex<double> response = EvaluateTiltResponse(bandGains, angularFrequency);
     const double magnitude = std::abs(response);
     magnitudeSquareSum += magnitude * magnitude;
@@ -213,7 +176,8 @@ void effects::Tone::UpdateCrossoverCoefficients()
 {
   for(std::size_t index = 0; index < mCrossoverCoefficients.size(); ++index)
   {
-    mCrossoverCoefficients[index] = CutoffHzToCoefficient(mSampleRate, kCrossoverFrequenciesHz[index]);
+    mCrossoverCoefficients[index] =
+      dsp::CutoffHzToCoefficient(mSampleRate, kCrossoverFrequenciesHz[index], 20.0, 0.45);
   }
 }
 
@@ -242,7 +206,7 @@ double effects::Tone::ProcessTiltedSample(ChannelState& channel,
   }
 
   tilted += parameters.bandGains.back() * (input - previousLow);
-  return FlushDenormal(parameters.trim * tilted);
+  return dsp::FlushDenormal(parameters.trim * tilted);
 }
 
 void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
@@ -252,8 +216,9 @@ void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
 
   for(int frame = 0; frame < nFrames; ++frame)
   {
-    mCurrentAmount = SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
-    mCurrentActiveMix = SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
+    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    mCurrentActiveMix =
+      dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
     const Parameters parameters = ComputeParameters(mCurrentAmount);
     const double activeMix = mCurrentActiveMix;
 
@@ -263,7 +228,7 @@ void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
       const double input = outputs[channelIndex][frame];
       const double toned = ProcessTiltedSample(channel, input, parameters);
       const double output = input + (activeMix * (toned - input));
-      outputs[channelIndex][frame] = static_cast<iplug::sample>(FlushDenormal(output));
+      outputs[channelIndex][frame] = static_cast<iplug::sample>(dsp::FlushDenormal(output));
     }
   }
 

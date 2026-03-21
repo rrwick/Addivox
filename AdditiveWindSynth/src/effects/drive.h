@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IPlugConstants.h"
+#include "shared.h"
 
 #include <array>
 #include <cassert>
@@ -26,15 +27,7 @@ private:
   static constexpr int kOversamplingFactor = 4;
   static constexpr int kFirstStageNumCoefs = 12;
   static constexpr int kSecondStageNumCoefs = 4;
-
-  struct OnePoleLowpass
-  {
-    void Clear();
-    double Process(double input);
-
-    double coefficient{1.0};
-    double state{0.0};
-  };
+  using OnePoleLowpass = shared::OnePoleLowpass;
 
   struct DCBlocker
   {
@@ -70,10 +63,6 @@ private:
     double toneCoefficient{1.0};
   };
 
-  static double FlushDenormal(double value);
-  static double SmoothValue(double current, double target, double coefficient);
-  static double ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds);
-  static double CutoffHzToCoefficient(double sampleRate, double cutoffHz);
   static double DCBlockerCoefficient(double sampleRate, double cutoffHz);
   static double StableLogCosh(double value);
 

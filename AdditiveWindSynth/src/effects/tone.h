@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IPlugConstants.h"
+#include "shared.h"
 
 #include <array>
 #include <complex>
@@ -22,15 +23,7 @@ private:
   static constexpr int kNumBands = kNumCrossovers + 1;
   static constexpr int kTrimTableSize = 257;
   using BandGains = std::array<double, kNumBands>;
-
-  struct OnePoleLowpass
-  {
-    void Clear();
-    double Process(double input);
-
-    double coefficient{1.0};
-    double state{0.0};
-  };
+  using OnePoleLowpass = shared::OnePoleLowpass;
 
   struct ChannelState
   {
@@ -43,11 +36,7 @@ private:
     double trim{1.0};
   };
 
-  static double FlushDenormal(double value);
-  static double SmoothValue(double current, double target, double coefficient);
-  static double ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds);
   static double ShapeAmount(double amount);
-  static double CutoffHzToCoefficient(double sampleRate, double cutoffHz);
   static double DbToLinear(double decibels);
   static std::complex<double> EvaluateLowpassResponse(double coefficient, double angularFrequency);
   static BandGains ComputeBandGains(double amount);

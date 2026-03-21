@@ -1,10 +1,10 @@
 #pragma once
 
 #include "IPlugConstants.h"
+#include "shared.h"
 
 #include <array>
 #include <cstdint>
-#include <vector>
 
 namespace effects
 {
@@ -19,35 +19,9 @@ public:
 
 private:
   static constexpr int kNumVoices = 8;
-
-  struct DelayLine
-  {
-    void Resize(int size);
-    void Clear();
-    void Write(double input);
-    double Read(double delaySamples) const;
-
-    std::vector<double> buffer;
-    int writeIndex{0};
-  };
-
-  struct OnePoleLowpass
-  {
-    void Clear();
-    double Process(double input);
-
-    double coefficient{1.0};
-    double state{0.0};
-  };
-
-  struct OnePoleHighpass
-  {
-    void Clear();
-    double Process(double input);
-
-    double coefficient{1.0};
-    double lowState{0.0};
-  };
+  using DelayLine = shared::DelayLine;
+  using OnePoleLowpass = shared::OnePoleLowpass;
+  using OnePoleHighpass = shared::OnePoleHighpass;
 
   struct VoiceState
   {

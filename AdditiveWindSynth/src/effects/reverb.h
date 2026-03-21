@@ -1,9 +1,9 @@
 #pragma once
 
 #include "IPlugConstants.h"
+#include "shared.h"
 
 #include <array>
-#include <vector>
 
 namespace effects
 {
@@ -22,37 +22,9 @@ private:
   static constexpr int kNumDelayLines = 8;
   static constexpr int kNumTailDiffusers = 2;
   static constexpr int kNumLateDiffuserStages = 2;
-
-  struct DelayLine
-  {
-    void Resize(int size);
-    void Clear();
-    void Write(double input);
-    double Read(double delaySamples) const;
-
-    std::vector<double> buffer;
-    int writeIndex{0};
-  };
-
-  struct OnePoleLowpass
-  {
-    void SetCutoffHz(double sampleRate, double cutoffHz);
-    void Clear();
-    double Process(double input);
-
-    double coefficient{1.0};
-    double state{0.0};
-  };
-
-  struct OnePoleHighpass
-  {
-    void SetCutoffHz(double sampleRate, double cutoffHz);
-    void Clear();
-    double Process(double input);
-
-    double coefficient{1.0};
-    double lowState{0.0};
-  };
+  using DelayLine = shared::DelayLine;
+  using OnePoleLowpass = shared::OnePoleLowpass;
+  using OnePoleHighpass = shared::OnePoleHighpass;
 
   struct AllpassDiffuser
   {
@@ -74,7 +46,6 @@ private:
   using DelayLineArray = std::array<DelayLine, kNumDelayLines>;
   using FilterArray = std::array<OnePoleLowpass, kNumDelayLines>;
 
-  static double MillisecondsToSamples(double milliseconds, double sampleRate);
   void UpdateTargetParameters();
   void SnapCurrentParametersToTargets(bool startWetAtZero);
 

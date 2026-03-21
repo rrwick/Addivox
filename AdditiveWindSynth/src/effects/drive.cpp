@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <cmath>
 
+namespace dsp = effects::shared;
+
 namespace
 {
-constexpr double kPi = 3.14159265358979323846;
-constexpr double kDenormalFloor = 1.0e-18;
 constexpr double kBypassThreshold = 1.0e-6;
 constexpr double kAdaaDeltaThreshold = 1.0e-4;
 constexpr double kLogTwo = 0.69314718055994530942;
@@ -39,51 +39,17 @@ constexpr std::array<double, 4> kOversamplingCoefs4x{
 };
 } // namespace
 
-double effects::Drive::FlushDenormal(double value)
-{
-  return std::abs(value) < kDenormalFloor ? 0.0 : value;
-}
-
-double effects::Drive::SmoothValue(double current, double target, double coefficient)
-{
-  return current + (coefficient * (target - current));
-}
-
-double effects::Drive::ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds)
-{
-  return 1.0 - std::exp(-1.0 / (sampleRate * timeSeconds));
-}
-
-double effects::Drive::CutoffHzToCoefficient(double sampleRate, double cutoffHz)
-{
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
-  const double safeCutoff = std::clamp(cutoffHz, kMinimumCutoffHz, kMaximumCutoffScale * safeSampleRate);
-  return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
-}
-
 double effects::Drive::DCBlockerCoefficient(double sampleRate, double cutoffHz)
 {
   const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
   const double safeCutoff = std::clamp(cutoffHz, kMinimumCutoffHz, kMaximumCutoffScale * safeSampleRate);
-  return std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
+  return std::exp((-2.0 * dsp::kPi * safeCutoff) / safeSampleRate);
 }
 
 double effects::Drive::StableLogCosh(double value)
 {
   const double magnitude = std::abs(value);
   return magnitude + std::log1p(std::exp(-2.0 * magnitude)) - kLogTwo;
-}
-
-void effects::Drive::OnePoleLowpass::Clear()
-{
-  state = 0.0;
-}
-
-double effects::Drive::OnePoleLowpass::Process(double input)
-{
-  state += coefficient * (input - state);
-  state = Drive::FlushDenormal(state);
-  return state;
 }
 
 void effects::Drive::DCBlocker::Clear()
@@ -96,7 +62,7 @@ double effects::Drive::DCBlocker::Process(double input)
 {
   const double output = (input - previousInput) + (coefficient * previousOutput);
   previousInput = input;
-  previousOutput = Drive::FlushDenormal(output);
+  previousOutput = dsp::FlushDenormal(output);
   return previousOutput;
 }
 
@@ -107,8 +73,9 @@ void effects::Drive::Reset(double sampleRate, int blockSize)
   const double baseSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
 
   mOversampledRate = baseSampleRate * static_cast<double>(kOversamplingFactor);
-  mAmountSmoothingCoefficient = ExponentialSmoothingCoefficient(baseSampleRate, kAmountSmoothingTimeSeconds);
-  mActivationSmoothingCoefficient = ExponentialSmoothingCoefficient(baseSampleRate, kActivationSmoothingTimeSeconds);
+  mAmountSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(baseSampleRate, kAmountSmoothingTimeSeconds);
+  mActivationSmoothingCoefficient =
+    dsp::ExponentialSmoothingCoefficient(baseSampleRate, kActivationSmoothingTimeSeconds);
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mTargetActiveMix = 0.0;
@@ -134,7 +101,7 @@ void effects::Drive::Clear()
     channel.inputDcBlocker.Clear();
     channel.outputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, kOutputDcCutoffHz);
     channel.outputDcBlocker.Clear();
-    channel.toneFilter.coefficient = CutoffHzToCoefficient(mOversampledRate, kInitialToneCutoffHz);
+    channel.toneFilter.coefficient = dsp::CutoffHzToCoefficient(mOversampledRate, kInitialToneCutoffHz);
     channel.toneFilter.Clear();
     channel.upsampler2x.clear_buffers();
     channel.upsampler4x.clear_buffers();
@@ -174,7 +141,7 @@ effects::Drive::Parameters effects::Drive::ComputeParameters(double amount) cons
   parameters.biasOffset = std::tanh(drive * bias);
   parameters.inverseDrive = 1.0 / drive;
   parameters.trim = std::pow(drive, -0.20);
-  parameters.toneCoefficient = CutoffHzToCoefficient(mOversampledRate, 19000.0 - (14000.0 * t));
+  parameters.toneCoefficient = dsp::CutoffHzToCoefficient(mOversampledRate, 19000.0 - (14000.0 * t));
   return parameters;
 }
 
@@ -228,7 +195,7 @@ double effects::Drive::ProcessOversampledSample(std::size_t channelIndex, double
   const double saturated = EvaluateShaperAdaa(channel, filteredInput, parameters);
   const double softened = channel.toneFilter.Process(saturated);
   const double processed = channel.outputDcBlocker.Process(softened * parameters.trim);
-  return FlushDenormal(input + (parameters.blend * (processed - input)));
+  return dsp::FlushDenormal(input + (parameters.blend * (processed - input)));
 }
 
 void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
@@ -238,8 +205,9 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
 
   for(int frame = 0; frame < nFrames; ++frame)
   {
-    mCurrentAmount = SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
-    mCurrentActiveMix = SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
+    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    mCurrentActiveMix =
+      dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
     const Parameters parameters = ComputeParameters(mCurrentAmount);
     const double activeMix = mCurrentActiveMix;
 
@@ -264,7 +232,7 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
       downsampled2x[1] = channel.downsampler4x.process_sample(upsampled4x.data() + 2);
       const double processed = channel.downsampler2x.process_sample(downsampled2x.data());
       const double output = input + (activeMix * (processed - input));
-      outputs[channelIndex][frame] = static_cast<iplug::sample>(FlushDenormal(output));
+      outputs[channelIndex][frame] = static_cast<iplug::sample>(dsp::FlushDenormal(output));
     }
   }
 
