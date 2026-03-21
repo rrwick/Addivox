@@ -18,7 +18,7 @@ public:
   void ProcessBlock(iplug::sample** outputs, int nFrames);
 
 private:
-  static constexpr int kNumVoices = 4;
+  static constexpr int kNumVoices = 8;
 
   struct DelayLine
   {
@@ -57,10 +57,24 @@ private:
     uint32_t modSeed{0u};
   };
 
+  struct Parameters
+  {
+    double wetMix{0.0};
+    double baseDelaySamples{0.0};
+    double depthSamples{0.0};
+    double width{0.0};
+    double rateScale{0.0};
+    double toneCoefficient{1.0};
+    std::array<double, kNumVoices> voiceLevels{};
+    double voiceMixScale{0.0};
+  };
+
   static double MillisecondsToSamples(double milliseconds, double sampleRate);
   static double FlushDenormal(double value);
   static double SmoothValue(double current, double target, double coefficient);
   static double CutoffHzToCoefficient(double sampleRate, double cutoffHz);
+  static double ComputeVoiceLevel(double knob, int voiceIndex);
+  static double ComputeVoiceMixScale(const std::array<double, kNumVoices>& voiceLevels);
   static double Quintic(double t);
   static uint32_t HashUint32(uint32_t x);
   static double HashToSignedUnitFloat(uint32_t x);
@@ -68,6 +82,7 @@ private:
   static std::array<double, 2> PanToGains(double pan);
 
   void InitializeVoiceStates();
+  Parameters ComputeParameters(double amount) const;
 
   double mSampleRate{44100.0};
   double mTargetAmount{0.0};
