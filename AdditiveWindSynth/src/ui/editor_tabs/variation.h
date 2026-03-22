@@ -48,15 +48,15 @@ inline bool ApplyVariationShape(SimplePreset& preset, OscillatorParameter parame
 inline bool ApplyVariationAction(SimplePreset& preset, OscillatorParameter parameter, const char* actionName)
 {
   if(std::strcmp(actionName, "scale up all") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 1.1, 0.0, 10.0);
+    return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, 0.0, 10.0);
   if(std::strcmp(actionName, "scale down all") == 0)
     return preset.ScaleOscillatorParameterAll(parameter, 0.9, 0.0, 10.0);
   if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 1.1, 0.0, 10.0);
+    return preset.ScaleOscillatorParameterEven(parameter, 1.111111111111111, 0.0, 10.0);
   if(std::strcmp(actionName, "scale down even") == 0)
     return preset.ScaleOscillatorParameterEven(parameter, 0.9, 0.0, 10.0);
   if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 1.1, 0.0, 10.0);
+    return preset.ScaleOscillatorParameterOdd(parameter, 1.111111111111111, 0.0, 10.0);
   if(std::strcmp(actionName, "scale down odd") == 0)
     return preset.ScaleOscillatorParameterOdd(parameter, 0.9, 0.0, 10.0);
 

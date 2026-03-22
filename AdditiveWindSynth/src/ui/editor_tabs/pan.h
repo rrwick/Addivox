@@ -68,15 +68,15 @@ inline bool ApplyPanAction(SimplePreset& preset, const char* actionName)
   constexpr double kPanMax = 1.0;
 
   if(std::strcmp(actionName, "scale up all") == 0)
-    return preset.ScaleOscillatorParameterAll(OscillatorParameter::pan, 1.1, kPanMin, kPanMax);
+    return preset.ScaleOscillatorParameterAll(OscillatorParameter::pan, 1.111111111111111, kPanMin, kPanMax);
   if(std::strcmp(actionName, "scale down all") == 0)
     return preset.ScaleOscillatorParameterAll(OscillatorParameter::pan, 0.9, kPanMin, kPanMax);
   if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleOscillatorParameterEven(OscillatorParameter::pan, 1.1, kPanMin, kPanMax);
+    return preset.ScaleOscillatorParameterEven(OscillatorParameter::pan, 1.111111111111111, kPanMin, kPanMax);
   if(std::strcmp(actionName, "scale down even") == 0)
     return preset.ScaleOscillatorParameterEven(OscillatorParameter::pan, 0.9, kPanMin, kPanMax);
   if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pan, 1.1, kPanMin, kPanMax);
+    return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pan, 1.111111111111111, kPanMin, kPanMax);
   if(std::strcmp(actionName, "scale down odd") == 0)
     return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pan, 0.9, kPanMin, kPanMax);
   if(std::strcmp(actionName, "zero even") == 0)

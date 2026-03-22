@@ -223,7 +223,7 @@ bool SimplePreset::ApplyIntensityTopTaper()
 
 bool SimplePreset::ScaleIntensityUp()
 {
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 1.1, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, std::numeric_limits<double>::infinity());
 }
 
 bool SimplePreset::ScaleIntensityDown()
@@ -233,7 +233,7 @@ bool SimplePreset::ScaleIntensityDown()
 
 bool SimplePreset::ScaleIntensityUpEven()
 {
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 1.1, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, std::numeric_limits<double>::infinity());
 }
 
 bool SimplePreset::ScaleIntensityDownEven()
@@ -243,7 +243,7 @@ bool SimplePreset::ScaleIntensityDownEven()
 
 bool SimplePreset::ScaleIntensityUpOdd()
 {
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 1.1, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, std::numeric_limits<double>::infinity());
 }
 
 bool SimplePreset::ScaleIntensityDownOdd()
@@ -286,7 +286,7 @@ bool SimplePreset::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter par
 
 bool SimplePreset::ScaleBreathPowerUp()
 {
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::breath_power, 1.1, kBreathPowerMin, kBreathPowerMax);
+  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::breath_power, 1.111111111111111, kBreathPowerMin, kBreathPowerMax);
 }
 
 bool SimplePreset::ScaleBreathPowerDown()
@@ -296,7 +296,7 @@ bool SimplePreset::ScaleBreathPowerDown()
 
 bool SimplePreset::ScaleBreathPowerUpEven()
 {
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::breath_power, 1.1, kBreathPowerMin, kBreathPowerMax);
+  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::breath_power, 1.111111111111111, kBreathPowerMin, kBreathPowerMax);
 }
 
 bool SimplePreset::ScaleBreathPowerDownEven()
@@ -306,7 +306,7 @@ bool SimplePreset::ScaleBreathPowerDownEven()
 
 bool SimplePreset::ScaleBreathPowerUpOdd()
 {
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::breath_power, 1.1, kBreathPowerMin, kBreathPowerMax);
+  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::breath_power, 1.111111111111111, kBreathPowerMin, kBreathPowerMax);
 }
 
 bool SimplePreset::ScaleBreathPowerDownOdd()

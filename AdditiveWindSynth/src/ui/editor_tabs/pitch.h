@@ -58,15 +58,15 @@ inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName)
   constexpr double kPitchMax = 100.0;
 
   if(std::strcmp(actionName, "scale up all") == 0)
-    return preset.ScaleOscillatorParameterAll(OscillatorParameter::pitch, 1.1, kPitchMin, kPitchMax);
+    return preset.ScaleOscillatorParameterAll(OscillatorParameter::pitch, 1.111111111111111, kPitchMin, kPitchMax);
   if(std::strcmp(actionName, "scale down all") == 0)
     return preset.ScaleOscillatorParameterAll(OscillatorParameter::pitch, 0.9, kPitchMin, kPitchMax);
   if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleOscillatorParameterEven(OscillatorParameter::pitch, 1.1, kPitchMin, kPitchMax);
+    return preset.ScaleOscillatorParameterEven(OscillatorParameter::pitch, 1.111111111111111, kPitchMin, kPitchMax);
   if(std::strcmp(actionName, "scale down even") == 0)
     return preset.ScaleOscillatorParameterEven(OscillatorParameter::pitch, 0.9, kPitchMin, kPitchMax);
   if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pitch, 1.1, kPitchMin, kPitchMax);
+    return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pitch, 1.111111111111111, kPitchMin, kPitchMax);
   if(std::strcmp(actionName, "scale down odd") == 0)
     return preset.ScaleOscillatorParameterOdd(OscillatorParameter::pitch, 0.9, kPitchMin, kPitchMax);
   if(std::strcmp(actionName, "zero even") == 0)
