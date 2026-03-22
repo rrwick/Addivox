@@ -251,6 +251,7 @@ struct AttackReleaseTabRefs
 struct EqTabRefs
 {
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
+  std::shared_ptr<ActionSelectionControl*> actionsControl;
   std::shared_ptr<IVToggleControl*> allKeyNotesToggle;
   std::shared_ptr<IVButtonControl*> restoreButton;
   std::shared_ptr<EqEditorControl*> editorControl;
@@ -620,6 +621,7 @@ struct EditorContext
       }
 
       SetDisabledState(*eqTab.setShapeControl, true);
+      SetDisabledState(*eqTab.actionsControl, true);
       if(eqTab.allKeyNotesToggle && *eqTab.allKeyNotesToggle)
       {
         (*eqTab.allKeyNotesToggle)->SetValue(IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
@@ -652,6 +654,7 @@ struct EditorContext
     for(auto* control : *attackReleaseTab.actionsControls)
       SetDisabledState(control, !editable);
     SetDisabledState(*eqTab.setShapeControl, !editable);
+    SetDisabledState(*eqTab.actionsControl, !editable);
 
     for(const auto& descriptor : GetOscillatorTabDescriptors())
     {

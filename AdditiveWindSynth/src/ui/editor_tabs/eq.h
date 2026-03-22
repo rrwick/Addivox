@@ -84,9 +84,61 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName)
   return {};
 }
 
+inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
+{
+  if(!actionName)
+    return false;
+
+  const auto& points = curve.GetPoints();
+  if(points.empty())
+    return false;
+
+  EqCurve::PointList updatedPoints = points;
+
+  if(std::strcmp(actionName, "normalise") == 0)
+  {
+    double meanDb = 0.0;
+    for(const auto& point : updatedPoints)
+      meanDb += point.gainDb;
+
+    meanDb /= static_cast<double>(updatedPoints.size());
+    for(auto& point : updatedPoints)
+      point.gainDb -= meanDb;
+
+    curve.SetPoints(std::move(updatedPoints));
+    return true;
+  }
+
+  if(std::strcmp(actionName, "scale up") == 0 || std::strcmp(actionName, "scale down") == 0)
+  {
+    const double scale = (std::strcmp(actionName, "scale up") == 0) ? 1.111111111111111 : 0.9;
+    for(auto& point : updatedPoints)
+      point.gainDb *= scale;
+
+    curve.SetPoints(std::move(updatedPoints));
+    return true;
+  }
+
+  if(std::strcmp(actionName, "shift right") == 0 || std::strcmp(actionName, "shift left") == 0)
+  {
+    constexpr double kShiftRatio = 1.189207115002721; // Quarter-octave in log-frequency space.
+    const double frequencyScale = (std::strcmp(actionName, "shift right") == 0)
+      ? kShiftRatio
+      : (1.0 / kShiftRatio);
+
+    for(auto& point : updatedPoints)
+      point.frequencyHz *= frequencyScale;
+
+    curve.SetPoints(std::move(updatedPoints));
+    return true;
+  }
+
+  return false;
+}
+
 inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 7)
+  if(pTab->NChildren() < 9)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -127,7 +179,14 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
     allKeyNotesToggleBounds.T,
     rowR,
     allKeyNotesToggleBounds.B);
-  const float setShapeTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
+  const float actionsTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
+  auto actionsBounds = IRECT(rowL, actionsTop, rowR, actionsTop + kControlHeight);
+  auto actionsLabelBounds = IRECT(
+    rowL,
+    actionsBounds.T - kTightGap - kLabelHeight,
+    rowR,
+    actionsBounds.T - kTightGap);
+  const float setShapeTop = actionsLabelBounds.T - kGap - kControlHeight;
   auto setShapeBounds = IRECT(rowL, setShapeTop, rowR, setShapeTop + kControlHeight);
   auto setShapeLabelBounds = IRECT(
     rowL,
@@ -138,10 +197,12 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(0)->SetTargetAndDrawRECTs(titleBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeLabelBounds);
   pTab->GetChild(2)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(editorBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(editorBounds);
 }
 
 inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context,
@@ -241,6 +302,12 @@ inline void AttachEqTabChildren(IVTabPage* page,
     {"flat", "a", "e", "i", "o", "u"},
     styles.utilityDropdownText,
     styles.darkTab);
+  auto* actionsControl = new ActionSelectionControl(
+    IRECT(),
+    "run action",
+    {"normalise", "scale up", "scale down", "shift right", "shift left"},
+    styles.utilityDropdownText,
+    styles.darkTab);
   auto* editorControl = CreateEqEditorControl(context);
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
 
@@ -256,17 +323,31 @@ inline void AttachEqTabChildren(IVTabPage* page,
       });
   });
 
+  actionsControl->SetOnSelection([context, editorControl](const char* selectedText) {
+    if(!selectedText)
+      return;
+
+    context->ApplyEqCurveActionToSelectedKeyNote(
+      editorControl,
+      [selectedText](EqCurve& curve) {
+        return ApplyEqAction(curve, selectedText);
+      });
+  });
+
   restoreButton->SetAnimationEndActionFunction([context](IControl* caller) {
     RestoreEqTabValues(context, caller);
   });
 
   *context->eqTab.setShapeControl = setShapeControl;
+  *context->eqTab.actionsControl = actionsControl;
   *context->eqTab.restoreButton = restoreButton;
   *context->eqTab.editorControl = editorControl;
 
   page->AddChildControl(CreateEqTabTitleControl(styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(setShapeControl);
+  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(actionsControl);
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);

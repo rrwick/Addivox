@@ -257,6 +257,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->attackReleaseTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
   context->attackReleaseTab.actionsControls->fill(nullptr);
   context->eqTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->eqTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->eqTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
   context->eqTab.restoreButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
