@@ -35,7 +35,7 @@ public:
   void Draw(IGraphics& g) override
   {
     constexpr float kCornerRadius = 7.f;
-    constexpr float kLabelAreaHeight = 18.f;
+    constexpr float kLabelAreaHeight = 13.f;
 
     g.FillRoundRect(plugin_ui::colour::visualizer::kBackground, mRECT, kCornerRadius, &mBlend);
     g.DrawRoundRect(plugin_ui::colour::visualizer::kFrame, mRECT, kCornerRadius, &mBlend, 1.f);
@@ -85,7 +85,7 @@ public:
 
     for(const auto& osc : mFrame.harmonics)
     {
-      if(osc.frequencyHz < kMinFrequencyHzX || osc.frequencyHz > kMaxFrequencyHzX || osc.level <= 0.f)
+      if(osc.frequencyHz < kMinDrawFrequencyHz || osc.frequencyHz > kMaxDrawFrequencyHz || osc.level <= 0.f)
         continue;
 
       const float clampedFrequencyHz = std::clamp(osc.frequencyHz, kMinFrequencyHzX, kMaxFrequencyHzX);
@@ -259,12 +259,9 @@ private:
 
   static bool IsMajorGridFrequency(float frequencyHz)
   {
-    for(float majorFrequency : kAxisLabelFrequenciesHz)
-    {
-      if(majorFrequency == frequencyHz)
-        return true;
-    }
-    return false;
+    // Returns true if the frequency is a power of 10.
+    const float log10 = std::log10(frequencyHz);
+    return std::fabs(log10 - std::round(log10)) < 0.01;
   }
 
   static void DrawFrequencyLabel(
@@ -288,13 +285,15 @@ private:
     g.DrawText(text, label, labelBounds, nullptr);
   }
 
-  static constexpr float kMinFrequencyHzX = 20.f;
-  static constexpr float kMaxFrequencyHzX = 20000.f;
+  static constexpr float kMinFrequencyHzX = 18.f;
+  static constexpr float kMaxFrequencyHzX = 22222.f;
+  static constexpr float kMinDrawFrequencyHz = kMinFrequencyHzX * 0.95f;
+  static constexpr float kMaxDrawFrequencyHz = kMaxFrequencyHzX * 1.05f;
   static constexpr float kMinFrequencyHzColor = 100.f;
   static constexpr float kMaxFrequencyHzColor = 10000.f;
   static constexpr float kCoreThicknessPx = 1.0f;
-  static constexpr std::array<float, 3> kAxisLabelFrequenciesHz{100.f, 1000.f, 10000.f};
-  static constexpr std::array<const char*, 3> kAxisLabelStrings{"100 Hz", "1 kHz", "10 kHz"};
+  static constexpr std::array<float, 13> kAxisLabelFrequenciesHz{20.f, 30.f, 50.f, 100.f, 200.f, 300.f, 500.f, 1000.f, 2000.f, 3000.f, 5000.f, 10000.f, 20000.f};
+  static constexpr std::array<const char*, 13> kAxisLabelStrings{"20 Hz", "30 Hz", "50 Hz", "100 Hz", "200 Hz", "300 Hz", "500 Hz", "1 kHz", "2 kHz", "3 kHz", "5 kHz", "10 kHz", "20 kHz"};
   static constexpr std::array<float, 4> kGlowThicknesses{12.f, 8.f, 5.f, 3.0f};
   static constexpr std::array<float, 4> kGlowOpacities{0.5f, 0.7f, 0.9f, 1.0f};
   static constexpr std::array<float, 4> kGlowBlendWeights{0.5f, 0.7f, 0.9f, 1.0f};

@@ -137,7 +137,7 @@ std::array<iplug::sample, 2> Oscillator::Process()
     mPhase -= std::floor(mPhase);
 
   // Deactivate oscillator if frequency is out of range - prevents aliasing
-  if(frequencyHz > 20000.0)
+  if(frequencyHz > mSampleRate * 0.5 || frequencyHz < kMinFrequencyHz)
     return {0.0, 0.0};
 
   return {
