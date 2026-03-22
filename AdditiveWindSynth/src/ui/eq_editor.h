@@ -213,21 +213,23 @@ private:
   static constexpr float kCurveThicknessPx = 2.0f;
   static constexpr float kMinPointSeparationNorm = 0.0025f;
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
-  static constexpr std::array<float, 17> kGridFrequenciesHz{
-    20.f, 30.f, 50.f, 70.f, 100.f, 200.f, 300.f, 500.f, 700.f,
-    1000.f, 2000.f, 3000.f, 5000.f, 7000.f, 10000.f, 15000.f, 20000.f};
-  static constexpr std::array<float, 9> kFrequencyLabelsHz{
-    20.f, 50.f, 100.f, 200.f, 500.f, 1000.f, 2000.f, 5000.f, 10000.f};
-  static constexpr std::array<const char*, 9> kFrequencyLabelStrings{
-    "20", "50", "100", "200", "500", "1k", "2k", "5k", "10k"};
+  static constexpr std::array<float, 28> kGridFrequenciesHz{
+    20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f, 90.f,
+    100.f, 200.f, 300.f, 400.f, 500.f, 600.f, 700.f, 800.f, 900.f,
+    1000.f, 2000.f, 3000.f, 4000.f, 5000.f, 6000.f, 7000.f, 8000.f, 9000.f,
+    10000.f, 20000.f};
+  static constexpr std::array<float, 13> kFrequencyLabelsHz{20.f, 30.f, 50.f, 100.f, 200.f, 300.f, 500.f, 1000.f, 2000.f, 3000.f, 5000.f, 10000.f, 20000.f};
+  static constexpr std::array<const char*, 13> kFrequencyLabelStrings{"20 Hz", "30 Hz", "50 Hz", "100 Hz", "200 Hz", "300 Hz", "500 Hz", "1 kHz", "2 kHz", "3 kHz", "5 kHz", "10 kHz", "20 kHz"};
+  
   static constexpr std::array<float, 5> kYAxisDbLabels{-24.f, -12.f, 0.f, 12.f, 24.f};
   static constexpr std::array<const char*, 5> kYAxisLabelStrings{
     "-24", "-12", "0", "+12", "+24"};
 
   static bool IsMajorGridFrequency(float frequencyHz)
   {
-    const float log10Frequency = std::log10(frequencyHz);
-    return std::fabs(log10Frequency - std::round(log10Frequency)) < 0.01f;
+    // Returns true if the frequency is a power of 10.
+    const float log10 = std::log10(frequencyHz);
+    return std::fabs(log10 - std::round(log10)) < 0.01;
   }
 
   static float NormalizedXFromFrequency(double frequencyHz)

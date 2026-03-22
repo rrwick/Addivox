@@ -19,7 +19,7 @@ public:
   using PointList = std::vector<EqPoint>;
 
   static constexpr double kMinFrequencyHz = 20.0;
-  static constexpr double kMaxFrequencyHz = 20000.0;
+  static constexpr double kMaxFrequencyHz = 22000.0;
   static constexpr double kMinGainDb = -24.0;
   static constexpr double kMaxGainDb = 24.0;
 
