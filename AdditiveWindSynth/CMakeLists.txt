@@ -19,6 +19,8 @@ iplug_add_plugin(${PROJECT_NAME}
     src/synth/voice.h
     src/synth/oscillator.cpp
     src/synth/oscillator.h
+    src/dsp/shared.h
+    src/dsp/gradient_noise.h
     src/visualizer/harmonic_visualizer_frame.h
     src/visualizer/harmonic_visualizer_sender.h
     src/visualizer/harmonic_visualizer_control.h

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IPlugConstants.h"
-#include "shared.h"
+#include "../dsp/shared.h"
 
 #include <array>
 #include <cassert>
@@ -27,7 +27,7 @@ private:
   static constexpr int kOversamplingFactor = 4;
   static constexpr int kFirstStageNumCoefs = 12;
   static constexpr int kSecondStageNumCoefs = 4;
-  using OnePoleLowpass = shared::OnePoleLowpass;
+  using OnePoleLowpass = dsp::OnePoleLowpass;
 
   struct DCBlocker
   {

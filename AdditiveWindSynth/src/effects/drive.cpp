@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <cmath>
 
-namespace dsp = effects::shared;
-
 namespace
 {
 constexpr double kBypassThreshold = 1.0e-6;

@@ -1,11 +1,12 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <vector>
 
-namespace effects::shared
+namespace dsp
 {
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kDefaultSampleRate = 44100.0;
@@ -28,6 +29,9 @@ inline double SmoothValue(double current, double target, double coefficient)
 
 inline double ExponentialSmoothingCoefficient(double sampleRate, double timeSeconds)
 {
+  if(sampleRate <= 0.0 || timeSeconds <= 0.0)
+    return 1.0;
+
   return 1.0 - std::exp(-1.0 / (sampleRate * timeSeconds));
 }
 
@@ -40,6 +44,13 @@ inline double CutoffHzToCoefficient(double sampleRate,
   const double safeSampleRate = sampleRate > 0.0 ? sampleRate : defaultSampleRate;
   const double safeCutoff = std::clamp(cutoffHz, minimumCutoffHz, maximumCutoffScale * safeSampleRate);
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
+}
+
+inline std::array<double, 2> PanToGains(double pan)
+{
+  const double clampedPan = std::clamp(pan, -1.0, 1.0);
+  const double angle = (clampedPan + 1.0) * (kPi * 0.25);
+  return {std::cos(angle), std::sin(angle)};
 }
 
 struct DelayLine
@@ -150,4 +161,4 @@ struct OnePoleHighpass
   double coefficient{1.0};
   double lowState{0.0};
 };
-} // namespace effects::shared
+} // namespace dsp

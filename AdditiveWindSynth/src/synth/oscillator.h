@@ -54,9 +54,6 @@ public:
   HarmonicVisualizerOscillator GetVisualizerState() const;
 
 private:
-  static constexpr double kPi = 3.14159265358979323846;
-  static constexpr double kTwoPi = 6.28318530717958647692;
-
   // Global DSP configuration.
   double mSampleRate = 44100.0;
 
@@ -85,7 +82,6 @@ private:
   double mReleaseRate = 1.0;  // one-pole per-sample release coefficient
   static constexpr double kLevelEpsilon = 0.00001;  // levels below this are considered silent
   void UpdateLevelRates();
-  static double TimeToRate(double timeSec, double sampleRate);
 
   // Oscillator phase accumulator. Output level is determined by the current phase and level. Phase
   // is advanced by an increment (determined by the current pitch) each sample. If no pitch
@@ -105,7 +101,6 @@ private:
   static constexpr double kPanSlewTimeSec = 0.02;  // time (seconds) for a pan to move by 1.0
   double mPanSlewPerSample = 1.0;  // pan change rate in pan units per sample
   void UpdatePanSlewRate();
-  static std::array<double, 2> PanToGains(double pan);
 
   // Variation controls and state.
   double mIntensityVariationAmplitude = 0.0;
@@ -126,9 +121,5 @@ private:
   // The shape of variation (intensity, pitch, pan) over time is determined by gradient noise, which
   // is a smooth random function that is similar to Perlin noise.
   uint32_t mVariationSeed = kDefaultVariationSeed;
-  static double GradientNoise1D(double position, uint32_t seed);
   static double VariationNoise(double amplitude, double rateHz, double position, uint32_t seed);
-  static double Quintic(double t);
-  static uint32_t HashUint32(uint32_t x);
-  static double HashToSignedUnitFloat(uint32_t x);
 };

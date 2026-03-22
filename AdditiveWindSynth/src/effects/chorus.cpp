@@ -1,9 +1,9 @@
 #include "chorus.h"
 
+#include "../dsp/gradient_noise.h"
+
 #include <algorithm>
 #include <cmath>
-
-namespace dsp = effects::shared;
 
 namespace
 {
@@ -80,47 +80,6 @@ double ComputeVoiceMixScale(const VoiceLevels& voiceLevels)
   return kWetNormalization * std::sqrt(kLegacyVoiceCount / sumSquares);
 }
 
-double Quintic(double t)
-{
-  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-}
-
-uint32_t HashUint32(uint32_t x)
-{
-  x ^= x >> 16;
-  x *= 0x7FEB352Du;
-  x ^= x >> 15;
-  x *= 0x846CA68Bu;
-  x ^= x >> 16;
-  return x;
-}
-
-double HashToSignedUnitFloat(uint32_t x)
-{
-  return (static_cast<double>(x) / 4294967295.0) * 2.0 - 1.0;
-}
-
-double GradientNoise1D(double position, uint32_t seed)
-{
-  const int lattice0 = static_cast<int>(std::floor(position));
-  const double t = position - static_cast<double>(lattice0);
-  const double fade = Quintic(t);
-
-  const double gradient0 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0) ^ seed));
-  const double gradient1 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0 + 1) ^ seed));
-  const double value0 = gradient0 * t;
-  const double value1 = gradient1 * (t - 1.0);
-  const double blended = value0 + ((value1 - value0) * fade);
-  return std::clamp(blended * 1.8, -1.0, 1.0);
-}
-
-std::array<double, 2> PanToGains(double pan)
-{
-  const double clampedPan = std::clamp(pan, -1.0, 1.0);
-  const double angle = (clampedPan + 1.0) * (dsp::kPi * 0.25);
-  return {std::cos(angle), std::sin(angle)};
-}
-
 ChorusParameters ComputeParameters(double amount, double sampleRate)
 {
   const double knob = std::clamp(amount * 0.01, 0.0, 1.0);  // convert from [0, 100] to [0, 1]
@@ -149,8 +108,7 @@ void effects::Chorus::InitializeVoiceStates()
     VoiceState& voice = mVoices[static_cast<std::size_t>(i)];
     const VoiceSetup& setup = kVoiceSetups[static_cast<std::size_t>(i)];
     voice.modSeed = setup.seed;
-    voice.modPosition =
-      (HashToSignedUnitFloat(voice.modSeed ^ 0xB8C9F52Du) + 1.0) * 100.0
+    voice.modPosition = (dsp::HashToSignedUnitFloat(voice.modSeed ^ 0xB8C9F52Du) + 1.0) * 100.0
       + (17.0 * static_cast<double>(i));
   }
 }
@@ -226,14 +184,14 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames)
       voice.modPosition += rateHz / mSampleRate;
       voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
 
-      const double noise = GradientNoise1D(voice.modPosition, voice.modSeed);
+      const double noise = dsp::GradientNoise1D(voice.modPosition, voice.modSeed);
       const double delaySamples = std::max(
         1.0,
         parameters.baseDelaySamples
           + dsp::MillisecondsToSamples(setup.delayOffsetMs, mSampleRate)
           + (parameters.depthSamples * noise));
       const double delayed = voice.toneFilter.Process(voice.delay.Read(delaySamples));
-      const auto panGains = PanToGains(setup.panPosition * parameters.width);
+      const auto panGains = dsp::PanToGains(setup.panPosition * parameters.width);
       const double voiceMix = voiceLevel * parameters.voiceMixScale;
 
       wetLeft += delayed * panGains[0] * voiceMix;

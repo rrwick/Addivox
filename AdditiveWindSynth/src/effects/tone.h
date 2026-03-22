@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IPlugConstants.h"
-#include "shared.h"
+#include "../dsp/shared.h"
 
 #include <array>
 #include <complex>
@@ -23,7 +23,7 @@ private:
   static constexpr int kNumBands = kNumCrossovers + 1;
   static constexpr int kTrimTableSize = 257;
   using BandGains = std::array<double, kNumBands>;
-  using OnePoleLowpass = shared::OnePoleLowpass;
+  using OnePoleLowpass = dsp::OnePoleLowpass;
 
   struct ChannelState
   {
@@ -49,7 +49,7 @@ private:
   void UpdateTrimTable();
   static double ProcessTiltedSample(ChannelState& channel, double input, const Parameters& parameters);
 
-  double mSampleRate{shared::kDefaultSampleRate};
+  double mSampleRate{dsp::kDefaultSampleRate};
   double mTargetAmount{0.0};
   double mCurrentAmount{0.0};
   double mTargetActiveMix{0.0};

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IPlugConstants.h"
-#include "shared.h"
+#include "../dsp/shared.h"
 
 #include <array>
 #include <cstdint>
@@ -19,9 +19,9 @@ public:
 
 private:
   static constexpr int kNumVoices = 8;
-  using DelayLine = shared::DelayLine;
-  using OnePoleLowpass = shared::OnePoleLowpass;
-  using OnePoleHighpass = shared::OnePoleHighpass;
+  using DelayLine = dsp::DelayLine;
+  using OnePoleLowpass = dsp::OnePoleLowpass;
+  using OnePoleHighpass = dsp::OnePoleHighpass;
 
   struct VoiceState
   {
@@ -33,7 +33,7 @@ private:
 
   void InitializeVoiceStates();
 
-  double mSampleRate{shared::kDefaultSampleRate};
+  double mSampleRate{dsp::kDefaultSampleRate};
   double mTargetAmount{0.0};
   double mCurrentAmount{0.0};
   bool mActive{false};

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IPlugConstants.h"
-#include "shared.h"
+#include "../dsp/shared.h"
 
 #include <array>
 
@@ -22,9 +22,9 @@ private:
   static constexpr int kNumDelayLines = 8;
   static constexpr int kNumTailDiffusers = 2;
   static constexpr int kNumLateDiffuserStages = 2;
-  using DelayLine = shared::DelayLine;
-  using OnePoleLowpass = shared::OnePoleLowpass;
-  using OnePoleHighpass = shared::OnePoleHighpass;
+  using DelayLine = dsp::DelayLine;
+  using OnePoleLowpass = dsp::OnePoleLowpass;
+  using OnePoleHighpass = dsp::OnePoleHighpass;
 
   struct AllpassDiffuser
   {
@@ -54,7 +54,7 @@ private:
   StereoPair ProcessLateReverb(double diffused, double side);
   void ClearLateDiffusers();
 
-  double mSampleRate{shared::kDefaultSampleRate};
+  double mSampleRate{dsp::kDefaultSampleRate};
   double mAmount{0.0};
   bool mActive{false};
   double mMixSmoothingCoefficient{1.0};

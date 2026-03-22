@@ -1,12 +1,15 @@
 #include "oscillator.h"
 
+#include "../dsp/gradient_noise.h"
+#include "../dsp/shared.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
 void Oscillator::SetSampleRate(double sampleRate)
 {
-  mSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
+  mSampleRate = (sampleRate > 0.0) ? sampleRate : dsp::kDefaultSampleRate;
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   UpdatePhaseIncrement(frequencyHz);
   UpdatePitchRate();
@@ -20,9 +23,9 @@ void Oscillator::SetVariationSeed(uint32_t seed)
   mVariationSeed = (seed != 0u) ? seed : kDefaultVariationSeed;
 
   // Give each variation stream its own deterministic starting point.
-  mIntensityVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0x68E31DA4u) + 1.0) * 100.0;
-  mPitchVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0xB5297A4Du) + 1.0) * 100.0;
-  mPanVariationPosition = (HashToSignedUnitFloat(mVariationSeed ^ 0x1B56C4E9u) + 1.0) * 100.0;
+  mIntensityVariationPosition = (dsp::HashToSignedUnitFloat(mVariationSeed ^ 0x68E31DA4u) + 1.0) * 100.0;
+  mPitchVariationPosition = (dsp::HashToSignedUnitFloat(mVariationSeed ^ 0xB5297A4Du) + 1.0) * 100.0;
+  mPanVariationPosition = (dsp::HashToSignedUnitFloat(mVariationSeed ^ 0x1B56C4E9u) + 1.0) * 100.0;
 
   UpdateVariationTargets();
 }
@@ -127,7 +130,7 @@ std::array<iplug::sample, 2> Oscillator::Process()
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
     mLevel = 0.0;
 
-  const iplug::sample out = static_cast<iplug::sample>(std::sin(kTwoPi * mPhase) * mLevel);
+  const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * mPhase) * mLevel);
 
   mPhase += mPhaseIncrement;
   if(mPhase >= 1.0)
@@ -176,8 +179,8 @@ void Oscillator::UpdatePitchRate()
 
 void Oscillator::UpdateLevelRates()
 {
-  mAttackRate = TimeToRate(mAttackTimeSec, mSampleRate);
-  mReleaseRate = TimeToRate(mReleaseTimeSec, mSampleRate);
+  mAttackRate = dsp::ExponentialSmoothingCoefficient(mSampleRate, mAttackTimeSec);
+  mReleaseRate = dsp::ExponentialSmoothingCoefficient(mSampleRate, mReleaseTimeSec);
 }
 
 void Oscillator::UpdatePanSlewRate()
@@ -217,7 +220,7 @@ void Oscillator::UpdateVariationTargets()
     mPanVariationPosition,
     mVariationSeed ^ 0xC29B3F4Bu);
   const double modulatedPan = std::clamp(mBasePan + mPanVariationAmplitude * panNoise, -1.0, 1.0);
-  const auto panGains = PanToGains(modulatedPan);
+  const auto panGains = dsp::PanToGains(modulatedPan);
   mTargetPanLeftGain = panGains[0];
   mTargetPanRightGain = panGains[1];
 }
@@ -233,63 +236,10 @@ void Oscillator::AdvanceVariationPositions(int numSamples)
   mPanVariationPosition += mPanVariationRateHz * deltaTimeSec;
 }
 
-double Oscillator::TimeToRate(double timeSec, double sampleRate)
-{
-  if(timeSec <= 0.0 || sampleRate <= 0.0)
-    return 1.0;
-
-  return 1.0 - std::exp(-1.0 / (timeSec * sampleRate));
-}
-
-std::array<double, 2> Oscillator::PanToGains(double pan)
-{
-  // Converts a pan value (-1.0 to 1.0) into left and right gain values using an equal-power pan
-  // law, which keeps perceived loudness stable across stereo position.
-  const double clampedPan = std::clamp(pan, -1.0, 1.0);
-  const double angle = (clampedPan + 1.0) * (kPi * 0.25);
-  return {std::cos(angle), std::sin(angle)};
-}
-
 double Oscillator::VariationNoise(double amplitude, double rateHz, double position, uint32_t seed)
 {
   if(amplitude <= 0.0 || rateHz <= 0.0)
     return 0.0;
 
-  return GradientNoise1D(position, seed);
-}
-
-double Oscillator::Quintic(double t)
-{
-  // Perlin fade curve for smooth interpolation.
-  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-}
-
-uint32_t Oscillator::HashUint32(uint32_t x)
-{
-  x ^= x >> 16;
-  x *= 0x7FEB352Du;
-  x ^= x >> 15;
-  x *= 0x846CA68Bu;
-  x ^= x >> 16;
-  return x;
-}
-
-double Oscillator::HashToSignedUnitFloat(uint32_t x)
-{
-  return (static_cast<double>(x) / 4294967295.0) * 2.0 - 1.0;
-}
-
-double Oscillator::GradientNoise1D(double position, uint32_t seed)
-{
-  const int lattice0 = static_cast<int>(std::floor(position));
-  const double t = position - static_cast<double>(lattice0);
-  const double fade = Quintic(t);
-
-  const double gradient0 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0) ^ seed));
-  const double gradient1 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice0 + 1) ^ seed));
-
-  const double value0 = gradient0 * t;
-  const double value1 = gradient1 * (t - 1.0);
-  const double blended = value0 + (value1 - value0) * fade;
-  return std::clamp(blended * 1.8, -1.0, 1.0);
+  return dsp::GradientNoise1D(position, seed);
 }
