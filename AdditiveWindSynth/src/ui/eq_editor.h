@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <functional>
 #include <limits>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -134,6 +136,9 @@ public:
         IRECT(x - 30.f, frequencyLabelBounds.T, x + 30.f, frequencyLabelBounds.B),
         nullptr);
     }
+
+    if(IsEditable())
+      DrawDraggedPointValueBubble(g, plotBounds);
   }
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override
@@ -144,6 +149,7 @@ public:
       return;
 
     mDraggedPointIndex = HitTestPoint(x, y);
+    SetDirty(false);
   }
 
   void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override
@@ -180,6 +186,7 @@ public:
   {
     IControl::OnMouseUp(x, y, mod);
     mDraggedPointIndex = kNoPointIndex;
+    SetDirty(false);
   }
 
   void OnMouseDblClick(float x, float y, const IMouseMod& mod) override
@@ -360,6 +367,103 @@ private:
       g.FillCircle(active ? colour::ui::kAccentSecondary : colour::ui::kAccentPrimary, x, y, radius, &mBlend);
       g.DrawCircle(colour::visualizer::kHarmonicCore, x, y, radius, &mBlend, 1.f);
     }
+  }
+
+  static std::string FormatFrequency(double frequencyHz)
+  {
+    std::array<char, 32> buffer{};
+    if(frequencyHz < 1000.0)
+    {
+      std::snprintf(
+        buffer.data(),
+        buffer.size(),
+        "%d Hz",
+        static_cast<int>(std::lround(frequencyHz)));
+    }
+    else
+    {
+      std::snprintf(
+        buffer.data(),
+        buffer.size(),
+        "%.3g kHz",
+        frequencyHz / 1000.0);
+    }
+
+    return std::string{buffer.data()};
+  }
+
+  static std::string FormatGainDb(double gainDb)
+  {
+    const double roundedGainDb = std::round(gainDb * 10.0) / 10.0;
+    const double normalizedGainDb = (std::abs(roundedGainDb) < 0.05) ? 0.0 : roundedGainDb;
+
+    std::array<char, 24> buffer{};
+    if(normalizedGainDb > 0.0)
+      std::snprintf(buffer.data(), buffer.size(), "+%.1f dB", normalizedGainDb);
+    else
+      std::snprintf(buffer.data(), buffer.size(), "%.1f dB", normalizedGainDb);
+
+    return std::string{buffer.data()};
+  }
+
+  void DrawDraggedPointValueBubble(IGraphics& g, const IRECT& plotBounds) const
+  {
+    if(mDraggedPointIndex == kNoPointIndex)
+      return;
+
+    if(mDraggedPointIndex < 0
+       || static_cast<std::size_t>(mDraggedPointIndex) >= mCurve.GetPoints().size())
+    {
+      return;
+    }
+
+    constexpr float kBubbleCornerRadius = 6.f;
+    constexpr float kBubblePaddingX = 8.f;
+    constexpr float kBubblePaddingY = 4.f;
+    constexpr float kBubblePointGap = 10.f;
+    constexpr float kBubbleOuterInset = 4.f;
+    constexpr float kBubbleLineGap = 2.f;
+
+    const auto& point = mCurve.GetPoints()[static_cast<std::size_t>(mDraggedPointIndex)];
+    const float pointX = XFromFrequency(point.frequencyHz, plotBounds);
+    const float pointY = YFromDb(point.gainDb, plotBounds);
+    const std::string frequencyLabel = FormatFrequency(point.frequencyHz);
+    const std::string gainLabel = FormatGainDb(point.gainDb);
+
+    const IText bubbleText{15.f, colour::ui::kValueText, "Roboto-Regular", EAlign::Center, EVAlign::Middle};
+
+    IRECT frequencyTextBounds;
+    IRECT gainTextBounds;
+    g.MeasureText(bubbleText, frequencyLabel.c_str(), frequencyTextBounds);
+    g.MeasureText(bubbleText, gainLabel.c_str(), gainTextBounds);
+
+    const float lineWidth = std::max({frequencyTextBounds.W(), gainTextBounds.W(), 1.f});
+    const float lineHeight = std::max({frequencyTextBounds.H(), gainTextBounds.H(), bubbleText.mSize});
+    const float bubbleWidth = lineWidth + (kBubblePaddingX * 2.f);
+    const float bubbleHeight = (lineHeight * 2.f) + kBubbleLineGap + (kBubblePaddingY * 2.f);
+    const float minBubbleL = plotBounds.L + kBubbleOuterInset;
+    const float maxBubbleL = plotBounds.R - kBubbleOuterInset - bubbleWidth;
+    const float bubbleL = std::clamp(pointX - (bubbleWidth * 0.5f), minBubbleL, maxBubbleL);
+    const float bubbleR = bubbleL + bubbleWidth;
+
+    float bubbleB = pointY - (kPointRadiusPx + kBubblePointGap);
+    float bubbleT = bubbleB - bubbleHeight;
+    if(bubbleT < plotBounds.T + kBubbleOuterInset)
+    {
+      bubbleT = pointY + kPointRadiusPx + kBubblePointGap;
+      bubbleB = bubbleT + bubbleHeight;
+    }
+
+    const IRECT bubbleBounds{bubbleL, bubbleT, bubbleR, bubbleB};
+    g.FillRoundRect(colour::editor::kUtilityBody, bubbleBounds, kBubbleCornerRadius, &mBlend);
+    g.DrawRoundRect(colour::ui::kControlFrame, bubbleBounds, kBubbleCornerRadius, &mBlend, 1.f);
+
+    const float contentTop = bubbleBounds.T + kBubblePaddingY;
+    const IRECT frequencyLineBounds{bubbleBounds.L + kBubblePaddingX, contentTop, bubbleBounds.R - kBubblePaddingX, contentTop + lineHeight};
+    const IRECT gainLineBounds{bubbleBounds.L + kBubblePaddingX, frequencyLineBounds.B + kBubbleLineGap, bubbleBounds.R - kBubblePaddingX, frequencyLineBounds.B + kBubbleLineGap + lineHeight};
+
+    g.DrawText(bubbleText, frequencyLabel.c_str(), frequencyLineBounds, nullptr);
+    g.DrawText(bubbleText, gainLabel.c_str(), gainLineBounds, nullptr);
   }
 
   int HitTestPoint(float x, float y) const
