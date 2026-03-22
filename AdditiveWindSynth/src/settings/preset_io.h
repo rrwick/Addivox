@@ -396,6 +396,38 @@ inline void AppendOscillatorParameterArray(std::ostringstream& stream,
   stream << "]\n";
 }
 
+inline void AppendDoubleArray(std::ostringstream& stream,
+                              std::string_view key,
+                              const std::vector<double>& values)
+{
+  stream << key << " = [";
+  for(std::size_t i = 0; i < values.size(); ++i)
+  {
+    stream << FormatDouble(values[i]);
+    if(i + 1 < values.size())
+      stream << ", ";
+  }
+
+  stream << "]\n";
+}
+
+inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve)
+{
+  std::vector<double> frequenciesHz;
+  std::vector<double> gainsDb;
+  frequenciesHz.reserve(curve.GetPoints().size());
+  gainsDb.reserve(curve.GetPoints().size());
+
+  for(const auto& point : curve.GetPoints())
+  {
+    frequenciesHz.push_back(point.frequencyHz);
+    gainsDb.push_back(point.gainDb);
+  }
+
+  AppendDoubleArray(stream, "eq_freq_hz", frequenciesHz);
+  AppendDoubleArray(stream, "eq_db", gainsDb);
+}
+
 inline std::string JoinPath(std::string_view lhs, std::string_view rhs)
 {
   if(lhs.empty())
@@ -644,6 +676,17 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
     stream << "]\n";
   }
 
+  if(document.compoundPreset.IsAllKeyNotesEqEnabled())
+  {
+    if(!wroteAllKeyNotes)
+    {
+      stream << "\n[all_key_notes]\n";
+      wroteAllKeyNotes = true;
+    }
+
+    detail::AppendEqCurveArrays(stream, document.compoundPreset.GetAllKeyNotesEqCurve());
+  }
+
   for(const auto& [midiNote, preset] : document.compoundPreset.GetKeyNotePresets())
   {
     stream << "\n[[key_notes]]\n";
@@ -655,6 +698,12 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
         continue;
 
       detail::AppendOscillatorParameterArray(stream, preset, descriptor);
+    }
+
+    if(!document.compoundPreset.IsAllKeyNotesEqEnabled())
+    {
+      if(const auto* eqCurve = document.compoundPreset.GetKeyNoteEqCurve(midiNote))
+        detail::AppendEqCurveArrays(stream, *eqCurve);
     }
   }
 
@@ -678,12 +727,24 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     int midiNote = 60;
     bool hasMidiNote = false;
     SimplePreset preset = detail::MakeDefaultKeyNotePreset();
+    bool hasEqFreqHz = false;
+    bool hasEqDb = false;
+    std::vector<double> eqFreqHz;
+    std::vector<double> eqDb;
   };
 
   struct ParsedAllKeyNotesParameter
   {
     bool present = false;
     CompoundPreset::OscillatorParameterValues values{};
+  };
+
+  struct ParsedEqCurve
+  {
+    bool hasFreqHz = false;
+    bool hasDb = false;
+    std::vector<double> freqHz;
+    std::vector<double> db;
   };
 
   const auto fail = [errorMessage](const std::string& message) {
@@ -697,6 +758,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   Section currentSection = Section::Root;
   std::vector<ParsedKeyNote> keyNotes;
   std::array<ParsedAllKeyNotesParameter, OscillatorSettings::kNumParameters> allKeyNotesParameters{};
+  ParsedEqCurve allKeyNotesEqCurve{};
   ParsedKeyNote* currentKeyNote = nullptr;
   bool sawFormatVersion = false;
 
@@ -766,6 +828,24 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
 
     if(section == Section::AllKeyNotes)
     {
+      if(key == "eq_freq_hz")
+      {
+        if(!detail::ParseDoubleArray(value, allKeyNotesEqCurve.freqHz))
+          return fail("Invalid EQ frequency array on line " + std::to_string(assignmentLine));
+
+        allKeyNotesEqCurve.hasFreqHz = true;
+        return true;
+      }
+
+      if(key == "eq_db")
+      {
+        if(!detail::ParseDoubleArray(value, allKeyNotesEqCurve.db))
+          return fail("Invalid EQ gain array on line " + std::to_string(assignmentLine));
+
+        allKeyNotesEqCurve.hasDb = true;
+        return true;
+      }
+
       const auto* descriptor = detail::FindOscillatorParameterDescriptor(key);
       if(!descriptor)
         return true;
@@ -813,6 +893,24 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
         std::string ignored;
         if(!detail::ParseQuotedString(value, ignored))
           return fail("Invalid note_name on line " + std::to_string(assignmentLine));
+        return true;
+      }
+
+      if(key == "eq_freq_hz")
+      {
+        if(!detail::ParseDoubleArray(value, keyNote->eqFreqHz))
+          return fail("Invalid EQ frequency array on line " + std::to_string(assignmentLine));
+
+        keyNote->hasEqFreqHz = true;
+        return true;
+      }
+
+      if(key == "eq_db")
+      {
+        if(!detail::ParseDoubleArray(value, keyNote->eqDb))
+          return fail("Invalid EQ gain array on line " + std::to_string(assignmentLine));
+
+        keyNote->hasEqDb = true;
         return true;
       }
 
@@ -935,11 +1033,46 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
 
   CompoundPreset compoundPreset;
   compoundPreset.ClearKeyNotePresets();
+  bool eqCurveBuildFailed = false;
+  const auto buildEqCurve = [&](const std::vector<double>& frequenciesHz,
+                                const std::vector<double>& gainsDb,
+                                const char* contextLabel) -> EqCurve {
+    if(frequenciesHz.size() != gainsDb.size())
+    {
+      eqCurveBuildFailed = true;
+      fail(
+        std::string{contextLabel}
+          + " EQ frequency and gain arrays must have the same length");
+      return {};
+    }
+
+    EqCurve::PointList points;
+    points.reserve(frequenciesHz.size());
+    for(std::size_t i = 0; i < frequenciesHz.size(); ++i)
+      points.push_back({frequenciesHz[i], gainsDb[i]});
+
+    return EqCurve{std::move(points)};
+  };
+
   for(const auto& keyNote : keyNotes)
   {
     if(!keyNote.hasMidiNote)
       return fail("Each [[key_notes]] table must define midi_note");
+
+    if(keyNote.hasEqFreqHz != keyNote.hasEqDb)
+      return fail("Each [[key_notes]] EQ definition must include both eq_freq_hz and eq_db");
+
     compoundPreset.SetKeyNotePreset(keyNote.midiNote, keyNote.preset);
+
+    if(keyNote.hasEqFreqHz)
+    {
+      const EqCurve eqCurve = buildEqCurve(keyNote.eqFreqHz, keyNote.eqDb, "[[key_notes]]");
+      if(eqCurveBuildFailed)
+        return false;
+
+      if(!compoundPreset.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
+        return fail("Could not apply EQ curve for midi_note " + std::to_string(keyNote.midiNote));
+    }
   }
 
   for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
@@ -947,6 +1080,18 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     const auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor.parameter)];
     if(parsedParameter.present)
       compoundPreset.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
+  }
+
+  if(allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb)
+    return fail("[all_key_notes] EQ definition must include both eq_freq_hz and eq_db");
+
+  if(allKeyNotesEqCurve.hasFreqHz)
+  {
+    const EqCurve eqCurve = buildEqCurve(allKeyNotesEqCurve.freqHz, allKeyNotesEqCurve.db, "[all_key_notes]");
+    if(eqCurveBuildFailed)
+      return false;
+
+    compoundPreset.EnableAllKeyNotesEq(eqCurve);
   }
 
   document.voiceSettings = global_settings::Sanitize(document.voiceSettings);

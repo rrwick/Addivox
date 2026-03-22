@@ -768,6 +768,41 @@ bool AdditiveWindSynth::OnMessage(int msgTag, int ctrlTag, int dataSize, const v
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetKeyNoteEqCurve
+    && dataSize > 0
+    && pData)
+  {
+    int midiNote = 0;
+    EqCurve curve;
+    if(!editor_messages::DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve))
+      return false;
+
+    return mDSP.SetKeyNoteEqCurve(midiNote, curve);
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetAllKeyNotesEnabled
+    && dataSize == sizeof(editor_messages::SetAllKeyNotesEnabledPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEnabledPayload*>(pData);
+    if(payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters)
+      return false;
+
+    const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    return mDSP.SetAllKeyNotesEnabled(parameter, payload->enabled != 0);
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetAllKeyNotesEqEnabled
+    && dataSize == sizeof(editor_messages::SetAllKeyNotesEqEnabledPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
+    return mDSP.SetAllKeyNotesEqEnabled(payload->enabled != 0);
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
     && msgTag == editor_messages::kMsgTagAddKeyNotePreset
     && dataSize == sizeof(editor_messages::KeyNotePresetPayload)
     && pData)

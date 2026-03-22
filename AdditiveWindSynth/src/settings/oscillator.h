@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "eq.h"
+
 #include <array>
 #include <initializer_list>
 #include <map>
@@ -150,11 +152,15 @@ public:
   const OscillatorSettings& GetOscillatorSettings(double midiNote, int oscillatorIndex) const;
   const SimplePreset& GetPresetForMidiNote(double midiNote) const;
   const SimplePreset* GetKeyNotePreset(double midiNote) const;
+  const EqCurve& GetEqCurveForMidiNote(double midiNote) const;
+  const EqCurve* GetKeyNoteEqCurve(double midiNote) const;
   const std::map<int, SimplePreset>& GetKeyNotePresets() const;
   bool HasKeyNotePreset(double midiNote) const;
   int GetNumKeyNotePresets() const;
   bool IsAllKeyNotesEnabled(OscillatorSettings::Parameter parameter) const;
   const OscillatorParameterValues& GetAllKeyNotesValues(OscillatorSettings::Parameter parameter) const;
+  bool IsAllKeyNotesEqEnabled() const;
+  const EqCurve& GetAllKeyNotesEqCurve() const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
   bool SetKeyNoteOscillatorParameter(double midiNote,
@@ -165,8 +171,11 @@ public:
     double midiNote,
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
+  bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
   void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled);
+  void EnableAllKeyNotesEq(const EqCurve& curve);
+  void SetAllKeyNotesEqEnabled(bool enabled);
   bool RemoveKeyNotePreset(int midiNote);
   void ClearKeyNotePresets();
 
@@ -178,10 +187,15 @@ private:
   void ApplyAllKeyNotesValues(SimplePreset& preset,
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
+  void ApplyAllKeyNotesEqCurve(EqCurve& curve) const;
   void RebuildInterpolatedPresets();
 
   std::map<int, SimplePreset> mKeyNotePresets{};
+  std::map<int, EqCurve> mKeyNoteEqCurves{};
   std::array<SimplePreset, kNumMidiNotes> mInterpolatedPresets{};
+  std::array<EqCurve, kNumMidiNotes> mInterpolatedEqCurves{};
   std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
   std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};
+  bool mAllKeyNotesEqEnabled{false};
+  EqCurve mAllKeyNotesEqCurve{};
 };

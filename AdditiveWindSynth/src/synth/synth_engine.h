@@ -125,6 +125,21 @@ public:
     return mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
   }
 
+  bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
+  {
+    return mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
+  }
+
+  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled)
+  {
+    return mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, enabled);
+  }
+
+  bool SetAllKeyNotesEqEnabled(bool enabled)
+  {
+    return mSynth.GetVoice().SetAllKeyNotesEqEnabled(enabled);
+  }
+
   bool AddKeyNotePreset(double midiNote)
   {
     return mSynth.GetVoice().AddKeyNotePreset(midiNote);

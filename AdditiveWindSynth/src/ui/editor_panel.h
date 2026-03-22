@@ -46,6 +46,8 @@ private:
   VisibilityChangedFunc mVisibilityChangedFunc{};
 };
 
+#include "editor_tabs/eq.h"
+
 namespace editor
 {
 inline const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors()
@@ -62,6 +64,11 @@ inline const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors()
     return result;
   }();
   return descriptors;
+}
+
+inline int GetEditorTabCount()
+{
+  return static_cast<int>(GetOscillatorTabDescriptors().size()) + 1;
 }
 
 inline void AttachDefaultTabChildren(IVTabPage* page,
@@ -165,7 +172,11 @@ inline PageMap CreateOscillatorTabPages(const std::shared_ptr<EditorContext>& co
 {
   PageMap pages;
   for(const auto& descriptor : GetOscillatorTabDescriptors())
+  {
     pages.insert({descriptor.title, CreateOscillatorTabPage(context, styles, descriptor)});
+    if(descriptor.parameter == OscillatorParameter::intensity)
+      pages.insert({kEqTabTitle, CreateEqTabPage(context, styles)});
+  }
   return pages;
 }
 
@@ -187,7 +198,7 @@ inline void RestoreSelectedTab(IVTabbedPagesControl* editorTabsControl, const st
       caller->GetUI()->UpdateTooltips();
   });
 
-  const int maxTabIndex = static_cast<int>(GetOscillatorTabDescriptors().size()) - 1;
+  const int maxTabIndex = GetEditorTabCount() - 1;
   *selectedTabIndex = std::clamp(*selectedTabIndex, 0, maxTabIndex);
   tabSwitch->SetValue(maxTabIndex > 0 ? static_cast<double>(*selectedTabIndex) / static_cast<double>(maxTabIndex) : 0.0);
 
@@ -245,6 +256,10 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->attackReleaseTab.setShapeControls->fill(nullptr);
   context->attackReleaseTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
   context->attackReleaseTab.actionsControls->fill(nullptr);
+  context->eqTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->eqTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
+  context->eqTab.restoreButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
   context->buttons.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->buttons.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   context->title.presetManagerControl = std::make_shared<IControl*>(nullptr);

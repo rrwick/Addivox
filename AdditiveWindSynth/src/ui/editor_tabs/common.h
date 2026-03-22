@@ -5,6 +5,7 @@
 #include "../help_text.h"
 #include "../action_selection_control.h"
 #include "../editor_state.h"
+#include "../eq_editor.h"
 #include "../oscillator_slider_control.h"
 #include "../theme.h"
 #include "../../editor_messages.h"
@@ -45,6 +46,7 @@ struct OscillatorTabDescriptor
 // makes the pointer order deterministic and match the desired tab order.
 inline constexpr char kOscillatorTabTitleStorage[] =
   "Level\0"
+  "EQ\0"
   "Breath\0"
   "Attack\0"
   "Release\0"
@@ -57,19 +59,21 @@ inline constexpr char kOscillatorTabTitleStorage[] =
   "PanVarAmt\0"
   "PanVarRate\0";
 
+inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 6;
+
 inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOscillatorTabTitles{{
   kOscillatorTabTitleStorage + 0,
-  kOscillatorTabTitleStorage + 6,
-  kOscillatorTabTitleStorage + 13,
-  kOscillatorTabTitleStorage + 20,
-  kOscillatorTabTitleStorage + 28,
-  kOscillatorTabTitleStorage + 34,
-  kOscillatorTabTitleStorage + 38,
-  kOscillatorTabTitleStorage + 48,
-  kOscillatorTabTitleStorage + 59,
-  kOscillatorTabTitleStorage + 69,
-  kOscillatorTabTitleStorage + 80,
-  kOscillatorTabTitleStorage + 90,
+  kOscillatorTabTitleStorage + 9,
+  kOscillatorTabTitleStorage + 16,
+  kOscillatorTabTitleStorage + 23,
+  kOscillatorTabTitleStorage + 31,
+  kOscillatorTabTitleStorage + 37,
+  kOscillatorTabTitleStorage + 41,
+  kOscillatorTabTitleStorage + 51,
+  kOscillatorTabTitleStorage + 62,
+  kOscillatorTabTitleStorage + 72,
+  kOscillatorTabTitleStorage + 83,
+  kOscillatorTabTitleStorage + 93,
 }};
 
 inline const char* GetLevelTransformLabel(EditorLevelTransform transform)
@@ -244,6 +248,14 @@ struct AttackReleaseTabRefs
   std::shared_ptr<std::array<ActionSelectionControl*, 2>> actionsControls;
 };
 
+struct EqTabRefs
+{
+  std::shared_ptr<ActionSelectionControl*> setShapeControl;
+  std::shared_ptr<IVToggleControl*> allKeyNotesToggle;
+  std::shared_ptr<IVButtonControl*> restoreButton;
+  std::shared_ptr<EqEditorControl*> editorControl;
+};
+
 struct OscillatorTabControlRefs
 {
   std::shared_ptr<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>> sliderControls;
@@ -275,6 +287,7 @@ struct EditorContext
   PanTabRefs panTab;
   VariationTabRefs variationTab;
   AttackReleaseTabRefs attackReleaseTab;
+  EqTabRefs eqTab;
   OscillatorTabControlRefs oscillatorTabControls;
   EditorButtonRefs buttons;
   TitleControlRefs title;
@@ -365,6 +378,9 @@ struct EditorContext
       if(control)
         control->ClearRestoreState();
     }
+
+    if(eqTab.editorControl && *eqTab.editorControl)
+      (*eqTab.editorControl)->ClearRestoreState();
   }
 
   bool IsAllKeyNotesEnabled(OscillatorParameter parameter) const
@@ -372,10 +388,28 @@ struct EditorContext
     return Preset().IsAllKeyNotesEnabled(parameter);
   }
 
+  bool IsAllKeyNotesEqEnabled() const
+  {
+    return Preset().IsAllKeyNotesEqEnabled();
+  }
+
   template <typename Action>
   void ForEachTargetKeyNote(OscillatorParameter parameter, int midiNote, Action&& action) const
   {
     if(IsAllKeyNotesEnabled(parameter))
+    {
+      for(const auto& [keyNoteMidi, _] : Preset().GetKeyNotePresets())
+        std::forward<Action>(action)(keyNoteMidi);
+      return;
+    }
+
+    std::forward<Action>(action)(midiNote);
+  }
+
+  template <typename Action>
+  void ForEachTargetEqKeyNote(int midiNote, Action&& action) const
+  {
+    if(IsAllKeyNotesEqEnabled())
     {
       for(const auto& [keyNoteMidi, _] : Preset().GetKeyNotePresets())
         std::forward<Action>(action)(keyNoteMidi);
@@ -452,6 +486,67 @@ struct EditorContext
     });
   }
 
+  void SendAllKeyNotesEnabledToDSP(IControl* sourceControl,
+                                   OscillatorParameter parameter,
+                                   bool enabled) const
+  {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      editor_messages::SetAllKeyNotesEnabledPayload payload;
+      payload.parameter = static_cast<int>(parameter);
+      payload.enabled = enabled ? 1 : 0;
+      delegate->SendArbitraryMsgFromUI(
+        editor_messages::kMsgTagSetAllKeyNotesEnabled,
+        editorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  }
+
+  void SendEqCurveToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const
+  {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      IByteChunk chunk;
+      editor_messages::SerializeKeyNoteEqCurvePayload(midiNote, curve, chunk);
+      delegate->SendArbitraryMsgFromUI(
+        editor_messages::kMsgTagSetKeyNoteEqCurve,
+        editorTabsTag,
+        chunk.Size(),
+        chunk.GetData());
+    }
+  }
+
+  void SendEqCurveEditToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const
+  {
+    ForEachTargetEqKeyNote(midiNote, [&](int targetMidiNote) {
+      SendEqCurveToDSP(sourceControl, targetMidiNote, curve);
+    });
+  }
+
+  void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const
+  {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      editor_messages::SetAllKeyNotesEqEnabledPayload payload;
+      payload.enabled = enabled ? 1 : 0;
+      delegate->SendArbitraryMsgFromUI(
+        editor_messages::kMsgTagSetAllKeyNotesEqEnabled,
+        editorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  }
+
   void SendKeyNotePresetEditToDSP(IControl* sourceControl, int msgTag, int midiNote) const
   {
     if(!sourceControl)
@@ -517,6 +612,21 @@ struct EditorContext
         SetDisabledState(control, true);
       for(auto* control : *attackReleaseTab.actionsControls)
         SetDisabledState(control, true);
+
+      if(eqTab.editorControl && *eqTab.editorControl)
+      {
+        (*eqTab.editorControl)->SetCurve(EqCurve{});
+        (*eqTab.editorControl)->SetEditable(false);
+      }
+
+      SetDisabledState(*eqTab.setShapeControl, true);
+      if(eqTab.allKeyNotesToggle && *eqTab.allKeyNotesToggle)
+      {
+        (*eqTab.allKeyNotesToggle)->SetValue(IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
+        (*eqTab.allKeyNotesToggle)->SetDirty(false);
+        SetDisabledState(*eqTab.allKeyNotesToggle, true);
+      }
+      SetDisabledState(*eqTab.restoreButton, true);
       return;
     }
 
@@ -541,6 +651,7 @@ struct EditorContext
       SetDisabledState(control, !editable);
     for(auto* control : *attackReleaseTab.actionsControls)
       SetDisabledState(control, !editable);
+    SetDisabledState(*eqTab.setShapeControl, !editable);
 
     for(const auto& descriptor : GetOscillatorTabDescriptors())
     {
@@ -570,6 +681,27 @@ struct EditorContext
       auto* restoreButton = (*oscillatorTabControls.restoreButtons)[static_cast<std::size_t>(descriptor.parameter)];
       SetDisabledState(restoreButton, !(editable && control->HasRestoreStateForMidiNote(midiNote)));
     }
+
+    if(eqTab.editorControl && *eqTab.editorControl)
+    {
+      const EqCurve* keyNoteEqCurve = Preset().GetKeyNoteEqCurve(midiNote);
+      (*eqTab.editorControl)->SetCurve(keyNoteEqCurve ? *keyNoteEqCurve : Preset().GetEqCurveForMidiNote(midiNote));
+      if(!(*eqTab.editorControl)->IsHidden() && !(*eqTab.editorControl)->HasRestoreStateForMidiNote(midiNote))
+        (*eqTab.editorControl)->CaptureRestoreState(midiNote);
+      (*eqTab.editorControl)->SetEditable(editable);
+      (*eqTab.editorControl)->SetDirty(false);
+    }
+
+    if(eqTab.allKeyNotesToggle && *eqTab.allKeyNotesToggle)
+    {
+      (*eqTab.allKeyNotesToggle)->SetValue(IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
+      (*eqTab.allKeyNotesToggle)->SetDirty(false);
+      SetDisabledState(*eqTab.allKeyNotesToggle, !editable);
+    }
+
+    SetDisabledState(
+      *eqTab.restoreButton,
+      !((*eqTab.editorControl) && editable && (*eqTab.editorControl)->HasRestoreStateForMidiNote(midiNote)));
   }
 
   template <typename Action>
@@ -597,6 +729,25 @@ struct EditorContext
       return;
 
     SendOscillatorParameterValuesEditToDSP(control, midiNote, parameter, values);
+    RefreshOscillatorTabs();
+  }
+
+  template <typename Action>
+  void ApplyEqCurveActionToSelectedKeyNote(EqEditorControl* control, Action&& action) const
+  {
+    const int midiNote = SelectedMidiNote();
+    const EqCurve* keyNoteEqCurve = Preset().GetKeyNoteEqCurve(midiNote);
+    if(!keyNoteEqCurve)
+      return;
+
+    EqCurve updatedCurve = *keyNoteEqCurve;
+    if(!std::forward<Action>(action)(updatedCurve))
+      return;
+
+    if(!Preset().SetKeyNoteEqCurve(midiNote, updatedCurve))
+      return;
+
+    SendEqCurveEditToDSP(control, midiNote, updatedCurve);
     RefreshOscillatorTabs();
   }
 };
@@ -638,9 +789,13 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
         const auto values = GetOscillatorParameterValues(*keyNotePreset, parameter);
         context->Preset().EnableAllKeyNotes(parameter, values);
         context->SendOscillatorParameterValuesEditToDSP(toggle, midiNote, parameter, values);
+        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, true);
       }
       else
+      {
         context->Preset().SetAllKeyNotesEnabled(parameter, false);
+        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, false);
+      }
 
       context->RefreshOscillatorTabs();
     },

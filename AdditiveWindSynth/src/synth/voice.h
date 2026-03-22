@@ -32,6 +32,9 @@ public:
     double midiNote,
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
+  bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
+  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled);
+  bool SetAllKeyNotesEqEnabled(bool enabled);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
@@ -43,6 +46,11 @@ private:
   void UpdateLevels();
   double GetPortamentoTimeSec() const;
   double SmoothBreath(double breath);
+  static double GetOscillatorBasePitchSemitones(int harmonic,
+                                                const OscillatorSettings& settings,
+                                                double fundamentalPitchSemitones,
+                                                const GlobalVoiceSettings& globalSettings);
+  static double PitchSemitonesToFrequencyHz(double pitchSemitones);
   void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;

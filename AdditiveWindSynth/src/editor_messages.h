@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <utility>
 
+#include "IPlugStructs.h"
 #include "settings/oscillator.h"
 
 namespace editor_messages
@@ -12,6 +14,9 @@ inline constexpr int kMsgTagRemoveKeyNotePreset = 1002;
 inline constexpr int kMsgTagSetKeyNoteOscillatorParameterValues = 1003;
 inline constexpr int kMsgTagPromptLoadPresetFromFile = 1004;
 inline constexpr int kMsgTagPromptSavePresetToFile = 1005;
+inline constexpr int kMsgTagSetKeyNoteEqCurve = 1006;
+inline constexpr int kMsgTagSetAllKeyNotesEnabled = 1007;
+inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
 
 struct SetKeyNoteOscillatorParameterPayload
 {
@@ -32,4 +37,71 @@ struct SetKeyNoteOscillatorParameterValuesPayload
   int parameter{0};
   std::array<double, SimplePreset::kNumOscillators> values{};
 };
+
+struct SetAllKeyNotesEnabledPayload
+{
+  int parameter{0};
+  int enabled{0};
+};
+
+struct SetAllKeyNotesEqEnabledPayload
+{
+  int enabled{0};
+};
+
+struct EqCurvePointPayload
+{
+  double frequencyHz{0.0};
+  double gainDb{0.0};
+};
+
+inline void SerializeKeyNoteEqCurvePayload(int midiNote, const EqCurve& curve, iplug::IByteChunk& chunk)
+{
+  chunk.Clear();
+  chunk.Put(&midiNote);
+  const int numPoints = static_cast<int>(curve.GetPoints().size());
+  chunk.Put(&numPoints);
+  for(const auto& point : curve.GetPoints())
+  {
+    const EqCurvePointPayload payload{point.frequencyHz, point.gainDb};
+    chunk.Put(&payload);
+  }
+}
+
+inline bool DeserializeKeyNoteEqCurvePayload(int dataSize,
+                                             const void* pData,
+                                             int& midiNote,
+                                             EqCurve& curve)
+{
+  if(dataSize < static_cast<int>(sizeof(int) * 2) || !pData)
+    return false;
+
+  iplug::IByteChunk chunk;
+  chunk.PutBytes(pData, dataSize);
+
+  int position = 0;
+  position = chunk.Get(&midiNote, position);
+  if(position < 0)
+    return false;
+
+  int numPoints = 0;
+  position = chunk.Get(&numPoints, position);
+  if(position < 0 || numPoints < 0)
+    return false;
+
+  EqCurve::PointList points;
+  points.reserve(static_cast<std::size_t>(numPoints));
+  for(int i = 0; i < numPoints; ++i)
+  {
+    EqCurvePointPayload payload;
+    position = chunk.Get(&payload, position);
+    if(position < 0)
+      return false;
+
+    points.push_back({payload.frequencyHz, payload.gainDb});
+  }
+
+  curve = EqCurve{std::move(points)};
+  return true;
+}
 } // namespace editor_messages

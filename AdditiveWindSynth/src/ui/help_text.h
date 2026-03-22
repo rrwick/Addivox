@@ -128,6 +128,9 @@ using OscillatorParameter = OscillatorSettings::Parameter;
 inline constexpr const char* kLevel =
   "Controls the intensity of each harmonic at full breath.";
 
+inline constexpr const char* kEq =
+  "Controls a frequency-based EQ in dB for the oscillator bank. The EQ stays fixed in frequency as notes change, which makes it useful for creating formants.";
+
 inline constexpr const char* kBreath =
   "Controls how strongly breath scales each harmonic level.";
 

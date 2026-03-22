@@ -52,11 +52,11 @@ void SynthVoice::SetPitchBend(double pitchBend)
 
 void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones)
 {
-  const double harmonicPitchOffsetSemitones = 12.0 * std::log2(static_cast<double>(harmonic + 1));
-  const double presetPitchOffsetSemitones =
-    (settings.pitch + mGlobalVoiceSettings.pitchOffsetCents) / 100.0;
-  const double totalPitchSemitones =
-    fundamentalPitchSemitones + harmonicPitchOffsetSemitones + presetPitchOffsetSemitones;
+  const double totalPitchSemitones = GetOscillatorBasePitchSemitones(
+    harmonic,
+    settings,
+    fundamentalPitchSemitones,
+    mGlobalVoiceSettings);
   mOscs[harmonic].SetPitch(totalPitchSemitones);
   mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
   mOscs[harmonic].SetPitchVariation(
@@ -163,6 +163,30 @@ bool SynthVoice::SetKeyNoteOscillatorParameterValues(
   return true;
 }
 
+bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
+{
+  const bool updated = mCompoundPreset.SetKeyNoteEqCurve(midiNote, curve);
+  if(!updated)
+    return false;
+
+  UpdatePitch();
+  return true;
+}
+
+bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled)
+{
+  mCompoundPreset.SetAllKeyNotesEnabled(parameter, enabled);
+  UpdatePitch();
+  return true;
+}
+
+bool SynthVoice::SetAllKeyNotesEqEnabled(bool enabled)
+{
+  mCompoundPreset.SetAllKeyNotesEqEnabled(enabled);
+  UpdatePitch();
+  return true;
+}
+
 double SynthVoice::SmoothBreath(double breath)
 {
   // Input and output breath are in the range [0, 1].
@@ -196,6 +220,22 @@ double SynthVoice::GetEffectiveMidiPitch() const
   return mPitch + mPitchBend + mTransposeSemitones;
 }
 
+double SynthVoice::GetOscillatorBasePitchSemitones(int harmonic,
+                                                   const OscillatorSettings& settings,
+                                                   double fundamentalPitchSemitones,
+                                                   const GlobalVoiceSettings& globalSettings)
+{
+  const double harmonicPitchOffsetSemitones = 12.0 * std::log2(static_cast<double>(harmonic + 1));
+  const double presetPitchOffsetSemitones =
+    (settings.pitch + globalSettings.pitchOffsetCents) / 100.0;
+  return fundamentalPitchSemitones + harmonicPitchOffsetSemitones + presetPitchOffsetSemitones;
+}
+
+double SynthVoice::PitchSemitonesToFrequencyHz(double pitchSemitones)
+{
+  return 440.0 * std::exp2(pitchSemitones / 12.0);
+}
+
 void SynthVoice::UpdatePitch()
 {
   const double midiPitch = GetEffectiveMidiPitch();
@@ -214,15 +254,25 @@ void SynthVoice::UpdatePitch()
 void SynthVoice::UpdateLevels()
 {
   const double midiPitch = GetEffectiveMidiPitch();
+  const double fundamentalPitchSemitones = midiPitch - 69.0;
   const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
+  const EqCurve& eqCurve = mCompoundPreset.GetEqCurveForMidiNote(midiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
   {
     const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
+    const double oscillatorPitchSemitones = GetOscillatorBasePitchSemitones(
+      harmonic,
+      settings,
+      fundamentalPitchSemitones,
+      mGlobalVoiceSettings);
+    const double frequencyHz = PitchSemitonesToFrequencyHz(oscillatorPitchSemitones);
+    const double eqGain = EqCurve::DbToGain(eqCurve.EvaluateDb(frequencyHz));
     const double level = (mBreath == 0.0)
       ? 0.0
       : settings.intensity
           * std::pow(mBreath, settings.breath_power)
+          * eqGain
           * mGlobalVoiceSettings.levelScale;
     mOscs[harmonic].SetLevel(level);
   }
