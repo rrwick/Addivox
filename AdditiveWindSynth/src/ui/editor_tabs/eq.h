@@ -6,7 +6,7 @@ namespace editor
 {
 inline ITextControl* CreateEqTabTitleControl(const EditorStyles& styles)
 {
-  auto* control = new IMultiLineTextControl(IRECT(), "EQ", styles.tabTitleText, COLOR_TRANSPARENT);
+  auto* control = new IMultiLineTextControl(IRECT(), "Formants EQ", styles.tabTitleText, COLOR_TRANSPARENT);
   control->SetIgnoreMouse(false);
   control->SetTooltip(help_text::oscillator_tabs::kEq);
   control->DisablePrompt(true);
@@ -89,7 +89,7 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   if(pTab->NChildren() < 7)
     return;
 
-  constexpr float kLeftInset = 156.f;
+  constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
   constexpr float kButtonHeight = 24.f;
@@ -97,10 +97,13 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kTightGap = 4.f;
   constexpr float kBottomPad = 8.f;
   constexpr float kToggleLabelGap = 8.f;
+  constexpr float kDescriptionHeight = 64.f;
+  constexpr float kEditorGap = 15.f;
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-  auto editorBounds = IRECT(r.L + kLeftInset, r.T + 2.f, r.R - 2.f, r.B - 2.f);
+  auto editorBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
+  editorBounds.L += kEditorGap;
 
   const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
   auto restoreButtonBounds = IRECT(
@@ -111,19 +114,26 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
 
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
-  float y = leftColumnBounds.T + 2.f;
-  auto titleBounds = IRECT(rowL, y, rowR, y + 64.f);
-  y = titleBounds.B + kGap;
-  auto setShapeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
-  y += kLabelHeight + kTightGap;
-  auto setShapeBounds = IRECT(rowL, y, rowR, y + kControlHeight);
-  y += kControlHeight + kGap;
-  auto allKeyNotesToggleBounds = IRECT(rowL, y, rowL + kControlHeight, y + kControlHeight);
+  auto titleBounds = IRECT(
+    leftColumnBounds.L + 4.f,
+    leftColumnBounds.T + 2.f,
+    leftColumnBounds.R - 4.f,
+    leftColumnBounds.T + 2.f + kDescriptionHeight);
+
+  const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
+  auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
   auto allKeyNotesLabelBounds = IRECT(
     allKeyNotesToggleBounds.R + kToggleLabelGap,
     allKeyNotesToggleBounds.T,
     rowR,
     allKeyNotesToggleBounds.B);
+  const float setShapeTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
+  auto setShapeBounds = IRECT(rowL, setShapeTop, rowR, setShapeTop + kControlHeight);
+  auto setShapeLabelBounds = IRECT(
+    rowL,
+    setShapeBounds.T - kTightGap - kLabelHeight,
+    rowR,
+    setShapeBounds.T - kTightGap);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(titleBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeLabelBounds);
