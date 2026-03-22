@@ -32,12 +32,7 @@ public:
   void SetCurve(const EqCurve& curve)
   {
     mCurve = curve;
-    if(mDraggedPointIndex != kNoPointIndex
-       && (mDraggedPointIndex < 0
-           || static_cast<std::size_t>(mDraggedPointIndex) >= mCurve.GetPoints().size()))
-    {
-      mDraggedPointIndex = kNoPointIndex;
-    }
+    SyncDraggedPointIndexFromDraggedPoint();
     SetDirty(false);
   }
 
@@ -50,7 +45,7 @@ public:
   {
     SetDisabled(!editable);
     if(!editable)
-      mDraggedPointIndex = kNoPointIndex;
+      ClearDraggedPointSelection();
     SetDirty(false);
   }
 
@@ -149,6 +144,14 @@ public:
       return;
 
     mDraggedPointIndex = HitTestPoint(x, y);
+    if(mDraggedPointIndex != kNoPointIndex)
+    {
+      mDraggedPoint = mCurve.GetPoints()[static_cast<std::size_t>(mDraggedPointIndex)];
+      mHasDraggedPoint = true;
+    }
+    else
+      ClearDraggedPointSelection();
+
     SetDirty(false);
   }
 
@@ -162,30 +165,21 @@ public:
       return;
 
     const IRECT plotBounds = GetPlotBounds();
-    double xNorm = NormalizedXFromFrequency(FrequencyFromX(x, plotBounds));
-    if(mDraggedPointIndex > 0)
-    {
-      const float minNorm = NormalizedXFromFrequency(points[static_cast<std::size_t>(mDraggedPointIndex - 1)].frequencyHz) + kMinPointSeparationNorm;
-      xNorm = std::max(xNorm, static_cast<double>(minNorm));
-    }
-
-    if(static_cast<std::size_t>(mDraggedPointIndex + 1) < points.size())
-    {
-      const float maxNorm = NormalizedXFromFrequency(points[static_cast<std::size_t>(mDraggedPointIndex + 1)].frequencyHz) - kMinPointSeparationNorm;
-      xNorm = std::min(xNorm, static_cast<double>(maxNorm));
-    }
-
-    points[static_cast<std::size_t>(mDraggedPointIndex)] = {
-      FrequencyFromNormalizedX(static_cast<float>(xNorm)),
+    const EqPoint updatedPoint{
+      FrequencyFromX(x, plotBounds),
       GainDbFromY(y, plotBounds)};
+    points[static_cast<std::size_t>(mDraggedPointIndex)] = updatedPoint;
     mCurve.SetPoints(std::move(points));
+    mDraggedPoint = updatedPoint;
+    mHasDraggedPoint = true;
+    SyncDraggedPointIndexFromDraggedPoint();
     NotifyCurveChanged();
   }
 
   void OnMouseUp(float x, float y, const IMouseMod& mod) override
   {
     IControl::OnMouseUp(x, y, mod);
-    mDraggedPointIndex = kNoPointIndex;
+    ClearDraggedPointSelection();
     SetDirty(false);
   }
 
@@ -202,6 +196,7 @@ public:
     {
       points.erase(points.begin() + hitPointIndex);
       mCurve.SetPoints(std::move(points));
+      ClearDraggedPointSelection();
       NotifyCurveChanged();
       return;
     }
@@ -211,6 +206,7 @@ public:
       FrequencyFromX(x, plotBounds),
       GainDbFromY(y, plotBounds)});
     mCurve.SetPoints(std::move(points));
+    ClearDraggedPointSelection();
     NotifyCurveChanged();
   }
 
@@ -218,8 +214,9 @@ private:
   static constexpr int kNoPointIndex = -1;
   static constexpr float kPointRadiusPx = 5.f;
   static constexpr float kCurveThicknessPx = 2.0f;
-  static constexpr float kMinPointSeparationNorm = 0.0025f;
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
+  static constexpr double kDraggedPointFrequencyEpsilonHz = 1.0e-6;
+  static constexpr double kDraggedPointGainEpsilonDb = 1.0e-6;
   static constexpr std::array<float, 28> kGridFrequenciesHz{
     20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f, 90.f,
     100.f, 200.f, 300.f, 400.f, 500.f, 600.f, 700.f, 800.f, 900.f,
@@ -492,6 +489,49 @@ private:
     return hitPointIndex;
   }
 
+  int FindPointIndexMatchingDraggedPoint() const
+  {
+    if(!mHasDraggedPoint)
+      return kNoPointIndex;
+
+    for(std::size_t i = 0; i < mCurve.GetPoints().size(); ++i)
+    {
+      const auto& point = mCurve.GetPoints()[i];
+      if(std::abs(point.frequencyHz - mDraggedPoint.frequencyHz) <= kDraggedPointFrequencyEpsilonHz
+         && std::abs(point.gainDb - mDraggedPoint.gainDb) <= kDraggedPointGainEpsilonDb)
+      {
+        return static_cast<int>(i);
+      }
+    }
+
+    return kNoPointIndex;
+  }
+
+  void SyncDraggedPointIndexFromDraggedPoint()
+  {
+    if(!mHasDraggedPoint)
+    {
+      mDraggedPointIndex = kNoPointIndex;
+      return;
+    }
+
+    const int draggedPointIndex = FindPointIndexMatchingDraggedPoint();
+    if(draggedPointIndex == kNoPointIndex)
+    {
+      ClearDraggedPointSelection();
+      return;
+    }
+
+    mDraggedPointIndex = draggedPointIndex;
+  }
+
+  void ClearDraggedPointSelection()
+  {
+    mDraggedPointIndex = kNoPointIndex;
+    mDraggedPoint = EqPoint{};
+    mHasDraggedPoint = false;
+  }
+
   void NotifyCurveChanged()
   {
     if(mOnCurveChanged)
@@ -502,7 +542,9 @@ private:
   EqCurve mCurve{};
   EqCurve mRestoreCurve{};
   OnCurveChangedFunc mOnCurveChanged{};
+  EqPoint mDraggedPoint{};
   int mDraggedPointIndex{kNoPointIndex};
+  bool mHasDraggedPoint{false};
   bool mHasRestoreState{false};
   int mRestoreMidiNote{kNoRestoreMidiNote};
 };
