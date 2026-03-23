@@ -17,6 +17,8 @@ class EqCurve
 {
 public:
   using PointList = std::vector<EqPoint>;
+  using ResponseLut = std::vector<double>;
+  static constexpr std::size_t kResponseLutSize = 512;
 
   static constexpr double kMinFrequencyHz = 20.0;
   static constexpr double kMaxFrequencyHz = 22000.0;
@@ -42,6 +44,8 @@ public:
   void SetPoints(PointList points)
   {
     mPoints = SanitizePoints(std::move(points));
+    mResponseLut.clear();
+    RebuildSpline();
   }
 
   bool Empty() const
@@ -51,8 +55,13 @@ public:
 
   double EvaluateDb(double frequencyHz) const
   {
+    if(!mResponseLut.empty())
+      return EvaluateResponseLut(frequencyHz);
+
     if(mPoints.empty())
       return 0.0;
+    if(mPoints.size() == 1)
+      return mPoints.front().gainDb;
 
     const double clampedFrequencyHz = std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
     if(clampedFrequencyHz <= mPoints.front().frequencyHz)
@@ -61,27 +70,35 @@ public:
       return mPoints.back().gainDb;
 
     const auto upper = std::lower_bound(
-      mPoints.begin(),
-      mPoints.end(),
-      clampedFrequencyHz,
-      [](const EqPoint& point, double frequency) {
-        return point.frequencyHz < frequency;
-      });
+      mLogFrequencies.begin(),
+      mLogFrequencies.end(),
+      LogFrequency(clampedFrequencyHz));
 
-    if(upper == mPoints.begin())
-      return upper->gainDb;
-    if(upper == mPoints.end())
+    if(upper == mLogFrequencies.begin())
+      return mPoints.front().gainDb;
+    if(upper == mLogFrequencies.end())
       return mPoints.back().gainDb;
-    if(std::abs(upper->frequencyHz - clampedFrequencyHz) <= kFrequencyEpsilonHz)
-      return upper->gainDb;
 
-    const auto lower = std::prev(upper);
-    const double spanHz = upper->frequencyHz - lower->frequencyHz;
-    if(spanHz <= kFrequencyEpsilonHz)
-      return upper->gainDb;
+    const std::size_t upperIndex = static_cast<std::size_t>(upper - mLogFrequencies.begin());
+    const std::size_t lowerIndex = upperIndex - 1;
+    const double x0 = mLogFrequencies[lowerIndex];
+    const double x1 = mLogFrequencies[upperIndex];
+    const double h = x1 - x0;
+    if(h <= kLogFrequencyEpsilon)
+      return mPoints[upperIndex].gainDb;
 
-    const double t = (clampedFrequencyHz - lower->frequencyHz) / spanHz;
-    return lower->gainDb + ((upper->gainDb - lower->gainDb) * t);
+    const double x = LogFrequency(clampedFrequencyHz);
+    const double t = (x - x0) / h;
+    const double t2 = t * t;
+    const double t3 = t2 * t;
+    const double h00 = (2.0 * t3) - (3.0 * t2) + 1.0;
+    const double h10 = t3 - (2.0 * t2) + t;
+    const double h01 = (-2.0 * t3) + (3.0 * t2);
+    const double h11 = t3 - t2;
+    return (h00 * mPoints[lowerIndex].gainDb)
+      + (h10 * h * mTangents[lowerIndex])
+      + (h01 * mPoints[upperIndex].gainDb)
+      + (h11 * h * mTangents[upperIndex]);
   }
 
   static EqCurve Interpolate(const EqCurve& lo, const EqCurve& hi, double t)
@@ -92,29 +109,13 @@ public:
     if(clampedT >= 1.0)
       return hi;
 
-    PointList points;
-    points.reserve(lo.mPoints.size() + hi.mPoints.size());
-    for(const auto& point : lo.mPoints)
-      points.push_back(point);
-    for(const auto& point : hi.mPoints)
-      points.push_back(point);
+    const ResponseLut loResponseLut = lo.BuildResponseLut();
+    const ResponseLut hiResponseLut = hi.BuildResponseLut();
+    ResponseLut responseLut(kResponseLutSize);
+    for(std::size_t i = 0; i < responseLut.size(); ++i)
+      responseLut[i] = loResponseLut[i] + ((hiResponseLut[i] - loResponseLut[i]) * clampedT);
 
-    points = SanitizePoints(std::move(points));
-    if(points.empty())
-      return {};
-
-    PointList interpolatedPoints;
-    interpolatedPoints.reserve(points.size());
-    for(const auto& point : points)
-    {
-      const double loDb = lo.EvaluateDb(point.frequencyHz);
-      const double hiDb = hi.EvaluateDb(point.frequencyHz);
-      interpolatedPoints.push_back({
-        point.frequencyHz,
-        loDb + ((hiDb - loDb) * clampedT)});
-    }
-
-    return EqCurve{std::move(interpolatedPoints)};
+    return FromResponseLut(std::move(responseLut));
   }
 
   static double DbToGain(double gainDb)
@@ -123,8 +124,52 @@ public:
     return std::pow(10.0, clampedGainDb / 20.0);
   }
 
+  ResponseLut BuildResponseLut() const
+  {
+    if(!mResponseLut.empty())
+      return mResponseLut;
+
+    ResponseLut responseLut(kResponseLutSize);
+    for(std::size_t i = 0; i < responseLut.size(); ++i)
+    {
+      const double frequencyHz = FrequencyFromNormalizedLog(
+        static_cast<double>(i) / static_cast<double>(responseLut.size() - 1));
+      responseLut[i] = EvaluateDb(frequencyHz);
+    }
+
+    return responseLut;
+  }
+
+  static EqCurve FromResponseLut(ResponseLut responseLut)
+  {
+    EqCurve curve;
+    curve.mResponseLut = std::move(responseLut);
+    return curve;
+  }
+
 private:
   static constexpr double kFrequencyEpsilonHz = 1.0e-6;
+  static constexpr double kLogFrequencyEpsilon = 1.0e-12;
+
+  static double LogFrequency(double frequencyHz)
+  {
+    return std::log(std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz));
+  }
+
+  static double NormalizedLogFrequency(double frequencyHz)
+  {
+    const double logMin = std::log(kMinFrequencyHz);
+    const double logMax = std::log(kMaxFrequencyHz);
+    return (LogFrequency(frequencyHz) - logMin) / (logMax - logMin);
+  }
+
+  static double FrequencyFromNormalizedLog(double normalizedLogFrequency)
+  {
+    const double logMin = std::log(kMinFrequencyHz);
+    const double logMax = std::log(kMaxFrequencyHz);
+    const double clampedNormalizedLogFrequency = std::clamp(normalizedLogFrequency, 0.0, 1.0);
+    return std::exp(logMin + ((logMax - logMin) * clampedNormalizedLogFrequency));
+  }
 
   static PointList SanitizePoints(PointList points)
   {
@@ -157,5 +202,69 @@ private:
     return sanitized;
   }
 
+  void RebuildSpline()
+  {
+    mLogFrequencies.clear();
+    mTangents.clear();
+
+    if(mPoints.size() <= 1)
+      return;
+
+    mLogFrequencies.resize(mPoints.size());
+    for(std::size_t i = 0; i < mPoints.size(); ++i)
+      mLogFrequencies[i] = LogFrequency(mPoints[i].frequencyHz);
+
+    const std::size_t numSegments = mPoints.size() - 1;
+    std::vector<double> h(numSegments);
+    std::vector<double> d(numSegments);
+    for(std::size_t i = 0; i < numSegments; ++i)
+    {
+      h[i] = mLogFrequencies[i + 1] - mLogFrequencies[i];
+      d[i] = (mPoints[i + 1].gainDb - mPoints[i].gainDb) / h[i];
+    }
+
+    mTangents.resize(mPoints.size());
+    if(mPoints.size() == 2)
+    {
+      mTangents[0] = 0.0;
+      mTangents[1] = 0.0;
+      return;
+    }
+
+    // The curve is flat outside the first and last point, so the spline should meet those edges
+    // with zero slope rather than forming a corner.
+    mTangents.front() = 0.0;
+    for(std::size_t i = 1; i + 1 < mPoints.size(); ++i)
+    {
+      if((d[i - 1] * d[i]) <= 0.0)
+      {
+        mTangents[i] = 0.0;
+        continue;
+      }
+
+      const double w1 = (2.0 * h[i]) + h[i - 1];
+      const double w2 = h[i] + (2.0 * h[i - 1]);
+      mTangents[i] = (w1 + w2) / ((w1 / d[i - 1]) + (w2 / d[i]));
+    }
+    mTangents.back() = 0.0;
+  }
+
+  double EvaluateResponseLut(double frequencyHz) const
+  {
+    if(mResponseLut.empty())
+      return 0.0;
+
+    const double position =
+      NormalizedLogFrequency(frequencyHz) * static_cast<double>(mResponseLut.size() - 1);
+    const std::size_t lowerIndex = static_cast<std::size_t>(position);
+    const std::size_t upperIndex = std::min(lowerIndex + 1, mResponseLut.size() - 1);
+    const double fraction = position - static_cast<double>(lowerIndex);
+    return mResponseLut[lowerIndex]
+      + ((mResponseLut[upperIndex] - mResponseLut[lowerIndex]) * fraction);
+  }
+
   PointList mPoints{};
+  std::vector<double> mLogFrequencies{};
+  std::vector<double> mTangents{};
+  ResponseLut mResponseLut{};
 };

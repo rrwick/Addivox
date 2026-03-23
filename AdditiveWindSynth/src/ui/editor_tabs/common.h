@@ -407,19 +407,6 @@ struct EditorContext
     std::forward<Action>(action)(midiNote);
   }
 
-  template <typename Action>
-  void ForEachTargetEqKeyNote(int midiNote, Action&& action) const
-  {
-    if(IsAllKeyNotesEqEnabled())
-    {
-      for(const auto& [keyNoteMidi, _] : Preset().GetKeyNotePresets())
-        std::forward<Action>(action)(keyNoteMidi);
-      return;
-    }
-
-    std::forward<Action>(action)(midiNote);
-  }
-
   void SendOscillatorParameterToDSP(IControl* sourceControl,
                                     int midiNote,
                                     int oscillatorIndex,
@@ -526,9 +513,7 @@ struct EditorContext
 
   void SendEqCurveEditToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const
   {
-    ForEachTargetEqKeyNote(midiNote, [&](int targetMidiNote) {
-      SendEqCurveToDSP(sourceControl, targetMidiNote, curve);
-    });
+    SendEqCurveToDSP(sourceControl, midiNote, curve);
   }
 
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const

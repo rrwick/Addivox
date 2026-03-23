@@ -227,8 +227,8 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
       if(toggle->GetValue() > 0.5)
       {
         context->Preset().EnableAllKeyNotesEq(*keyNoteEqCurve);
-        context->SendEqCurveEditToDSP(toggle, midiNote, *keyNoteEqCurve);
         context->SendAllKeyNotesEqEnabledToDSP(toggle, true);
+        context->SendEqCurveEditToDSP(toggle, midiNote, *keyNoteEqCurve);
       }
       else
       {

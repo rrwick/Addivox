@@ -165,8 +165,14 @@ public:
       return;
 
     const IRECT plotBounds = GetPlotBounds();
+    const bool draggingRight = dX >= 0.f;
     const EqPoint updatedPoint{
-      FrequencyFromX(x, plotBounds),
+      ResolveDraggedPointFrequency(
+        points,
+        mDraggedPointIndex,
+        FrequencyFromX(x, plotBounds),
+        draggingRight,
+        plotBounds),
       GainDbFromY(y, plotBounds)};
     points[static_cast<std::size_t>(mDraggedPointIndex)] = updatedPoint;
     mCurve.SetPoints(std::move(points));
@@ -334,11 +340,20 @@ private:
 
   void DrawCurve(IGraphics& g, const IRECT& plotBounds) const
   {
-    const auto drawSegmentedCurve = [&](const EqCurve& curve, const IColor& color, float thickness) {
-      g.PathMoveTo(plotBounds.L, YFromDb(curve.EvaluateDb(EqCurve::kMinFrequencyHz), plotBounds));
-      for(const auto& point : curve.GetPoints())
-        g.PathLineTo(XFromFrequency(point.frequencyHz, plotBounds), YFromDb(point.gainDb, plotBounds));
-      g.PathLineTo(plotBounds.R, YFromDb(curve.EvaluateDb(EqCurve::kMaxFrequencyHz), plotBounds));
+    const auto drawSmoothedCurve = [&](const EqCurve& curve, const IColor& color, float thickness) {
+      const int numSamples = std::max(2, static_cast<int>(std::ceil(plotBounds.W())));
+      for(int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex)
+      {
+        const float t = (numSamples <= 1)
+          ? 0.f
+          : static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
+        const float x = plotBounds.L + (t * plotBounds.W());
+        const float y = YFromDb(curve.EvaluateDb(FrequencyFromX(x, plotBounds)), plotBounds);
+        if(sampleIndex == 0)
+          g.PathMoveTo(x, y);
+        else
+          g.PathLineTo(x, y);
+      }
 
       IStrokeOptions strokeOptions;
       strokeOptions.mCapOption = ELineCap::Round;
@@ -348,8 +363,8 @@ private:
 
     const IColor glowColor = colour::ui::kAccentPrimary.WithOpacity(70);
     const IColor lineColor = colour::ui::kAccentPrimary;
-    drawSegmentedCurve(mCurve, glowColor, kCurveThicknessPx + 3.f);
-    drawSegmentedCurve(mCurve, lineColor, kCurveThicknessPx);
+    drawSmoothedCurve(mCurve, glowColor, kCurveThicknessPx + 3.f);
+    drawSmoothedCurve(mCurve, lineColor, kCurveThicknessPx);
   }
 
   void DrawPoints(IGraphics& g, const IRECT& plotBounds) const
@@ -505,6 +520,66 @@ private:
     }
 
     return kNoPointIndex;
+  }
+
+  double ResolveDraggedPointFrequency(const EqCurve::PointList& points,
+                                      int draggedPointIndex,
+                                      double candidateFrequencyHz,
+                                      bool draggingRight,
+                                      const IRECT& plotBounds) const
+  {
+    if(draggedPointIndex < 0 || static_cast<std::size_t>(draggedPointIndex) >= points.size())
+      return candidateFrequencyHz;
+
+    auto collidesWithOtherPoint = [&](double frequencyHz) {
+      for(std::size_t i = 0; i < points.size(); ++i)
+      {
+        if(static_cast<int>(i) == draggedPointIndex)
+          continue;
+        if(std::abs(points[i].frequencyHz - frequencyHz) <= kDraggedPointFrequencyEpsilonHz)
+          return true;
+      }
+
+      return false;
+    };
+
+    double resolvedFrequencyHz =
+      std::clamp(candidateFrequencyHz, EqCurve::kMinFrequencyHz, EqCurve::kMaxFrequencyHz);
+    if(!collidesWithOtherPoint(resolvedFrequencyHz))
+      return resolvedFrequencyHz;
+
+    const double normalizedStep =
+      (plotBounds.W() <= 1.f) ? 1.0 : (1.0 / static_cast<double>(plotBounds.W()));
+
+    auto offsetFrequency = [&](double frequencyHz, bool moveRight) {
+      const double normalizedX = NormalizedXFromFrequency(frequencyHz);
+      const double offsetNormalizedX = std::clamp(
+        normalizedX + (moveRight ? normalizedStep : -normalizedStep),
+        0.0,
+        1.0);
+      return FrequencyFromNormalizedX(static_cast<float>(offsetNormalizedX));
+    };
+
+    for(std::size_t attempt = 0; attempt < points.size(); ++attempt)
+    {
+      const double preferredFrequencyHz = offsetFrequency(resolvedFrequencyHz, draggingRight);
+      if(std::abs(preferredFrequencyHz - resolvedFrequencyHz) > kDraggedPointFrequencyEpsilonHz)
+      {
+        resolvedFrequencyHz = preferredFrequencyHz;
+        if(!collidesWithOtherPoint(resolvedFrequencyHz))
+          return resolvedFrequencyHz;
+      }
+
+      const double fallbackFrequencyHz = offsetFrequency(resolvedFrequencyHz, !draggingRight);
+      if(std::abs(fallbackFrequencyHz - resolvedFrequencyHz) <= kDraggedPointFrequencyEpsilonHz)
+        break;
+
+      resolvedFrequencyHz = fallbackFrequencyHz;
+      if(!collidesWithOtherPoint(resolvedFrequencyHz))
+        return resolvedFrequencyHz;
+    }
+
+    return resolvedFrequencyHz;
   }
 
   void SyncDraggedPointIndexFromDraggedPoint()
