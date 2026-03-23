@@ -285,7 +285,6 @@ inline EqEditorControl* CreateEqEditorControl(const std::shared_ptr<EditorContex
       return;
 
     context->SendEqCurveEditToDSP(control, midiNote, curve);
-    context->RefreshOscillatorTabs();
   });
   return control;
 }

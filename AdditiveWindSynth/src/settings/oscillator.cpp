@@ -566,7 +566,7 @@ bool CompoundPreset::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   else
     mKeyNoteEqCurves[clampedNote] = sanitizedCurve;
 
-  RebuildInterpolatedPresets();
+  RebuildInterpolatedEqCurves();
   return true;
 }
 
@@ -606,7 +606,7 @@ void CompoundPreset::EnableAllKeyNotesEq(const EqCurve& curve)
   for(auto& [_, keyNoteCurve] : mKeyNoteEqCurves)
     keyNoteCurve = mAllKeyNotesEqCurve;
 
-  RebuildInterpolatedPresets();
+  RebuildInterpolatedEqCurves();
 }
 
 void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
@@ -621,7 +621,7 @@ void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
       keyNoteCurve = mAllKeyNotesEqCurve;
   }
 
-  RebuildInterpolatedPresets();
+  RebuildInterpolatedEqCurves();
 }
 
 bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
@@ -673,24 +673,27 @@ void CompoundPreset::ApplyAllKeyNotesEqCurve(EqCurve& curve) const
     curve = GetAllKeyNotesEqCurve();
 }
 
-void CompoundPreset::RebuildInterpolatedPresets()
+void CompoundPreset::EnsureKeyNoteEqCurves()
 {
   for(const auto& [midiNote, _] : mKeyNotePresets)
   {
     if(mKeyNoteEqCurves.find(midiNote) == mKeyNoteEqCurves.end())
       mKeyNoteEqCurves[midiNote] = IsAllKeyNotesEqEnabled() ? GetAllKeyNotesEqCurve() : GetDefaultEqCurve();
   }
+}
+
+void CompoundPreset::RebuildInterpolatedEqCurves()
+{
+  EnsureKeyNoteEqCurves();
 
   if(mKeyNotePresets.empty())
   {
-    mInterpolatedPresets.fill(GetDefaultPreset());
     mInterpolatedEqCurves.fill(GetDefaultEqCurve());
     return;
   }
 
   if(mKeyNotePresets.size() == 1)
   {
-    mInterpolatedPresets.fill(mKeyNotePresets.begin()->second);
     const auto eqCurveIt = mKeyNoteEqCurves.find(mKeyNotePresets.begin()->first);
     mInterpolatedEqCurves.fill(eqCurveIt != mKeyNoteEqCurves.end() ? eqCurveIt->second : GetDefaultEqCurve());
     return;
@@ -705,7 +708,6 @@ void CompoundPreset::RebuildInterpolatedPresets()
 
     if(midiNote <= first->first)
     {
-      mInterpolatedPresets[index] = first->second;
       const auto eqCurveIt = mKeyNoteEqCurves.find(first->first);
       mInterpolatedEqCurves[index] = (eqCurveIt != mKeyNoteEqCurves.end()) ? eqCurveIt->second : GetDefaultEqCurve();
       continue;
@@ -713,7 +715,6 @@ void CompoundPreset::RebuildInterpolatedPresets()
 
     if(midiNote >= last->first)
     {
-      mInterpolatedPresets[index] = last->second;
       const auto eqCurveIt = mKeyNoteEqCurves.find(last->first);
       mInterpolatedEqCurves[index] = (eqCurveIt != mKeyNoteEqCurves.end()) ? eqCurveIt->second : GetDefaultEqCurve();
       continue;
@@ -722,7 +723,6 @@ void CompoundPreset::RebuildInterpolatedPresets()
     auto upper = mKeyNotePresets.lower_bound(midiNote);
     if(upper != mKeyNotePresets.end() && upper->first == midiNote)
     {
-      mInterpolatedPresets[index] = upper->second;
       const auto eqCurveIt = mKeyNoteEqCurves.find(upper->first);
       mInterpolatedEqCurves[index] = (eqCurveIt != mKeyNoteEqCurves.end()) ? eqCurveIt->second : GetDefaultEqCurve();
       continue;
@@ -730,11 +730,59 @@ void CompoundPreset::RebuildInterpolatedPresets()
 
     auto lower = std::prev(upper);
     const double t = static_cast<double>(midiNote - lower->first) / static_cast<double>(upper->first - lower->first);
-    mInterpolatedPresets[index] = SimplePreset::Interpolate(lower->second, upper->second, t);
     const auto lowerEqCurveIt = mKeyNoteEqCurves.find(lower->first);
     const auto upperEqCurveIt = mKeyNoteEqCurves.find(upper->first);
     const EqCurve& lowerEqCurve = (lowerEqCurveIt != mKeyNoteEqCurves.end()) ? lowerEqCurveIt->second : GetDefaultEqCurve();
     const EqCurve& upperEqCurve = (upperEqCurveIt != mKeyNoteEqCurves.end()) ? upperEqCurveIt->second : GetDefaultEqCurve();
     mInterpolatedEqCurves[index] = EqCurve::Interpolate(lowerEqCurve, upperEqCurve, t);
   }
+}
+
+void CompoundPreset::RebuildInterpolatedPresets()
+{
+  EnsureKeyNoteEqCurves();
+
+  if(mKeyNotePresets.empty())
+  {
+    mInterpolatedPresets.fill(GetDefaultPreset());
+  }
+  else if(mKeyNotePresets.size() == 1)
+  {
+    mInterpolatedPresets.fill(mKeyNotePresets.begin()->second);
+  }
+  else
+  {
+    const auto first = mKeyNotePresets.begin();
+    const auto last = std::prev(mKeyNotePresets.end());
+
+    for(int midiNote = kMinMidiNote; midiNote <= kMaxMidiNote; ++midiNote)
+    {
+      const int index = midiNote - kMinMidiNote;
+
+      if(midiNote <= first->first)
+      {
+        mInterpolatedPresets[index] = first->second;
+        continue;
+      }
+
+      if(midiNote >= last->first)
+      {
+        mInterpolatedPresets[index] = last->second;
+        continue;
+      }
+
+      auto upper = mKeyNotePresets.lower_bound(midiNote);
+      if(upper != mKeyNotePresets.end() && upper->first == midiNote)
+      {
+        mInterpolatedPresets[index] = upper->second;
+        continue;
+      }
+
+      auto lower = std::prev(upper);
+      const double t = static_cast<double>(midiNote - lower->first) / static_cast<double>(upper->first - lower->first);
+      mInterpolatedPresets[index] = SimplePreset::Interpolate(lower->second, upper->second, t);
+    }
+  }
+
+  RebuildInterpolatedEqCurves();
 }

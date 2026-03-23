@@ -169,7 +169,7 @@ bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   if(!updated)
     return false;
 
-  UpdatePitch();
+  UpdateLevels();
   return true;
 }
 
@@ -183,7 +183,7 @@ bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, 
 bool SynthVoice::SetAllKeyNotesEqEnabled(bool enabled)
 {
   mCompoundPreset.SetAllKeyNotesEqEnabled(enabled);
-  UpdatePitch();
+  UpdateLevels();
   return true;
 }
 

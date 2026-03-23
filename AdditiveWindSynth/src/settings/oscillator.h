@@ -188,6 +188,8 @@ private:
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
   void ApplyAllKeyNotesEqCurve(EqCurve& curve) const;
+  void EnsureKeyNoteEqCurves();
+  void RebuildInterpolatedEqCurves();
   void RebuildInterpolatedPresets();
 
   std::map<int, SimplePreset> mKeyNotePresets{};
