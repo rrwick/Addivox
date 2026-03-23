@@ -411,21 +411,58 @@ inline void AppendDoubleArray(std::ostringstream& stream,
   stream << "]\n";
 }
 
+inline void AppendAlignedStringArray(std::ostringstream& stream,
+                                     std::string_view key,
+                                     std::size_t prefixWidth,
+                                     const std::vector<std::string>& values,
+                                     const std::vector<std::size_t>& columnWidths)
+{
+  const std::string prefix = std::string{key} + " = ";
+  stream << prefix;
+  if(prefixWidth > prefix.size())
+    stream << std::string(prefixWidth - prefix.size(), ' ');
+
+  stream << '[';
+  for(std::size_t i = 0; i < values.size(); ++i)
+  {
+    if(i > 0)
+      stream << ", ";
+
+    const std::size_t width = (i < columnWidths.size()) ? columnWidths[i] : values[i].size();
+    if(width > values[i].size())
+      stream << std::string(width - values[i].size(), ' ');
+
+    stream << values[i];
+  }
+
+  stream << "]\n";
+}
+
 inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve)
 {
-  std::vector<double> frequenciesHz;
-  std::vector<double> gainsDb;
+  std::vector<std::string> frequenciesHz;
+  std::vector<std::string> gainsDb;
   frequenciesHz.reserve(curve.GetPoints().size());
   gainsDb.reserve(curve.GetPoints().size());
 
   for(const auto& point : curve.GetPoints())
   {
-    frequenciesHz.push_back(point.frequencyHz);
-    gainsDb.push_back(point.gainDb);
+    frequenciesHz.push_back(FormatDouble(point.frequencyHz));
+    gainsDb.push_back(FormatDouble(point.gainDb));
   }
 
-  AppendDoubleArray(stream, "eq_freq_hz", frequenciesHz);
-  AppendDoubleArray(stream, "eq_db", gainsDb);
+  std::vector<std::size_t> columnWidths;
+  columnWidths.reserve(frequenciesHz.size());
+  for(std::size_t i = 0; i < frequenciesHz.size(); ++i)
+  {
+    columnWidths.push_back(std::max(frequenciesHz[i].size(), gainsDb[i].size()));
+  }
+
+  constexpr std::string_view kEqFreqKey = "eq_freq_hz";
+  constexpr std::string_view kEqDbKey = "eq_db";
+  const std::size_t prefixWidth = std::string{kEqFreqKey}.size() + 3; // "key = "
+  AppendAlignedStringArray(stream, kEqFreqKey, prefixWidth, frequenciesHz, columnWidths);
+  AppendAlignedStringArray(stream, kEqDbKey, prefixWidth, gainsDb, columnWidths);
 }
 
 inline std::string JoinPath(std::string_view lhs, std::string_view rhs)
