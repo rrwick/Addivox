@@ -26,6 +26,7 @@ public:
   static constexpr double kMaxGainDb = 24.0;
 
   EqCurve() = default;
+
   explicit EqCurve(PointList points)
   {
     SetPoints(std::move(points));
@@ -63,45 +64,15 @@ public:
     if(mPoints.size() == 1)
       return mPoints.front().gainDb;
 
-    const double clampedFrequencyHz = std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
-    if(clampedFrequencyHz <= mPoints.front().frequencyHz)
-      return mPoints.front().gainDb;
-    if(clampedFrequencyHz >= mPoints.back().frequencyHz)
-      return mPoints.back().gainDb;
-
-    const auto upper = std::lower_bound(
-      mLogFrequencies.begin(),
-      mLogFrequencies.end(),
-      LogFrequency(clampedFrequencyHz));
-
-    if(upper == mLogFrequencies.begin())
-      return mPoints.front().gainDb;
-    if(upper == mLogFrequencies.end())
-      return mPoints.back().gainDb;
-
-    const std::size_t upperIndex = static_cast<std::size_t>(upper - mLogFrequencies.begin());
-    const std::size_t lowerIndex = upperIndex - 1;
-    const double x0 = mLogFrequencies[lowerIndex];
-    const double x1 = mLogFrequencies[upperIndex];
-    const double h = x1 - x0;
-    if(h <= kLogFrequencyEpsilon)
-      return mPoints[upperIndex].gainDb;
-
-    const double x = LogFrequency(clampedFrequencyHz);
-    const double t = (x - x0) / h;
-    const double t2 = t * t;
-    const double t3 = t2 * t;
-    const double h00 = (2.0 * t3) - (3.0 * t2) + 1.0;
-    const double h10 = t3 - (2.0 * t2) + t;
-    const double h01 = (-2.0 * t3) + (3.0 * t2);
-    const double h11 = t3 - t2;
-    return (h00 * mPoints[lowerIndex].gainDb)
-      + (h10 * h * mTangents[lowerIndex])
-      + (h01 * mPoints[upperIndex].gainDb)
-      + (h11 * h * mTangents[upperIndex]);
+    return EvaluateSplineDb(frequencyHz);
   }
 
-  static EqCurve Interpolate(const EqCurve& lo, const EqCurve& hi, double t)
+  static double DbToGain(double gainDb)
+  {
+    return std::pow(10.0, ClampGainDb(gainDb) / 20.0);
+  }
+
+  static ResponseLut InterpolateResponseLut(const ResponseLut& lo, const ResponseLut& hi, double t)
   {
     const double clampedT = std::clamp(t, 0.0, 1.0);
     if(clampedT <= 0.0)
@@ -109,19 +80,11 @@ public:
     if(clampedT >= 1.0)
       return hi;
 
-    const ResponseLut loResponseLut = lo.BuildResponseLut();
-    const ResponseLut hiResponseLut = hi.BuildResponseLut();
     ResponseLut responseLut(kResponseLutSize);
     for(std::size_t i = 0; i < responseLut.size(); ++i)
-      responseLut[i] = loResponseLut[i] + ((hiResponseLut[i] - loResponseLut[i]) * clampedT);
+      responseLut[i] = Lerp(lo[i], hi[i], clampedT);
 
-    return FromResponseLut(std::move(responseLut));
-  }
-
-  static double DbToGain(double gainDb)
-  {
-    const double clampedGainDb = std::clamp(gainDb, kMinGainDb, kMaxGainDb);
-    return std::pow(10.0, clampedGainDb / 20.0);
+    return responseLut;
   }
 
   ResponseLut BuildResponseLut() const
@@ -130,10 +93,11 @@ public:
       return mResponseLut;
 
     ResponseLut responseLut(kResponseLutSize);
+    const double denominator = static_cast<double>(responseLut.size() - 1);
     for(std::size_t i = 0; i < responseLut.size(); ++i)
     {
-      const double frequencyHz = FrequencyFromNormalizedLog(
-        static_cast<double>(i) / static_cast<double>(responseLut.size() - 1));
+      const double frequencyHz =
+        FrequencyFromNormalizedLog(static_cast<double>(i) / denominator);
       responseLut[i] = EvaluateDb(frequencyHz);
     }
 
@@ -151,9 +115,24 @@ private:
   static constexpr double kFrequencyEpsilonHz = 1.0e-6;
   static constexpr double kLogFrequencyEpsilon = 1.0e-12;
 
+  static double Lerp(double lo, double hi, double t)
+  {
+    return lo + ((hi - lo) * t);
+  }
+
+  static double ClampFrequencyHz(double frequencyHz)
+  {
+    return std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
+  }
+
+  static double ClampGainDb(double gainDb)
+  {
+    return std::clamp(gainDb, kMinGainDb, kMaxGainDb);
+  }
+
   static double LogFrequency(double frequencyHz)
   {
-    return std::log(std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz));
+    return std::log(ClampFrequencyHz(frequencyHz));
   }
 
   static double NormalizedLogFrequency(double frequencyHz)
@@ -187,8 +166,8 @@ private:
     sanitized.reserve(points.size());
     for(auto point : points)
     {
-      point.frequencyHz = std::clamp(point.frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
-      point.gainDb = std::clamp(point.gainDb, kMinGainDb, kMaxGainDb);
+      point.frequencyHz = ClampFrequencyHz(point.frequencyHz);
+      point.gainDb = ClampGainDb(point.gainDb);
 
       if(!sanitized.empty()
          && std::abs(sanitized.back().frequencyHz - point.frequencyHz) <= kFrequencyEpsilonHz)
@@ -249,6 +228,48 @@ private:
     mTangents.back() = 0.0;
   }
 
+  double EvaluateSplineDb(double frequencyHz) const
+  {
+    const double clampedFrequencyHz = ClampFrequencyHz(frequencyHz);
+    if(clampedFrequencyHz <= mPoints.front().frequencyHz)
+      return mPoints.front().gainDb;
+    if(clampedFrequencyHz >= mPoints.back().frequencyHz)
+      return mPoints.back().gainDb;
+
+    const double logFrequency = LogFrequency(clampedFrequencyHz);
+    const auto upper = std::lower_bound(mLogFrequencies.begin(), mLogFrequencies.end(), logFrequency);
+    if(upper == mLogFrequencies.begin())
+      return mPoints.front().gainDb;
+    if(upper == mLogFrequencies.end())
+      return mPoints.back().gainDb;
+
+    const std::size_t upperIndex = static_cast<std::size_t>(upper - mLogFrequencies.begin());
+    return EvaluateHermiteSegment(upperIndex - 1, upperIndex, logFrequency);
+  }
+
+  double EvaluateHermiteSegment(std::size_t lowerIndex,
+                                std::size_t upperIndex,
+                                double logFrequency) const
+  {
+    const double x0 = mLogFrequencies[lowerIndex];
+    const double x1 = mLogFrequencies[upperIndex];
+    const double h = x1 - x0;
+    if(h <= kLogFrequencyEpsilon)
+      return mPoints[upperIndex].gainDb;
+
+    const double t = (logFrequency - x0) / h;
+    const double t2 = t * t;
+    const double t3 = t2 * t;
+    const double h00 = (2.0 * t3) - (3.0 * t2) + 1.0;
+    const double h10 = t3 - (2.0 * t2) + t;
+    const double h01 = (-2.0 * t3) + (3.0 * t2);
+    const double h11 = t3 - t2;
+    return (h00 * mPoints[lowerIndex].gainDb)
+      + (h10 * h * mTangents[lowerIndex])
+      + (h01 * mPoints[upperIndex].gainDb)
+      + (h11 * h * mTangents[upperIndex]);
+  }
+
   double EvaluateResponseLut(double frequencyHz) const
   {
     if(mResponseLut.empty())
@@ -259,8 +280,7 @@ private:
     const std::size_t lowerIndex = static_cast<std::size_t>(position);
     const std::size_t upperIndex = std::min(lowerIndex + 1, mResponseLut.size() - 1);
     const double fraction = position - static_cast<double>(lowerIndex);
-    return mResponseLut[lowerIndex]
-      + ((mResponseLut[upperIndex] - mResponseLut[lowerIndex]) * fraction);
+    return Lerp(mResponseLut[lowerIndex], mResponseLut[upperIndex], fraction);
   }
 
   PointList mPoints{};

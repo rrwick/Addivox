@@ -187,8 +187,9 @@ private:
   void ApplyAllKeyNotesValues(SimplePreset& preset,
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
-  void ApplyAllKeyNotesEqCurve(EqCurve& curve) const;
+  const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
   void EnsureKeyNoteEqCurves();
+  void SetAllKeyNoteEqCurves(const EqCurve& curve);
   void RebuildInterpolatedEqCurves();
   void RebuildInterpolatedPresets();
 

@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <string_view>
+
 namespace editor
 {
 inline ITextControl* CreateEqTabTitleControl(const EditorStyles& styles)
@@ -15,10 +17,11 @@ inline ITextControl* CreateEqTabTitleControl(const EditorStyles& styles)
 
 inline EqCurve MakeEqShapeCurve(const char* shapeName)
 {
-  if(!shapeName || std::strcmp(shapeName, "flat") == 0)
+  const std::string_view shape = shapeName ? shapeName : "";
+  if(shape.empty() || shape == "flat")
     return {};
 
-  if(std::strcmp(shapeName, "a") == 0)
+  if(shape == "a")
   {
     return EqCurve{{
       {20.0, 0.0},
@@ -31,7 +34,7 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName)
     }};
   }
 
-  if(std::strcmp(shapeName, "e") == 0)
+  if(shape == "e")
   {
     return EqCurve{{
       {20.0, 0.0},
@@ -44,7 +47,7 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName)
     }};
   }
 
-  if(std::strcmp(shapeName, "i") == 0)
+  if(shape == "i")
   {
     return EqCurve{{
       {20.0, 0.0},
@@ -57,7 +60,7 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName)
     }};
   }
 
-  if(std::strcmp(shapeName, "o") == 0)
+  if(shape == "o")
   {
     return EqCurve{{
       {20.0, 0.0},
@@ -69,7 +72,7 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName)
     }};
   }
 
-  if(std::strcmp(shapeName, "u") == 0)
+  if(shape == "u")
   {
     return EqCurve{{
       {20.0, 0.0},
@@ -86,54 +89,59 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName)
 
 inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
 {
-  if(!actionName)
+  const std::string_view action = actionName ? actionName : "";
+  if(action.empty() || curve.Empty())
     return false;
 
-  const auto& points = curve.GetPoints();
-  if(points.empty())
-    return false;
-
-  EqCurve::PointList updatedPoints = points;
-
-  if(std::strcmp(actionName, "normalise") == 0)
+  auto points = curve.GetPoints();
+  if(action == "normalise")
   {
     double meanDb = 0.0;
-    for(const auto& point : updatedPoints)
+    for(const auto& point : points)
       meanDb += point.gainDb;
 
-    meanDb /= static_cast<double>(updatedPoints.size());
-    for(auto& point : updatedPoints)
+    meanDb /= static_cast<double>(points.size());
+    for(auto& point : points)
       point.gainDb -= meanDb;
-
-    curve.SetPoints(std::move(updatedPoints));
-    return true;
   }
-
-  if(std::strcmp(actionName, "scale up") == 0 || std::strcmp(actionName, "scale down") == 0)
+  else if(action == "scale up" || action == "scale down")
   {
-    const double scale = (std::strcmp(actionName, "scale up") == 0) ? 1.111111111111111 : 0.9;
-    for(auto& point : updatedPoints)
+    const double scale = (action == "scale up") ? 1.111111111111111 : 0.9;
+    for(auto& point : points)
       point.gainDb *= scale;
-
-    curve.SetPoints(std::move(updatedPoints));
-    return true;
   }
-
-  if(std::strcmp(actionName, "shift right") == 0 || std::strcmp(actionName, "shift left") == 0)
+  else if(action == "shift right" || action == "shift left")
   {
     constexpr double kShiftRatio = 1.189207115002721; // Quarter-octave in log-frequency space.
-    const double frequencyScale = (std::strcmp(actionName, "shift right") == 0)
+    const double frequencyScale = (action == "shift right")
       ? kShiftRatio
       : (1.0 / kShiftRatio);
 
-    for(auto& point : updatedPoints)
+    for(auto& point : points)
       point.frequencyHz *= frequencyScale;
-
-    curve.SetPoints(std::move(updatedPoints));
-    return true;
   }
+  else
+    return false;
 
-  return false;
+  curve.SetPoints(std::move(points));
+  return true;
+}
+
+inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& context,
+                                      IControl* caller,
+                                      const EqCurve& curve,
+                                      bool refreshOscillatorTabs)
+{
+  if(!caller || !context->HasValidSelectedMidiNote())
+    return;
+
+  const int midiNote = context->SelectedMidiNote();
+  if(!context->Preset().SetKeyNoteEqCurve(midiNote, curve))
+    return;
+
+  context->SendEqCurveEditToDSP(caller, midiNote, curve);
+  if(refreshOscillatorTabs)
+    context->RefreshOscillatorTabs();
 }
 
 inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
@@ -142,6 +150,7 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
     return;
 
   constexpr float kLeftInset = 104.f;
+  constexpr float kColumnSideInset = 8.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
   constexpr float kButtonHeight = 24.f;
@@ -159,13 +168,13 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
 
   const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
   auto restoreButtonBounds = IRECT(
-    leftColumnBounds.L + 8.f,
+    leftColumnBounds.L + kColumnSideInset,
     restoreTop,
-    leftColumnBounds.R - 8.f,
+    leftColumnBounds.R - kColumnSideInset,
     leftColumnBounds.B - kBottomPad);
 
-  const float rowL = leftColumnBounds.L + 8.f;
-  const float rowR = leftColumnBounds.R - 8.f;
+  const float rowL = leftColumnBounds.L + kColumnSideInset;
+  const float rowR = leftColumnBounds.R - kColumnSideInset;
   auto titleBounds = IRECT(
     leftColumnBounds.L + 4.f,
     leftColumnBounds.T + 2.f,
@@ -268,11 +277,7 @@ inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IC
     return;
 
   const EqCurve& restoreState = control->GetRestoreState();
-  if(!context->Preset().SetKeyNoteEqCurve(midiNote, restoreState))
-    return;
-
-  context->SendEqCurveEditToDSP(caller, midiNote, restoreState);
-  context->RefreshOscillatorTabs();
+  SetSelectedKeyNoteEqCurve(context, caller, restoreState, true);
 }
 
 inline EqEditorControl* CreateEqEditorControl(const std::shared_ptr<EditorContext>& context)
@@ -280,11 +285,7 @@ inline EqEditorControl* CreateEqEditorControl(const std::shared_ptr<EditorContex
   auto* control = new EqEditorControl(IRECT());
   control->SetTooltip(help_text::oscillator_tabs::kEq);
   control->SetOnCurveChanged([context, control](const EqCurve& curve) {
-    const int midiNote = context->SelectedMidiNote();
-    if(!context->Preset().SetKeyNoteEqCurve(midiNote, curve))
-      return;
-
-    context->SendEqCurveEditToDSP(control, midiNote, curve);
+    SetSelectedKeyNoteEqCurve(context, control, curve, false);
   });
   return control;
 }
