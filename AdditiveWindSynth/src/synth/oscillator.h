@@ -47,7 +47,7 @@ public:
   // Reset oscillator phase and dynamic state for a clean retrigger.
   void Reset();
 
-  // True while envelope is still active or decaying.
+  // True while the oscillator is still held or its envelope is decaying.
   bool IsActive() const;
 
   // Snapshot used by the visualizer.

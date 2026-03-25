@@ -147,7 +147,9 @@ std::array<iplug::sample, 2> Oscillator::Process()
 
 bool Oscillator::IsActive() const
 {
-  return (mTargetLevel > kLevelEpsilon) || (mLevel > kLevelEpsilon);
+  // A held note must keep processing even when variation temporarily drives the target level to
+  // zero, otherwise the variation phase freezes and the oscillator can never recover.
+  return (mBaseLevel > kLevelEpsilon) || (mTargetLevel > kLevelEpsilon) || (mLevel > kLevelEpsilon);
 }
 
 HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const
