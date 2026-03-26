@@ -1,0 +1,148 @@
+Addivox License 1.0
+Copyright 2026 Ryan Wick (rrwick@gmail.com)
+
+
+--------------------------------------------------------------------------------
+
+Plain-language summary
+
+You may:
+- read, download and change the Addivox source code for your own use
+- build Addivox for yourself
+- use Addivox, including your own private builds and modifications, to make
+  music and other output, including commercial work
+- create, share and sell presets for Addivox
+
+You may not:
+- share the Addivox source code or builds with others
+- share modified versions of Addivox
+- sell or redistribute Addivox itself
+
+This summary is for convenience only and is not part of the license. The license
+text follows below.
+
+--------------------------------------------------------------------------------
+
+
+This license governs the source code in this repository and any compiled
+versions of that source code that you create yourself from it.
+
+
+1. Definitions
+
+"Software" means Addivox, including the source code in this repository, together
+with any associated files, documentation and any compiled versions you create
+from that source code.
+
+"Official Build" means a compiled version of the Software that is provided
+directly by Ryan Wick.
+
+"Output" means any audio, music, sound recordings, performances, preset files,
+parameter settings, data or other works created by using the Software or created
+for use with the Software, but does not include the Software itself.
+
+
+2. License grant
+
+Subject to the terms below, you are granted a personal, non-exclusive,
+non-transferable, revocable license to:
+
+a. view, download and copy the source code of the Software;
+b. use the Software for any lawful purpose;
+c. modify the Software for your own private use;
+d. compile or build the Software for your own private use; and
+e. use the Software, including privately modified versions and privately
+   compiled builds, to create Output for personal or commercial purposes.
+
+
+3. Output
+
+You own all rights in the Output you create using the Software, to the extent
+permitted by law.
+
+This license does not restrict your right to use, sell, publish, perform,
+license or distribute Output created with the Software.
+
+For clarity, you may create, share, license and sell presets and other files
+created for use with the Software, provided that such material does not include
+any part of the Software itself.
+
+
+4. Restrictions
+
+You may not, without prior written permission from Ryan Wick:
+
+a. distribute, sublicense, sell, rent, lease, lend or otherwise make available
+   the Software, in source or binary form, to any other person;
+b. publish the Software, in source or binary form, on any public or private
+   hosting service, website, code forge, file-sharing service, package registry
+   or similar service, except for this original repository as maintained by Ryan
+   Wick;
+c. distribute any modified version, derivative work, fork, adaptation or port of
+   the Software;
+d. distribute any binary, executable, app bundle, plugin, installer or other
+   compiled form of the Software, whether modified or unmodified;
+e. sell, license or otherwise commercially exploit the Software itself, whether
+   modified or unmodified;
+f. remove or alter any copyright, attribution or license notices in the Software.
+
+For clarity, the restrictions in this section apply to the Software itself, not
+to Output created with the Software.
+
+
+5. Official Builds
+
+Official Builds may be offered separately under additional purchase terms or an
+end-user license agreement. Receiving access to an Official Build does not grant
+any right to redistribute that Official Build.
+
+
+6. No trademark rights
+
+This license does not grant any right to use the name "Addivox", the name "Ryan
+Wick" or any associated logos, marks or branding, except to identify the
+Software in an accurate and customary way.
+
+
+7. Contributions
+
+Unless explicitly agreed otherwise in writing, any contribution, patch, pull
+request or other change that you intentionally submit for inclusion in the
+Software is provided to Ryan Wick under a perpetual, worldwide, non-exclusive,
+irrevocable, royalty-free license to use, reproduce, modify, relicense and
+distribute that contribution as part of the Software or any related project.
+
+You represent that you have the right to submit any such contribution under
+these terms.
+
+
+8. Termination
+
+This license terminates automatically if you violate any term of this license.
+
+Upon termination, you must stop using and delete all copies of the Software in
+your possession or control, except that this does not affect your rights in any
+Output you created before termination.
+
+
+9. Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT
+PERMITTED BY LAW, THE AUTHOR SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+10. Governing law
+
+This license is governed by the laws of Victoria, Australia, excluding its
+conflict of laws rules.
+
+
+11. Entire agreement
+
+This license is the entire agreement for the Software in this repository unless
+additional written terms are expressly provided by Ryan Wick.
