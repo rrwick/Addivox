@@ -100,6 +100,57 @@ bool MatchesParity(int oscillatorIndex, HarmonicParity parity)
   return false;
 }
 
+bool IsMirroredBipolarRange(double minValue, double maxValue)
+{
+  if(minValue >= 0.0 || maxValue <= 0.0)
+    return false;
+
+  const double minMagnitude = std::fabs(minValue);
+  const double maxMagnitude = std::fabs(maxValue);
+  const double tolerance = std::max({1.0, minMagnitude, maxMagnitude}) * 1.0e-9;
+  return std::fabs(minMagnitude - maxMagnitude) <= tolerance;
+}
+
+// Scale the odds of a normalized value so reciprocal scale factors undo each
+// other while the result remains inside the finite range.
+double ScaleNormalizedBoundedValue(double normalizedValue, double scale)
+{
+  const double clampedValue = std::clamp(normalizedValue, 0.0, 1.0);
+  if(!std::isfinite(scale) || scale <= 0.0 || clampedValue <= 0.0 || clampedValue >= 1.0)
+    return clampedValue;
+
+  const double denominator = 1.0 + ((scale - 1.0) * clampedValue);
+  if(denominator <= 0.0)
+    return (scale >= 1.0) ? 1.0 : 0.0;
+
+  return std::clamp((clampedValue * scale) / denominator, 0.0, 1.0);
+}
+
+double ScaleParameterValue(double value, double scale, double minValue, double maxValue)
+{
+  if(std::isfinite(minValue) && std::isfinite(maxValue) && maxValue > minValue)
+  {
+    if(IsMirroredBipolarRange(minValue, maxValue))
+    {
+      const double maxMagnitude = std::max(std::fabs(minValue), std::fabs(maxValue));
+      if(maxMagnitude <= 0.0)
+        return 0.0;
+
+      const double sign = (value < 0.0) ? -1.0 : 1.0;
+      const double normalizedMagnitude = std::clamp(std::fabs(value) / maxMagnitude, 0.0, 1.0);
+      const double scaledMagnitude = ScaleNormalizedBoundedValue(normalizedMagnitude, scale);
+      return std::clamp(sign * scaledMagnitude * maxMagnitude, minValue, maxValue);
+    }
+
+    const double range = maxValue - minValue;
+    const double normalizedValue = std::clamp((value - minValue) / range, 0.0, 1.0);
+    const double scaledNormalizedValue = ScaleNormalizedBoundedValue(normalizedValue, scale);
+    return minValue + (scaledNormalizedValue * range);
+  }
+
+  return std::clamp(value * scale, minValue, maxValue);
+}
+
 bool ScaleParameters(SimplePreset::OscillatorArray& oscillatorSettings,
                      MemberPtr member,
                      double scale,
@@ -112,7 +163,7 @@ bool ScaleParameters(SimplePreset::OscillatorArray& oscillatorSettings,
     if(MatchesParity(oscillatorIndex, parity))
     {
       auto& value = oscillatorSettings[oscillatorIndex].*member;
-      value = std::clamp(value * scale, minValue, maxValue);
+      value = ScaleParameterValue(value, scale, minValue, maxValue);
     }
   }
 
@@ -223,32 +274,32 @@ bool SimplePreset::ApplyIntensityTopTaper()
 
 bool SimplePreset::ScaleIntensityUp()
 {
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, 1.0);
 }
 
 bool SimplePreset::ScaleIntensityDown()
 {
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 0.9, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 0.9, 0.0, 1.0);
 }
 
 bool SimplePreset::ScaleIntensityUpEven()
 {
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, 1.0);
 }
 
 bool SimplePreset::ScaleIntensityDownEven()
 {
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 0.9, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 0.9, 0.0, 1.0);
 }
 
 bool SimplePreset::ScaleIntensityUpOdd()
 {
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, 1.0);
 }
 
 bool SimplePreset::ScaleIntensityDownOdd()
 {
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 0.9, 0.0, std::numeric_limits<double>::infinity());
+  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 0.9, 0.0, 1.0);
 }
 
 bool SimplePreset::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter,
