@@ -1,4 +1,4 @@
-# AdditiveWindSynth
+# Addivox
 
 Created by running iPlug2's `duplicate.py` on the [IPlugInstrument example](https://github.com/iPlug2/iPlug2/tree/master/Examples/IPlugInstrument).
 
