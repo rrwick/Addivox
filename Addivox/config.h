@@ -2,10 +2,10 @@
 #define PLUG_MFR "rrwick"
 #define PLUG_VERSION_HEX 0x00010000
 #define PLUG_VERSION_STR "1.0.0"
-#define PLUG_UNIQUE_ID 'AdWS'
+#define PLUG_UNIQUE_ID 'Advx'
 #define PLUG_MFR_ID 'RWic'
 #define PLUG_URL_STR "https://iplug2.github.io"
-#define PLUG_EMAIL_STR "spam@me.com"
+#define PLUG_EMAIL_STR "rrwick@gmail.com"
 #define PLUG_COPYRIGHT_STR "Copyright 2026 Ryan Wick (rrwick@gmail.com)"
 #define PLUG_CLASS_NAME Addivox
 
