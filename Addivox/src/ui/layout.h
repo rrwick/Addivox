@@ -2,6 +2,7 @@
 
 #include "IControls.h"
 #include "IVPresetManagerControls.h"
+#include "about_built_with_control.h"
 #include "colour.h"
 #include "control_utils.h"
 #include "layered_svg_knob_control.h"
@@ -47,6 +48,23 @@ inline void SetTooltipIfPresent(IControl* control, const char* tooltip)
 {
   if(control && tooltip && tooltip[0] != '\0')
     control->SetTooltip(tooltip);
+}
+
+inline bool ShowAboutBox(IGraphics* pGraphics, int aboutBoxTag)
+{
+  if(!pGraphics)
+    return false;
+
+  auto* control = pGraphics->GetControlWithTag(aboutBoxTag);
+  if(!control)
+    return false;
+
+  auto* aboutBox = control->As<IAboutBoxControl>();
+  if(!aboutBox)
+    return false;
+
+  aboutBox->Show();
+  return true;
 }
 
 inline void AttachKnob(IGraphics* pGraphics,
@@ -260,7 +278,8 @@ private:
 };
 
 inline void AttachTitlePanelControls(IGraphics* pGraphics,
-                                     const std::shared_ptr<editor::EditorContext>& context)
+                                     const std::shared_ptr<editor::EditorContext>& context,
+                                     int aboutBoxTag)
 {
   const auto sendPresetFileMessage = [](IControl* caller, int msgTag) {
     if(!caller)
@@ -270,18 +289,25 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
       delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
   };
 
-  auto* loadPresetButton = new IVButtonControl(IRECT::MakeXYWH(795.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Load", theme::PresetActionButtonStyle(), true, false);
+  auto* loadPresetButton = new IVButtonControl(IRECT::MakeXYWH(775.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Load", theme::PresetActionButtonStyle(), true, false);
   loadPresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
     sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
   });
 
-  auto* savePresetButton = new IVButtonControl(IRECT::MakeXYWH(845.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Save", theme::PresetActionButtonStyle(), true, false);
+  auto* savePresetButton = new IVButtonControl(IRECT::MakeXYWH(825.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Save", theme::PresetActionButtonStyle(), true, false);
   savePresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
     sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
   });
 
-  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(510.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
+  auto* aboutButton = new IVButtonControl(IRECT::MakeXYWH(878.f, 25.f, 20.f, 20.f), SplashClickActionFunc, "i", theme::AboutIconButtonStyle(), true, false);
+  aboutButton->SetTooltip("About Addivox");
+  aboutButton->SetAnimationEndActionFunction([pGraphics, aboutBoxTag](IControl*) {
+    ShowAboutBox(pGraphics, aboutBoxTag);
+  });
 
+  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(490.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
+
+  pGraphics->AttachControl(aboutButton);
   pGraphics->AttachControl(loadPresetButton);
   pGraphics->AttachControl(savePresetButton);
   pGraphics->AttachControl(presetManagerControl);
@@ -292,6 +318,7 @@ struct PanelResources
 {
   explicit PanelResources(IGraphics* pGraphics)
   : knobAssets{pGraphics->LoadSVG("knob-fixed.svg"), pGraphics->LoadSVG("knob-rotating.svg")}
+  , aboutLogo(pGraphics->LoadSVG("about-logo.svg"))
   {
   }
 
@@ -306,6 +333,7 @@ struct PanelResources
   IText compactValueText = theme::CompactValueText();
   IText portamentoValueText = theme::PortamentoValueText();
   KnobAssets knobAssets;
+  ISVG aboutLogo;
 };
 
 inline PanelResources MakePanelResources(IGraphics* pGraphics)
@@ -320,6 +348,34 @@ inline void AttachOutputMeterPanel(IGraphics* pGraphics, const PanelResources& r
     outMeterBounds, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
   outMeter->SetResponse(IVMeterControl<2>::EResponse::Linear);
   pGraphics->AttachControl(outMeter, outMeterTag);
+}
+
+inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& resources, int aboutBoxTag)
+{
+  const ISVG aboutLogo = resources.aboutLogo;
+  pGraphics->AttachControl(
+    new IAboutBoxControl(
+      pGraphics->GetBounds(),
+      IColor{242, 8, 10, 12},
+      [aboutLogo](IContainerBase* pParent, const IRECT&) {
+        pParent->AddChildControl(new ISVGControl(IRECT(), aboutLogo));
+        pParent->AddChildControl(new ITextControl(IRECT(), "an additive synthesizer for wind controllers", theme::AboutMetaText(30.f), COLOR_TRANSPARENT));
+        pParent->AddChildControl(new IURLControl(IRECT(), PLUG_URL_DISPLAY_STR, PLUG_URL_STR, theme::AboutLinkText(), COLOR_TRANSPARENT, COLOR_WHITE, colour::ui::kAccentPrimary));
+        pParent->AddChildControl(new ITextControl(IRECT(), "version " PLUG_VERSION_STR, theme::AboutMetaText(), COLOR_TRANSPARENT));
+        pParent->AddChildControl(new ITextControl(IRECT(), PLUG_COPYRIGHT_STR, theme::AboutMetaText(), COLOR_TRANSPARENT));
+        pParent->AddChildControl(new AboutBuiltWithControl(IRECT(), "https://iplug2.github.io/"));
+      },
+      [](IContainerBase* pParent, const IRECT& r) {
+        const IRECT content = r.GetCentredInside(920.f, 320.f);
+        pParent->GetChild(0)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.MW() - 410.f, content.T +  30.f, 820.f, 112.f));
+        pParent->GetChild(1)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L,            content.T + 160.f, content.W(),        30.f));
+        pParent->GetChild(2)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + 24.f,     content.T + 210.f, content.W() - 48.f, 24.f));
+        pParent->GetChild(3)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L,            content.T + 240.f, content.W(),        24.f));
+        pParent->GetChild(4)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + 24.f,     content.T + 270.f, content.W() - 48.f, 24.f));
+        pParent->GetChild(5)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L,            content.T + 300.f, content.W(),        24.f));
+      },
+      180),
+    aboutBoxTag)->Hide(true);
 }
 
 inline KeyboardControl* GetKeyboardControl(IGraphics* pGraphics, int keyboardTag)
@@ -604,7 +660,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   auto context = AttachEditorMainControls(pGraphics, editorState, harmonicVisualizerTag, editorTabsTag, breathMeterTag);
 
   // Title panel: x=4, y=4, w=900, h=60
-  layout::AttachTitlePanelControls(pGraphics, context);
+  layout::AttachTitlePanelControls(pGraphics, context, kCtrlTagAboutBox);
 
   // Output meter panel: x=906, y=4, w=240, h=60
   layout::AttachOutputMeterPanel(pGraphics, resources, outMeterTag);
@@ -633,6 +689,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
 
   // Keyboard panel: x=4, y=514, w=1142, h=130
   layout::AttachKeyboardPanelControls(pGraphics, context, keyboardTag, benderTag);
+  layout::AttachAboutBoxControl(pGraphics, resources, kCtrlTagAboutBox);
   context->RefreshEditorActionButtons();
   vizEditPanel.setMainPanelMode(!context->IsEditMode());
   vizEditPanel.modeSwitch->SetDirty(false);

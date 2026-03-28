@@ -38,6 +38,7 @@ enum EControlTags
   kCtrlTagEditorTabs,
   kCtrlTagKeyboard,
   kCtrlTagBender,
+  kCtrlTagAboutBox,
   kNumCtrlTags
 };
 
@@ -54,6 +55,8 @@ public:
   void OnRestoreState() override;
   void OnUIOpen() override;
   void OnUIClose() override;
+  bool OnHostRequestingAboutBox() override;
+  bool OnHostRequestingProductHelp() override;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -69,6 +72,8 @@ private:
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
   void PromptLoadPresetFromFile();
   void PromptSavePresetToFile();
+  bool ShowAboutBox();
+  bool OpenOnlineDocs();
   void LoadBuiltInPresets();
   void RefreshEditorUI(bool resetOscillatorRestoreStates = false);
 

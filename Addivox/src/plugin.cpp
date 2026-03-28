@@ -672,6 +672,29 @@ void Addivox::OnUIClose()
   mEditorContext.reset();
 }
 
+bool Addivox::OnHostRequestingAboutBox()
+{
+  return ShowAboutBox();
+}
+
+bool Addivox::OnHostRequestingProductHelp()
+{
+  return OpenOnlineDocs();
+}
+
+bool Addivox::ShowAboutBox()
+{
+  return plugin_ui::layout::ShowAboutBox(GetUI(), kCtrlTagAboutBox);
+}
+
+bool Addivox::OpenOnlineDocs()
+{
+  if(auto* ui = GetUI())
+    return ui->OpenURL(PLUG_URL_STR);
+
+  return false;
+}
+
 #if IPLUG_DSP
 void Addivox::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
 {

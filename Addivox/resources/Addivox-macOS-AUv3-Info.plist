@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Addivox</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Addivox v1.0.0 Copyright 2026 Ryan Wick (rrwick@gmail.com)</string>
+	<string>Addivox v1.0.0 copyright 2026 Ryan Wick</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.rrwick.app.Addivox.AUv3</string>
 	<key>CFBundleInfoDictionaryVersion</key>

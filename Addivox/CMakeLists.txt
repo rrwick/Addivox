@@ -58,4 +58,5 @@ iplug_add_plugin(${PROJECT_NAME}
     assets/knob-fixed.svg
     assets/knob-rotating.svg
     assets/background.svg
+    assets/about-logo.svg
 )
