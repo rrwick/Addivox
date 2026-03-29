@@ -32,8 +32,23 @@ inline EqCurve MakeEqCurveFromPointArrays(const std::array<double, N>& frequenci
 inline EqCurve MakeEqShapeCurve(const char* shapeName)
 {
   const std::string_view shape = shapeName ? shapeName : "";
+
   if(shape.empty() || shape == "flat")
     return {};
+
+  if(shape == "low-pass")
+  {
+    static constexpr std::array<double, 3> kFrequenciesHz{{1000.0, 2000.0, 3000.0}};
+    static constexpr std::array<double, 3> kGainsDb{{         0.0,  -24.0, -160.0}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
+  }
+
+  if(shape == "high-pass")
+  {
+    static constexpr std::array<double, 3> kFrequenciesHz{{250.0, 500.0, 1000.0}};
+    static constexpr std::array<double, 3> kGainsDb{{     -160.0, -24.0,    0.0}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
+  }
 
   if(shape == "5 waves")
   {
@@ -333,7 +348,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(),
     "choose shape",
-    {"flat", "5 waves", "10 waves", "15 waves", "20 waves", "5 peaks", "10 peaks", "ä vowel", "o vowel"},
+    {"flat", "low-pass", "high-pass", "5 waves", "10 waves", "15 waves", "20 waves", "5 peaks", "10 peaks", "ä vowel", "o vowel"},
     styles.utilityDropdownText,
     styles.darkTab);
   auto* actionsControl = new ActionSelectionControl(
