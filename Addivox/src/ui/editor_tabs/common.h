@@ -54,10 +54,10 @@ inline constexpr char kOscillatorTabTitleStorage[] =
   "Pan\0"
   "LvlVarAmt\0"
   "LvlVarRate\0"
-  "PchVarAmt\0"
-  "PchVarRate\0"
   "PanVarAmt\0"
-  "PanVarRate\0";
+  "PanVarRate\0"
+  "PchVarAmt\0"
+  "PchVarRate\0";
 
 inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 6;
 
@@ -70,10 +70,10 @@ inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOs
   kOscillatorTabTitleStorage + 37,
   kOscillatorTabTitleStorage + 41,
   kOscillatorTabTitleStorage + 51,
-  kOscillatorTabTitleStorage + 62,
-  kOscillatorTabTitleStorage + 72,
   kOscillatorTabTitleStorage + 83,
   kOscillatorTabTitleStorage + 93,
+  kOscillatorTabTitleStorage + 62,
+  kOscillatorTabTitleStorage + 72,
 }};
 
 inline const char* GetLevelTransformLabel(EditorLevelTransform transform)
