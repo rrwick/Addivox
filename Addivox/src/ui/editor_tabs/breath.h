@@ -10,6 +10,12 @@ inline bool TryGetBreathShapeValue(const char* shapeName, int oscillatorIndex, d
 {
   const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
 
+  if(std::strcmp(shapeName, "flat") == 0)
+  {
+    value = 1.0;
+    return true;
+  }
+
   if(std::strcmp(shapeName, "linear ramp") == 0)
   {
     value = harmonicNumber;
@@ -22,9 +28,9 @@ inline bool TryGetBreathShapeValue(const char* shapeName, int oscillatorIndex, d
     return true;
   }
 
-  if(std::strcmp(shapeName, "flat") == 0)
+  if(std::strcmp(shapeName, "cube ramp") == 0)
   {
-    value = 1.0;
+    value = 1.0 + ((harmonicNumber * harmonicNumber * harmonicNumber) / 10101.010101010101);
     return true;
   }
 
@@ -168,7 +174,7 @@ inline void AttachBreathTabChildren(IVTabPage* page,
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(),
     "choose shape",
-    {"linear ramp", "square ramp", "flat"},
+    {"flat", "linear ramp", "square ramp", "cube ramp"},
     styles.utilityDropdownText,
     styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {

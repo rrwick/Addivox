@@ -2,7 +2,9 @@
 
 #include "common.h"
 
+#include <array>
 #include <string_view>
+#include <utility>
 
 namespace editor
 {
@@ -15,73 +17,57 @@ inline ITextControl* CreateEqTabTitleControl(const EditorStyles& styles)
   return control;
 }
 
+template <std::size_t N>
+inline EqCurve MakeEqCurveFromPointArrays(const std::array<double, N>& frequenciesHz,
+                                          const std::array<double, N>& gainsDb)
+{
+  EqCurve::PointList points;
+  points.reserve(N);
+  for(std::size_t i = 0; i < N; ++i)
+    points.push_back({frequenciesHz[i], gainsDb[i]});
+
+  return EqCurve{std::move(points)};
+}
+
 inline EqCurve MakeEqShapeCurve(const char* shapeName)
 {
   const std::string_view shape = shapeName ? shapeName : "";
   if(shape.empty() || shape == "flat")
     return {};
 
-  if(shape == "a")
+  if(shape == "i vowel")
   {
-    return EqCurve{{
-      {20.0, 0.0},
-      {350.0, 6.0},
-      {800.0, 14.0},
-      {1400.0, -8.0},
-      {2400.0, 7.0},
-      {3600.0, -10.0},
-      {20000.0, 0.0},
-    }};
+    static constexpr std::array<double, 21> kFrequenciesHz{{            20.0,             99.0,           181.5,           250.0, 326.946753119458,           575.0,            950.0,           1312.5,           1325.0,           1650.0,          1987.5,         2120.0,          2300.0,         2480.0,         2940.0,          3200.0,         3460.0,         4160.0, 5526.73690428382,         22000.0}};
+    static constexpr std::array<double, 21> kGainsDb{{      -10.669079408627, -10.627677183356, -7.653731138546, -0.790423715897,  -3.491380691528, -8.905270538028, -18.610932784636, -17.994479500076, -17.990288065844, -16.044532845603, -8.024493217497, 3.784863587868, 23.429210486206, 9.729722603262, 5.120969364426, 14.739050449627, 6.199210486206, -0.81755067825,  -2.268104553223, -3.044410912971}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "e")
+  if(shape == "e vowel")
   {
-    return EqCurve{{
-      {20.0, 0.0},
-      {400.0, 5.0},
-      {550.0, -5.0},
-      {1800.0, 14.0},
-      {2600.0, 8.0},
-      {3800.0, 3.0},
-      {20000.0, 0.0},
-    }};
+    static constexpr std::array<double, 18> kFrequenciesHz{{           20.0,           176.0,          300.0,           390.0,          480.0,           737.5,           1150.0,           1562.5,         1930.0,          2150.0,         2370.0,        2690.0,        2950.0,         3210.0,          4480.0,          8400.0,         22000.0}};
+    static constexpr std::array<double, 18> kGainsDb{{      -6.774016494776, -6.370438110722, 0.928027570323, 13.121990211519, 5.646713746211, -7.988411319413, -16.955760470118, -11.763774153669, 4.074336567935, 23.356431099595, 9.878782028485, 4.36175887822, 12.8480617792, 5.465266134905, -0.903810394757, -2.935451912818, -3.380912462531}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "i")
+  if(shape == "ä vowel")
   {
-    return EqCurve{{
-      {20.0, 0.0},
-      {280.0, 4.0},
-      {500.0, -8.0},
-      {2300.0, 15.0},
-      {3200.0, 10.0},
-      {4200.0, 5.0},
-      {20000.0, 0.0},
-    }};
+    static constexpr std::array<double, 15> kFrequenciesHz{{           20.0,           220.0,          580.0,           730.0, 901.797456323916,          1090.0, 1308.408178799292,           1650.0,           2025.0,         2180.0,         2440.0,         2700.0,          9000.0,         22000.0}};
+    static constexpr std::array<double, 15> kGainsDb{{      -4.962230274005, -4.021422169249, 4.928410455634, 21.357417626702,  10.525862216949, 23.477278533181,   -3.714440345764, -16.259403431515, -11.138957323668, -5.15167181126, 5.157596762298, 0.628089253468, -6.342189667428, -6.834614978987}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "o")
+  if(shape == "o vowel")
   {
-    return EqCurve{{
-      {20.0, 0.0},
-      {450.0, 10.0},
-      {900.0, 7.0},
-      {1700.0, -7.0},
-      {2800.0, 3.0},
-      {20000.0, 0.0},
-    }};
+    static constexpr std::array<double, 16> kFrequenciesHz{{           20.0,            72.0, 206.310017585657,           360.0, 485.098808195888,           640.0,          760.0,          1000.0,           1450.0,           1900.0,          2160.0,         2400.0, 3286.297606332025,         10000.0,         22000.0}};
+    static constexpr std::array<double, 16> kGainsDb{{      -1.298474949376, -1.293219805343,    1.80323266983, 16.355452348292,  10.261422157288, 22.113071003985, 8.345592265987, -9.174591547456, -19.191716375988, -13.200635443203, -5.131875498073, 3.958136847606,   -3.153233528137, -8.009878241557, -8.153263701091}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "u")
+  if(shape == "u vowel")
   {
-    return EqCurve{{
-      {20.0, 0.0},
-      {325.0, 8.0},
-      {700.0, 6.0},
-      {1400.0, -6.0},
-      {2500.0, -10.0},
-      {20000.0, 0.0},
-    }};
+    static constexpr std::array<double, 16> kFrequenciesHz{{           20.0, 146.048935943401,          250.0,          330.0,          505.0,           595.0,          685.0,            900.0,         1350.0,           1800.0,          2180.0,         2400.0, 3124.442947283641,         10000.0,         22000.0}};
+    static constexpr std::array<double, 16> kGainsDb{{      -2.743455418381,  -2.475646018982, 9.730978052126, 5.104769547325, 7.982293552812, 22.222556927298, 7.999001371742, -10.462100137174, -22.0289478738, -15.418170096022, -5.914683127572, 0.883015089163,   -6.576078414917, -9.493193415638, -9.599301783265}};
+    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
   return {};
@@ -299,7 +285,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(),
     "choose shape",
-    {"flat", "a", "e", "i", "o", "u"},
+    {"flat", "i vowel", "e vowel", "ä vowel", "o vowel", "u vowel"},
     styles.utilityDropdownText,
     styles.darkTab);
   auto* actionsControl = new ActionSelectionControl(
