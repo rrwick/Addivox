@@ -18,17 +18,17 @@ struct ParameterDescriptor
 
 constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{{
   {"Intensity", "", &OscillatorSettings::intensity},
-  {"Breath Power", "", &OscillatorSettings::breath_power},
+  {"Breath power", "", &OscillatorSettings::breath_power},
   {"Attack", "s", &OscillatorSettings::attack},
   {"Release", "s", &OscillatorSettings::release},
   {"Pitch", "cents", &OscillatorSettings::pitch},
   {"Pan", "", &OscillatorSettings::pan},
-  {"Intensity Variation Amount", "", &OscillatorSettings::intensity_variation_amplitude},
-  {"Intensity Variation Rate", "Hz", &OscillatorSettings::intensity_variation_rate},
-  {"Pitch Variation Amount", "cents", &OscillatorSettings::pitch_variation_amplitude},
-  {"Pitch Variation Rate", "Hz", &OscillatorSettings::pitch_variation_rate},
-  {"Pan Variation Amount", "", &OscillatorSettings::pan_variation_amplitude},
-  {"Pan Variation Rate", "Hz", &OscillatorSettings::pan_variation_rate}
+  {"Intensity variation amount", "", &OscillatorSettings::intensity_variation_amplitude},
+  {"Intensity variation rate", "Hz", &OscillatorSettings::intensity_variation_rate},
+  {"Pitch variation amount", "cents", &OscillatorSettings::pitch_variation_amplitude},
+  {"Pitch variation rate", "Hz", &OscillatorSettings::pitch_variation_rate},
+  {"Pan variation amount", "", &OscillatorSettings::pan_variation_amplitude},
+  {"Pan variation rate", "Hz", &OscillatorSettings::pan_variation_rate}
 }};
 
 const ParameterDescriptor* GetDescriptor(Parameter parameter)

@@ -108,7 +108,7 @@ inline void AppendPanTabDescriptors(std::vector<OscillatorTabDescriptor>& descri
 {
   descriptors.push_back({
     kOscillatorTabTitles[5],
-    "Pan Offset",
+    "Pan offset",
     OscillatorParameter::pan,
     {-1.0, 1.0},
     help_text::oscillator_tabs::Get(OscillatorParameter::pan)

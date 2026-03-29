@@ -17,6 +17,12 @@ inline bool TryGetPitchShapeValue(const char* shapeName, int oscillatorIndex, do
     return true;
   }
 
+  if(std::strcmp(shapeName, "alternating") == 0)
+  {
+    value = (oscillatorIndex % 2) == 0 ? -10.0 : 10.0;
+    return true;
+  }
+
   if(std::strcmp(shapeName, "ramp sharp") == 0)
   {
     value = centsOffset;
@@ -98,7 +104,7 @@ inline void AppendPitchTabDescriptors(std::vector<OscillatorTabDescriptor>& desc
 {
   descriptors.push_back({
     kOscillatorTabTitles[4],
-    "Pitch Offset",
+    "Pitch offset",
     OscillatorParameter::pitch,
     {-100.0, 100.0},
     help_text::oscillator_tabs::Get(OscillatorParameter::pitch)
@@ -197,7 +203,7 @@ inline void AttachPitchTabChildren(IVTabPage* page,
   auto* setShapeControl = new ActionSelectionControl(
     IRECT(),
     "choose shape",
-    {"zero", "ramp sharp", "ramp flat", "ramp alternating"},
+    {"zero", "alternating", "ramp sharp", "ramp flat", "ramp alternating"},
     styles.utilityDropdownText,
     styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {

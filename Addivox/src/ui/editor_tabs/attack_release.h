@@ -95,14 +95,14 @@ inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescripto
 {
   descriptors.push_back({
     kOscillatorTabTitles[2],
-    "Attack Time",
+    "Attack time",
     OscillatorParameter::attack,
     {0.0, 1.0},
     help_text::oscillator_tabs::Get(OscillatorParameter::attack)
   });
   descriptors.push_back({
     kOscillatorTabTitles[3],
-    "Release Time",
+    "Release time",
     OscillatorParameter::release,
     {0.0, 1.0},
     help_text::oscillator_tabs::Get(OscillatorParameter::release)

@@ -67,7 +67,7 @@ inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& des
 {
   descriptors.push_back({
     kOscillatorTabTitles[1],
-    "Breath Power",
+    "Breath power",
     OscillatorParameter::breath_power,
     {0.0, 100.0},
     help_text::oscillator_tabs::Get(OscillatorParameter::breath_power)
