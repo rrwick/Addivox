@@ -112,6 +112,11 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
     for(auto& point : points)
       point.gainDb -= meanDb;
   }
+  else if(action == "invert")
+  {
+    for(auto& point : points)
+      point.gainDb = -point.gainDb;
+  }
   else if(action == "scale up" || action == "scale down")
   {
     const double scale = (action == "scale up") ? 1.111111111111111 : 0.9;
@@ -313,7 +318,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "scale up", "scale down", "shift right", "shift left"},
+    {"normalise", "invert", "scale up", "scale down", "shift right", "shift left"},
     styles.utilityDropdownText,
     styles.darkTab);
   auto* editorControl = CreateEqEditorControl(context);
