@@ -22,7 +22,9 @@ public:
 
   static constexpr double kMinFrequencyHz = 20.0;
   static constexpr double kMaxFrequencyHz = 22000.0;
-  static constexpr double kMinGainDb = -24.0;
+  static constexpr double kMuteGainDb = -160.0;
+  static constexpr double kMinGainDb = kMuteGainDb;
+  static constexpr double kMinFiniteGainDb = -24.0;
   static constexpr double kMaxGainDb = 24.0;
 
   EqCurve() = default;
@@ -57,19 +59,48 @@ public:
   double EvaluateDb(double frequencyHz) const
   {
     if(!mResponseLut.empty())
-      return EvaluateResponseLut(frequencyHz);
+      return ClampGainDb(EvaluateResponseLut(frequencyHz));
 
     if(mPoints.empty())
       return 0.0;
     if(mPoints.size() == 1)
       return mPoints.front().gainDb;
 
-    return EvaluateSplineDb(frequencyHz);
+    return ClampGainDb(EvaluateSplineDb(frequencyHz));
+  }
+
+  static bool IsMutedGainDb(double gainDb)
+  {
+    if(!std::isfinite(gainDb))
+      return gainDb < 0.0;
+
+    return gainDb <= (kMuteGainDb + kMuteGainDbEpsilon);
+  }
+
+  static double ClampGainDb(double gainDb)
+  {
+    if(std::isnan(gainDb))
+      return 0.0;
+    if(!std::isfinite(gainDb))
+      return gainDb < 0.0 ? kMuteGainDb : kMaxGainDb;
+
+    return std::clamp(gainDb, kMinGainDb, kMaxGainDb);
   }
 
   static double DbToGain(double gainDb)
   {
+    if(IsMutedGainDb(gainDb))
+      return 0.0;
+
     return std::pow(10.0, ClampGainDb(gainDb) / 20.0);
+  }
+
+  static double GainToDb(double gain)
+  {
+    if(!(gain > 0.0) || !std::isfinite(gain))
+      return kMuteGainDb;
+
+    return ClampGainDb(20.0 * std::log10(gain));
   }
 
   static ResponseLut InterpolateResponseLut(const ResponseLut& lo, const ResponseLut& hi, double t)
@@ -82,7 +113,9 @@ public:
 
     ResponseLut responseLut(kResponseLutSize);
     for(std::size_t i = 0; i < responseLut.size(); ++i)
-      responseLut[i] = Lerp(lo[i], hi[i], clampedT);
+    {
+      responseLut[i] = GainToDb(Lerp(DbToGain(lo[i]), DbToGain(hi[i]), clampedT));
+    }
 
     return responseLut;
   }
@@ -114,6 +147,7 @@ public:
 private:
   static constexpr double kFrequencyEpsilonHz = 1.0e-6;
   static constexpr double kLogFrequencyEpsilon = 1.0e-12;
+  static constexpr double kMuteGainDbEpsilon = 1.0e-9;
 
   static double Lerp(double lo, double hi, double t)
   {
@@ -123,11 +157,6 @@ private:
   static double ClampFrequencyHz(double frequencyHz)
   {
     return std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
-  }
-
-  static double ClampGainDb(double gainDb)
-  {
-    return std::clamp(gainDb, kMinGainDb, kMaxGainDb);
   }
 
   static double LogFrequency(double frequencyHz)
@@ -280,7 +309,7 @@ private:
     const std::size_t lowerIndex = static_cast<std::size_t>(position);
     const std::size_t upperIndex = std::min(lowerIndex + 1, mResponseLut.size() - 1);
     const double fraction = position - static_cast<double>(lowerIndex);
-    return Lerp(mResponseLut[lowerIndex], mResponseLut[upperIndex], fraction);
+    return ClampGainDb(Lerp(mResponseLut[lowerIndex], mResponseLut[upperIndex], fraction));
   }
 
   PointList mPoints{};

@@ -105,23 +105,44 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
   if(action == "normalise")
   {
     double meanDb = 0.0;
+    std::size_t activePointCount = 0;
     for(const auto& point : points)
+    {
+      if(EqCurve::IsMutedGainDb(point.gainDb))
+        continue;
       meanDb += point.gainDb;
+      ++activePointCount;
+    }
 
-    meanDb /= static_cast<double>(points.size());
+    if(activePointCount == 0)
+      return false;
+
+    meanDb /= static_cast<double>(activePointCount);
     for(auto& point : points)
-      point.gainDb -= meanDb;
+    {
+      if(EqCurve::IsMutedGainDb(point.gainDb))
+        continue;
+      point.gainDb = EqCurve::ClampGainDb(point.gainDb - meanDb);
+    }
   }
   else if(action == "invert")
   {
     for(auto& point : points)
-      point.gainDb = -point.gainDb;
+    {
+      if(EqCurve::IsMutedGainDb(point.gainDb))
+        continue;
+      point.gainDb = EqCurve::ClampGainDb(-point.gainDb);
+    }
   }
   else if(action == "scale up" || action == "scale down")
   {
     const double scale = (action == "scale up") ? 1.111111111111111 : 0.9;
     for(auto& point : points)
-      point.gainDb *= scale;
+    {
+      if(EqCurve::IsMutedGainDb(point.gainDb))
+        continue;
+      point.gainDb = EqCurve::ClampGainDb(point.gainDb * scale);
+    }
   }
   else if(action == "shift right" || action == "shift left")
   {

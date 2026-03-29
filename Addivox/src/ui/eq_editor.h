@@ -223,17 +223,17 @@ private:
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
   static constexpr double kDraggedPointFrequencyEpsilonHz = 1.0e-6;
   static constexpr double kDraggedPointGainEpsilonDb = 1.0e-6;
-  static constexpr std::array<float, 28> kGridFrequenciesHz{
-    20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f, 90.f,
-    100.f, 200.f, 300.f, 400.f, 500.f, 600.f, 700.f, 800.f, 900.f,
-    1000.f, 2000.f, 3000.f, 4000.f, 5000.f, 6000.f, 7000.f, 8000.f, 9000.f,
-    10000.f, 20000.f};
-  static constexpr std::array<float, 13> kFrequencyLabelsHz{20.f, 30.f, 50.f, 100.f, 200.f, 300.f, 500.f, 1000.f, 2000.f, 3000.f, 5000.f, 10000.f, 20000.f};
+  static constexpr double kMuteBandVisualDbEquivalent = 4.0;
+  static constexpr double kVisibleGainDbSpan = EqCurve::kMaxGainDb - EqCurve::kMinFiniteGainDb;
+  static constexpr double kTotalVisualGainDbSpan = kVisibleGainDbSpan + kMuteBandVisualDbEquivalent;
+
+  static constexpr std::array<float, 28> kGridFrequenciesHz{20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f, 90.f, 100.f, 200.f, 300.f, 400.f, 500.f, 600.f, 700.f, 800.f, 900.f, 1000.f, 2000.f, 3000.f, 4000.f, 5000.f, 6000.f, 7000.f, 8000.f, 9000.f, 10000.f, 20000.f};
+  
+  static constexpr std::array<float, 13>       kFrequencyLabelsHz    {   20.f,    30.f,    50.f,    100.f,    200.f,    300.f,    500.f,  1000.f,  2000.f,  3000.f,  5000.f,  10000.f,  20000.f};
   static constexpr std::array<const char*, 13> kFrequencyLabelStrings{"20 Hz", "30 Hz", "50 Hz", "100 Hz", "200 Hz", "300 Hz", "500 Hz", "1 kHz", "2 kHz", "3 kHz", "5 kHz", "10 kHz", "20 kHz"};
   
-  static constexpr std::array<float, 5> kYAxisDbLabels{-24.f, -12.f, 0.f, 12.f, 24.f};
-  static constexpr std::array<const char*, 5> kYAxisLabelStrings{
-    "-24", "-12", "0", "+12", "+24"};
+  static constexpr std::array<double, 6>      kYAxisDbLabels    {EqCurve::kMinGainDb, EqCurve::kMinFiniteGainDb, -12.0, 0.0, 12.0, 24.0};
+  static constexpr std::array<const char*, 6> kYAxisLabelStrings{"mute", "-24", "-12", "0", "+12", "+24"};
 
   static bool IsMajorGridFrequency(float frequencyHz)
   {
@@ -270,11 +270,33 @@ private:
     return FrequencyFromNormalizedX(xNorm);
   }
 
+  static double MuteBandTopYNorm()
+  {
+    return kVisibleGainDbSpan / kTotalVisualGainDbSpan;
+  }
+
+  static double GainAtMuteBandTop()
+  {
+    return EqCurve::DbToGain(EqCurve::kMinFiniteGainDb);
+  }
+
   static float YFromDb(double gainDb, const IRECT& plotBounds)
   {
-    const double clampedGainDb = std::clamp(gainDb, EqCurve::kMinGainDb, EqCurve::kMaxGainDb);
-    const double yNorm =
-      (EqCurve::kMaxGainDb - clampedGainDb) / (EqCurve::kMaxGainDb - EqCurve::kMinGainDb);
+    const double clampedGainDb = EqCurve::ClampGainDb(gainDb);
+    double yNorm = 0.0;
+    if(clampedGainDb >= EqCurve::kMinFiniteGainDb)
+    {
+      yNorm = (EqCurve::kMaxGainDb - clampedGainDb) / kTotalVisualGainDbSpan;
+    }
+    else
+    {
+      const double gainRatio = std::clamp(
+        EqCurve::DbToGain(clampedGainDb) / GainAtMuteBandTop(),
+        0.0,
+        1.0);
+      yNorm = MuteBandTopYNorm() + ((1.0 - gainRatio) * (1.0 - MuteBandTopYNorm()));
+    }
+
     return plotBounds.T + (static_cast<float>(yNorm) * plotBounds.H());
   }
 
@@ -282,10 +304,15 @@ private:
   {
     const float clampedY = std::clamp(y, plotBounds.T, plotBounds.B);
     const double yNorm = (plotBounds.H() <= 0.f) ? 0.0 : ((clampedY - plotBounds.T) / plotBounds.H());
-    return std::clamp(
-      EqCurve::kMaxGainDb - (yNorm * (EqCurve::kMaxGainDb - EqCurve::kMinGainDb)),
-      EqCurve::kMinGainDb,
-      EqCurve::kMaxGainDb);
+    if(yNorm <= MuteBandTopYNorm())
+    {
+      return EqCurve::ClampGainDb(EqCurve::kMaxGainDb - (yNorm * kTotalVisualGainDbSpan));
+    }
+
+    const double muteBandProgress =
+      std::clamp((yNorm - MuteBandTopYNorm()) / (1.0 - MuteBandTopYNorm()), 0.0, 1.0);
+    const double gain = GainAtMuteBandTop() * (1.0 - muteBandProgress);
+    return EqCurve::GainToDb(gain);
   }
 
   IRECT GetPlotBounds() const
@@ -328,7 +355,7 @@ private:
 
   void DrawGainGrid(IGraphics& g, const IRECT& plotBounds) const
   {
-    for(const float gainDb : kYAxisDbLabels)
+    for(const double gainDb : kYAxisDbLabels)
     {
       const float y = YFromDb(gainDb, plotBounds);
       const IColor color = (std::fabs(gainDb) < 0.01f)
@@ -406,6 +433,9 @@ private:
 
   static std::string FormatGainDb(double gainDb)
   {
+    if(EqCurve::IsMutedGainDb(gainDb))
+      return "mute";
+
     const double roundedGainDb = std::round(gainDb * 10.0) / 10.0;
     const double normalizedGainDb = (std::abs(roundedGainDb) < 0.05) ? 0.0 : roundedGainDb;
 
