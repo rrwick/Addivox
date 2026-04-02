@@ -14,6 +14,11 @@ inline std::shared_ptr<EditorLevelTransform> GetAttackReleaseTransform(const std
     : context->attackReleaseTab.releaseTransform;
 }
 
+inline double GetAttackReleaseMaxValue(OscillatorParameter parameter)
+{
+  return parameter == OscillatorParameter::release ? 0.1 : 1.0;
+}
+
 inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter,
                                           const char* shapeName,
                                           int oscillatorIndex,
@@ -23,15 +28,43 @@ inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter,
 
   if(parameter == OscillatorParameter::attack)
   {
-    if(std::strcmp(shapeName, "linear ramp up") == 0)
+    if(std::strcmp(shapeName, "linear ramp up") == 0 ||
+       std::strcmp(shapeName, "linear ramp up (slow)") == 0)
     {
       value = harmonicNumber / 100.0;
       return true;
     }
 
-    if(std::strcmp(shapeName, "square root ramp up") == 0)
+    if(std::strcmp(shapeName, "linear ramp up (fast)") == 0)
     {
-      value = std::sqrt(harmonicNumber) / 10.0;
+      value = harmonicNumber / 1000.0;
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "square root ramp up") == 0 ||
+       std::strcmp(shapeName, "sqrt ramp up (slow)") == 0)
+    {
+      value = (0.11 * std::sqrt(harmonicNumber)) - 0.1;
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "sqrt ramp up (fast)") == 0)
+    {
+      value = ((0.11 * std::sqrt(harmonicNumber)) - 0.1) / 10.0;
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "logarithmic ramp up (slow)") == 0 ||
+       std::strcmp(shapeName, "exponential ramp up (slow)") == 0)
+    {
+      value = 0.01 + (0.99 * std::log(harmonicNumber) / std::log(100.0));
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "logarithmic ramp up (fast)") == 0 ||
+       std::strcmp(shapeName, "exponential ramp up (fast)") == 0)
+    {
+      value = 0.001 + (0.099 * std::log(harmonicNumber) / std::log(100.0));
       return true;
     }
 
@@ -43,9 +76,42 @@ inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter,
   }
   else if(parameter == OscillatorParameter::release)
   {
-    if(std::strcmp(shapeName, "linear ramp down") == 0)
+    if(std::strcmp(shapeName, "linear ramp down") == 0 ||
+       std::strcmp(shapeName, "linear ramp down (slow)") == 0)
     {
-      value = 1.0 - (harmonicNumber / 100.0);
+      value = 0.1 - (static_cast<double>(oscillatorIndex) / 1000.0);
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "linear ramp down (fast)") == 0)
+    {
+      value = 0.01 - (static_cast<double>(oscillatorIndex) / 10000.0);
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "square ramp down (slow)") == 0)
+    {
+      const double distanceFromEnd = harmonicNumber - 101.0;
+      value = ((distanceFromEnd * distanceFromEnd) / 101000.0) + (1.0 / 1010.0);
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "square ramp down (fast)") == 0)
+    {
+      const double distanceFromEnd = harmonicNumber - 101.0;
+      value = ((((distanceFromEnd * distanceFromEnd) / 101000.0) + (1.0 / 1010.0)) / 10.0);
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "exponential ramp down (slow)") == 0)
+    {
+      value = 0.1 * std::pow(10.0, (-2.0 * static_cast<double>(oscillatorIndex)) / 99.0);
+      return true;
+    }
+
+    if(std::strcmp(shapeName, "exponential ramp down (fast)") == 0)
+    {
+      value = 0.01 * std::pow(10.0, (-2.0 * static_cast<double>(oscillatorIndex)) / 99.0);
       return true;
     }
 
@@ -67,7 +133,10 @@ inline bool ApplyAttackReleaseShape(SimplePreset& preset, OscillatorParameter pa
     if(!TryGetAttackReleaseShapeValue(parameter, shapeName, oscillatorIndex, value))
       return false;
 
-    preset.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, 1.0));
+    preset.SetOscillatorParameter(
+      oscillatorIndex,
+      parameter,
+      std::clamp(value, 0.0, GetAttackReleaseMaxValue(parameter)));
   }
 
   return true;
@@ -75,18 +144,20 @@ inline bool ApplyAttackReleaseShape(SimplePreset& preset, OscillatorParameter pa
 
 inline bool ApplyAttackReleaseAction(SimplePreset& preset, OscillatorParameter parameter, const char* actionName)
 {
+  const double maxValue = GetAttackReleaseMaxValue(parameter);
+
   if(std::strcmp(actionName, "scale up all") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, 0.0, 1.0);
+    return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, 0.0, maxValue);
   if(std::strcmp(actionName, "scale down all") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 0.9, 0.0, 1.0);
+    return preset.ScaleOscillatorParameterAll(parameter, 0.9, 0.0, maxValue);
   if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 1.111111111111111, 0.0, 1.0);
+    return preset.ScaleOscillatorParameterEven(parameter, 1.111111111111111, 0.0, maxValue);
   if(std::strcmp(actionName, "scale down even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 0.9, 0.0, 1.0);
+    return preset.ScaleOscillatorParameterEven(parameter, 0.9, 0.0, maxValue);
   if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 1.111111111111111, 0.0, 1.0);
+    return preset.ScaleOscillatorParameterOdd(parameter, 1.111111111111111, 0.0, maxValue);
   if(std::strcmp(actionName, "scale down odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 0.9, 0.0, 1.0);
+    return preset.ScaleOscillatorParameterOdd(parameter, 0.9, 0.0, maxValue);
 
   return false;
 }
@@ -104,7 +175,7 @@ inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescripto
     kOscillatorTabTitles[3],
     "Release time",
     OscillatorParameter::release,
-    {0.0, 1.0},
+    {0.0, 0.1},
     help_text::oscillator_tabs::Get(OscillatorParameter::release)
   });
 }
@@ -206,8 +277,22 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page,
     IRECT(),
     "choose shape",
     descriptor.parameter == OscillatorParameter::attack
-      ? std::initializer_list<const char*>{"linear ramp up", "square root ramp up", "flat"}
-      : std::initializer_list<const char*>{"linear ramp down", "flat"},
+      ? std::initializer_list<const char*>{
+          "linear ramp up (slow)",
+          "linear ramp up (fast)",
+          "sqrt ramp up (slow)",
+          "sqrt ramp up (fast)",
+          "logarithmic ramp up (slow)",
+          "logarithmic ramp up (fast)",
+          "flat"}
+      : std::initializer_list<const char*>{
+          "linear ramp down (slow)",
+          "linear ramp down (fast)",
+          "square ramp down (slow)",
+          "square ramp down (fast)",
+          "exponential ramp down (slow)",
+          "exponential ramp down (fast)",
+          "flat"},
     styles.utilityDropdownText,
     styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
