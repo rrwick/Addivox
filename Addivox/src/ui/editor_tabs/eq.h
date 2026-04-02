@@ -159,6 +159,16 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
       point.gainDb = EqCurve::ClampGainDb(point.gainDb * scale);
     }
   }
+  else if(action == "shift up" || action == "shift down")
+  {
+    const double gainOffsetDb = (action == "shift up") ? 1.0 : -1.0;
+    for(auto& point : points)
+    {
+      if(EqCurve::IsMutedGainDb(point.gainDb))
+        continue;
+      point.gainDb = EqCurve::ClampGainDb(point.gainDb + gainOffsetDb);
+    }
+  }
   else if(action == "shift right" || action == "shift left")
   {
     constexpr double kShiftRatio = 1.189207115002721; // Quarter-octave in log-frequency space.
@@ -354,7 +364,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "invert", "scale up", "scale down", "shift right", "shift left"},
+    {"normalise", "invert", "scale up", "scale down", "shift up", "shift down", "shift right", "shift left"},
     styles.utilityDropdownText,
     styles.darkTab);
   auto* editorControl = CreateEqEditorControl(context);
