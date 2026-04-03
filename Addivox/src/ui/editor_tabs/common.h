@@ -196,6 +196,28 @@ inline bool IsVariationParameter(OscillatorParameter parameter)
     && index <= static_cast<int>(OscillatorParameter::pan_variation_rate);
 }
 
+inline bool ApplyScaleAction(SimplePreset& preset,
+                             OscillatorParameter parameter,
+                             const char* actionName,
+                             double minValue,
+                             double maxValue)
+{
+  if(std::strcmp(actionName, "scale up all") == 0)
+    return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, minValue, maxValue);
+  if(std::strcmp(actionName, "scale down all") == 0)
+    return preset.ScaleOscillatorParameterAll(parameter, 0.9, minValue, maxValue);
+  if(std::strcmp(actionName, "scale up even") == 0)
+    return preset.ScaleOscillatorParameterEven(parameter, 1.111111111111111, minValue, maxValue);
+  if(std::strcmp(actionName, "scale down even") == 0)
+    return preset.ScaleOscillatorParameterEven(parameter, 0.9, minValue, maxValue);
+  if(std::strcmp(actionName, "scale up odd") == 0)
+    return preset.ScaleOscillatorParameterOdd(parameter, 1.111111111111111, minValue, maxValue);
+  if(std::strcmp(actionName, "scale down odd") == 0)
+    return preset.ScaleOscillatorParameterOdd(parameter, 0.9, minValue, maxValue);
+
+  return false;
+}
+
 inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
 {
   return static_cast<std::size_t>(
@@ -444,15 +466,6 @@ struct EditorContext
     }
   }
 
-  void SendOscillatorParameterEditToDSP(IControl* sourceControl,
-                                        int midiNote,
-                                        int oscillatorIndex,
-                                        OscillatorParameter parameter,
-                                        double value) const
-  {
-    SendOscillatorParameterToDSP(sourceControl, midiNote, oscillatorIndex, parameter, value);
-  }
-
   void SendOscillatorParameterValuesToDSP(IControl* sourceControl,
                                           int midiNote,
                                           OscillatorParameter parameter,
@@ -473,14 +486,6 @@ struct EditorContext
         sizeof(payload),
         &payload);
     }
-  }
-
-  void SendOscillatorParameterValuesEditToDSP(IControl* sourceControl,
-                                              int midiNote,
-                                              OscillatorParameter parameter,
-                                              const std::array<double, SimplePreset::kNumOscillators>& values) const
-  {
-    SendOscillatorParameterValuesToDSP(sourceControl, midiNote, parameter, values);
   }
 
   void SendAllKeyNotesEnabledToDSP(IControl* sourceControl,
@@ -515,16 +520,11 @@ struct EditorContext
       IByteChunk chunk;
       editor_messages::SerializeKeyNoteEqCurvePayload(midiNote, curve, chunk);
       delegate->SendArbitraryMsgFromUI(
-        editor_messages::kMsgTagSetKeyNoteEqCurve,
+      editor_messages::kMsgTagSetKeyNoteEqCurve,
         editorTabsTag,
         chunk.Size(),
         chunk.GetData());
     }
-  }
-
-  void SendEqCurveEditToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const
-  {
-    SendEqCurveToDSP(sourceControl, midiNote, curve);
   }
 
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const
@@ -727,7 +727,7 @@ struct EditorContext
     if(!Preset().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values))
       return;
 
-    SendOscillatorParameterValuesEditToDSP(control, midiNote, parameter, values);
+    SendOscillatorParameterValuesToDSP(control, midiNote, parameter, values);
     RefreshOscillatorTabs();
   }
 
@@ -746,7 +746,7 @@ struct EditorContext
     if(!Preset().SetKeyNoteEqCurve(midiNote, updatedCurve))
       return;
 
-    SendEqCurveEditToDSP(control, midiNote, updatedCurve);
+    SendEqCurveToDSP(control, midiNote, updatedCurve);
     RefreshOscillatorTabs();
   }
 };
@@ -904,7 +904,7 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
   if(!context->Preset().SetKeyNoteOscillatorParameterValues(midiNote, descriptor.parameter, values))
     return;
 
-  context->SendOscillatorParameterValuesEditToDSP(caller, midiNote, descriptor.parameter, values);
+  context->SendOscillatorParameterValuesToDSP(caller, midiNote, descriptor.parameter, values);
 
   context->RefreshOscillatorTabs();
 }
@@ -947,7 +947,7 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
       if(!updated)
         return;
 
-      context->SendOscillatorParameterEditToDSP(control, midiNote, oscillatorIndex, descriptor.parameter, clampedValue);
+      context->SendOscillatorParameterToDSP(control, midiNote, oscillatorIndex, descriptor.parameter, clampedValue);
     });
   return control;
 }

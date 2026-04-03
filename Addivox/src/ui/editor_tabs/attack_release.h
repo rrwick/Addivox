@@ -144,22 +144,7 @@ inline bool ApplyAttackReleaseShape(SimplePreset& preset, OscillatorParameter pa
 
 inline bool ApplyAttackReleaseAction(SimplePreset& preset, OscillatorParameter parameter, const char* actionName)
 {
-  const double maxValue = GetAttackReleaseMaxValue(parameter);
-
-  if(std::strcmp(actionName, "scale up all") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, 0.0, maxValue);
-  if(std::strcmp(actionName, "scale down all") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 0.9, 0.0, maxValue);
-  if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 1.111111111111111, 0.0, maxValue);
-  if(std::strcmp(actionName, "scale down even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 0.9, 0.0, maxValue);
-  if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 1.111111111111111, 0.0, maxValue);
-  if(std::strcmp(actionName, "scale down odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 0.9, 0.0, maxValue);
-
-  return false;
+  return ApplyScaleAction(preset, parameter, actionName, 0.0, GetAttackReleaseMaxValue(parameter));
 }
 
 inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)

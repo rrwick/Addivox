@@ -53,20 +53,7 @@ inline bool ApplyBreathShape(SimplePreset& preset, const char* shapeName)
 
 inline bool ApplyBreathAction(SimplePreset& preset, const char* actionName)
 {
-  if(std::strcmp(actionName, "scale up all") == 0)
-    return preset.ScaleBreathPowerUp();
-  if(std::strcmp(actionName, "scale down all") == 0)
-    return preset.ScaleBreathPowerDown();
-  if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleBreathPowerUpEven();
-  if(std::strcmp(actionName, "scale down even") == 0)
-    return preset.ScaleBreathPowerDownEven();
-  if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleBreathPowerUpOdd();
-  if(std::strcmp(actionName, "scale down odd") == 0)
-    return preset.ScaleBreathPowerDownOdd();
-
-  return false;
+  return ApplyScaleAction(preset, OscillatorParameter::breath_power, actionName, 0.0, 100.0);
 }
 
 inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)

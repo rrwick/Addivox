@@ -65,8 +65,6 @@ constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
 constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
 constexpr int kIntensityTopTaperStartOscillatorIndex = 80;
 constexpr int kIntensityTopTaperZeroAtOscillatorIndex = SimplePreset::kNumOscillators;
-constexpr double kBreathPowerMin = 0.0;
-constexpr double kBreathPowerMax = 100.0;
 
 enum class HarmonicParity
 {
@@ -272,36 +270,6 @@ bool SimplePreset::ApplyIntensityTopTaper()
   return true;
 }
 
-bool SimplePreset::ScaleIntensityUp()
-{
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, 1.0);
-}
-
-bool SimplePreset::ScaleIntensityDown()
-{
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::intensity, 0.9, 0.0, 1.0);
-}
-
-bool SimplePreset::ScaleIntensityUpEven()
-{
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, 1.0);
-}
-
-bool SimplePreset::ScaleIntensityDownEven()
-{
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::intensity, 0.9, 0.0, 1.0);
-}
-
-bool SimplePreset::ScaleIntensityUpOdd()
-{
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 1.111111111111111, 0.0, 1.0);
-}
-
-bool SimplePreset::ScaleIntensityDownOdd()
-{
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::intensity, 0.9, 0.0, 1.0);
-}
-
 bool SimplePreset::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter,
                                                double scale,
                                                double minValue,
@@ -333,36 +301,6 @@ bool SimplePreset::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter par
   return descriptor
     ? ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Odd, minValue, maxValue)
     : false;
-}
-
-bool SimplePreset::ScaleBreathPowerUp()
-{
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::breath_power, 1.111111111111111, kBreathPowerMin, kBreathPowerMax);
-}
-
-bool SimplePreset::ScaleBreathPowerDown()
-{
-  return ScaleOscillatorParameterAll(OscillatorSettings::Parameter::breath_power, 0.9, kBreathPowerMin, kBreathPowerMax);
-}
-
-bool SimplePreset::ScaleBreathPowerUpEven()
-{
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::breath_power, 1.111111111111111, kBreathPowerMin, kBreathPowerMax);
-}
-
-bool SimplePreset::ScaleBreathPowerDownEven()
-{
-  return ScaleOscillatorParameterEven(OscillatorSettings::Parameter::breath_power, 0.9, kBreathPowerMin, kBreathPowerMax);
-}
-
-bool SimplePreset::ScaleBreathPowerUpOdd()
-{
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::breath_power, 1.111111111111111, kBreathPowerMin, kBreathPowerMax);
-}
-
-bool SimplePreset::ScaleBreathPowerDownOdd()
-{
-  return ScaleOscillatorParameterOdd(OscillatorSettings::Parameter::breath_power, 0.9, kBreathPowerMin, kBreathPowerMax);
 }
 
 bool SimplePreset::SmoothIntensity()

@@ -276,18 +276,8 @@ inline void AttachLevelTabChildren(IVTabPage* page,
           return preset.ApplyIntensityTopTaper();
         if(std::strcmp(selectedText, "smooth") == 0)
           return preset.SmoothIntensity();
-        if(std::strcmp(selectedText, "scale up all") == 0)
-          return preset.ScaleIntensityUp();
-        if(std::strcmp(selectedText, "scale down all") == 0)
-          return preset.ScaleIntensityDown();
-        if(std::strcmp(selectedText, "scale up even") == 0)
-          return preset.ScaleIntensityUpEven();
-        if(std::strcmp(selectedText, "scale down even") == 0)
-          return preset.ScaleIntensityDownEven();
-        if(std::strcmp(selectedText, "scale up odd") == 0)
-          return preset.ScaleIntensityUpOdd();
-        if(std::strcmp(selectedText, "scale down odd") == 0)
-          return preset.ScaleIntensityDownOdd();
+        if(ApplyScaleAction(preset, OscillatorParameter::intensity, selectedText, 0.0, 1.0))
+          return true;
         if(std::strcmp(selectedText, "zero even") == 0)
           return preset.ZeroEvenIntensities();
         if(std::strcmp(selectedText, "zero odd") == 0)

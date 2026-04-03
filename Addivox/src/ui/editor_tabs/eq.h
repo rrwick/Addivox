@@ -198,7 +198,7 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
   if(!context->Preset().SetKeyNoteEqCurve(midiNote, curve))
     return;
 
-  context->SendEqCurveEditToDSP(caller, midiNote, curve);
+  context->SendEqCurveToDSP(caller, midiNote, curve);
   if(refreshOscillatorTabs)
     context->RefreshOscillatorTabs();
 }
@@ -296,7 +296,7 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
       {
         context->Preset().EnableAllKeyNotesEq(*keyNoteEqCurve);
         context->SendAllKeyNotesEqEnabledToDSP(toggle, true);
-        context->SendEqCurveEditToDSP(toggle, midiNote, *keyNoteEqCurve);
+        context->SendEqCurveToDSP(toggle, midiNote, *keyNoteEqCurve);
       }
       else
       {

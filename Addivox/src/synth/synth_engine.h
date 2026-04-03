@@ -109,47 +109,6 @@ public:
     mSynth.GetVoice().SetCompoundPreset(preset);
   }
 
-  bool SetKeyNoteOscillatorParameter(double midiNote,
-                                     int oscillatorIndex,
-                                     OscillatorSettings::Parameter parameter,
-                                     double value)
-  {
-    return mSynth.GetVoice().SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
-  }
-
-  bool SetKeyNoteOscillatorParameterValues(
-    double midiNote,
-    OscillatorSettings::Parameter parameter,
-    const std::array<double, SimplePreset::kNumOscillators>& values)
-  {
-    return mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
-  }
-
-  bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
-  {
-    return mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
-  }
-
-  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote)
-  {
-    return mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, enabled, midiNote);
-  }
-
-  bool SetAllKeyNotesEqEnabled(bool enabled)
-  {
-    return mSynth.GetVoice().SetAllKeyNotesEqEnabled(enabled);
-  }
-
-  bool AddKeyNotePreset(double midiNote)
-  {
-    return mSynth.GetVoice().AddKeyNotePreset(midiNote);
-  }
-
-  bool RemoveKeyNotePreset(double midiNote)
-  {
-    return mSynth.GetVoice().RemoveKeyNotePreset(midiNote);
-  }
-
   void GetVisualizerFrame(VisualizerFrame& frame) const
   {
     mSynth.GetVoice().GetVisualizerFrame(frame);

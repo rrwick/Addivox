@@ -97,24 +97,6 @@ void SyncPresetOwnedParamDefaultsToCurrentValues(Addivox& plugin)
   }
 }
 
-int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int preferredMidiNote)
-{
-  const auto& keyNotePresets = compoundPreset.GetKeyNotePresets();
-  if(keyNotePresets.empty())
-    return preferredMidiNote;
-
-  auto upper = keyNotePresets.lower_bound(preferredMidiNote);
-  if(upper == keyNotePresets.begin())
-    return upper->first;
-  if(upper == keyNotePresets.end())
-    return std::prev(upper)->first;
-
-  const auto lower = std::prev(upper);
-  return (std::abs(preferredMidiNote - lower->first) <= std::abs(upper->first - preferredMidiNote))
-    ? lower->first
-    : upper->first;
-}
-
 bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chunk)
 {
   const std::string toml = preset_io::SerializePresetToToml(document);
@@ -410,7 +392,7 @@ Addivox::Addivox(const InstanceInfo& info)
 void Addivox::ApplyPresetDocument(const preset_io::PresetDocument& document)
 {
   mEditorState->compoundPreset = document.compoundPreset;
-  mEditorState->selectedMidiNote = ChooseDefaultSelectedMidiNote(
+  mEditorState->selectedMidiNote = preset_io::detail::ChooseDefaultSelectedMidiNote(
     document.compoundPreset,
     mEditorState->selectedMidiNote);
 
@@ -623,7 +605,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
     return -1;
 
   mEditorState->compoundPreset = document.compoundPreset;
-  mEditorState->selectedMidiNote = ChooseDefaultSelectedMidiNote(
+  mEditorState->selectedMidiNote = preset_io::detail::ChooseDefaultSelectedMidiNote(
     document.compoundPreset,
     mEditorState->selectedMidiNote);
   mPendingRestoredStatePresetName = document.name;
@@ -774,7 +756,11 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
+    return mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameter(
+      payload->midiNote,
+      payload->oscillatorIndex,
+      parameter,
+      payload->value);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -787,7 +773,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
+    return mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -800,7 +786,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if(!editor_messages::DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve))
       return false;
 
-    return mDSP.SetKeyNoteEqCurve(midiNote, curve);
+    return mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -813,7 +799,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote);
+    return mDSP.mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -822,7 +808,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     && pData)
   {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
-    return mDSP.SetAllKeyNotesEqEnabled(payload->enabled != 0);
+    return mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -831,7 +817,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     && pData)
   {
     const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
-    return mDSP.AddKeyNotePreset(payload->midiNote);
+    return mDSP.mSynth.GetVoice().AddKeyNotePreset(payload->midiNote);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -840,7 +826,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     && pData)
   {
     const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
-    return mDSP.RemoveKeyNotePreset(payload->midiNote);
+    return mDSP.mSynth.GetVoice().RemoveKeyNotePreset(payload->midiNote);
   }
 
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
