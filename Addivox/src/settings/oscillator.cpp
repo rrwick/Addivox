@@ -402,20 +402,20 @@ CompoundPreset::CompoundPreset(std::initializer_list<KeyNotePreset> keyNotePrese
     mKeyNotePresets[ClampMidiNote(midiNote)] = preset;
     mKeyNoteEqCurves[ClampMidiNote(midiNote)] = GetDefaultEqCurve();
   }
-
-  RebuildInterpolatedPresets();
-  RebuildInterpolatedEqCurves();
 }
 
-const OscillatorSettings& CompoundPreset::GetOscillatorSettings(double midiNote, int oscillatorIndex) const
+OscillatorSettings CompoundPreset::GetOscillatorSettings(double midiNote, int oscillatorIndex) const
 {
-  return GetPresetForMidiNote(midiNote).GetOscillatorSettings(oscillatorIndex);
+  return InterpolateOscillatorSettings(ResolveNoteSpan(midiNote), oscillatorIndex);
 }
 
-const SimplePreset& CompoundPreset::GetPresetForMidiNote(double midiNote) const
+SimplePreset CompoundPreset::GetPresetForMidiNote(double midiNote) const
 {
-  const int clampedNote = RoundAndClampMidiNote(midiNote);
-  return mInterpolatedPresets[clampedNote - kMinMidiNote];
+  const ResolvedNoteSpan span = ResolveNoteSpan(midiNote);
+  if(span.t <= 0.0 || span.lowerPreset == span.upperPreset)
+    return *span.lowerPreset;
+
+  return SimplePreset::Interpolate(*span.lowerPreset, *span.upperPreset, span.t);
 }
 
 const SimplePreset* CompoundPreset::GetKeyNotePreset(double midiNote) const
@@ -428,10 +428,17 @@ const SimplePreset* CompoundPreset::GetKeyNotePreset(double midiNote) const
   return &keyNoteIt->second;
 }
 
-const EqCurve& CompoundPreset::GetEqCurveForMidiNote(double midiNote) const
+EqCurve CompoundPreset::GetEqCurveForMidiNote(double midiNote) const
 {
-  const int clampedNote = RoundAndClampMidiNote(midiNote);
-  return mInterpolatedEqCurves[clampedNote - kMinMidiNote];
+  const ResolvedNoteSpan span = ResolveNoteSpan(midiNote);
+  if(span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve)
+    return *span.lowerEqCurve;
+
+  return EqCurve::FromResponseLut(
+    EqCurve::InterpolateResponseLut(
+      span.lowerEqCurve->BuildResponseLut(),
+      span.upperEqCurve->BuildResponseLut(),
+      span.t));
 }
 
 const EqCurve* CompoundPreset::GetKeyNoteEqCurve(double midiNote) const
@@ -470,6 +477,79 @@ const EqCurve& CompoundPreset::GetAllKeyNotesEqCurve() const
   return mAllKeyNotesEqCurve;
 }
 
+CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote) const
+{
+  const EqCurve& defaultEqCurve = IsAllKeyNotesEqEnabled() ? GetAllKeyNotesEqCurve() : GetDefaultEqCurve();
+  if(mKeyNotePresets.empty())
+  {
+    return ResolvedNoteSpan{
+      &GetDefaultPreset(),
+      &GetDefaultPreset(),
+      &defaultEqCurve,
+      &defaultEqCurve,
+      0.0};
+  }
+
+  const double clampedMidiNote = std::clamp(midiNote, static_cast<double>(kMinMidiNote), static_cast<double>(kMaxMidiNote));
+  auto makeExactSpan = [&](const std::map<int, SimplePreset>::const_iterator& it) {
+    const EqCurve& eqCurve = GetKeyNoteEqCurveOrDefault(it->first);
+    return ResolvedNoteSpan{
+      &it->second,
+      &it->second,
+      &eqCurve,
+      &eqCurve,
+      0.0};
+  };
+
+  auto upper = mKeyNotePresets.lower_bound(static_cast<int>(std::ceil(clampedMidiNote)));
+  if(upper == mKeyNotePresets.begin())
+    return makeExactSpan(upper);
+
+  if(upper == mKeyNotePresets.end())
+    return makeExactSpan(std::prev(mKeyNotePresets.end()));
+
+  if(static_cast<double>(upper->first) == clampedMidiNote)
+    return makeExactSpan(upper);
+
+  auto lower = std::prev(upper);
+  const double interval = static_cast<double>(upper->first - lower->first);
+  if(interval <= 0.0)
+    return makeExactSpan(lower);
+
+  const EqCurve& lowerEqCurve = GetKeyNoteEqCurveOrDefault(lower->first);
+  const EqCurve& upperEqCurve = GetKeyNoteEqCurveOrDefault(upper->first);
+  return ResolvedNoteSpan{
+    &lower->second,
+    &upper->second,
+    &lowerEqCurve,
+    &upperEqCurve,
+    (clampedMidiNote - static_cast<double>(lower->first)) / interval};
+}
+
+OscillatorSettings CompoundPreset::InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const
+{
+  const OscillatorSettings& lowerSettings = span.lowerPreset->GetOscillatorSettings(oscillatorIndex);
+  if(span.t <= 0.0 || span.lowerPreset == span.upperPreset)
+    return lowerSettings;
+
+  return OscillatorSettings::Interpolate(
+    lowerSettings,
+    span.upperPreset->GetOscillatorSettings(oscillatorIndex),
+    span.t);
+}
+
+double CompoundPreset::EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const
+{
+  const double lowerGain = EqCurve::DbToGain(span.lowerEqCurve->EvaluateDb(frequencyHz));
+  if(span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve)
+    return lowerGain;
+
+  return Lerp(
+    lowerGain,
+    EqCurve::DbToGain(span.upperEqCurve->EvaluateDb(frequencyHz)),
+    span.t);
+}
+
 bool CompoundPreset::HasKeyNotePreset(double midiNote) const
 {
   return GetKeyNotePreset(midiNote) != nullptr;
@@ -492,8 +572,6 @@ void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
   ApplyAllKeyNotesValues(updatedPreset);
   mKeyNotePresets[clampedMidiNote] = updatedPreset;
   mKeyNoteEqCurves[clampedMidiNote] = eqCurve;
-  RebuildInterpolatedPresets();
-  RebuildInterpolatedEqCurves();
 }
 
 bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
@@ -511,14 +589,10 @@ bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
     sharedValues[static_cast<std::size_t>(oscillatorIndex)] = value;
     for(auto& [_, preset] : mKeyNotePresets)
       preset.SetOscillatorParameter(oscillatorIndex, parameter, value);
-
-    SetInterpolatedOscillatorParameter(parameter, oscillatorIndex, value);
   }
   else
-  {
     mKeyNotePresets[clampedNote].SetOscillatorParameter(oscillatorIndex, parameter, value);
-    RebuildInterpolatedPresets();
-  }
+
   return true;
 }
 
@@ -536,14 +610,10 @@ bool CompoundPreset::SetKeyNoteOscillatorParameterValues(
     mAllKeyNotesValues[ParameterIndex(parameter)] = values;
     for(auto& [_, preset] : mKeyNotePresets)
       ApplyAllKeyNotesValues(preset, parameter, values);
-
-    SetInterpolatedOscillatorParameterValues(parameter, values);
   }
   else
-  {
     ApplyAllKeyNotesValues(mKeyNotePresets[clampedNote], parameter, values);
-    RebuildInterpolatedPresets();
-  }
+
   return true;
 }
 
@@ -560,8 +630,6 @@ bool CompoundPreset::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   }
   else
     mKeyNoteEqCurves[clampedNote] = curve;
-
-  RebuildInterpolatedEqCurves();
   return true;
 }
 
@@ -573,8 +641,6 @@ void CompoundPreset::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, 
 
   for(auto& [_, preset] : mKeyNotePresets)
     ApplyAllKeyNotesValues(preset, parameter, values);
-
-  SetInterpolatedOscillatorParameterValues(parameter, values);
 }
 
 void CompoundPreset::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote)
@@ -590,8 +656,6 @@ void CompoundPreset::SetAllKeyNotesEnabled(OscillatorSettings::Parameter paramet
 
     for(auto& [_, preset] : mKeyNotePresets)
       ApplyAllKeyNotesValues(preset, parameter, GetAllKeyNotesValues(parameter));
-
-    SetInterpolatedOscillatorParameterValues(parameter, GetAllKeyNotesValues(parameter));
   }
 }
 
@@ -600,7 +664,6 @@ void CompoundPreset::EnableAllKeyNotesEq(const EqCurve& curve)
   mAllKeyNotesEqCurve = curve;
   mAllKeyNotesEqEnabled = true;
   SetAllKeyNoteEqCurves(mAllKeyNotesEqCurve);
-  RebuildInterpolatedEqCurves();
 }
 
 void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
@@ -612,8 +675,6 @@ void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
       mAllKeyNotesEqCurve = mKeyNoteEqCurves.begin()->second;
     SetAllKeyNoteEqCurves(mAllKeyNotesEqCurve);
   }
-
-  RebuildInterpolatedEqCurves();
 }
 
 bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
@@ -624,12 +685,6 @@ bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
   const int clampedMidiNote = ClampMidiNote(midiNote);
   const size_t numRemoved = mKeyNotePresets.erase(clampedMidiNote);
   mKeyNoteEqCurves.erase(clampedMidiNote);
-  if(numRemoved > 0)
-  {
-    RebuildInterpolatedPresets();
-    RebuildInterpolatedEqCurves();
-  }
-
   return numRemoved > 0;
 }
 
@@ -637,8 +692,6 @@ void CompoundPreset::ClearKeyNotePresets()
 {
   mKeyNotePresets.clear();
   mKeyNoteEqCurves.clear();
-  RebuildInterpolatedPresets();
-  RebuildInterpolatedEqCurves();
 }
 
 void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset) const
@@ -663,148 +716,19 @@ void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset,
   }
 }
 
-void CompoundPreset::SetInterpolatedOscillatorParameter(OscillatorSettings::Parameter parameter,
-                                                        int oscillatorIndex,
-                                                        double value)
-{
-  for(auto& preset : mInterpolatedPresets)
-    preset.SetOscillatorParameter(oscillatorIndex, parameter, value);
-}
-
-void CompoundPreset::SetInterpolatedOscillatorParameterValues(
-  OscillatorSettings::Parameter parameter,
-  const OscillatorParameterValues& values)
-{
-  for(auto& preset : mInterpolatedPresets)
-    ApplyAllKeyNotesValues(preset, parameter, values);
-}
-
 const EqCurve& CompoundPreset::GetKeyNoteEqCurveOrDefault(int midiNote) const
 {
+  if(IsAllKeyNotesEqEnabled())
+    return GetAllKeyNotesEqCurve();
+
   if(const auto eqCurveIt = mKeyNoteEqCurves.find(midiNote); eqCurveIt != mKeyNoteEqCurves.end())
     return eqCurveIt->second;
 
   return GetDefaultEqCurve();
 }
 
-void CompoundPreset::EnsureKeyNoteEqCurves()
-{
-  const EqCurve& defaultEqCurve = IsAllKeyNotesEqEnabled() ? GetAllKeyNotesEqCurve() : GetDefaultEqCurve();
-  for(const auto& [midiNote, _] : mKeyNotePresets)
-  {
-    if(mKeyNoteEqCurves.find(midiNote) == mKeyNoteEqCurves.end())
-      mKeyNoteEqCurves[midiNote] = defaultEqCurve;
-  }
-}
-
 void CompoundPreset::SetAllKeyNoteEqCurves(const EqCurve& curve)
 {
   for(auto& [_, keyNoteCurve] : mKeyNoteEqCurves)
     keyNoteCurve = curve;
-}
-
-void CompoundPreset::RebuildInterpolatedEqCurves()
-{
-  EnsureKeyNoteEqCurves();
-
-  if(mKeyNotePresets.empty())
-  {
-    mInterpolatedEqCurves.fill(GetDefaultEqCurve());
-    return;
-  }
-
-  if(IsAllKeyNotesEqEnabled())
-  {
-    mInterpolatedEqCurves.fill(mAllKeyNotesEqCurve);
-    return;
-  }
-
-  if(mKeyNotePresets.size() == 1)
-  {
-    mInterpolatedEqCurves.fill(GetKeyNoteEqCurveOrDefault(mKeyNotePresets.begin()->first));
-    return;
-  }
-
-  const auto first = mKeyNotePresets.begin();
-  const auto last = std::prev(mKeyNotePresets.end());
-  std::fill(
-    mInterpolatedEqCurves.begin(),
-    mInterpolatedEqCurves.begin() + (first->first - kMinMidiNote + 1),
-    GetKeyNoteEqCurveOrDefault(first->first));
-  std::fill(
-    mInterpolatedEqCurves.begin() + (last->first - kMinMidiNote),
-    mInterpolatedEqCurves.end(),
-    GetKeyNoteEqCurveOrDefault(last->first));
-
-  auto lower = first;
-  auto upper = std::next(lower);
-  while(upper != mKeyNotePresets.end())
-  {
-    const int lowerMidiNote = lower->first;
-    const int upperMidiNote = upper->first;
-    const EqCurve& lowerEqCurve = GetKeyNoteEqCurveOrDefault(lowerMidiNote);
-    const EqCurve& upperEqCurve = GetKeyNoteEqCurveOrDefault(upperMidiNote);
-    mInterpolatedEqCurves[lowerMidiNote - kMinMidiNote] = lowerEqCurve;
-
-    if((upperMidiNote - lowerMidiNote) > 1)
-    {
-      const EqCurve::ResponseLut lowerResponseLut = lowerEqCurve.BuildResponseLut();
-      const EqCurve::ResponseLut upperResponseLut = upperEqCurve.BuildResponseLut();
-      const double interval = static_cast<double>(upperMidiNote - lowerMidiNote);
-      for(int midiNote = lowerMidiNote + 1; midiNote < upperMidiNote; ++midiNote)
-      {
-        const double t = static_cast<double>(midiNote - lowerMidiNote) / interval;
-        mInterpolatedEqCurves[midiNote - kMinMidiNote] = EqCurve::FromResponseLut(
-          EqCurve::InterpolateResponseLut(lowerResponseLut, upperResponseLut, t));
-      }
-    }
-
-    lower = upper;
-    ++upper;
-  }
-}
-
-void CompoundPreset::RebuildInterpolatedPresets()
-{
-  if(mKeyNotePresets.empty())
-  {
-    mInterpolatedPresets.fill(GetDefaultPreset());
-  }
-  else if(mKeyNotePresets.size() == 1)
-  {
-    mInterpolatedPresets.fill(mKeyNotePresets.begin()->second);
-  }
-  else
-  {
-    const auto first = mKeyNotePresets.begin();
-    const auto last = std::prev(mKeyNotePresets.end());
-
-    for(int midiNote = kMinMidiNote; midiNote <= kMaxMidiNote; ++midiNote)
-    {
-      const int index = midiNote - kMinMidiNote;
-
-      if(midiNote <= first->first)
-      {
-        mInterpolatedPresets[index] = first->second;
-        continue;
-      }
-
-      if(midiNote >= last->first)
-      {
-        mInterpolatedPresets[index] = last->second;
-        continue;
-      }
-
-      auto upper = mKeyNotePresets.lower_bound(midiNote);
-      if(upper != mKeyNotePresets.end() && upper->first == midiNote)
-      {
-        mInterpolatedPresets[index] = upper->second;
-        continue;
-      }
-
-      auto lower = std::prev(upper);
-      const double t = static_cast<double>(midiNote - lower->first) / static_cast<double>(upper->first - lower->first);
-      mInterpolatedPresets[index] = SimplePreset::Interpolate(lower->second, upper->second, t);
-    }
-  }
 }

@@ -12,6 +12,8 @@ SynthVoice::SynthVoice()
     const uint32_t harmonicSeed = voiceSeed ^ (0x9E3779B9u * static_cast<uint32_t>(harmonic + 1));
     mOscs[harmonic].SetVariationSeed(harmonicSeed);
   }
+
+  UpdatePitchRate();
 }
 
 bool SynthVoice::IsActive() const
@@ -27,8 +29,11 @@ bool SynthVoice::IsActive() const
 void SynthVoice::Start(double pitch, double pitchBend, double breath)
 {
   const bool retrigger = !IsActive();
-  mPitch = pitch;
+  mNotePitch = pitch;
   mPitchBend = pitchBend;
+  mTargetMidiPitch = GetTargetMidiPitch();
+  if(retrigger)
+    mRenderedMidiPitch = mTargetMidiPitch;
   mBreath = SmoothBreath(breath);
   UpdatePitch();
 
@@ -36,6 +41,8 @@ void SynthVoice::Start(double pitch, double pitchBend, double breath)
   {
     for(auto& osc : mOscs)
       osc.Reset();
+
+    UpdateLevels();
   }
 }
 
@@ -50,27 +57,30 @@ void SynthVoice::SetPitchBend(double pitchBend)
   UpdatePitch();
 }
 
-void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones)
+void SynthVoice::ApplyOscillatorSettings(int harmonic,
+                                         const OscillatorSettings& currentSettings,
+                                         const OscillatorSettings& futurePitchSettings,
+                                         double futureFundamentalPitchSemitones)
 {
   const double totalPitchSemitones = GetOscillatorBasePitchSemitones(
     harmonic,
-    settings,
-    fundamentalPitchSemitones,
+    futurePitchSettings,
+    futureFundamentalPitchSemitones,
     mGlobalVoiceSettings);
   mOscs[harmonic].SetPitch(totalPitchSemitones);
   mOscs[harmonic].SetPitchTime(GetPortamentoTimeSec());
   mOscs[harmonic].SetPitchVariation(
-    (settings.pitch_variation_amplitude * mGlobalVoiceSettings.pitchVariationAmplitudeScale) / 100.0,
-    settings.pitch_variation_rate * mGlobalVoiceSettings.pitchVariationRateScale);
-  mOscs[harmonic].SetAttackTime(settings.attack * mGlobalVoiceSettings.attackScale);
-  mOscs[harmonic].SetReleaseTime(settings.release * mGlobalVoiceSettings.releaseScale);
-  mOscs[harmonic].SetPan(std::clamp(settings.pan + mGlobalVoiceSettings.panOffset, -1.0, 1.0));
+    (currentSettings.pitch_variation_amplitude * mGlobalVoiceSettings.pitchVariationAmplitudeScale) / 100.0,
+    currentSettings.pitch_variation_rate * mGlobalVoiceSettings.pitchVariationRateScale);
+  mOscs[harmonic].SetAttackTime(currentSettings.attack * mGlobalVoiceSettings.attackScale);
+  mOscs[harmonic].SetReleaseTime(currentSettings.release * mGlobalVoiceSettings.releaseScale);
+  mOscs[harmonic].SetPan(std::clamp(currentSettings.pan + mGlobalVoiceSettings.panOffset, -1.0, 1.0));
   mOscs[harmonic].SetPanVariation(
-    settings.pan_variation_amplitude * mGlobalVoiceSettings.panVariationAmplitudeScale,
-    settings.pan_variation_rate * mGlobalVoiceSettings.panVariationRateScale);
+    currentSettings.pan_variation_amplitude * mGlobalVoiceSettings.panVariationAmplitudeScale,
+    currentSettings.pan_variation_rate * mGlobalVoiceSettings.panVariationRateScale);
   mOscs[harmonic].SetIntensityVariation(
-    settings.intensity_variation_amplitude * mGlobalVoiceSettings.intensityVariationAmplitudeScale,
-    settings.intensity_variation_rate * mGlobalVoiceSettings.intensityVariationRateScale);
+    currentSettings.intensity_variation_amplitude * mGlobalVoiceSettings.intensityVariationAmplitudeScale,
+    currentSettings.intensity_variation_rate * mGlobalVoiceSettings.intensityVariationRateScale);
 }
 
 void SynthVoice::SetBreath(double breath)
@@ -87,9 +97,12 @@ void SynthVoice::SetPortamentoControl(double control)
 {
   const double clampedControl = std::clamp(control, 0.0, 1.0);
   mPortamentoControl = clampedControl;
+  UpdatePitchRate();
   const double pitchTimeSec = GetPortamentoTimeSec();
   for(auto& osc : mOscs)
     osc.SetPitchTime(pitchTimeSec);
+
+  UpdatePitch();
 }
 
 void SynthVoice::SetTransposeSemitones(double transposeSemitones)
@@ -105,7 +118,7 @@ void SynthVoice::SetTransposeSemitones(double transposeSemitones)
 void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings)
 {
   mGlobalVoiceSettings = global_settings::Sanitize(settings);
-
+  UpdatePitchRate();
   UpdatePitch();
 }
 
@@ -201,11 +214,15 @@ double SynthVoice::SmoothBreath(double breath)
 
 void SynthVoice::Clear()
 {
-  mPitch = 0.0;
+  Stop();
+  mNotePitch = 0.0;
   mPitchBend = 0.0;
   mBreath = 0.0;
   mPortamentoControl = 0.0;
-  Stop();
+  mRenderedMidiPitch = 0.0;
+  mTargetMidiPitch = 0.0;
+  mNoteControlSamplesUntilUpdate = 0;
+  UpdatePitchRate();
 }
 
 double SynthVoice::GetPortamentoTimeSec() const
@@ -215,9 +232,9 @@ double SynthVoice::GetPortamentoTimeSec() const
       * mPortamentoControl;
 }
 
-double SynthVoice::GetEffectiveMidiPitch() const
+double SynthVoice::GetTargetMidiPitch() const
 {
-  return mPitch + mPitchBend + mTransposeSemitones;
+  return mNotePitch + mPitchBend + mTransposeSemitones;
 }
 
 double SynthVoice::GetOscillatorBasePitchSemitones(int harmonic,
@@ -236,38 +253,62 @@ double SynthVoice::PitchSemitonesToFrequencyHz(double pitchSemitones)
   return 440.0 * std::exp2(pitchSemitones / 12.0);
 }
 
-void SynthVoice::UpdatePitch()
+double SynthVoice::AdvancePitchTowards(double currentPitch, double targetPitch, double maxDeltaSemitones)
 {
-  const double midiPitch = GetEffectiveMidiPitch();
-  const double fundamentalPitchSemitones = midiPitch - 69.0;
-  const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
+  const double pitchDelta = targetPitch - currentPitch;
+  if(std::abs(pitchDelta) <= maxDeltaSemitones || !std::isfinite(maxDeltaSemitones))
+    return targetPitch;
 
-  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
+  return currentPitch + std::copysign(maxDeltaSemitones, pitchDelta);
+}
+
+void SynthVoice::UpdatePitchRate()
+{
+  const double pitchTimeSec = GetPortamentoTimeSec();
+  if(pitchTimeSec <= 0.0 || mSampleRate <= 0.0)
   {
-    const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    ApplyOscillatorSettings(harmonic, settings, fundamentalPitchSemitones);
+    mPitchRatePerSample = std::numeric_limits<double>::infinity();
+    return;
   }
 
-  UpdateLevels();
+  mPitchRatePerSample = 1.0 / (pitchTimeSec * mSampleRate);
+}
+
+double SynthVoice::PredictRenderedMidiPitch(int numSamples) const
+{
+  const int clampedSamples = std::max(numSamples, 0);
+  return AdvancePitchTowards(
+    mRenderedMidiPitch,
+    mTargetMidiPitch,
+    mPitchRatePerSample * static_cast<double>(clampedSamples));
+}
+
+void SynthVoice::AdvanceRenderedPitch(int numSamples)
+{
+  mRenderedMidiPitch = PredictRenderedMidiPitch(numSamples);
+}
+
+void SynthVoice::UpdatePitch()
+{
+  mTargetMidiPitch = GetTargetMidiPitch();
+  if(!IsActive())
+    mRenderedMidiPitch = mTargetMidiPitch;
+
+  RefreshNoteDependentState(kNoteControlIntervalSamples);
 }
 
 void SynthVoice::UpdateLevels()
 {
-  const double midiPitch = GetEffectiveMidiPitch();
-  const double fundamentalPitchSemitones = midiPitch - 69.0;
-  const SimplePreset& preset = mCompoundPreset.GetPresetForMidiNote(midiPitch);
-  const EqCurve& eqCurve = mCompoundPreset.GetEqCurveForMidiNote(midiPitch);
+  UpdateLevels(mCompoundPreset.ResolveNoteSpan(mRenderedMidiPitch));
+}
 
-  for(int harmonic = 0; harmonic < kNumHarmonics; harmonic++)
+void SynthVoice::UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan)
+{
+  for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
   {
-    const OscillatorSettings& settings = preset.GetOscillatorSettings(harmonic);
-    const double oscillatorPitchSemitones = GetOscillatorBasePitchSemitones(
-      harmonic,
-      settings,
-      fundamentalPitchSemitones,
-      mGlobalVoiceSettings);
-    const double frequencyHz = PitchSemitonesToFrequencyHz(oscillatorPitchSemitones);
-    const double eqGain = EqCurve::DbToGain(eqCurve.EvaluateDb(frequencyHz));
+    const OscillatorSettings settings = mCompoundPreset.InterpolateOscillatorSettings(noteSpan, harmonic);
+    const double frequencyHz = PitchSemitonesToFrequencyHz(mOscs[harmonic].GetCurrentPitchSemitones());
+    const double eqGain = mCompoundPreset.EvaluateEqGain(noteSpan, frequencyHz);
     const double level = (mBreath == 0.0)
       ? 0.0
       : settings.intensity
@@ -278,11 +319,37 @@ void SynthVoice::UpdateLevels()
   }
 }
 
+void SynthVoice::RefreshNoteDependentState(int lookAheadSamples)
+{
+  const int clampedLookAheadSamples = std::max(lookAheadSamples, 0);
+  const CompoundPreset::ResolvedNoteSpan currentSpan = mCompoundPreset.ResolveNoteSpan(mRenderedMidiPitch);
+  const double futureMidiPitch = PredictRenderedMidiPitch(clampedLookAheadSamples);
+  const double futureFundamentalPitchSemitones = futureMidiPitch - 69.0;
+  const CompoundPreset::ResolvedNoteSpan futureSpan = mCompoundPreset.ResolveNoteSpan(futureMidiPitch);
+
+  for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
+  {
+    const OscillatorSettings currentSettings = mCompoundPreset.InterpolateOscillatorSettings(currentSpan, harmonic);
+    const OscillatorSettings futurePitchSettings = mCompoundPreset.InterpolateOscillatorSettings(futureSpan, harmonic);
+    ApplyOscillatorSettings(
+      harmonic,
+      currentSettings,
+      futurePitchSettings,
+      futureFundamentalPitchSemitones);
+  }
+
+  UpdateLevels(currentSpan);
+  mNoteControlSamplesUntilUpdate = kNoteControlIntervalSamples;
+}
+
 void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames)
 {
   const int endIdx = startIdx + nFrames;
   for(int i = startIdx; i < endIdx; i++)
   {
+    if(mNoteControlSamplesUntilUpdate <= 0)
+      RefreshNoteDependentState(kNoteControlIntervalSamples);
+
     iplug::sample leftSample = 0.0;
     iplug::sample rightSample = 0.0;
     for(auto& osc : mOscs)
@@ -293,13 +360,20 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
     }
     outputs[0][i] += leftSample;
     outputs[1][i] += rightSample;
+
+    AdvanceRenderedPitch(1);
+    --mNoteControlSamplesUntilUpdate;
   }
 }
 
 void SynthVoice::SetSampleRate(double sampleRate)
 {
+  mSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
   for(auto& osc : mOscs)
     osc.SetSampleRate(sampleRate);
+
+  UpdatePitchRate();
+  mNoteControlSamplesUntilUpdate = 0;
 }
 
 void SynthVoice::GetVisualizerFrame(VisualizerFrame& frame) const

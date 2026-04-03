@@ -53,6 +53,12 @@ public:
   // Snapshot used by the visualizer.
   HarmonicVisualizerOscillator GetVisualizerState() const;
 
+  // Current oscillator pitch in semitones relative to A4.
+  double GetCurrentPitchSemitones() const
+  {
+    return mPitch;
+  }
+
 private:
   // Global DSP configuration.
   double mSampleRate = 44100.0;

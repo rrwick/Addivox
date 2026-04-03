@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <limits>
 
 #include "IPlugConstants.h"
 #include "oscillator.h"
@@ -41,27 +42,42 @@ public:
   void GetVisualizerFrame(VisualizerFrame& frame) const;
 
 private:
-  double GetEffectiveMidiPitch() const;
+  double GetTargetMidiPitch() const;
   void UpdatePitch();
   void UpdateLevels();
+  void UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void UpdatePitchRate();
+  void RefreshNoteDependentState(int lookAheadSamples);
+  void AdvanceRenderedPitch(int numSamples);
+  double PredictRenderedMidiPitch(int numSamples) const;
   double GetPortamentoTimeSec() const;
   double SmoothBreath(double breath);
+  static double AdvancePitchTowards(double currentPitch, double targetPitch, double maxDeltaSemitones);
   static double GetOscillatorBasePitchSemitones(int harmonic,
                                                 const OscillatorSettings& settings,
                                                 double fundamentalPitchSemitones,
                                                 const GlobalVoiceSettings& globalSettings);
   static double PitchSemitonesToFrequencyHz(double pitchSemitones);
-  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones);
+  void ApplyOscillatorSettings(int harmonic,
+                               const OscillatorSettings& currentSettings,
+                               const OscillatorSettings& futurePitchSettings,
+                               double futureFundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
+  static constexpr int kNoteControlIntervalSamples = 16;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
-  double mPitch{0.0};
+  double mNotePitch{0.0};
 
   // Pitch bend is a semitone offset in MIDI-note units.
   double mPitchBend{0.0};
 
   double mTransposeSemitones{0.0};
+  double mRenderedMidiPitch{0.0};
+  double mTargetMidiPitch{0.0};
+  double mSampleRate{44100.0};
+  double mPitchRatePerSample{std::numeric_limits<double>::infinity()};
+  int mNoteControlSamplesUntilUpdate{0};
 
   // Breath is a linear value from 0 to 1.
   double mBreath{0.0};
