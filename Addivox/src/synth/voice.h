@@ -33,7 +33,7 @@ public:
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
-  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled);
+  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote);
   bool SetAllKeyNotesEqEnabled(bool enabled);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);

@@ -173,9 +173,9 @@ bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   return true;
 }
 
-bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled)
+bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote)
 {
-  mCompoundPreset.SetAllKeyNotesEnabled(parameter, enabled);
+  mCompoundPreset.SetAllKeyNotesEnabled(parameter, enabled, midiNote);
   UpdatePitch();
   return true;
 }

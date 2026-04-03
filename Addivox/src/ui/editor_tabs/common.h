@@ -106,11 +106,24 @@ inline OscillatorSliderControl::ValueTransform GetSliderValueTransform(EditorLev
 
 inline void SetDisabledState(IControl* control, bool disabled)
 {
-  if(!control)
+  if(!control || control->IsDisabled() == disabled)
     return;
 
   control->SetDisabled(disabled);
-  control->SetDirty(false);
+}
+
+inline bool AreNearlyEqual(double lhs, double rhs, double tolerance = 1.0e-9)
+{
+  return std::fabs(lhs - rhs) <= tolerance;
+}
+
+inline void SetControlValueSilently(IControl* control, double value, int valIdx = 0)
+{
+  if(!control || AreNearlyEqual(control->GetValue(valIdx), value))
+    return;
+
+  control->SetValue(value, valIdx);
+  control->SetDirty(false, valIdx);
 }
 
 inline ITextControl* CreateTabTitleControl(const OscillatorTabDescriptor& descriptor, const EditorStyles& styles)
@@ -437,9 +450,7 @@ struct EditorContext
                                         OscillatorParameter parameter,
                                         double value) const
   {
-    ForEachTargetKeyNote(parameter, midiNote, [&](int targetMidiNote) {
-      SendOscillatorParameterToDSP(sourceControl, targetMidiNote, oscillatorIndex, parameter, value);
-    });
+    SendOscillatorParameterToDSP(sourceControl, midiNote, oscillatorIndex, parameter, value);
   }
 
   void SendOscillatorParameterValuesToDSP(IControl* sourceControl,
@@ -469,14 +480,13 @@ struct EditorContext
                                               OscillatorParameter parameter,
                                               const std::array<double, SimplePreset::kNumOscillators>& values) const
   {
-    ForEachTargetKeyNote(parameter, midiNote, [&](int targetMidiNote) {
-      SendOscillatorParameterValuesToDSP(sourceControl, targetMidiNote, parameter, values);
-    });
+    SendOscillatorParameterValuesToDSP(sourceControl, midiNote, parameter, values);
   }
 
   void SendAllKeyNotesEnabledToDSP(IControl* sourceControl,
                                    OscillatorParameter parameter,
-                                   bool enabled) const
+                                   bool enabled,
+                                   int midiNote) const
   {
     if(!sourceControl)
       return;
@@ -486,6 +496,7 @@ struct EditorContext
       editor_messages::SetAllKeyNotesEnabledPayload payload;
       payload.parameter = static_cast<int>(parameter);
       payload.enabled = enabled ? 1 : 0;
+      payload.midiNote = midiNote;
       delegate->SendArbitraryMsgFromUI(
         editor_messages::kMsgTagSetAllKeyNotesEnabled,
         editorTabsTag,
@@ -567,15 +578,11 @@ struct EditorContext
       for(std::size_t i = 0; i < oscillatorTabControls.sliderControls->size(); ++i)
       {
         if(auto* control = (*oscillatorTabControls.sliderControls)[i])
-        {
           control->SetEditable(false);
-          control->SetDirty(false);
-        }
 
         if(auto* toggle = (*oscillatorTabControls.allKeyNotesToggles)[i])
         {
-          toggle->SetValue(IsAllKeyNotesEnabled(static_cast<OscillatorParameter>(i)) ? 1.0 : 0.0);
-          toggle->SetDirty(false);
+          SetControlValueSilently(toggle, IsAllKeyNotesEnabled(static_cast<OscillatorParameter>(i)) ? 1.0 : 0.0);
           SetDisabledState(toggle, true);
         }
 
@@ -647,22 +654,27 @@ struct EditorContext
       if(!control)
         continue;
 
+      bool sliderChanged = false;
       for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
       {
         const double value = selectedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(descriptor.parameter);
+        if(AreNearlyEqual(control->GetOscillatorValue(oscillatorIndex), value))
+          continue;
+
         control->SetOscillatorValue(oscillatorIndex, value);
+        sliderChanged = true;
       }
 
       if(!control->IsHidden() && !control->HasRestoreStateForMidiNote(midiNote))
         control->CaptureRestoreState(midiNote);
 
       control->SetEditable(editable);
-      control->SetDirty(false);
+      if(sliderChanged)
+        control->SetDirty(false);
 
       if(auto* toggle = (*oscillatorTabControls.allKeyNotesToggles)[static_cast<std::size_t>(descriptor.parameter)])
       {
-        toggle->SetValue(IsAllKeyNotesEnabled(descriptor.parameter) ? 1.0 : 0.0);
-        toggle->SetDirty(false);
+        SetControlValueSilently(toggle, IsAllKeyNotesEnabled(descriptor.parameter) ? 1.0 : 0.0);
         SetDisabledState(toggle, !editable);
       }
 
@@ -682,8 +694,7 @@ struct EditorContext
 
     if(eqTab.allKeyNotesToggle && *eqTab.allKeyNotesToggle)
     {
-      (*eqTab.allKeyNotesToggle)->SetValue(IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
-      (*eqTab.allKeyNotesToggle)->SetDirty(false);
+      SetControlValueSilently(*eqTab.allKeyNotesToggle, IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
       SetDisabledState(*eqTab.allKeyNotesToggle, !editable);
     }
 
@@ -767,8 +778,7 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
       const SimplePreset* keyNotePreset = context->Preset().GetKeyNotePreset(midiNote);
       if(!keyNotePreset)
       {
-        toggle->SetValue(context->IsAllKeyNotesEnabled(parameter) ? 1.0 : 0.0);
-        toggle->SetDirty(false);
+        SetControlValueSilently(toggle, context->IsAllKeyNotesEnabled(parameter) ? 1.0 : 0.0);
         return;
       }
 
@@ -776,13 +786,12 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
       {
         const auto values = GetOscillatorParameterValues(*keyNotePreset, parameter);
         context->Preset().EnableAllKeyNotes(parameter, values);
-        context->SendOscillatorParameterValuesEditToDSP(toggle, midiNote, parameter, values);
-        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, true);
+        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, true, midiNote);
       }
       else
       {
         context->Preset().SetAllKeyNotesEnabled(parameter, false);
-        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, false);
+        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, false, midiNote);
       }
 
       context->RefreshOscillatorTabs();
@@ -939,7 +948,6 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
         return;
 
       context->SendOscillatorParameterEditToDSP(control, midiNote, oscillatorIndex, descriptor.parameter, clampedValue);
-      context->RefreshOscillatorTabs();
     });
   return control;
 }

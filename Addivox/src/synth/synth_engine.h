@@ -130,9 +130,9 @@ public:
     return mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
   }
 
-  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled)
+  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote)
   {
-    return mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, enabled);
+    return mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, enabled, midiNote);
   }
 
   bool SetAllKeyNotesEqEnabled(bool enabled)

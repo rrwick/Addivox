@@ -173,7 +173,9 @@ public:
     const std::array<double, SimplePreset::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
-  void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled);
+  void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter,
+                             bool enabled,
+                             double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
   bool RemoveKeyNotePreset(int midiNote);
@@ -187,6 +189,9 @@ private:
   void ApplyAllKeyNotesValues(SimplePreset& preset,
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
+  void SetInterpolatedOscillatorParameter(OscillatorSettings::Parameter parameter, int oscillatorIndex, double value);
+  void SetInterpolatedOscillatorParameterValues(OscillatorSettings::Parameter parameter,
+                                                const OscillatorParameterValues& values);
   const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
   void EnsureKeyNoteEqCurves();
   void SetAllKeyNoteEqCurves(const EqCurve& curve);

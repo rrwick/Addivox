@@ -42,6 +42,7 @@ struct SetAllKeyNotesEnabledPayload
 {
   int parameter{0};
   int enabled{0};
+  int midiNote{0};
 };
 
 struct SetAllKeyNotesEqEnabledPayload

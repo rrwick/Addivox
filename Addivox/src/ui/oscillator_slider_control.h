@@ -95,6 +95,9 @@ public:
 
   void SetEditable(bool editable)
   {
+    if(IsEditable() == editable)
+      return;
+
     SetDisabled(!editable);
   }
 

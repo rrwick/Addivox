@@ -813,7 +813,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.SetAllKeyNotesEnabled(parameter, payload->enabled != 0);
+    return mDSP.SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs

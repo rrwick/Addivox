@@ -43,6 +43,13 @@ public:
 
   void SetEditable(bool editable)
   {
+    if(IsEditable() == editable)
+    {
+      if(!editable)
+        ClearDraggedPointSelection();
+      return;
+    }
+
     SetDisabled(!editable);
     if(!editable)
       ClearDraggedPointSelection();
