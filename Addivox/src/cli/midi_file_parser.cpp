@@ -202,15 +202,27 @@ double TicksToSeconds(uint64_t tickDelta, uint32_t microsecondsPerQuarterNote, u
     / (1000000.0 * static_cast<double>(ticksPerQuarterNote));
 }
 
+iplug::IMidiMsg MakeNoteOffMessage(int channel, int note)
+{
+  return iplug::IMidiMsg{
+    0,
+    static_cast<uint8_t>(0x80 | (channel & 0x0F)),
+    static_cast<uint8_t>(note & 0x7F),
+    0};
+}
+
 bool ParseTrack(ByteReader& reader,
                 std::size_t trackEndPosition,
                 std::vector<RawEvent>& rawEvents,
                 std::vector<TempoEvent>& tempoEvents,
                 uint64_t& nextSequence,
+                bool& trackContainsNoteEvents,
+                uint64_t& trackEndTick,
                 std::string* errorMessage)
 {
   uint64_t absoluteTick = 0;
   uint8_t runningStatus = 0;
+  trackContainsNoteEvents = false;
 
   while(reader.Position() < trackEndPosition)
   {
@@ -350,7 +362,10 @@ bool ParseTrack(ByteReader& reader,
       case 0xBu:
       case 0xEu:
       {
-        rawEvents.push_back({absoluteTick, nextSequence++, iplug::IMidiMsg{0, statusByte, data1, data2}});
+        const iplug::IMidiMsg message{0, statusByte, data1, data2};
+        if(statusType == 0x8u || statusType == 0x9u)
+          trackContainsNoteEvents = true;
+        rawEvents.push_back({absoluteTick, nextSequence++, message});
         break;
       }
       case 0xAu:
@@ -361,13 +376,17 @@ bool ParseTrack(ByteReader& reader,
     }
   }
 
+  trackEndTick = absoluteTick;
   return reader.Position() <= trackEndPosition;
 }
 
-bool ValidateMonophonic(const std::vector<RawEvent>& events, std::string* errorMessage)
+bool NormalizeMonophonic(std::vector<RawEvent>& events, uint64_t trackEndTick, std::string* errorMessage)
 {
   bool sawNoteOn = false;
   std::optional<ActiveNote> activeNote;
+  std::vector<RawEvent> normalizedEvents;
+  normalizedEvents.reserve(events.size() * 2);
+  uint64_t nextSequence = events.empty() ? 0 : (events.back().sequence + 1);
 
   for(const RawEvent& event : events)
   {
@@ -377,29 +396,27 @@ bool ValidateMonophonic(const std::vector<RawEvent>& events, std::string* errorM
          && activeNote->channel == event.message.Channel()
          && activeNote->note == event.message.NoteNumber())
       {
+        normalizedEvents.push_back(event);
         activeNote.reset();
       }
       continue;
     }
 
     if(!IsNoteOnMessage(event.message))
+    {
+      normalizedEvents.push_back(event);
       continue;
+    }
 
     sawNoteOn = true;
 
     if(activeNote)
     {
-      std::ostringstream stream;
-      stream << "MIDI file must be strictly monophonic; note " << event.message.NoteNumber()
-             << " on channel " << (event.message.Channel() + 1)
-             << " starts at tick " << event.tick
-             << " before note " << activeNote->note
-             << " on channel " << (activeNote->channel + 1)
-             << " ends";
-      SetErrorMessage(errorMessage, stream.str());
-      return false;
+      normalizedEvents.push_back(
+        {event.tick, nextSequence++, MakeNoteOffMessage(activeNote->channel, activeNote->note)});
     }
 
+    normalizedEvents.push_back(event);
     activeNote = ActiveNote{event.message.Channel(), event.message.NoteNumber(), event.tick};
   }
 
@@ -410,15 +427,10 @@ bool ValidateMonophonic(const std::vector<RawEvent>& events, std::string* errorM
   }
 
   if(activeNote)
-  {
-    std::ostringstream stream;
-    stream << "MIDI file ends while note " << activeNote->note
-           << " on channel " << (activeNote->channel + 1)
-           << " is still active";
-    SetErrorMessage(errorMessage, stream.str());
-    return false;
-  }
+    normalizedEvents.push_back(
+      {trackEndTick, nextSequence++, MakeNoteOffMessage(activeNote->channel, activeNote->note)});
 
+  events = std::move(normalizedEvents);
   return true;
 }
 
@@ -478,15 +490,11 @@ bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* error
     return false;
   }
 
-  if(trackCount == 0)
-  {
-    SetErrorMessage(errorMessage, "MIDI file contains no tracks");
-    return false;
-  }
-
   std::vector<RawEvent> rawEvents;
   std::vector<TempoEvent> tempoEvents;
   uint64_t nextSequence = 0;
+  uint64_t noteTrackEndTick = 0;
+  int noteTrackCount = 0;
 
   for(uint16_t trackIndex = 0; trackIndex < trackCount; ++trackIndex)
   {
@@ -516,14 +524,38 @@ bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* error
     }
 
     const std::size_t trackEndPosition = reader.Position() + static_cast<std::size_t>(trackLength);
-    if(!ParseTrack(reader, trackEndPosition, rawEvents, tempoEvents, nextSequence, errorMessage))
+    bool trackContainsNoteEvents = false;
+    uint64_t trackEndTick = 0;
+    if(!ParseTrack(
+         reader,
+         trackEndPosition,
+         rawEvents,
+         tempoEvents,
+         nextSequence,
+         trackContainsNoteEvents,
+         trackEndTick,
+         errorMessage))
+    {
       return false;
+    }
+
+    if(trackContainsNoteEvents)
+    {
+      ++noteTrackCount;
+      noteTrackEndTick = trackEndTick;
+    }
 
     if(!reader.Skip(trackEndPosition - reader.Position()))
     {
       SetErrorMessage(errorMessage, "MIDI track chunk is truncated");
       return false;
     }
+  }
+
+  if(noteTrackCount != 1)
+  {
+    SetErrorMessage(errorMessage, "MIDI file must contain exactly one track with note events");
+    return false;
   }
 
   std::sort(rawEvents.begin(), rawEvents.end(), [](const RawEvent& lhs, const RawEvent& rhs) {
@@ -538,7 +570,7 @@ bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* error
     return lhs.sequence < rhs.sequence;
   });
 
-  if(!ValidateMonophonic(rawEvents, errorMessage))
+  if(!NormalizeMonophonic(rawEvents, noteTrackEndTick, errorMessage))
     return false;
 
   std::sort(tempoEvents.begin(), tempoEvents.end(), [](const TempoEvent& lhs, const TempoEvent& rhs) {
