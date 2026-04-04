@@ -70,6 +70,8 @@ if(APPLE AND NOT IOS)
     src/cli_main.cpp
     src/headless_renderer.cpp
     src/headless_renderer.h
+    src/midi_file_parser.cpp
+    src/midi_file_parser.h
     ${ADDIVOX_COMMON_SOURCES}
   )
 

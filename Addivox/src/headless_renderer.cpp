@@ -2,6 +2,7 @@
 
 #include "IPlugConstants.h"
 #include "IPlugMidi.h"
+#include "midi_file_parser.h"
 #include "settings/effects.h"
 #include "settings/global.h"
 #include "settings/preset_io.h"
@@ -180,8 +181,8 @@ bool WriteFloatWaveFile(std::string_view path,
   return true;
 }
 
-std::vector<ScheduledMidiEvent> BuildRenderEvents(const HeadlessRenderOptions& options,
-                                                  int64_t noteDurationFrames)
+std::vector<ScheduledMidiEvent> BuildSingleNoteEvents(const HeadlessRenderOptions& options,
+                                                      int64_t noteDurationFrames)
 {
   std::vector<ScheduledMidiEvent> events;
   events.reserve(3);
@@ -201,6 +202,26 @@ std::vector<ScheduledMidiEvent> BuildRenderEvents(const HeadlessRenderOptions& o
   iplug::IMidiMsg noteOffMessage;
   noteOffMessage.MakeNoteOffMsg(options.note, 0, 0);
   events.push_back({noteDurationFrames, noteOffMessage});
+
+  return events;
+}
+
+std::vector<ScheduledMidiEvent> BuildMidiFileEvents(const midi_file::ParsedFile& parsedFile,
+                                                    int sampleRate,
+                                                    int64_t& lastEventFrame)
+{
+  std::vector<ScheduledMidiEvent> events;
+  events.reserve(parsedFile.events.size());
+
+  lastEventFrame = 0;
+  for(const midi_file::TimedEvent& timedEvent : parsedFile.events)
+  {
+    const int64_t sampleOffset = std::max<int64_t>(
+      0,
+      static_cast<int64_t>(std::llround(timedEvent.timeSeconds * static_cast<double>(sampleRate))));
+    lastEventFrame = std::max(lastEventFrame, sampleOffset);
+    events.push_back({sampleOffset, timedEvent.message});
+  }
 
   return events;
 }
@@ -269,9 +290,8 @@ void ApplyPresetAndOverrides(SynthEngine& engine,
   engine.Reset(static_cast<double>(options.sampleRate), kRenderBlockSize);
   engine.SetCompoundPreset(document.compoundPreset);
 }
-} // namespace
 
-bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage)
+bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::string* errorMessage)
 {
   if(options.presetPath.empty())
   {
@@ -282,24 +302,6 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
   if(options.outputPath.empty())
   {
     SetErrorMessage(errorMessage, "Output path is required");
-    return false;
-  }
-
-  if(options.note < 0 || options.note > 127)
-  {
-    SetErrorMessage(errorMessage, "Note must be in the MIDI range 0-127");
-    return false;
-  }
-
-  if(!(options.durationSeconds > 0.0) || !std::isfinite(options.durationSeconds))
-  {
-    SetErrorMessage(errorMessage, "Duration must be a positive number of seconds");
-    return false;
-  }
-
-  if(options.breathMidiValue < 0 || options.breathMidiValue > 127)
-  {
-    SetErrorMessage(errorMessage, "Breath must be in the MIDI CC range 0-127");
     return false;
   }
 
@@ -423,6 +425,14 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
   if(options.reverb && !ValidateFiniteRange("Reverb", *options.reverb, 0.0, 100.0, errorMessage))
     return false;
 
+  return true;
+}
+
+bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
+                                const std::vector<ScheduledMidiEvent>& events,
+                                int64_t lastEventFrame,
+                                std::string* errorMessage)
+{
   preset_io::PresetDocument document;
   if(!preset_io::LoadPresetFromFile(options.presetPath, document, errorMessage))
     return false;
@@ -430,18 +440,16 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
   SynthEngine engine;
   ApplyPresetAndOverrides(engine, document, options);
 
-  const int64_t noteDurationFrames = std::max<int64_t>(
-    1,
-    static_cast<int64_t>(std::llround(options.durationSeconds * options.sampleRate)));
   const int64_t requiredSilentFrames = std::max<int64_t>(
     1,
     static_cast<int64_t>(std::llround(kRequiredSilentTailSeconds * options.sampleRate)));
-  const int64_t maxTailFrames = std::max<int64_t>(0, static_cast<int64_t>(std::llround(kMaxTailSeconds * options.sampleRate)));
-  const std::vector<ScheduledMidiEvent> events = BuildRenderEvents(options, noteDurationFrames);
+  const int64_t maxTailFrames = std::max<int64_t>(
+    0,
+    static_cast<int64_t>(std::llround(kMaxTailSeconds * options.sampleRate)));
 
   std::vector<float> renderedSamples;
   renderedSamples.reserve(
-    static_cast<std::size_t>((noteDurationFrames + maxTailFrames + kRenderBlockSize) * options.numOutputChannels));
+    static_cast<std::size_t>((lastEventFrame + maxTailFrames + kRenderBlockSize) * options.numOutputChannels));
 
   std::vector<iplug::sample> leftBlock(static_cast<std::size_t>(kRenderBlockSize), 0.0);
   std::vector<iplug::sample> rightBlock(static_cast<std::size_t>(kRenderBlockSize), 0.0);
@@ -449,7 +457,7 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
 
   std::size_t nextEventIndex = 0;
   int64_t renderedFrames = 0;
-  int64_t silentFramesAfterNoteOff = 0;
+  int64_t silentFramesAfterPlayback = 0;
   int64_t tailFramesRendered = 0;
 
   while(true)
@@ -484,9 +492,7 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
       blockPeak = std::max(blockPeak, static_cast<double>(std::max(std::abs(left), std::abs(right))));
 
       if(options.numOutputChannels == 1)
-      {
         renderedSamples.push_back(0.5f * (left + right));
-      }
       else
       {
         renderedSamples.push_back(left);
@@ -496,16 +502,16 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
 
     renderedFrames += blockFrames;
 
-    if(renderedFrames <= noteDurationFrames)
+    if(renderedFrames <= lastEventFrame)
       continue;
 
     tailFramesRendered += blockFrames;
     if(blockPeak <= kSilenceThreshold)
-      silentFramesAfterNoteOff += blockFrames;
+      silentFramesAfterPlayback += blockFrames;
     else
-      silentFramesAfterNoteOff = 0;
+      silentFramesAfterPlayback = 0;
 
-    if(silentFramesAfterNoteOff >= requiredSilentFrames)
+    if(silentFramesAfterPlayback >= requiredSilentFrames)
       break;
 
     if(tailFramesRendered >= maxTailFrames)
@@ -518,4 +524,57 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
     options.sampleRate,
     options.numOutputChannels,
     errorMessage);
+}
+} // namespace
+
+bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage)
+{
+  if(!ValidateCommonRenderOptions(options, errorMessage))
+    return false;
+
+  if(options.note < 0 || options.note > 127)
+  {
+    SetErrorMessage(errorMessage, "Note must be in the MIDI range 0-127");
+    return false;
+  }
+
+  if(!(options.durationSeconds > 0.0) || !std::isfinite(options.durationSeconds))
+  {
+    SetErrorMessage(errorMessage, "Duration must be a positive number of seconds");
+    return false;
+  }
+
+  if(options.breathMidiValue < 0 || options.breathMidiValue > 127)
+  {
+    SetErrorMessage(errorMessage, "Breath must be in the MIDI CC range 0-127");
+    return false;
+  }
+
+  const int64_t noteDurationFrames = std::max<int64_t>(
+    1,
+    static_cast<int64_t>(std::llround(options.durationSeconds * options.sampleRate)));
+  const std::vector<ScheduledMidiEvent> events = BuildSingleNoteEvents(options, noteDurationFrames);
+  return RenderScheduledEventsToWav(options, events, noteDurationFrames, errorMessage);
+}
+
+bool RenderMidiFileToWav(const HeadlessRenderOptions& options,
+                         std::string_view midiPath,
+                         std::string* errorMessage)
+{
+  if(!ValidateCommonRenderOptions(options, errorMessage))
+    return false;
+
+  if(midiPath.empty())
+  {
+    SetErrorMessage(errorMessage, "MIDI path is required");
+    return false;
+  }
+
+  midi_file::ParsedFile parsedFile;
+  if(!midi_file::ParseFile(midiPath, parsedFile, errorMessage))
+    return false;
+
+  int64_t lastEventFrame = 0;
+  const std::vector<ScheduledMidiEvent> events = BuildMidiFileEvents(parsedFile, options.sampleRate, lastEventFrame);
+  return RenderScheduledEventsToWav(options, events, lastEventFrame, errorMessage);
 }

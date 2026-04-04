@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 struct HeadlessRenderOptions
 {
@@ -33,3 +34,6 @@ struct HeadlessRenderOptions
 };
 
 bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage = nullptr);
+bool RenderMidiFileToWav(const HeadlessRenderOptions& options,
+                         std::string_view midiPath,
+                         std::string* errorMessage = nullptr);

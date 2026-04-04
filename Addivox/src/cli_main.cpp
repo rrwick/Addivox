@@ -428,8 +428,13 @@ int main(int argc, char** argv)
 
   if(hasMidi)
   {
-    std::cerr << "MIDI playback is not implemented yet\n";
-    return 1;
+    if(!RenderMidiFileToWav(options, midiPath, &errorMessage))
+    {
+      std::cerr << errorMessage << '\n';
+      return 1;
+    }
+
+    return 0;
   }
 
   options.note = *note;
