@@ -67,11 +67,11 @@ iplug_add_plugin(${PROJECT_NAME}
 
 if(APPLE AND NOT IOS)
   add_executable(addivox-cli
-    src/cli_main.cpp
-    src/headless_renderer.cpp
-    src/headless_renderer.h
-    src/midi_file_parser.cpp
-    src/midi_file_parser.h
+    src/cli/cli_main.cpp
+    src/cli/headless_renderer.cpp
+    src/cli/headless_renderer.h
+    src/cli/midi_file_parser.cpp
+    src/cli/midi_file_parser.h
     ${ADDIVOX_COMMON_SOURCES}
   )
 

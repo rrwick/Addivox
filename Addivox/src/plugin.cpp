@@ -4,7 +4,7 @@
 #include "settings/effects.h"
 #include "settings/params.h"
 #include "settings/preset_io.h"
-#include "editor_messages.h"
+#include "ui/editor_messages.h"
 #include "ui/transformations.h"
 #include "ui/layout.h"
 

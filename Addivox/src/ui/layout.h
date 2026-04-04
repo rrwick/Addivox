@@ -10,7 +10,7 @@
 #include "editor_panel.h"
 #include "help_text.h"
 #include "theme.h"
-#include "../editor_messages.h"
+#include "editor_messages.h"
 #include "../settings/params.h"
 
 #include <array>

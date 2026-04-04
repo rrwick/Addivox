@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "IPlugStructs.h"
-#include "settings/oscillator.h"
+#include "../settings/oscillator.h"
 
 namespace editor_messages
 {
