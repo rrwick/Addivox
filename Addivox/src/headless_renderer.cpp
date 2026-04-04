@@ -20,7 +20,6 @@
 namespace
 {
 constexpr int kRenderBlockSize = 64;
-constexpr double kDefaultCliReverb = 50.0;
 constexpr double kSilenceThreshold = 1.0e-5;
 constexpr double kRequiredSilentTailSeconds = 0.25;
 constexpr double kMaxTailSeconds = 8.0;
@@ -35,6 +34,53 @@ void SetErrorMessage(std::string* errorMessage, std::string message)
 {
   if(errorMessage)
     *errorMessage = std::move(message);
+}
+
+bool ValidateFiniteDouble(const char* label, double value, std::string* errorMessage)
+{
+  if(std::isfinite(value))
+    return true;
+
+  SetErrorMessage(errorMessage, std::string{label} + " must be a finite number");
+  return false;
+}
+
+bool ValidateFiniteRange(const char* label,
+                         double value,
+                         double minimum,
+                         double maximum,
+                         std::string* errorMessage)
+{
+  if(!ValidateFiniteDouble(label, value, errorMessage))
+    return false;
+
+  if(value < minimum || value > maximum)
+  {
+    SetErrorMessage(
+      errorMessage,
+      std::string{label} + " must be in the range " + preset_io::detail::FormatDouble(minimum)
+        + " to " + preset_io::detail::FormatDouble(maximum));
+    return false;
+  }
+
+  return true;
+}
+
+bool ValidateOptionalNonNegative(const char* label, const std::optional<double>& value, std::string* errorMessage)
+{
+  if(!value)
+    return true;
+
+  if(!ValidateFiniteDouble(label, *value, errorMessage))
+    return false;
+
+  if(*value < 0.0)
+  {
+    SetErrorMessage(errorMessage, std::string{label} + " must be non-negative");
+    return false;
+  }
+
+  return true;
 }
 
 void WriteUint16LE(std::ofstream& stream, uint16_t value)
@@ -166,13 +212,53 @@ void ApplyPresetAndOverrides(SynthEngine& engine,
   GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
   EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
 
-  effectsSettings.reverb = kDefaultCliReverb;
+  if(options.levelScale)
+    voiceSettings.levelScale = *options.levelScale;
+
+  if(options.attackScale)
+    voiceSettings.attackScale = *options.attackScale;
+
+  if(options.releaseScale)
+    voiceSettings.releaseScale = *options.releaseScale;
 
   if(options.pitchOffsetCents)
     voiceSettings.pitchOffsetCents = *options.pitchOffsetCents;
 
   if(options.panOffset)
     voiceSettings.panOffset = *options.panOffset;
+
+  if(options.intensityVariationAmplitudeScale)
+    voiceSettings.intensityVariationAmplitudeScale = *options.intensityVariationAmplitudeScale;
+
+  if(options.intensityVariationRateScale)
+    voiceSettings.intensityVariationRateScale = *options.intensityVariationRateScale;
+
+  if(options.pitchVariationAmplitudeScale)
+    voiceSettings.pitchVariationAmplitudeScale = *options.pitchVariationAmplitudeScale;
+
+  if(options.pitchVariationRateScale)
+    voiceSettings.pitchVariationRateScale = *options.pitchVariationRateScale;
+
+  if(options.panVariationAmplitudeScale)
+    voiceSettings.panVariationAmplitudeScale = *options.panVariationAmplitudeScale;
+
+  if(options.panVariationRateScale)
+    voiceSettings.panVariationRateScale = *options.panVariationRateScale;
+
+  if(options.portamentoTimeAtCC5MinSec)
+    voiceSettings.portamentoTimeAtCC5MinSec = *options.portamentoTimeAtCC5MinSec;
+
+  if(options.portamentoTimeAtCC5MaxSec)
+    voiceSettings.portamentoTimeAtCC5MaxSec = *options.portamentoTimeAtCC5MaxSec;
+
+  if(options.drive)
+    effectsSettings.drive = *options.drive;
+
+  if(options.tone)
+    effectsSettings.tone = *options.tone;
+
+  if(options.chorus)
+    effectsSettings.chorus = *options.chorus;
 
   if(options.reverb)
     effectsSettings.reverb = *options.reverb;
@@ -234,6 +320,108 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
     SetErrorMessage(errorMessage, "Transpose must be in the range -36 to 36 semitones");
     return false;
   }
+
+  if(options.levelScale && !ValidateFiniteRange("Level", *options.levelScale, 0.0, 10.0, errorMessage))
+    return false;
+
+  if(options.attackScale && !ValidateFiniteRange("Attack", *options.attackScale, 0.0, 100.0, errorMessage))
+    return false;
+
+  if(options.releaseScale && !ValidateFiniteRange("Release", *options.releaseScale, 0.0, 100.0, errorMessage))
+    return false;
+
+  if(options.pitchOffsetCents
+     && !ValidateFiniteRange("Pitch offset", *options.pitchOffsetCents, -50.0, 50.0, errorMessage))
+  {
+    return false;
+  }
+
+  if(options.panOffset && !ValidateFiniteRange("Pan offset", *options.panOffset, -1.0, 1.0, errorMessage))
+    return false;
+
+  if(options.intensityVariationAmplitudeScale
+     && !ValidateFiniteRange(
+       "Level variation amount",
+       *options.intensityVariationAmplitudeScale,
+       0.0,
+       100.0,
+       errorMessage))
+  {
+    return false;
+  }
+
+  if(options.intensityVariationRateScale
+     && !ValidateFiniteRange(
+       "Level variation rate",
+       *options.intensityVariationRateScale,
+       0.0,
+       100.0,
+       errorMessage))
+  {
+    return false;
+  }
+
+  if(options.panVariationAmplitudeScale
+     && !ValidateFiniteRange(
+       "Pan variation amount",
+       *options.panVariationAmplitudeScale,
+       0.0,
+       100.0,
+       errorMessage))
+  {
+    return false;
+  }
+
+  if(options.panVariationRateScale
+     && !ValidateFiniteRange(
+       "Pan variation rate",
+       *options.panVariationRateScale,
+       0.0,
+       100.0,
+       errorMessage))
+  {
+    return false;
+  }
+
+  if(options.pitchVariationAmplitudeScale
+     && !ValidateFiniteRange(
+       "Pitch variation amount",
+       *options.pitchVariationAmplitudeScale,
+       0.0,
+       100.0,
+       errorMessage))
+  {
+    return false;
+  }
+
+  if(options.pitchVariationRateScale
+     && !ValidateFiniteRange(
+       "Pitch variation rate",
+       *options.pitchVariationRateScale,
+       0.0,
+       100.0,
+       errorMessage))
+  {
+    return false;
+  }
+
+  if(!ValidateOptionalNonNegative("Portamento minimum", options.portamentoTimeAtCC5MinSec, errorMessage))
+    return false;
+
+  if(!ValidateOptionalNonNegative("Portamento maximum", options.portamentoTimeAtCC5MaxSec, errorMessage))
+    return false;
+
+  if(options.drive && !ValidateFiniteRange("Drive", *options.drive, 0.0, 100.0, errorMessage))
+    return false;
+
+  if(options.tone && !ValidateFiniteRange("Tone", *options.tone, -1.0, 1.0, errorMessage))
+    return false;
+
+  if(options.chorus && !ValidateFiniteRange("Chorus", *options.chorus, 0.0, 100.0, errorMessage))
+    return false;
+
+  if(options.reverb && !ValidateFiniteRange("Reverb", *options.reverb, 0.0, 100.0, errorMessage))
+    return false;
 
   preset_io::PresetDocument document;
   if(!preset_io::LoadPresetFromFile(options.presetPath, document, errorMessage))

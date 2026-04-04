@@ -9,33 +9,64 @@
 
 namespace
 {
-void PrintUsage(std::ostream& stream, std::string_view executableName)
+void PrintUsage(std::ostream& stream)
 {
   stream
-    << "Usage: " << executableName << " -p PRESET.toml -o OUTPUT.wav [options]\n"
     << "\n"
-    << "Required options:\n"
+    << "ADDIVOX CLI\n"
+    << "\n"
+    << "Usage examples:\n"
+    << "  addivox -p brass.toml --note 60 --seconds 5 --breath 104 -o brass_C4_ff.wav\n"
+    << "  addivox -p brass.toml --midi song.mid -o song.wav\n"
+    << "\n"
+    << "Required:\n"
     << "  -p, --preset PATH        Preset TOML file to load\n"
     << "  -o, --output PATH        Output WAV file\n"
     << "\n"
-    << "Render options:\n"
-    << "      --note N            MIDI note number to render (default: 60)\n"
-    << "      --seconds N         Note duration in seconds (default: 1.0)\n"
-    << "      --breath N          Breath CC value 0-127 sent before note-on (default: 127)\n"
-    << "      --sample-rate N     Output sample rate in Hz (default: 48000)\n"
-    << "      --mono              Write a mono WAV file\n"
-    << "      --stereo            Write a stereo WAV file (default)\n"
+    << "Single note playback:\n"
+    << "      --note N             MIDI note number to render\n"
+    << "      --seconds N          Note duration in seconds\n"
+    << "      --breath N           Breath CC value 0-127 sent before note-on\n"
     << "\n"
-    << "Overrides:\n"
-    << "      --reverb N          Reverb amount 0-100\n"
-    << "      --pitch-offset N    Global pitch offset in cents\n"
-    << "      --pan-offset N      Global pan offset -1 to 1\n"
-    << "      --transpose N       Global transpose in semitones (-36 to 36)\n"
+    << "MIDI file playback:\n"
+    << "      --midi PATH          MIDI file to render\n"
+    << "\n"
+    << "Envelope:\n"
+    << "      --attack N           Attack scaling, 0-100\n"
+    << "      --release N          Release scaling, 0-100\n"
+    << "\n"
+    << "Pitch:\n"
+    << "      --transpose N        Transpose in semitones, -36 to 36 (default: 0)\n"
+    << "      --pitch N            Pitch offset in cents, -50 to 50 (default: 0)\n"
+    << "      --port_min N         Portamento minimum in seconds\n"
+    << "      --port_max N         Portamento maximum in seconds\n"
+    << "\n"
+    << "Output:\n"
+    << "      --level N            Level scaling, 0-10\n"
+    << "      --pan N              Pan offset, -1 to 1 (default: 0)\n"
+    << "\n"
+    << "Variation:\n"
+    << "      --lvl_var_amt N      Level variation amount, 0 to 100\n"
+    << "      --lvl_var_rate N     Level variation rate, 0 to 100\n"
+    << "      --pan_var_amt N      Pan variation amount, 0 to 100\n"
+    << "      --pan_var_rate N     Pan variation rate, 0 to 100\n"
+    << "      --pch_var_amt N      Pitch variation amount, 0 to 100\n"
+    << "      --pch_var_rate N     Pitch variation rate, 0 to 100\n"
+    << "\n"
+    << "Effects:\n"
+    << "      --drive N            Drive amount, 0-100\n"
+    << "      --tone N             Tone amount, -1 to 1\n"
+    << "      --chorus N           Chorus amount, 0-100\n"
+    << "      --reverb N           Reverb amount, 0-100 (default: 0)\n"
+    << "\n"
+    << "Audio:\n"
+    << "      --sample_rate N      Output sample rate in Hz (default: 48000)\n"
+    << "      --mono               Write a mono WAV file\n"
+    << "      --stereo             Write a stereo WAV file (default)\n"
     << "\n"
     << "Other:\n"
     << "  -h, --help               Show this help message\n"
-    << "\n"
-    << "The renderer keeps writing tail audio until the output is silent, up to 8 seconds.\n";
+    << "\n";
 }
 
 bool ParseIntArgument(std::string_view text, int& value)
@@ -112,6 +143,10 @@ int main(int argc, char** argv)
 {
   HeadlessRenderOptions options;
   std::string errorMessage;
+  std::string midiPath;
+  std::optional<int> note;
+  std::optional<double> seconds;
+  std::optional<int> breath;
 
   for(int index = 1; index < argc; ++index)
   {
@@ -119,7 +154,7 @@ int main(int argc, char** argv)
 
     if(argument == "-h" || argument == "--help")
     {
-      PrintUsage(std::cout, argc > 0 ? std::string_view{argv[0]} : std::string_view{"addivox"});
+      PrintUsage(std::cout);
       return 0;
     }
     if(argument == "-p" || argument == "--preset")
@@ -134,36 +169,48 @@ int main(int argc, char** argv)
         break;
       continue;
     }
+    if(argument == "--midi")
+    {
+      if(!ReadStringValue(argc, argv, index, midiPath, errorMessage))
+        break;
+      continue;
+    }
     if(argument == "--note")
     {
-      if(!ReadParsedValue(argc, argv, index, options.note, ParseIntArgument, "--note", errorMessage))
+      int value = 0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseIntArgument, "--note", errorMessage))
         break;
+      note = value;
       continue;
     }
     if(argument == "--seconds")
     {
+      double value = 0.0;
       if(!ReadParsedValue(
            argc,
            argv,
            index,
-           options.durationSeconds,
+           value,
            ParseDoubleArgument,
            "--seconds",
            errorMessage))
       {
         break;
       }
+      seconds = value;
       continue;
     }
     if(argument == "--breath")
     {
-      if(!ReadParsedValue(argc, argv, index, options.breathMidiValue, ParseIntArgument, "--breath", errorMessage))
+      int value = 0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseIntArgument, "--breath", errorMessage))
         break;
+      breath = value;
       continue;
     }
-    if(argument == "--sample-rate")
+    if(argument == "--sample_rate" || argument == "--sample-rate")
     {
-      if(!ReadParsedValue(argc, argv, index, options.sampleRate, ParseIntArgument, "--sample-rate", errorMessage))
+      if(!ReadParsedValue(argc, argv, index, options.sampleRate, ParseIntArgument, "--sample_rate", errorMessage))
         break;
       continue;
     }
@@ -185,7 +232,55 @@ int main(int argc, char** argv)
       options.reverb = value;
       continue;
     }
-    if(argument == "--pitch-offset")
+    if(argument == "--drive")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--drive", errorMessage))
+        break;
+      options.drive = value;
+      continue;
+    }
+    if(argument == "--tone")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--tone", errorMessage))
+        break;
+      options.tone = value;
+      continue;
+    }
+    if(argument == "--chorus")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--chorus", errorMessage))
+        break;
+      options.chorus = value;
+      continue;
+    }
+    if(argument == "--attack")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--attack", errorMessage))
+        break;
+      options.attackScale = value;
+      continue;
+    }
+    if(argument == "--release")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--release", errorMessage))
+        break;
+      options.releaseScale = value;
+      continue;
+    }
+    if(argument == "--level")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--level", errorMessage))
+        break;
+      options.levelScale = value;
+      continue;
+    }
+    if(argument == "--pitch" || argument == "--pitch-offset")
     {
       double value = 0.0;
       if(!ReadParsedValue(
@@ -194,7 +289,7 @@ int main(int argc, char** argv)
            index,
            value,
            ParseDoubleArgument,
-           "--pitch-offset",
+           "--pitch",
            errorMessage))
       {
         break;
@@ -202,12 +297,28 @@ int main(int argc, char** argv)
       options.pitchOffsetCents = value;
       continue;
     }
-    if(argument == "--pan-offset")
+    if(argument == "--pan" || argument == "--pan-offset")
     {
       double value = 0.0;
-      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan-offset", errorMessage))
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan", errorMessage))
         break;
       options.panOffset = value;
+      continue;
+    }
+    if(argument == "--port_min")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--port_min", errorMessage))
+        break;
+      options.portamentoTimeAtCC5MinSec = value;
+      continue;
+    }
+    if(argument == "--port_max")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--port_max", errorMessage))
+        break;
+      options.portamentoTimeAtCC5MaxSec = value;
       continue;
     }
     if(argument == "--transpose")
@@ -218,6 +329,54 @@ int main(int argc, char** argv)
       options.transposeSemitones = value;
       continue;
     }
+    if(argument == "--lvl_var_amt")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--lvl_var_amt", errorMessage))
+        break;
+      options.intensityVariationAmplitudeScale = value;
+      continue;
+    }
+    if(argument == "--lvl_var_rate")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--lvl_var_rate", errorMessage))
+        break;
+      options.intensityVariationRateScale = value;
+      continue;
+    }
+    if(argument == "--pan_var_amt")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan_var_amt", errorMessage))
+        break;
+      options.panVariationAmplitudeScale = value;
+      continue;
+    }
+    if(argument == "--pan_var_rate")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan_var_rate", errorMessage))
+        break;
+      options.panVariationRateScale = value;
+      continue;
+    }
+    if(argument == "--pch_var_amt")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pch_var_amt", errorMessage))
+        break;
+      options.pitchVariationAmplitudeScale = value;
+      continue;
+    }
+    if(argument == "--pch_var_rate")
+    {
+      double value = 0.0;
+      if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pch_var_rate", errorMessage))
+        break;
+      options.pitchVariationRateScale = value;
+      continue;
+    }
 
     errorMessage = "Unknown option: " + std::string{argument};
     break;
@@ -226,9 +385,56 @@ int main(int argc, char** argv)
   if(!errorMessage.empty())
   {
     std::cerr << errorMessage << "\n\n";
-    PrintUsage(std::cerr, argc > 0 ? std::string_view{argv[0]} : std::string_view{"addivox"});
+    PrintUsage(std::cerr);
     return 1;
   }
+
+  if(options.presetPath.empty())
+  {
+    std::cerr << "Missing required option --preset\n\n";
+    PrintUsage(std::cerr);
+    return 1;
+  }
+
+  if(options.outputPath.empty())
+  {
+    std::cerr << "Missing required option --output\n\n";
+    PrintUsage(std::cerr);
+    return 1;
+  }
+
+  const int singleNoteOptionCount = static_cast<int>(note.has_value())
+    + static_cast<int>(seconds.has_value())
+    + static_cast<int>(breath.has_value());
+  const bool hasMidi = !midiPath.empty();
+
+  if(hasMidi && singleNoteOptionCount > 0)
+  {
+    std::cerr << "Cannot combine --midi with --note, --seconds, or --breath\n";
+    return 1;
+  }
+
+  if(!hasMidi && singleNoteOptionCount == 0)
+  {
+    std::cerr << "Must provide either --midi or all of --note, --seconds, and --breath\n";
+    return 1;
+  }
+
+  if(!hasMidi && singleNoteOptionCount != 3)
+  {
+    std::cerr << "Single-note playback requires --note, --seconds, and --breath\n";
+    return 1;
+  }
+
+  if(hasMidi)
+  {
+    std::cerr << "MIDI playback is not implemented yet\n";
+    return 1;
+  }
+
+  options.note = *note;
+  options.durationSeconds = *seconds;
+  options.breathMidiValue = *breath;
 
   if(!RenderPresetNoteToWav(options, &errorMessage))
   {
