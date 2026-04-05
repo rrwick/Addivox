@@ -12,6 +12,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <string_view>
@@ -29,6 +30,14 @@ struct ScheduledMidiEvent
 {
   int64_t sampleOffset{0};
   iplug::IMidiMsg message;
+};
+
+struct WaveFormatDescriptor
+{
+  uint16_t formatTag{0};
+  uint16_t bitsPerSample{0};
+  uint16_t bytesPerSample{0};
+  bool isFloatingPoint{false};
 };
 
 void SetErrorMessage(std::string* errorMessage, std::string message)
@@ -104,11 +113,130 @@ void WriteUint32LE(std::ofstream& stream, uint32_t value)
   stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 }
 
-bool WriteFloatWaveFile(std::string_view path,
-                        const std::vector<float>& samples,
-                        int sampleRate,
-                        int numChannels,
-                        std::string* errorMessage)
+void WriteUint64LE(std::ofstream& stream, uint64_t value)
+{
+  const std::array<char, 8> bytes{
+    static_cast<char>(value & 0xFFu),
+    static_cast<char>((value >> 8) & 0xFFu),
+    static_cast<char>((value >> 16) & 0xFFu),
+    static_cast<char>((value >> 24) & 0xFFu),
+    static_cast<char>((value >> 32) & 0xFFu),
+    static_cast<char>((value >> 40) & 0xFFu),
+    static_cast<char>((value >> 48) & 0xFFu),
+    static_cast<char>((value >> 56) & 0xFFu),
+  };
+  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+
+void WriteFloat32LE(std::ofstream& stream, float value)
+{
+  uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  WriteUint32LE(stream, bits);
+}
+
+void WriteFloat64LE(std::ofstream& stream, double value)
+{
+  uint64_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  WriteUint64LE(stream, bits);
+}
+
+WaveFormatDescriptor DescribeWaveFileFormat(WaveFileFormat waveFileFormat)
+{
+  constexpr uint16_t kWaveFormatPcm = 1;
+  constexpr uint16_t kWaveFormatIeeeFloat = 3;
+
+  switch(waveFileFormat)
+  {
+    case WaveFileFormat::Pcm16:
+      return {kWaveFormatPcm, 16, 2, false};
+    case WaveFileFormat::Pcm24:
+      return {kWaveFormatPcm, 24, 3, false};
+    case WaveFileFormat::Pcm32:
+      return {kWaveFormatPcm, 32, 4, false};
+    case WaveFileFormat::Float32:
+      return {kWaveFormatIeeeFloat, 32, 4, true};
+    case WaveFileFormat::Float64:
+      return {kWaveFormatIeeeFloat, 64, 8, true};
+  }
+
+  return {};
+}
+
+int32_t QuantizePcmSample(double sample, int bitsPerSample)
+{
+  const int32_t maxValue = (bitsPerSample == 32)
+    ? std::numeric_limits<int32_t>::max()
+    : ((static_cast<int32_t>(1) << (bitsPerSample - 1)) - 1);
+  const int32_t minValue = (bitsPerSample == 32)
+    ? std::numeric_limits<int32_t>::min()
+    : (-maxValue - 1);
+
+  if(sample <= -1.0)
+    return minValue;
+
+  if(sample >= 1.0)
+    return maxValue;
+
+  return static_cast<int32_t>(std::llround(sample * static_cast<double>(maxValue)));
+}
+
+void WriteInt24LE(std::ofstream& stream, int32_t value)
+{
+  const uint32_t bits = static_cast<uint32_t>(value);
+  const std::array<char, 3> bytes{
+    static_cast<char>(bits & 0xFFu),
+    static_cast<char>((bits >> 8) & 0xFFu),
+    static_cast<char>((bits >> 16) & 0xFFu),
+  };
+  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+
+bool WriteWaveSampleData(std::ofstream& stream,
+                         const std::vector<double>& samples,
+                         WaveFileFormat waveFileFormat)
+{
+  switch(waveFileFormat)
+  {
+    case WaveFileFormat::Pcm16:
+      for(const double sample : samples)
+      {
+        const int16_t value = static_cast<int16_t>(QuantizePcmSample(sample, 16));
+        WriteUint16LE(stream, static_cast<uint16_t>(value));
+      }
+      return stream.good();
+
+    case WaveFileFormat::Pcm24:
+      for(const double sample : samples)
+        WriteInt24LE(stream, QuantizePcmSample(sample, 24));
+      return stream.good();
+
+    case WaveFileFormat::Pcm32:
+      for(const double sample : samples)
+        WriteUint32LE(stream, static_cast<uint32_t>(QuantizePcmSample(sample, 32)));
+      return stream.good();
+
+    case WaveFileFormat::Float32:
+      for(const double sample : samples)
+        WriteFloat32LE(stream, static_cast<float>(sample));
+      return stream.good();
+
+    case WaveFileFormat::Float64:
+      for(const double sample : samples)
+        WriteFloat64LE(stream, sample);
+      return stream.good();
+  }
+
+  return false;
+}
+
+bool WriteWaveFile(std::string_view path,
+                   const std::vector<double>& samples,
+                   int sampleRate,
+                   int numChannels,
+                   WaveFileFormat waveFileFormat,
+                   std::string* errorMessage)
 {
   if(sampleRate <= 0)
   {
@@ -128,6 +256,7 @@ bool WriteFloatWaveFile(std::string_view path,
     return false;
   }
 
+  const WaveFormatDescriptor format = DescribeWaveFileFormat(waveFileFormat);
   const std::string parentPath = preset_io::detail::ParentPath(path);
   if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
   {
@@ -142,35 +271,53 @@ bool WriteFloatWaveFile(std::string_view path,
     return false;
   }
 
-  constexpr uint16_t kWaveFormatIeeeFloat = 3;
-  constexpr uint16_t kBitsPerSample = 32;
-  const uint32_t bytesPerSample = static_cast<uint32_t>(kBitsPerSample / 8);
-  const uint32_t dataChunkSize = static_cast<uint32_t>(samples.size() * sizeof(float));
+  const uint64_t dataChunkSize64 = static_cast<uint64_t>(samples.size()) * format.bytesPerSample;
+  const uint64_t factChunkSize64 = format.isFloatingPoint ? 12u : 0u;
+  const uint32_t dataChunkPadding = static_cast<uint32_t>(dataChunkSize64 & 1u);
+  const uint64_t riffChunkSize64 =
+    4u + (8u + 16u) + factChunkSize64 + (8u + dataChunkSize64 + dataChunkPadding);
   const uint32_t sampleFrames = static_cast<uint32_t>(samples.size() / static_cast<std::size_t>(numChannels));
-  const uint32_t byteRate = static_cast<uint32_t>(sampleRate * numChannels) * bytesPerSample;
-  const uint16_t blockAlign = static_cast<uint16_t>(numChannels * bytesPerSample);
-  const uint32_t riffChunkSize = 4u + (8u + 16u) + (8u + 4u) + (8u + dataChunkSize);
+  if(dataChunkSize64 > std::numeric_limits<uint32_t>::max()
+     || riffChunkSize64 > std::numeric_limits<uint32_t>::max())
+  {
+    SetErrorMessage(errorMessage, "Output WAV file would exceed 4 GB");
+    return false;
+  }
+
+  const uint32_t dataChunkSize = static_cast<uint32_t>(dataChunkSize64);
+  const uint32_t byteRate = static_cast<uint32_t>(sampleRate * numChannels) * format.bytesPerSample;
+  const uint16_t blockAlign = static_cast<uint16_t>(numChannels * format.bytesPerSample);
 
   stream.write("RIFF", 4);
-  WriteUint32LE(stream, riffChunkSize);
+  WriteUint32LE(stream, static_cast<uint32_t>(riffChunkSize64));
   stream.write("WAVE", 4);
 
   stream.write("fmt ", 4);
   WriteUint32LE(stream, 16u);
-  WriteUint16LE(stream, kWaveFormatIeeeFloat);
+  WriteUint16LE(stream, format.formatTag);
   WriteUint16LE(stream, static_cast<uint16_t>(numChannels));
   WriteUint32LE(stream, static_cast<uint32_t>(sampleRate));
   WriteUint32LE(stream, byteRate);
   WriteUint16LE(stream, blockAlign);
-  WriteUint16LE(stream, kBitsPerSample);
+  WriteUint16LE(stream, format.bitsPerSample);
 
-  stream.write("fact", 4);
-  WriteUint32LE(stream, 4u);
-  WriteUint32LE(stream, sampleFrames);
+  if(format.isFloatingPoint)
+  {
+    stream.write("fact", 4);
+    WriteUint32LE(stream, 4u);
+    WriteUint32LE(stream, sampleFrames);
+  }
 
   stream.write("data", 4);
   WriteUint32LE(stream, dataChunkSize);
-  stream.write(reinterpret_cast<const char*>(samples.data()), static_cast<std::streamsize>(dataChunkSize));
+  if(!WriteWaveSampleData(stream, samples, waveFileFormat))
+  {
+    SetErrorMessage(errorMessage, "Failed while writing the WAV file");
+    return false;
+  }
+
+  if(dataChunkPadding != 0)
+    stream.put('\0');
 
   if(!stream.good())
   {
@@ -447,7 +594,7 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
     0,
     static_cast<int64_t>(std::llround(kMaxTailSeconds * options.sampleRate)));
 
-  std::vector<float> renderedSamples;
+  std::vector<double> renderedSamples;
   renderedSamples.reserve(
     static_cast<std::size_t>((lastEventFrame + maxTailFrames + kRenderBlockSize) * options.numOutputChannels));
 
@@ -486,13 +633,13 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
     double blockPeak = 0.0;
     for(int frame = 0; frame < blockFrames; ++frame)
     {
-      const float left = static_cast<float>(leftBlock[static_cast<std::size_t>(frame)]);
-      const float right = static_cast<float>(rightBlock[static_cast<std::size_t>(frame)]);
+      const double left = static_cast<double>(leftBlock[static_cast<std::size_t>(frame)]);
+      const double right = static_cast<double>(rightBlock[static_cast<std::size_t>(frame)]);
 
-      blockPeak = std::max(blockPeak, static_cast<double>(std::max(std::abs(left), std::abs(right))));
+      blockPeak = std::max(blockPeak, std::max(std::abs(left), std::abs(right)));
 
       if(options.numOutputChannels == 1)
-        renderedSamples.push_back(0.5f * (left + right));
+        renderedSamples.push_back(0.5 * (left + right));
       else
       {
         renderedSamples.push_back(left);
@@ -518,11 +665,12 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
       break;
   }
 
-  return WriteFloatWaveFile(
+  return WriteWaveFile(
     options.outputPath,
     renderedSamples,
     options.sampleRate,
     options.numOutputChannels,
+    options.waveFileFormat,
     errorMessage);
 }
 } // namespace

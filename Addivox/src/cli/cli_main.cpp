@@ -1,6 +1,7 @@
 #include "headless_renderer.h"
 
 #include <cerrno>
+#include <cctype>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -13,7 +14,7 @@ void PrintUsage(std::ostream& stream)
 {
   stream
     << "\n"
-    << "ADDIVOX CLI\n"
+    << "Addivox CLI tool\n"
     << "\n"
     << "Usage examples:\n"
     << "  addivox -p brass.toml --note 60 --seconds 5 --breath 104 -o brass_C4_ff.wav\n"
@@ -23,12 +24,12 @@ void PrintUsage(std::ostream& stream)
     << "  -p, --preset PATH        Preset TOML file to load\n"
     << "  -o, --output PATH        Output WAV file\n"
     << "\n"
-    << "Single note playback:\n"
+    << "Single-note playback:\n"
     << "      --note N             MIDI note number to render\n"
     << "      --seconds N          Note duration in seconds\n"
     << "      --breath N           Breath CC value 0-127 sent before note-on\n"
     << "\n"
-    << "MIDI file playback:\n"
+    << "MIDI playback:\n"
     << "      --midi PATH          MIDI file to render\n"
     << "\n"
     << "Envelope:\n"
@@ -61,6 +62,7 @@ void PrintUsage(std::ostream& stream)
     << "\n"
     << "Audio:\n"
     << "      --sample_rate N      Output sample rate in Hz (default: 48000)\n"
+    << "      --wav_format FORMAT  WAV sample format: pcm16, pcm24, pcm32, f32, f64 (default: pcm24)\n"
     << "      --mono               Write a mono WAV file\n"
     << "      --stereo             Write a stereo WAV file (default)\n"
     << "\n"
@@ -100,6 +102,29 @@ bool ParseDoubleArgument(std::string_view text, double& value)
     return false;
 
   value = parsed;
+  return true;
+}
+
+bool ParseWaveFormatArgument(std::string_view text, WaveFileFormat& value)
+{
+  std::string normalized;
+  normalized.reserve(text.size());
+  for(const char ch : text)
+    normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+
+  if(normalized == "pcm16")
+    value = WaveFileFormat::Pcm16;
+  else if(normalized == "pcm24")
+    value = WaveFileFormat::Pcm24;
+  else if(normalized == "pcm32")
+    value = WaveFileFormat::Pcm32;
+  else if(normalized == "f32")
+    value = WaveFileFormat::Float32;
+  else if(normalized == "f64")
+    value = WaveFileFormat::Float64;
+  else
+    return false;
+
   return true;
 }
 
@@ -212,6 +237,21 @@ int main(int argc, char** argv)
     {
       if(!ReadParsedValue(argc, argv, index, options.sampleRate, ParseIntArgument, "--sample_rate", errorMessage))
         break;
+      continue;
+    }
+    if(argument == "--wav_format" || argument == "--wav-format")
+    {
+      if(!ReadParsedValue(
+           argc,
+           argv,
+           index,
+           options.waveFileFormat,
+           ParseWaveFormatArgument,
+           "--wav_format",
+           errorMessage))
+      {
+        break;
+      }
       continue;
     }
     if(argument == "--mono")

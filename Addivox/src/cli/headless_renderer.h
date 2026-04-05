@@ -4,6 +4,15 @@
 #include <string>
 #include <string_view>
 
+enum class WaveFileFormat
+{
+  Pcm16,
+  Pcm24,
+  Pcm32,
+  Float32,
+  Float64,
+};
+
 struct HeadlessRenderOptions
 {
   std::string presetPath;
@@ -13,6 +22,7 @@ struct HeadlessRenderOptions
   int breathMidiValue{127};
   int sampleRate{48000};
   int numOutputChannels{2};
+  WaveFileFormat waveFileFormat{WaveFileFormat::Pcm24};
   std::optional<double> levelScale;
   std::optional<double> attackScale;
   std::optional<double> releaseScale;
