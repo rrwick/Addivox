@@ -172,8 +172,8 @@ inline void ResizeAttackReleaseTabPage(IContainerBase* pTab, const IRECT& r)
 
   constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
-  constexpr float kControlHeight = 24.f;
-  constexpr float kButtonHeight = 24.f;
+  constexpr float kControlHeight = kEditorControlHeight;
+  constexpr float kButtonHeight = kEditorControlHeight;
   constexpr float kGap = 8.f;
   constexpr float kTightGap = 0.f;
   constexpr float kBottomPad = 8.f;
