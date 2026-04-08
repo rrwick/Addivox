@@ -69,15 +69,9 @@ inline bool ApplyPanAction(SimplePreset& preset, const char* actionName)
 
   if(ApplyScaleAction(preset, OscillatorParameter::pan, actionName, kPanMin, kPanMax))
     return true;
-  if(std::strcmp(actionName, "zero even") == 0)
+  if(std::strcmp(actionName, "zero") == 0)
   {
-    for(int oscillatorIndex = 1; oscillatorIndex < SimplePreset::kNumOscillators; oscillatorIndex += 2)
-      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, 0.0);
-    return true;
-  }
-  if(std::strcmp(actionName, "zero odd") == 0)
-  {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; oscillatorIndex += 2)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
       preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, 0.0);
     return true;
   }
@@ -107,13 +101,13 @@ inline void AppendPanTabDescriptors(std::vector<OscillatorTabDescriptor>& descri
 
 inline void ResizePanTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 14)
+  if(pTab->NChildren() < 15)
     return;
 
   constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
-  constexpr float kDescriptionHeight = 64.f;
+  constexpr float kDescriptionHeight = 44.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kGap = 8.f;
   constexpr float kTightGap = 4.f;
@@ -145,6 +139,8 @@ inline void ResizePanTabPage(IContainerBase* pTab, const IRECT& r)
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
   const float rowMid = (rowL + rowR) * 0.5f;
+  auto editModeLabelBounds = IRECT(rowL, descriptionBounds.T, rowR, descriptionBounds.T + kLabelHeight);
+  auto editModeBounds = IRECT(rowL, editModeLabelBounds.B + kTightGap, rowR, editModeLabelBounds.B + kTightGap + kControlHeight);
   auto xRangeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
   y += kLabelHeight + kTightGap;
   auto xRangeMinBounds = IRECT(rowL, y, rowMid - kHalfGap * 0.5f, y + kControlHeight);
@@ -168,20 +164,21 @@ inline void ResizePanTabPage(IContainerBase* pTab, const IRECT& r)
     rowR,
     allKeyNotesToggleBounds.B);
 
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMinBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(yTransformLabelBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(setShapeLabelBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(actionsLabelBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(10)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(11)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(12)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(13)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(0)->SetTargetAndDrawRECTs(editModeLabelBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(editModeBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMinBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformLabelBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(yTransformBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeLabelBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(setShapeBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(12)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(13)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(14)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void AttachPanTabChildren(IVTabPage* page,
@@ -214,7 +211,7 @@ inline void AttachPanTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up all", "scale down all", "scale up even", "scale down even", "scale up odd", "scale down odd", "zero even", "zero odd", "flip sign"},
+    {"scale up", "scale down", "zero", "flip sign"},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -231,7 +228,8 @@ inline void AttachPanTabChildren(IVTabPage* page,
   *context->panTab.setShapeControl = setShapeControl;
   *context->panTab.actionsControl = actionsControl;
 
-  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
+  page->AddChildControl(CreateEditModeLabelControl(styles));
+  page->AddChildControl(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

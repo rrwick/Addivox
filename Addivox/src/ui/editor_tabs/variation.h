@@ -98,13 +98,13 @@ inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& 
 
 inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 14)
+  if(pTab->NChildren() < 15)
     return;
 
   constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
-  constexpr float kDescriptionHeight = 64.f;
+  constexpr float kDescriptionHeight = 44.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kGap = 8.f;
   constexpr float kTightGap = 4.f;
@@ -136,6 +136,8 @@ inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
   const float rowMid = (rowL + rowR) * 0.5f;
+  auto editModeLabelBounds = IRECT(rowL, descriptionBounds.T, rowR, descriptionBounds.T + kLabelHeight);
+  auto editModeBounds = IRECT(rowL, editModeLabelBounds.B + kTightGap, rowR, editModeLabelBounds.B + kTightGap + kControlHeight);
   auto xRangeLabelBounds = IRECT(rowL, y, rowR, y + kLabelHeight);
   y += kLabelHeight + kTightGap;
   auto xRangeMinBounds = IRECT(rowL, y, rowMid - kHalfGap * 0.5f, y + kControlHeight);
@@ -159,20 +161,21 @@ inline void ResizeVariationTabPage(IContainerBase* pTab, const IRECT& r)
     rowR,
     allKeyNotesToggleBounds.B);
 
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMinBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(yTransformLabelBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(setShapeLabelBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(actionsLabelBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(10)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(11)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(12)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(13)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(0)->SetTargetAndDrawRECTs(editModeLabelBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(editModeBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMinBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(yTransformLabelBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(yTransformBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeLabelBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(setShapeBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(12)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(13)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(14)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void AttachVariationTabChildren(IVTabPage* page,
@@ -209,7 +212,7 @@ inline void AttachVariationTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up all", "scale down all", "scale up even", "scale down even", "scale up odd", "scale down odd"},
+    {"scale up", "scale down"},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
@@ -227,7 +230,8 @@ inline void AttachVariationTabChildren(IVTabPage* page,
   (*context->variationTab.setShapeControls)[variationIndex] = setShapeControl;
   (*context->variationTab.actionsControls)[variationIndex] = actionsControl;
 
-  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
+  page->AddChildControl(CreateEditModeLabelControl(styles));
+  page->AddChildControl(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);

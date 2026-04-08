@@ -14,6 +14,13 @@ enum class EditorLevelTransform
   PseudoLog
 };
 
+enum class EditorOscillatorEditMode
+{
+  SetAll,
+  SetOdd,
+  SetEven
+};
+
 struct EditorState
 {
   CompoundPreset compoundPreset{};
@@ -28,6 +35,11 @@ struct EditorState
   EditorLevelTransform releaseTransform{EditorLevelTransform::Linear};
   EditorLevelTransform pitchTransform{EditorLevelTransform::Linear};
   EditorLevelTransform panTransform{EditorLevelTransform::Linear};
+  std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> oscillatorEditModes = [] {
+    std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> result{};
+    result.fill(EditorOscillatorEditMode::SetAll);
+    return result;
+  }();
   std::array<EditorLevelTransform, 6> variationTransforms{
     EditorLevelTransform::Linear,
     EditorLevelTransform::Linear,

@@ -76,6 +76,25 @@ inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOs
   kOscillatorTabTitleStorage + 72,
 }};
 
+const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
+
+inline const char* GetOscillatorTabDescriptionForTitle(const char* title)
+{
+  if(!title)
+    return "";
+
+  if(std::strcmp(title, kEqTabTitle) == 0)
+    return help_text::oscillator_tabs::kEq;
+
+  for(const auto& descriptor : GetOscillatorTabDescriptors())
+  {
+    if(std::strcmp(descriptor.title, title) == 0)
+      return descriptor.description;
+  }
+
+  return "";
+}
+
 inline const char* GetLevelTransformLabel(EditorLevelTransform transform)
 {
   switch(transform)
@@ -104,6 +123,34 @@ inline OscillatorSliderControl::ValueTransform GetSliderValueTransform(EditorLev
   }
 }
 
+inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode)
+{
+  switch(mode)
+  {
+    case EditorOscillatorEditMode::SetOdd:
+      return "set (odd)";
+    case EditorOscillatorEditMode::SetEven:
+      return "set (even)";
+    case EditorOscillatorEditMode::SetAll:
+    default:
+      return "set (all)";
+  }
+}
+
+inline EditorOscillatorEditMode GetOscillatorEditModeFromLabel(const char* label)
+{
+  if(std::strcmp(label, "set (odd)") == 0)
+    return EditorOscillatorEditMode::SetOdd;
+  if(std::strcmp(label, "set (even)") == 0)
+    return EditorOscillatorEditMode::SetEven;
+  return EditorOscillatorEditMode::SetAll;
+}
+
+inline bool IsOddHarmonic(int oscillatorIndex)
+{
+  return (oscillatorIndex % 2) == 0;
+}
+
 inline void SetDisabledState(IControl* control, bool disabled)
 {
   if(!control || control->IsDisabled() == disabled)
@@ -124,17 +171,6 @@ inline void SetControlValueSilently(IControl* control, double value, int valIdx 
 
   control->SetValue(value, valIdx);
   control->SetDirty(false, valIdx);
-}
-
-inline ITextControl* CreateTabTitleControl(const OscillatorTabDescriptor& descriptor, const EditorStyles& styles)
-{
-  auto* control = new IMultiLineTextControl(IRECT(), descriptor.panelTitle, styles.tabTitleText, COLOR_TRANSPARENT);
-  // Native macOS tooltips in iPlug2 resolve from the hovered control, so this
-  // text control must participate in mouse-over even though it is not clickable.
-  control->SetIgnoreMouse(false);
-  control->SetTooltip(descriptor.description);
-  control->DisablePrompt(true);
-  return control;
 }
 
 inline int RoundOscillatorRangeValue(double value)
@@ -184,6 +220,35 @@ inline ActionSelectionControl* CreateYTransformControl(const std::shared_ptr<Edi
   return control;
 }
 
+inline ActionSelectionControl* CreateEditModeControl(const std::shared_ptr<std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters>>& editModes,
+                                                     const OscillatorTabDescriptor& descriptor,
+                                                     const EditorStyles& styles)
+{
+  const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+  auto* control = new ActionSelectionControl(
+    IRECT(),
+    GetOscillatorEditModeLabel((*editModes)[parameterIndex]),
+    {"set (all)", "set (odd)", "set (even)"},
+    styles.utilityDropdownText,
+    styles.darkTab,
+    true);
+  control->SetTooltip(help_text::oscillator_tabs::kEditMode);
+  control->SetOnSelection([editModes, parameterIndex](const char* selectedText) {
+    if(!selectedText)
+      return;
+
+    (*editModes)[parameterIndex] = GetOscillatorEditModeFromLabel(selectedText);
+  });
+  return control;
+}
+
+inline ITextControl* CreateEditModeLabelControl(const EditorStyles& styles)
+{
+  auto* control = MakePassiveControl(new ITextControl(IRECT(), "Edit mode:", styles.utilityLabelText, COLOR_TRANSPARENT));
+  control->SetTooltip(help_text::oscillator_tabs::kEditMode);
+  return control;
+}
+
 inline std::size_t GetAttackReleaseTabIndex(OscillatorParameter parameter)
 {
   return parameter == OscillatorParameter::release ? 1u : 0u;
@@ -202,18 +267,10 @@ inline bool ApplyScaleAction(SimplePreset& preset,
                              double minValue,
                              double maxValue)
 {
-  if(std::strcmp(actionName, "scale up all") == 0)
+  if(std::strcmp(actionName, "scale up") == 0)
     return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, minValue, maxValue);
-  if(std::strcmp(actionName, "scale down all") == 0)
+  if(std::strcmp(actionName, "scale down") == 0)
     return preset.ScaleOscillatorParameterAll(parameter, 0.9, minValue, maxValue);
-  if(std::strcmp(actionName, "scale up even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 1.111111111111111, minValue, maxValue);
-  if(std::strcmp(actionName, "scale down even") == 0)
-    return preset.ScaleOscillatorParameterEven(parameter, 0.9, minValue, maxValue);
-  if(std::strcmp(actionName, "scale up odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 1.111111111111111, minValue, maxValue);
-  if(std::strcmp(actionName, "scale down odd") == 0)
-    return preset.ScaleOscillatorParameterOdd(parameter, 0.9, minValue, maxValue);
 
   return false;
 }
@@ -224,14 +281,13 @@ inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
     static_cast<int>(parameter) - static_cast<int>(OscillatorParameter::intensity_variation_amplitude));
 }
 
-const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
-
 struct EditorModelRefs
 {
   std::shared_ptr<CompoundPreset> compoundPreset;
   std::shared_ptr<int> selectedMidiNote;
   std::shared_ptr<int> selectedTabIndex;
   std::shared_ptr<bool> editMode;
+  std::shared_ptr<std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters>> oscillatorEditModes;
 };
 
 struct OscillatorViewRefs
@@ -351,6 +407,44 @@ struct EditorContext
   void SetEditMode(bool editMode) const
   {
     *model.editMode = editMode;
+  }
+
+  EditorOscillatorEditMode GetOscillatorEditMode(OscillatorParameter parameter) const
+  {
+    return (*model.oscillatorEditModes)[static_cast<std::size_t>(parameter)];
+  }
+
+  void SetOscillatorEditMode(OscillatorParameter parameter, EditorOscillatorEditMode editMode) const
+  {
+    (*model.oscillatorEditModes)[static_cast<std::size_t>(parameter)] = editMode;
+  }
+
+  bool IsOscillatorEditable(OscillatorParameter parameter, int oscillatorIndex) const
+  {
+    switch(GetOscillatorEditMode(parameter))
+    {
+      case EditorOscillatorEditMode::SetOdd:
+        return IsOddHarmonic(oscillatorIndex);
+      case EditorOscillatorEditMode::SetEven:
+        return !IsOddHarmonic(oscillatorIndex);
+      case EditorOscillatorEditMode::SetAll:
+      default:
+        return true;
+    }
+  }
+
+  void ApplyOscillatorEditModeToValues(OscillatorParameter parameter,
+                                       const OscillatorParameterValues& sourceValues,
+                                       OscillatorParameterValues& targetValues) const
+  {
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      if(!IsOscillatorEditable(parameter, oscillatorIndex))
+      {
+        targetValues[static_cast<std::size_t>(oscillatorIndex)] =
+          sourceValues[static_cast<std::size_t>(oscillatorIndex)];
+      }
+    }
   }
 
   int XRangeMin() const
@@ -717,12 +811,14 @@ struct EditorContext
     if(!std::forward<Action>(action)(updatedPreset))
       return;
 
-    std::array<double, SimplePreset::kNumOscillators> values{};
+    const auto originalValues = GetOscillatorParameterValues(*keyNotePreset, parameter);
+    OscillatorParameterValues values{};
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
     {
       values[static_cast<std::size_t>(oscillatorIndex)] =
         updatedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
     }
+    ApplyOscillatorEditModeToValues(parameter, originalValues, values);
 
     if(!Preset().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values))
       return;
@@ -827,13 +923,13 @@ inline IRECT GetOscillatorSliderBounds(IContainerBase* pTab, const IRECT& r, flo
 
 inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 8)
+  if(pTab->NChildren() < 9)
     return;
 
   constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
-  constexpr float kDescriptionHeight = 64.f;
+  constexpr float kDescriptionHeight = 44.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kBottomPad = 8.f;
   constexpr float kTightGap = 4.f;
@@ -855,6 +951,8 @@ inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
   const float rowMid = (rowL + rowR) * 0.5f;
+  auto editModeLabelBounds = IRECT(rowL, descriptionBounds.T, rowR, descriptionBounds.T + kLabelHeight);
+  auto editModeBounds = IRECT(rowL, editModeLabelBounds.B + kTightGap, rowR, editModeLabelBounds.B + kTightGap + kControlHeight);
   auto xRangeLabelBounds = IRECT(rowL, controlsTop, rowR, controlsTop + kLabelHeight);
   auto xRangeMinBounds = IRECT(rowL, xRangeLabelBounds.B + kTightGap, rowMid - kHalfGap * 0.5f, xRangeLabelBounds.B + kTightGap + kControlHeight);
   auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
@@ -866,14 +964,15 @@ inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
     allKeyNotesToggleBounds.B);
   const auto sliderBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
 
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(descriptionBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeLabelBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMinBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMaxBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(0)->SetTargetAndDrawRECTs(editModeLabelBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(editModeBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMinBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context,
@@ -884,7 +983,8 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
     return;
 
   const int midiNote = context->SelectedMidiNote();
-  if(!context->Preset().HasKeyNotePreset(midiNote))
+  const SimplePreset* keyNotePreset = context->Preset().GetKeyNotePreset(midiNote);
+  if(!keyNotePreset)
     return;
 
   auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
@@ -931,6 +1031,10 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   else if(descriptor.parameter == OscillatorParameter::release)
     config.transform = GetSliderValueTransform(*context->attackReleaseTab.releaseTransform);
   control->SetConfig(config);
+  control->SetOscillatorEditableFunc(
+    [context, parameter = descriptor.parameter](int oscillatorIndex) {
+      return context->IsOscillatorEditable(parameter, oscillatorIndex);
+    });
   control->SetVisibleOscillatorRange(context->XRangeMin(), context->XRangeMax());
   control->SetOnOscillatorValueChanged(
     [context, control, descriptor](int oscillatorIndex, double value) {
@@ -938,6 +1042,9 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
         return;
 
       const int midiNote = context->SelectedMidiNote();
+      if(!context->IsOscillatorEditable(descriptor.parameter, oscillatorIndex))
+        return;
+
       const double clampedValue = std::clamp(value, descriptor.range.min, descriptor.range.max);
       const bool updated = context->Preset().SetKeyNoteOscillatorParameter(
         midiNote,

@@ -22,6 +22,7 @@ class OscillatorSliderControl final : public IVMultiSliderControl<SimplePreset::
 public:
   using Base = IVMultiSliderControl<SimplePreset::kNumOscillators>;
   using OnOscillatorValueChangedFunc = std::function<void(int oscillatorIndex, double value)>;
+  using IsOscillatorEditableFunc = std::function<bool(int oscillatorIndex)>;
   using RestoreState = std::array<double, SimplePreset::kNumOscillators>;
 
   enum class ValueTransform
@@ -99,6 +100,11 @@ public:
       return;
 
     SetDisabled(!editable);
+  }
+
+  void SetOscillatorEditableFunc(IsOscillatorEditableFunc func)
+  {
+    mIsOscillatorEditable = std::move(func);
   }
 
   void SetVisibleOscillatorRange(int minOscillatorOneBased, int maxOscillatorOneBased)
@@ -181,6 +187,126 @@ public:
       return;
 
     DrawOscillatorReadout(g, oscillatorIndex);
+  }
+
+  void SnapToMouse(float x,
+                   float y,
+                   EDirection direction,
+                   const IRECT& bounds,
+                   int valIdx = -1,
+                   double minClip = 0.,
+                   double maxClip = 1.) override
+  {
+    bounds.Constrain(x, y);
+    const int nVals = NVals();
+
+    double value = 0.;
+    int sliderHit = -1;
+
+    const int step = GetStepIdxForPos(x, y);
+
+    if(direction == EDirection::Vertical)
+    {
+      if(step > -1)
+      {
+        y = mStepBounds.Get()[step].T;
+
+        if(mStepBounds.GetSize() == 1)
+          value = 1.f;
+        else
+          value = step * (1.f / float(mStepBounds.GetSize() - 1));
+      }
+      else
+      {
+        value = 1.f - (y - bounds.T) / bounds.H();
+      }
+
+      for(int oscillatorIndex = 0; oscillatorIndex < nVals; ++oscillatorIndex)
+      {
+        if(mTrackBounds.Get()[oscillatorIndex].ContainsEdge(x, mTrackBounds.Get()[oscillatorIndex].MH()))
+        {
+          sliderHit = oscillatorIndex;
+          break;
+        }
+      }
+    }
+    else
+    {
+      if(step > -1)
+      {
+        x = mStepBounds.Get()[step].L;
+
+        if(mStepBounds.GetSize() == 1)
+          value = 1.f;
+        else
+          value = 1.f - (step * (1.f / float(mStepBounds.GetSize() - 1)));
+      }
+      else
+      {
+        value = (x - bounds.L) / bounds.W();
+      }
+
+      for(int oscillatorIndex = 0; oscillatorIndex < nVals; ++oscillatorIndex)
+      {
+        if(mTrackBounds.Get()[oscillatorIndex].ContainsEdge(mTrackBounds.Get()[oscillatorIndex].MW(), y))
+        {
+          sliderHit = oscillatorIndex;
+          break;
+        }
+      }
+    }
+
+    if(!GetStepped())
+      value = std::round(value / mGrain) * mGrain;
+
+    bool changedValue = false;
+
+    if(sliderHit > -1)
+    {
+      mMouseOverTrack = sliderHit;
+
+      if(IsOscillatorEditable(sliderHit))
+      {
+        SetValue(std::clamp(value, 0.0, 1.0), sliderHit);
+        OnNewValue(sliderHit, GetValue(sliderHit));
+        changedValue = true;
+
+        mSliderHit = sliderHit;
+
+        if(!GetStepped() && mPrevSliderHit != -1)
+        {
+          if(std::abs(mPrevSliderHit - mSliderHit) > 1)
+          {
+            const int lowBounds = std::min(mPrevSliderHit, mSliderHit);
+            const int highBounds = std::max(mPrevSliderHit, mSliderHit);
+
+            for(int oscillatorIndex = lowBounds; oscillatorIndex < highBounds; ++oscillatorIndex)
+            {
+              if(!IsOscillatorEditable(oscillatorIndex))
+                continue;
+
+              const double frac = static_cast<double>(oscillatorIndex - lowBounds)
+                                / static_cast<double>(highBounds - lowBounds);
+              SetValue(iplug::Lerp(GetValue(lowBounds), GetValue(highBounds), frac), oscillatorIndex);
+              OnNewValue(oscillatorIndex, GetValue(oscillatorIndex));
+              changedValue = true;
+            }
+          }
+        }
+
+        mPrevSliderHit = mSliderHit;
+      }
+      else
+      {
+        mSliderHit = -1;
+      }
+    }
+    else
+    {
+      mSliderHit = -1;
+    }
+
+    SetDirty(changedValue);
   }
 
 private:
@@ -415,6 +541,11 @@ private:
     return std::clamp(digits, 1, 5);
   }
 
+  bool IsOscillatorEditable(int oscillatorIndex) const
+  {
+    return !mIsOscillatorEditable || mIsOscillatorEditable(oscillatorIndex);
+  }
+
   void MakeTrackRects(const IRECT& bounds) override
   {
     const int nVals = NVals();
@@ -444,6 +575,7 @@ private:
   int mVisibleOscillatorMin{0};
   int mVisibleOscillatorMax{SimplePreset::kNumOscillators - 1};
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
+  IsOscillatorEditableFunc mIsOscillatorEditable{};
 };
 
 } // namespace plugin_ui

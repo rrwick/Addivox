@@ -12,6 +12,7 @@
 #include "../visualizer/harmonic_visualizer_control.h"
 
 #include <algorithm>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -50,6 +51,230 @@ private:
 
 namespace editor
 {
+class EditorTooltipTabSwitchControl final : public IVTabSwitchControl
+{
+public:
+  EditorTooltipTabSwitchControl(const IRECT& bounds,
+                                IActionFunction actionFunction,
+                                const std::vector<const char*>& options,
+                                std::vector<const char*> tooltips,
+                                const char* label = "",
+                                const IVStyle& style = DEFAULT_STYLE,
+                                EVShape shape = EVShape::Rectangle,
+                                EDirection direction = EDirection::Horizontal)
+  : IVTabSwitchControl(bounds, actionFunction, options, label, style, shape, direction)
+  , mTooltips(std::move(tooltips))
+  {
+    UpdateTooltipForButton(-1);
+  }
+
+  void OnMouseOver(float x, float y, const IMouseMod& mod) override
+  {
+    IVTabSwitchControl::OnMouseOver(x, y, mod);
+    UpdateTooltipForButton(mMouseOverButton);
+  }
+
+  void OnMouseOut() override
+  {
+    IVTabSwitchControl::OnMouseOut();
+    UpdateTooltipForButton(-1);
+  }
+
+private:
+  void UpdateTooltipForButton(int buttonIndex)
+  {
+    if(mTooltipButtonIndex == buttonIndex)
+      return;
+
+    mTooltipButtonIndex = buttonIndex;
+    const char* tooltip = "";
+    if(buttonIndex >= 0 && buttonIndex < static_cast<int>(mTooltips.size()) && mTooltips[static_cast<std::size_t>(buttonIndex)])
+      tooltip = mTooltips[static_cast<std::size_t>(buttonIndex)];
+
+    SetTooltip(tooltip);
+    if(GetUI() && GetUI()->TooltipsEnabled())
+      GetUI()->UpdateTooltips();
+  }
+
+  std::vector<const char*> mTooltips;
+  int mTooltipButtonIndex{-2};
+};
+
+class EditorTabbedPagesControl final : public IContainerBase, public IVectorBase
+{
+public:
+  EditorTabbedPagesControl(const IRECT& bounds,
+                           const PageMap& pages,
+                           const char* label = "",
+                           const IVStyle& style = DEFAULT_STYLE,
+                           float tabBarHeight = 20.0f,
+                           float tabBarFrac = 0.5f,
+                           EAlign tabsAlign = EAlign::Near)
+  : IContainerBase(bounds)
+  , IVectorBase(style.WithDrawFrame(false).WithDrawShadows(false))
+  , mTabBarHeight(tabBarHeight)
+  , mTabBarFrac(tabBarFrac)
+  , mTabsAlign(tabsAlign)
+  {
+    AttachIControl(this, label);
+
+    for(const auto& page : pages)
+      AddPage(page.first, GetOscillatorTabDescriptionForTitle(page.first), page.second);
+  }
+
+  ~EditorTabbedPagesControl()
+  {
+    mPages.Empty(false);
+  }
+
+  void Hide(bool hide) override
+  {
+    if(hide)
+    {
+      ForAllChildrenFunc([hide](int childIdx, IControl* child) {
+        child->Hide(hide);
+      });
+    }
+    else
+    {
+      ForAllPagesFunc([](IVTabPage* page) {
+        page->Hide(true);
+      });
+
+      GetTabSwitchControl()->Hide(false);
+      GetPage(GetTabSwitchControl()->GetSelectedIdx())->Hide(false);
+    }
+
+    IControl::Hide(hide);
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    DrawLabel(g);
+
+    const auto cornerRadius = GetRoundedCornerRadius(GetTabBarArea());
+    const float tabCornerRadius = mTabBarFrac == 1.0f ? 0.0f : cornerRadius;
+
+    g.FillRoundRect(GetColor(kPR),
+                    GetPageArea(),
+                    mTabsAlign == EAlign::Near ? 0.0f : tabCornerRadius,
+                    mTabsAlign == EAlign::Far ? 0.0f : tabCornerRadius,
+                    cornerRadius,
+                    cornerRadius);
+
+    if(mStyle.drawFrame)
+      g.DrawRoundRect(GetColor(kFR), mRECT, cornerRadius);
+  }
+
+  void OnAttached() override
+  {
+    AddChildControl(new EditorTooltipTabSwitchControl(
+      GetTabBarArea(),
+      [&](IControl* caller) {
+        ShowSelectedPage();
+      },
+      mPageNames,
+      mPageTooltips,
+      "",
+      GetStyle().WithWidgetFrac(1.0f)));
+
+    GetTabSwitchControl()->SetShape(EVShape::EndsRounded);
+
+    ForAllPagesFunc([&](IVTabPage* page) {
+      AddChildControl(page);
+      page->SetTargetAndDrawRECTs(GetPageArea());
+      page->Hide(true);
+    });
+
+    GetTabSwitchControl()->Hide(false);
+    GetPage(0)->Hide(false);
+  }
+
+  void OnStyleChanged() override
+  {
+    ForAllChildrenFunc([this](int childIdx, IControl* child) {
+      if(auto* vectorBase = child->As<IVectorBase>())
+        vectorBase->SetStyle(GetStyle());
+    });
+
+    const auto adjustedStyle = GetStyle().WithDrawFrame(false).WithDrawShadows(false);
+    GetTabSwitchControl()->SetStyle(adjustedStyle.WithWidgetFrac(1.0));
+    GetTabSwitchControl()->SetShape(EVShape::EndsRounded);
+  }
+
+  void OnResize() override
+  {
+    SetTargetRECT(MakeRects(mRECT));
+
+    if(NChildren())
+    {
+      GetTabSwitchControl()->SetTargetAndDrawRECTs(GetTabBarArea());
+
+      ForAllPagesFunc([&](IVTabPage* page) {
+        page->SetTargetAndDrawRECTs(GetPageArea());
+      });
+    }
+  }
+
+  float GetTabHeight() const
+  {
+    return mTabBarHeight;
+  }
+
+  IRECT GetPageArea() const
+  {
+    return mWidgetBounds.GetReducedFromTop(GetTabHeight());
+  }
+
+  IRECT GetTabBarArea() const
+  {
+    return mWidgetBounds.GetFromTop(GetTabHeight()).FracRectHorizontal(mTabBarFrac, mTabsAlign == EAlign::Far);
+  }
+
+private:
+  void AddPage(const char* pageName, const char* pageTooltip, IVTabPage* page)
+  {
+    page->SetLabelStr(pageName);
+    mPageNames.push_back(pageName);
+    mPageTooltips.push_back(pageTooltip ? pageTooltip : "");
+    mPages.Add(page);
+  }
+
+  void ForAllPagesFunc(const std::function<void(IVTabPage* page)>& func)
+  {
+    for(int i = 0; i < mPages.GetSize(); ++i)
+      func(mPages.Get(i));
+  }
+
+  EditorTooltipTabSwitchControl* GetTabSwitchControl()
+  {
+    return GetChild(0)->As<EditorTooltipTabSwitchControl>();
+  }
+
+  IVTabPage* GetPage(int pageIndex)
+  {
+    return mPages.Get(pageIndex);
+  }
+
+  void ShowSelectedPage()
+  {
+    ForAllPagesFunc([&](IVTabPage* page) {
+      const bool hide = std::strcmp(GetTabSwitchControl()->GetSelectedLabelStr(), page->GetLabelStr()) != 0;
+      page->Hide(hide);
+    });
+
+    if(IBubbleControl* bubbleControl = GetUI()->GetBubbleControl())
+      bubbleControl->Hide(true);
+  }
+
+  WDL_PtrList<IVTabPage> mPages;
+  std::vector<const char*> mPageNames;
+  std::vector<const char*> mPageTooltips;
+  float mTabBarHeight;
+  float mTabBarFrac;
+  EAlign mTabsAlign;
+};
+
 inline const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors()
 {
   static const std::vector<OscillatorTabDescriptor> descriptors = [] {
@@ -80,7 +305,9 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  page->AddChildControl(CreateTabTitleControl(descriptor, styles));
+  auto* editModeControl = CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles);
+  page->AddChildControl(CreateEditModeLabelControl(styles));
+  page->AddChildControl(editModeControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);
@@ -180,8 +407,11 @@ inline PageMap CreateOscillatorTabPages(const std::shared_ptr<EditorContext>& co
   return pages;
 }
 
-inline void RestoreSelectedTab(IVTabbedPagesControl* editorTabsControl, const std::shared_ptr<int>& selectedTabIndex)
+inline void RestoreSelectedTab(IContainerBase* editorTabsControl, const std::shared_ptr<int>& selectedTabIndex)
 {
+  if(!editorTabsControl)
+    return;
+
   auto* tabSwitch = editorTabsControl->NChildren() > 0 ? editorTabsControl->GetChild(0)->As<IVTabSwitchControl>() : nullptr;
   if(!tabSwitch)
     return;
@@ -216,6 +446,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->model.selectedMidiNote = std::shared_ptr<int>(editorState, &editorState->selectedMidiNote);
   context->model.selectedTabIndex = std::shared_ptr<int>(editorState, &editorState->selectedTabIndex);
   context->model.editMode = std::shared_ptr<bool>(editorState, &editorState->editMode);
+  context->model.oscillatorEditModes =
+    std::shared_ptr<std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditModes);
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
@@ -291,7 +523,7 @@ inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics
   pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
 
-  auto* editorTabsControl = new IVTabbedPagesControl(
+  auto* editorTabsControl = new EditorTabbedPagesControl(
     editorTabsBounds,
     CreateOscillatorTabPages(context, styles),
     "",
