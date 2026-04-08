@@ -14,7 +14,7 @@ Also requires iPlug2 dependencies/SDKs to be downloaded in the iPlug2 repo (see 
 Build instructions:
 ```bash
 rm -rf build
-cmake -S Addivox -B build -DIPLUG2_DIR="$PWD/iPlug2"
+cmake -S Addivox -B build -DIPLUG2_DIR="$PWD/iPlug2" -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target addivox-cli --parallel 4
 ```
 
