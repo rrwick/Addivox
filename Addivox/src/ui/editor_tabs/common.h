@@ -929,46 +929,41 @@ inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kLeftInset = 104.f;
   constexpr float kLabelHeight = 14.f;
   constexpr float kControlHeight = 24.f;
-  constexpr float kDescriptionHeight = 44.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kBottomPad = 8.f;
-  constexpr float kTightGap = 4.f;
+  constexpr float kTightGap = 0.f;
   constexpr float kGap = 8.f;
   constexpr float kHalfGap = 6.f;
   constexpr float kToggleLabelGap = 8.f;
-  constexpr float kControlsBlockHeight = kLabelHeight + kTightGap + kControlHeight + kGap + kControlHeight;
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
   const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
   auto restoreButtonBounds = IRECT(leftColumnBounds.L + 8.f, restoreTop, leftColumnBounds.R - 8.f, leftColumnBounds.B - kBottomPad);
-  auto descriptionBounds = IRECT(
-    leftColumnBounds.L + 4.f,
-    leftColumnBounds.T + 2.f,
-    leftColumnBounds.R - 4.f,
-    leftColumnBounds.T + 2.f + kDescriptionHeight);
-  const float controlsTop = std::min(descriptionBounds.B, restoreTop - kGap - kControlsBlockHeight);
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
   const float rowMid = (rowL + rowR) * 0.5f;
-  auto editModeLabelBounds = IRECT(rowL, descriptionBounds.T, rowR, descriptionBounds.T + kLabelHeight);
-  auto editModeBounds = IRECT(rowL, editModeLabelBounds.B + kTightGap, rowR, editModeLabelBounds.B + kTightGap + kControlHeight);
-  auto xRangeLabelBounds = IRECT(rowL, controlsTop, rowR, controlsTop + kLabelHeight);
-  auto xRangeMinBounds = IRECT(rowL, xRangeLabelBounds.B + kTightGap, rowMid - kHalfGap * 0.5f, xRangeLabelBounds.B + kTightGap + kControlHeight);
-  auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
-  auto allKeyNotesToggleBounds = IRECT(rowL, xRangeMinBounds.B + kGap, rowL + kControlHeight, xRangeMinBounds.B + kGap + kControlHeight);
+  const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
+  auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
   auto allKeyNotesLabelBounds = IRECT(
     allKeyNotesToggleBounds.R + kToggleLabelGap,
     allKeyNotesToggleBounds.T,
     rowR,
     allKeyNotesToggleBounds.B);
+  const float editModeTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
+  auto editModeBounds = IRECT(rowL, editModeTop, rowR, editModeTop + kControlHeight);
+  auto editModeLabelBounds = IRECT(rowL, editModeBounds.T - kTightGap - kLabelHeight, rowR, editModeBounds.T - kTightGap);
+  const float xRangeTop = editModeLabelBounds.T - kGap - kControlHeight;
+  auto xRangeMinBounds = IRECT(rowL, xRangeTop, rowMid - kHalfGap * 0.5f, xRangeTop + kControlHeight);
+  auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
+  auto xRangeLabelBounds = IRECT(rowL, xRangeMinBounds.T - kTightGap - kLabelHeight, rowR, xRangeMinBounds.T - kTightGap);
   const auto sliderBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
 
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(editModeLabelBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(editModeBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeLabelBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(xRangeMinBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(0)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeMinBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(editModeLabelBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(editModeBounds);
   pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
   pTab->GetChild(6)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
   pTab->GetChild(7)->SetTargetAndDrawRECTs(restoreButtonBounds);

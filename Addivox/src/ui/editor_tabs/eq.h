@@ -214,7 +214,7 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kControlHeight = 24.f;
   constexpr float kButtonHeight = 24.f;
   constexpr float kGap = 8.f;
-  constexpr float kTightGap = 4.f;
+  constexpr float kTightGap = 0.f;
   constexpr float kBottomPad = 8.f;
   constexpr float kToggleLabelGap = 8.f;
   constexpr float kDescriptionHeight = 64.f;

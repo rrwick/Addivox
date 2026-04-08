@@ -306,11 +306,11 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   auto* editModeControl = CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles);
-  page->AddChildControl(CreateEditModeLabelControl(styles));
-  page->AddChildControl(editModeControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);
+  page->AddChildControl(CreateEditModeLabelControl(styles));
+  page->AddChildControl(editModeControl);
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
