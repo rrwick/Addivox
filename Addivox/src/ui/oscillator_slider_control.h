@@ -585,6 +585,8 @@ private:
       const int neighbourIndex = oscillatorIndex + offset;
       if(neighbourIndex < 0 || neighbourIndex >= SimplePreset::kNumOscillators)
         continue;
+      if(!IsOscillatorEditable(neighbourIndex))
+        continue;
 
       const double weight = kSmoothControlKernel[static_cast<std::size_t>(offset + 3)];
       weightedValue += GetValue(neighbourIndex) * weight;
