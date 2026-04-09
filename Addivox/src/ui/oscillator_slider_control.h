@@ -25,6 +25,7 @@ public:
   using OnOscillatorValueChangedFunc = std::function<void(int oscillatorIndex, double value)>;
   using IsOscillatorEditableFunc = std::function<bool(int oscillatorIndex)>;
   using GetOscillatorEditModeFunc = std::function<EditorOscillatorEditMode()>;
+  using ControlState = std::array<double, SimplePreset::kNumOscillators>;
   using RestoreState = std::array<double, SimplePreset::kNumOscillators>;
 
   enum class ValueTransform
@@ -204,69 +205,10 @@ public:
                    double minClip = 0.,
                    double maxClip = 1.) override
   {
-    bounds.Constrain(x, y);
-    const int nVals = NVals();
-
-    double value = 0.;
-    int sliderHit = -1;
-
-    const int step = GetStepIdxForPos(x, y);
-
-    if(direction == EDirection::Vertical)
-    {
-      if(step > -1)
-      {
-        y = mStepBounds.Get()[step].T;
-
-        if(mStepBounds.GetSize() == 1)
-          value = 1.f;
-        else
-          value = step * (1.f / float(mStepBounds.GetSize() - 1));
-      }
-      else
-      {
-        value = 1.f - (y - bounds.T) / bounds.H();
-      }
-
-      for(int oscillatorIndex = 0; oscillatorIndex < nVals; ++oscillatorIndex)
-      {
-        if(mTrackBounds.Get()[oscillatorIndex].ContainsEdge(x, mTrackBounds.Get()[oscillatorIndex].MH()))
-        {
-          sliderHit = oscillatorIndex;
-          break;
-        }
-      }
-    }
-    else
-    {
-      if(step > -1)
-      {
-        x = mStepBounds.Get()[step].L;
-
-        if(mStepBounds.GetSize() == 1)
-          value = 1.f;
-        else
-          value = 1.f - (step * (1.f / float(mStepBounds.GetSize() - 1)));
-      }
-      else
-      {
-        value = (x - bounds.L) / bounds.W();
-      }
-
-      for(int oscillatorIndex = 0; oscillatorIndex < nVals; ++oscillatorIndex)
-      {
-        if(mTrackBounds.Get()[oscillatorIndex].ContainsEdge(mTrackBounds.Get()[oscillatorIndex].MW(), y))
-        {
-          sliderHit = oscillatorIndex;
-          break;
-        }
-      }
-    }
-
-    if(!GetStepped())
-      value = std::round(value / mGrain) * mGrain;
-
-    const double controlValue = std::clamp(value, 0.0, 1.0);
+    const bool allowOutsideTrackSelection = GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine;
+    const auto editPoint = GetMouseEditPoint(x, y, direction, bounds, allowOutsideTrackSelection);
+    const int sliderHit = editPoint.sliderHit;
+    const double controlValue = editPoint.controlValue;
     bool changedValue = false;
 
     switch(GetOscillatorEditMode())
@@ -276,6 +218,9 @@ public:
         break;
       case EditorOscillatorEditMode::Smooth:
         changedValue = HandleSmoothDrag(sliderHit, controlValue);
+        break;
+      case EditorOscillatorEditMode::DrawLine:
+        changedValue = HandleDrawLineDrag(sliderHit, controlValue);
         break;
       case EditorOscillatorEditMode::Set:
       default:
@@ -288,14 +233,23 @@ public:
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override
   {
-    mHasPreviousStepwiseDragPoint = false;
+    ResetStepwiseDragState();
+    ResetDrawLineState();
+
+    if(GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine)
+      BeginDrawLineDrag(GetMouseEditPoint(x, y, mDirection, mWidgetBounds));
+
     Base::OnMouseDown(x, y, mod);
   }
 
   void OnMouseUp(float x, float y, const IMouseMod& mod) override
   {
-    mHasPreviousStepwiseDragPoint = false;
+    if(GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine && mHasDrawLineStartPoint)
+      SnapToMouse(x, y, mDirection, mWidgetBounds);
+
     Base::OnMouseUp(x, y, mod);
+    ResetStepwiseDragState();
+    ResetDrawLineState();
   }
 
 private:
@@ -305,6 +259,12 @@ private:
   static constexpr double kNudgeControlStep = 0.005;
   static constexpr double kValueComparisonTolerance = 1.0e-9;
   static constexpr std::array<double, 7> kSmoothControlKernel{{0.01, 0.05, 0.10, 0.68, 0.10, 0.05, 0.01}};
+
+  struct MouseEditPoint
+  {
+    int sliderHit{-1};
+    double controlValue{0.0};
+  };
 
   static double Clamp01(double value)
   {
@@ -319,6 +279,138 @@ private:
   EditorOscillatorEditMode GetOscillatorEditMode() const
   {
     return mGetOscillatorEditMode ? mGetOscillatorEditMode() : EditorOscillatorEditMode::Set;
+  }
+
+  int FindOscillatorIndexForPoint(float x, float y, EDirection direction) const
+  {
+    const int nVals = NVals();
+    for(int oscillatorIndex = 0; oscillatorIndex < nVals; ++oscillatorIndex)
+    {
+      const IRECT& trackBounds = mTrackBounds.Get()[oscillatorIndex];
+      if(trackBounds.Empty())
+        continue;
+
+      const bool isHit = direction == EDirection::Vertical
+        ? trackBounds.ContainsEdge(x, trackBounds.MH())
+        : trackBounds.ContainsEdge(trackBounds.MW(), y);
+      if(isHit)
+        return oscillatorIndex;
+    }
+
+    return -1;
+  }
+
+  int FindNearestVisibleOscillatorIndex(float position, EDirection direction) const
+  {
+    int nearestOscillatorIndex = -1;
+    float nearestDistance = std::numeric_limits<float>::max();
+    const int nVals = NVals();
+
+    for(int oscillatorIndex = 0; oscillatorIndex < nVals; ++oscillatorIndex)
+    {
+      const IRECT& trackBounds = mTrackBounds.Get()[oscillatorIndex];
+      if(trackBounds.Empty())
+        continue;
+
+      const float trackCenter = direction == EDirection::Vertical
+        ? trackBounds.MW()
+        : trackBounds.MH();
+      const float distance = std::fabs(position - trackCenter);
+      if(distance < nearestDistance)
+      {
+        nearestDistance = distance;
+        nearestOscillatorIndex = oscillatorIndex;
+      }
+    }
+
+    return nearestOscillatorIndex;
+  }
+
+  MouseEditPoint GetMouseEditPoint(float x,
+                                   float y,
+                                   EDirection direction,
+                                   const IRECT& bounds,
+                                   bool allowOutsideTrackSelection = false) const
+  {
+    float constrainedX = x;
+    float constrainedY = y;
+    bounds.Constrain(constrainedX, constrainedY);
+
+    double value = 0.0;
+    int sliderHit = -1;
+
+    const int step = GetStepIdxForPos(constrainedX, constrainedY);
+
+    if(direction == EDirection::Vertical)
+    {
+      if(step > -1)
+      {
+        constrainedY = mStepBounds.Get()[step].T;
+
+        if(mStepBounds.GetSize() == 1)
+          value = 1.f;
+        else
+          value = step * (1.f / float(mStepBounds.GetSize() - 1));
+      }
+      else
+      {
+        value = 1.f - (constrainedY - bounds.T) / bounds.H();
+      }
+
+      sliderHit = FindOscillatorIndexForPoint(allowOutsideTrackSelection ? x : constrainedX, constrainedY, direction);
+      if(sliderHit < 0 && allowOutsideTrackSelection)
+        sliderHit = FindNearestVisibleOscillatorIndex(x, direction);
+    }
+    else
+    {
+      if(step > -1)
+      {
+        constrainedX = mStepBounds.Get()[step].L;
+
+        if(mStepBounds.GetSize() == 1)
+          value = 1.f;
+        else
+          value = 1.f - (step * (1.f / float(mStepBounds.GetSize() - 1)));
+      }
+      else
+      {
+        value = (constrainedX - bounds.L) / bounds.W();
+      }
+
+      sliderHit = FindOscillatorIndexForPoint(constrainedX, allowOutsideTrackSelection ? y : constrainedY, direction);
+      if(sliderHit < 0 && allowOutsideTrackSelection)
+        sliderHit = FindNearestVisibleOscillatorIndex(y, direction);
+    }
+
+    if(!GetStepped())
+      value = std::round(value / mGrain) * mGrain;
+
+    return MouseEditPoint{sliderHit, Clamp01(value)};
+  }
+
+  void ResetStepwiseDragState()
+  {
+    mHasPreviousStepwiseDragPoint = false;
+  }
+
+  void ResetDrawLineState()
+  {
+    mHasDrawLineStartPoint = false;
+    mDrawLineStartOscillator = -1;
+    mDrawLineStartControlValue = 0.0;
+  }
+
+  void BeginDrawLineDrag(const MouseEditPoint& startPoint)
+  {
+    if(startPoint.sliderHit < 0)
+      return;
+
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      mDrawLineSourceValues[static_cast<std::size_t>(oscillatorIndex)] = GetValue(oscillatorIndex);
+
+    mDrawLineStartOscillator = startPoint.sliderHit;
+    mDrawLineStartControlValue = startPoint.controlValue;
+    mHasDrawLineStartPoint = true;
   }
 
   bool HandleSetDrag(int sliderHit, double controlValue)
@@ -446,6 +538,20 @@ private:
       });
   }
 
+  bool HandleDrawLineDrag(int sliderHit, double cursorControlValue)
+  {
+    if(sliderHit > -1)
+      mMouseOverTrack = sliderHit;
+    else
+      mSliderHit = -1;
+
+    if(sliderHit < 0 || !mHasDrawLineStartPoint)
+      return false;
+
+    mSliderHit = sliderHit;
+    return ApplyDrawLinePreview(sliderHit, cursorControlValue);
+  }
+
   bool ApplyNudgeStep(int oscillatorIndex, double cursorControlValue)
   {
     if(!IsOscillatorEditable(oscillatorIndex))
@@ -504,6 +610,59 @@ private:
     SetValue(smoothedControlValue, oscillatorIndex);
     OnNewValue(oscillatorIndex, smoothedControlValue);
     return true;
+  }
+
+  bool ApplyDrawLinePreview(int endOscillatorIndex, double endControlValue)
+  {
+    if(mDrawLineStartOscillator < 0)
+      return false;
+
+    ControlState desiredValues = mDrawLineSourceValues;
+    const int startOscillatorIndex = mDrawLineStartOscillator;
+    const double startControlValue = mDrawLineStartControlValue;
+
+    if(startOscillatorIndex == endOscillatorIndex)
+    {
+      if(IsOscillatorEditable(startOscillatorIndex))
+        desiredValues[static_cast<std::size_t>(startOscillatorIndex)] = Clamp01((startControlValue + endControlValue) * 0.5);
+    }
+    else
+    {
+      const int span = std::abs(endOscillatorIndex - startOscillatorIndex);
+      const int lowBounds = std::min(startOscillatorIndex, endOscillatorIndex);
+      const int highBounds = std::max(startOscillatorIndex, endOscillatorIndex);
+
+      for(int oscillatorIndex = lowBounds; oscillatorIndex <= highBounds; ++oscillatorIndex)
+      {
+        if(!IsOscillatorEditable(oscillatorIndex))
+          continue;
+
+        const double frac = static_cast<double>(std::abs(oscillatorIndex - startOscillatorIndex)) / static_cast<double>(span);
+        desiredValues[static_cast<std::size_t>(oscillatorIndex)] =
+          Clamp01(iplug::Lerp(startControlValue, endControlValue, frac));
+      }
+    }
+
+    return ApplyControlState(desiredValues);
+  }
+
+  bool ApplyControlState(const ControlState& desiredValues)
+  {
+    bool changedValue = false;
+
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      const double currentControlValue = GetValue(oscillatorIndex);
+      const double desiredControlValue = Clamp01(desiredValues[static_cast<std::size_t>(oscillatorIndex)]);
+      if(std::fabs(desiredControlValue - currentControlValue) <= kValueComparisonTolerance)
+        continue;
+
+      SetValue(desiredControlValue, oscillatorIndex);
+      OnNewValue(oscillatorIndex, desiredControlValue);
+      changedValue = true;
+    }
+
+    return changedValue;
   }
 
   float GetReadoutBandHeight() const
@@ -759,6 +918,10 @@ private:
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
   IsOscillatorEditableFunc mIsOscillatorEditable{};
   GetOscillatorEditModeFunc mGetOscillatorEditMode{};
+  ControlState mDrawLineSourceValues{};
+  int mDrawLineStartOscillator{-1};
+  double mDrawLineStartControlValue{0.0};
+  bool mHasDrawLineStartPoint{false};
   double mPreviousStepwiseCursorValue{0.0};
   bool mHasPreviousStepwiseDragPoint{false};
 };

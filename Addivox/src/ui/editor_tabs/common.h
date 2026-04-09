@@ -161,6 +161,8 @@ inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode)
 {
   switch(mode)
   {
+    case EditorOscillatorEditMode::DrawLine:
+      return "draw line";
     case EditorOscillatorEditMode::Smooth:
       return "smooth";
     case EditorOscillatorEditMode::Nudge:
@@ -173,6 +175,8 @@ inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode)
 
 inline EditorOscillatorEditMode GetOscillatorEditModeFromLabel(const char* label)
 {
+  if(label && std::strcmp(label, "draw line") == 0)
+    return EditorOscillatorEditMode::DrawLine;
   if(label && std::strcmp(label, "smooth") == 0)
     return EditorOscillatorEditMode::Smooth;
   if(label && std::strcmp(label, "nudge") == 0)
@@ -296,7 +300,7 @@ inline ActionSelectionControl* CreateEditModeControl(const std::shared_ptr<std::
   auto* control = new ActionSelectionControl(
     IRECT(),
     GetOscillatorEditModeLabel((*editModes)[parameterIndex]),
-    {"set", "nudge", "smooth"},
+    {"set", "nudge", "smooth", "draw line"},
     styles.utilityDropdownText,
     styles.darkTab,
     true);

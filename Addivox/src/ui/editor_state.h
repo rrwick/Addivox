@@ -18,7 +18,8 @@ enum class EditorOscillatorEditMode
 {
   Set,
   Nudge,
-  Smooth
+  Smooth,
+  DrawLine
 };
 
 enum class EditorOscillatorEditScope
