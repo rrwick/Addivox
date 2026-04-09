@@ -267,22 +267,34 @@ public:
       value = std::round(value / mGrain) * mGrain;
 
     const double controlValue = std::clamp(value, 0.0, 1.0);
-    const bool changedValue = GetOscillatorEditMode() == EditorOscillatorEditMode::Nudge
-      ? HandleNudgeDrag(sliderHit, controlValue)
-      : HandleSetDrag(sliderHit, controlValue);
+    bool changedValue = false;
+
+    switch(GetOscillatorEditMode())
+    {
+      case EditorOscillatorEditMode::Nudge:
+        changedValue = HandleNudgeDrag(sliderHit, controlValue);
+        break;
+      case EditorOscillatorEditMode::Smooth:
+        changedValue = HandleSmoothDrag(sliderHit, controlValue);
+        break;
+      case EditorOscillatorEditMode::Set:
+      default:
+        changedValue = HandleSetDrag(sliderHit, controlValue);
+        break;
+    }
 
     SetDirty(changedValue);
   }
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override
   {
-    mHasPreviousNudgeValue = false;
+    mHasPreviousStepwiseDragPoint = false;
     Base::OnMouseDown(x, y, mod);
   }
 
   void OnMouseUp(float x, float y, const IMouseMod& mod) override
   {
-    mHasPreviousNudgeValue = false;
+    mHasPreviousStepwiseDragPoint = false;
     Base::OnMouseUp(x, y, mod);
   }
 
@@ -292,6 +304,7 @@ private:
   static constexpr float kReadoutTextWidth = 72.f;
   static constexpr double kNudgeControlStep = 0.005;
   static constexpr double kValueComparisonTolerance = 1.0e-9;
+  static constexpr std::array<double, 7> kSmoothControlKernel{{0.01, 0.05, 0.10, 0.68, 0.10, 0.05, 0.01}};
 
   static double Clamp01(double value)
   {
@@ -360,7 +373,8 @@ private:
     return changedValue;
   }
 
-  bool HandleNudgeDrag(int sliderHit, double cursorControlValue)
+  template <typename StepFunc>
+  bool HandleStepwiseDrag(int sliderHit, double cursorControlValue, StepFunc&& applyStep)
   {
     if(sliderHit > -1)
       mMouseOverTrack = sliderHit;
@@ -373,16 +387,16 @@ private:
     mSliderHit = sliderHit;
 
     bool changedValue = false;
-    const bool hasPreviousPoint = mHasPreviousNudgeValue && mPrevSliderHit >= 0;
+    const bool hasPreviousPoint = mHasPreviousStepwiseDragPoint && mPrevSliderHit >= 0;
 
     if(!hasPreviousPoint)
     {
-      changedValue = ApplyNudgeStep(sliderHit, cursorControlValue);
+      changedValue = applyStep(sliderHit, cursorControlValue);
     }
     else if(mPrevSliderHit == sliderHit)
     {
-      mPreviousNudgeValue = cursorControlValue;
-      mHasPreviousNudgeValue = true;
+      mPreviousStepwiseCursorValue = cursorControlValue;
+      mHasPreviousStepwiseDragPoint = true;
       return false;
     }
     else
@@ -390,7 +404,7 @@ private:
       const int previousSliderHit = mPrevSliderHit;
       const int lowBounds = std::min(previousSliderHit, sliderHit);
       const int highBounds = std::max(previousSliderHit, sliderHit);
-      const double previousCursorValue = mPreviousNudgeValue;
+      const double previousCursorValue = mPreviousStepwiseCursorValue;
       const int span = highBounds - lowBounds;
 
       for(int oscillatorIndex = lowBounds; oscillatorIndex <= highBounds; ++oscillatorIndex)
@@ -402,14 +416,34 @@ private:
           ? static_cast<double>(std::abs(oscillatorIndex - previousSliderHit)) / static_cast<double>(span)
           : 1.0;
         const double interpolatedCursorValue = iplug::Lerp(previousCursorValue, cursorControlValue, frac);
-        changedValue = ApplyNudgeStep(oscillatorIndex, interpolatedCursorValue) || changedValue;
+        changedValue = applyStep(oscillatorIndex, interpolatedCursorValue) || changedValue;
       }
     }
 
     mPrevSliderHit = sliderHit;
-    mPreviousNudgeValue = cursorControlValue;
-    mHasPreviousNudgeValue = true;
+    mPreviousStepwiseCursorValue = cursorControlValue;
+    mHasPreviousStepwiseDragPoint = true;
     return changedValue;
+  }
+
+  bool HandleNudgeDrag(int sliderHit, double cursorControlValue)
+  {
+    return HandleStepwiseDrag(
+      sliderHit,
+      cursorControlValue,
+      [this](int oscillatorIndex, double stepCursorControlValue) {
+        return ApplyNudgeStep(oscillatorIndex, stepCursorControlValue);
+      });
+  }
+
+  bool HandleSmoothDrag(int sliderHit, double cursorControlValue)
+  {
+    return HandleStepwiseDrag(
+      sliderHit,
+      cursorControlValue,
+      [this](int oscillatorIndex, double) {
+        return ApplySmoothStep(oscillatorIndex);
+      });
   }
 
   bool ApplyNudgeStep(int oscillatorIndex, double cursorControlValue)
@@ -432,6 +466,43 @@ private:
 
     SetValue(nudgedControlValue, oscillatorIndex);
     OnNewValue(oscillatorIndex, nudgedControlValue);
+    return true;
+  }
+
+  double GetSmoothedControlValue(int oscillatorIndex) const
+  {
+    double weightedValue = 0.0;
+    double totalWeight = 0.0;
+
+    for(int offset = -3; offset <= 3; ++offset)
+    {
+      const int neighbourIndex = oscillatorIndex + offset;
+      if(neighbourIndex < 0 || neighbourIndex >= SimplePreset::kNumOscillators)
+        continue;
+
+      const double weight = kSmoothControlKernel[static_cast<std::size_t>(offset + 3)];
+      weightedValue += GetValue(neighbourIndex) * weight;
+      totalWeight += weight;
+    }
+
+    if(totalWeight <= 0.0)
+      return GetValue(oscillatorIndex);
+
+    return Clamp01(weightedValue / totalWeight);
+  }
+
+  bool ApplySmoothStep(int oscillatorIndex)
+  {
+    if(!IsOscillatorEditable(oscillatorIndex))
+      return false;
+
+    const double currentControlValue = GetValue(oscillatorIndex);
+    const double smoothedControlValue = GetSmoothedControlValue(oscillatorIndex);
+    if(std::fabs(smoothedControlValue - currentControlValue) <= kValueComparisonTolerance)
+      return false;
+
+    SetValue(smoothedControlValue, oscillatorIndex);
+    OnNewValue(oscillatorIndex, smoothedControlValue);
     return true;
   }
 
@@ -688,8 +759,8 @@ private:
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
   IsOscillatorEditableFunc mIsOscillatorEditable{};
   GetOscillatorEditModeFunc mGetOscillatorEditMode{};
-  double mPreviousNudgeValue{0.0};
-  bool mHasPreviousNudgeValue{false};
+  double mPreviousStepwiseCursorValue{0.0};
+  bool mHasPreviousStepwiseDragPoint{false};
 };
 
 } // namespace plugin_ui
