@@ -303,36 +303,6 @@ bool SimplePreset::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter par
     : false;
 }
 
-bool SimplePreset::SmoothIntensity()
-{
-  std::array<double, kNumOscillators> smoothedIntensities{};
-
-  for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; ++oscillatorIndex)
-  {
-    double sum = mOscillatorSettings[oscillatorIndex].intensity;
-    int count = 1;
-
-    if(oscillatorIndex > 0)
-    {
-      sum += mOscillatorSettings[oscillatorIndex - 1].intensity;
-      ++count;
-    }
-
-    if(oscillatorIndex + 1 < kNumOscillators)
-    {
-      sum += mOscillatorSettings[oscillatorIndex + 1].intensity;
-      ++count;
-    }
-
-    smoothedIntensities[static_cast<std::size_t>(oscillatorIndex)] = sum / static_cast<double>(count);
-  }
-
-  for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; ++oscillatorIndex)
-    mOscillatorSettings[oscillatorIndex].intensity = smoothedIntensities[static_cast<std::size_t>(oscillatorIndex)];
-
-  return true;
-}
-
 bool SimplePreset::ZeroEvenIntensities()
 {
   for(int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)

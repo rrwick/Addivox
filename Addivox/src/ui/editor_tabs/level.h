@@ -180,7 +180,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "taper top", "smooth", "scale up", "scale down", "zero"},
+    {"normalise", "taper top", "scale up", "scale down", "zero"},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -195,8 +195,6 @@ inline void AttachLevelTabChildren(IVTabPage* page,
           return preset.NormalizeIntensityWaveformRms();
         if(std::strcmp(selectedText, "taper top") == 0)
           return preset.ApplyIntensityTopTaper();
-        if(std::strcmp(selectedText, "smooth") == 0)
-          return preset.SmoothIntensity();
         if(ApplyScaleAction(preset, OscillatorParameter::intensity, selectedText, 0.0, 1.0))
           return true;
         if(std::strcmp(selectedText, "zero") == 0)
