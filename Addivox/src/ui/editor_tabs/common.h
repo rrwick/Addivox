@@ -185,9 +185,9 @@ inline int GetOscillatorEditScopeIndex(EditorOscillatorEditScope scope)
 {
   switch(scope)
   {
-    case EditorOscillatorEditScope::Even:
-      return 1;
     case EditorOscillatorEditScope::Odd:
+      return 1;
+    case EditorOscillatorEditScope::Even:
       return 2;
     case EditorOscillatorEditScope::All:
     default:
@@ -205,9 +205,9 @@ inline EditorOscillatorEditScope GetOscillatorEditScopeFromIndex(int index)
   switch(index)
   {
     case 1:
-      return EditorOscillatorEditScope::Even;
-    case 2:
       return EditorOscillatorEditScope::Odd;
+    case 2:
+      return EditorOscillatorEditScope::Even;
     case 0:
     default:
       return EditorOscillatorEditScope::All;
@@ -341,7 +341,7 @@ public:
 
         (*editScopes)[parameterIndex] = GetOscillatorEditScopeFromIndex(control->GetSelectedIdx());
       },
-      {"all", "even", "odd"},
+      {"all", "odd", "even"},
       "",
       GetEditModeScopeStyle(styles),
       EVShape::Rectangle,
