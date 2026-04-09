@@ -306,11 +306,13 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   auto* editModeControl = CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles);
-  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "X range:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  auto* editModeScopeControl = CreateEditModeScopeControl(context->model.oscillatorEditScopes, descriptor, styles);
+  page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);
   page->AddChildControl(CreateEditModeLabelControl(styles));
   page->AddChildControl(editModeControl);
+  page->AddChildControl(editModeScopeControl);
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
@@ -355,20 +357,9 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
                                           const EditorStyles& styles,
                                           const OscillatorTabDescriptor& descriptor)
 {
-  auto resizeFunc = ResizeDefaultOscillatorTabPage;
-  if(descriptor.parameter == OscillatorParameter::intensity)
-    resizeFunc = ResizeLevelTabPage;
-  else if(descriptor.parameter == OscillatorParameter::breath_power)
-    resizeFunc = ResizeBreathTabPage;
-  else if(descriptor.parameter == OscillatorParameter::attack
-       || descriptor.parameter == OscillatorParameter::release)
-    resizeFunc = ResizeAttackReleaseTabPage;
-  else if(descriptor.parameter == OscillatorParameter::pitch)
-    resizeFunc = ResizePitchTabPage;
-  else if(descriptor.parameter == OscillatorParameter::pan)
-    resizeFunc = ResizePanTabPage;
-  else if(IsVariationParameter(descriptor.parameter))
-    resizeFunc = ResizeVariationTabPage;
+  auto resizeFunc = UsesHarmonicOscillatorTabLayout(descriptor.parameter)
+    ? ResizeHarmonicOscillatorTabPage
+    : ResizeDefaultOscillatorTabPage;
 
   return new EditorOscillatorTabPage(
     [context, styles, descriptor](IVTabPage* page, const IRECT&) {
@@ -448,6 +439,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->model.editMode = std::shared_ptr<bool>(editorState, &editorState->editMode);
   context->model.oscillatorEditModes =
     std::shared_ptr<std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditModes);
+  context->model.oscillatorEditScopes =
+    std::shared_ptr<std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditScopes);
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);

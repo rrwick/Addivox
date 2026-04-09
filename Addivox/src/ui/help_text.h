@@ -180,7 +180,7 @@ inline constexpr const char* kAllKeyNotes =
   "When enabled, this parameter stays synchronized across every key note. Turning it on copies the currently selected key note values to all key notes immediately.";
 
 inline constexpr const char* kEditMode =
-  "Controls whether edits in this tab affect all harmonics, only odd harmonics, or only even harmonics.";
+  "Selects the edit operation for this tab and whether it applies to all harmonics, only even harmonics, or only odd harmonics.";
 
 inline const char* Get(OscillatorParameter parameter)
 {

@@ -16,9 +16,14 @@ enum class EditorLevelTransform
 
 enum class EditorOscillatorEditMode
 {
-  SetAll,
-  SetOdd,
-  SetEven
+  Set
+};
+
+enum class EditorOscillatorEditScope
+{
+  All,
+  Even,
+  Odd
 };
 
 struct EditorState
@@ -37,7 +42,12 @@ struct EditorState
   EditorLevelTransform panTransform{EditorLevelTransform::Linear};
   std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> oscillatorEditModes = [] {
     std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> result{};
-    result.fill(EditorOscillatorEditMode::SetAll);
+    result.fill(EditorOscillatorEditMode::Set);
+    return result;
+  }();
+  std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters> oscillatorEditScopes = [] {
+    std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters> result{};
+    result.fill(EditorOscillatorEditScope::All);
     return result;
   }();
   std::array<EditorLevelTransform, 6> variationTransforms{
