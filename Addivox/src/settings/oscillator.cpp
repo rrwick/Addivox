@@ -63,8 +63,6 @@ OscillatorParameterValues GetParameterValues(const SimplePreset& preset, Paramet
 // For a harmonic sine sum at full breath, that corresponds to a waveform RMS of 1/sqrt(2).
 constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
 constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
-constexpr int kIntensityTopTaperStartOscillatorIndex = 80;
-constexpr int kIntensityTopTaperZeroAtOscillatorIndex = SimplePreset::kNumOscillators;
 
 enum class HarmonicParity
 {
@@ -72,16 +70,6 @@ enum class HarmonicParity
   Even,
   Odd
 };
-
-double GetIntensityTopTaperScale(int oscillatorIndex)
-{
-  if(oscillatorIndex < kIntensityTopTaperStartOscillatorIndex)
-    return 1.0;
-
-  const double taperPosition = static_cast<double>(oscillatorIndex - kIntensityTopTaperStartOscillatorIndex);
-  const double taperLength = static_cast<double>(kIntensityTopTaperZeroAtOscillatorIndex - kIntensityTopTaperStartOscillatorIndex);
-  return std::clamp(1.0 - (taperPosition / taperLength), 0.0, 1.0);
-}
 
 bool MatchesParity(int oscillatorIndex, HarmonicParity parity)
 {
@@ -260,14 +248,6 @@ double SimplePreset::GetIntensityWaveformRms() const
     sumSquares += settings.intensity * settings.intensity;
 
   return std::sqrt(sumSquares * 0.5);
-}
-
-bool SimplePreset::ApplyIntensityTopTaper()
-{
-  for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; ++oscillatorIndex)
-    mOscillatorSettings[oscillatorIndex].intensity *= GetIntensityTopTaperScale(oscillatorIndex);
-
-  return true;
 }
 
 bool SimplePreset::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter,

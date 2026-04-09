@@ -107,7 +107,6 @@ public:
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   double GetIntensityWaveformRms() const;
-  bool ApplyIntensityTopTaper();
   bool ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
   bool ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
   bool ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);

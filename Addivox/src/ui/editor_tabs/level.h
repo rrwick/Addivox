@@ -43,6 +43,19 @@ inline bool ShouldApplyLevelShapeTopTaper(const char* shapeName)
       || std::strcmp(shapeName, "flat") == 0;
 }
 
+inline double GetLevelShapeTopTaperScale(int oscillatorIndex)
+{
+  constexpr int kTopTaperStartOscillatorIndex = 80;
+  constexpr int kTopTaperZeroAtOscillatorIndex = SimplePreset::kNumOscillators;
+
+  if(oscillatorIndex < kTopTaperStartOscillatorIndex)
+    return 1.0;
+
+  const double taperPosition = static_cast<double>(oscillatorIndex - kTopTaperStartOscillatorIndex);
+  const double taperLength = static_cast<double>(kTopTaperZeroAtOscillatorIndex - kTopTaperStartOscillatorIndex);
+  return std::clamp(1.0 - (taperPosition / taperLength), 0.0, 1.0);
+}
+
 inline bool TryGetLevelShapeIntensity(const char* shapeName, int oscillatorIndex, double& intensity)
 {
   const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
@@ -135,7 +148,14 @@ inline bool ApplyLevelShape(SimplePreset& preset, const char* shapeName)
   }
 
   if(ShouldApplyLevelShapeTopTaper(shapeName))
-    preset.ApplyIntensityTopTaper();
+  {
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      const double taperedIntensity =
+        preset.GetOscillatorSettings(oscillatorIndex).intensity * GetLevelShapeTopTaperScale(oscillatorIndex);
+      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, taperedIntensity);
+    }
+  }
 
   return preset.NormalizeIntensityWaveformRms();
 }
@@ -180,7 +200,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "taper top", "scale up", "scale down", "zero"},
+    {"normalise", "scale up", "scale down", "zero"},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -193,8 +213,6 @@ inline void AttachLevelTabChildren(IVTabPage* page,
       [selectedText](SimplePreset& preset) {
         if(std::strcmp(selectedText, "normalise") == 0)
           return preset.NormalizeIntensityWaveformRms();
-        if(std::strcmp(selectedText, "taper top") == 0)
-          return preset.ApplyIntensityTopTaper();
         if(ApplyScaleAction(preset, OscillatorParameter::intensity, selectedText, 0.0, 1.0))
           return true;
         if(std::strcmp(selectedText, "zero") == 0)
