@@ -16,7 +16,8 @@ enum class EditorLevelTransform
 
 enum class EditorOscillatorEditMode
 {
-  Set
+  Set,
+  Nudge
 };
 
 enum class EditorOscillatorEditScope

@@ -2,6 +2,7 @@
 
 #include "IControls.h"
 #include "colour.h"
+#include "editor_state.h"
 #include "transformations.h"
 #include "../settings/oscillator.h"
 
@@ -23,6 +24,7 @@ public:
   using Base = IVMultiSliderControl<SimplePreset::kNumOscillators>;
   using OnOscillatorValueChangedFunc = std::function<void(int oscillatorIndex, double value)>;
   using IsOscillatorEditableFunc = std::function<bool(int oscillatorIndex)>;
+  using GetOscillatorEditModeFunc = std::function<EditorOscillatorEditMode()>;
   using RestoreState = std::array<double, SimplePreset::kNumOscillators>;
 
   enum class ValueTransform
@@ -105,6 +107,11 @@ public:
   void SetOscillatorEditableFunc(IsOscillatorEditableFunc func)
   {
     mIsOscillatorEditable = std::move(func);
+  }
+
+  void SetOscillatorEditModeFunc(GetOscillatorEditModeFunc func)
+  {
+    mGetOscillatorEditMode = std::move(func);
   }
 
   void SetVisibleOscillatorRange(int minOscillatorOneBased, int maxOscillatorOneBased)
@@ -259,6 +266,50 @@ public:
     if(!GetStepped())
       value = std::round(value / mGrain) * mGrain;
 
+    const double controlValue = std::clamp(value, 0.0, 1.0);
+    const bool changedValue = GetOscillatorEditMode() == EditorOscillatorEditMode::Nudge
+      ? HandleNudgeDrag(sliderHit, controlValue)
+      : HandleSetDrag(sliderHit, controlValue);
+
+    SetDirty(changedValue);
+  }
+
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override
+  {
+    mHasPreviousNudgeValue = false;
+    Base::OnMouseDown(x, y, mod);
+  }
+
+  void OnMouseUp(float x, float y, const IMouseMod& mod) override
+  {
+    mHasPreviousNudgeValue = false;
+    Base::OnMouseUp(x, y, mod);
+  }
+
+private:
+  static constexpr float kReadoutMaxBandHeight = 16.f;
+  static constexpr float kReadoutMinBandHeight = 8.f;
+  static constexpr float kReadoutTextWidth = 72.f;
+  static constexpr double kNudgeControlStep = 0.005;
+  static constexpr double kValueComparisonTolerance = 1.0e-9;
+
+  static double Clamp01(double value)
+  {
+    return std::clamp(value, 0.0, 1.0);
+  }
+
+  static double ClampSignedUnit(double value)
+  {
+    return std::clamp(value, -1.0, 1.0);
+  }
+
+  EditorOscillatorEditMode GetOscillatorEditMode() const
+  {
+    return mGetOscillatorEditMode ? mGetOscillatorEditMode() : EditorOscillatorEditMode::Set;
+  }
+
+  bool HandleSetDrag(int sliderHit, double controlValue)
+  {
     bool changedValue = false;
 
     if(sliderHit > -1)
@@ -267,7 +318,7 @@ public:
 
       if(IsOscillatorEditable(sliderHit))
       {
-        SetValue(std::clamp(value, 0.0, 1.0), sliderHit);
+        SetValue(controlValue, sliderHit);
         OnNewValue(sliderHit, GetValue(sliderHit));
         changedValue = true;
 
@@ -306,22 +357,82 @@ public:
       mSliderHit = -1;
     }
 
-    SetDirty(changedValue);
+    return changedValue;
   }
 
-private:
-  static constexpr float kReadoutMaxBandHeight = 16.f;
-  static constexpr float kReadoutMinBandHeight = 8.f;
-  static constexpr float kReadoutTextWidth = 72.f;
-
-  static double Clamp01(double value)
+  bool HandleNudgeDrag(int sliderHit, double cursorControlValue)
   {
-    return std::clamp(value, 0.0, 1.0);
+    if(sliderHit > -1)
+      mMouseOverTrack = sliderHit;
+    else
+      mSliderHit = -1;
+
+    if(sliderHit < 0)
+      return false;
+
+    mSliderHit = sliderHit;
+
+    bool changedValue = false;
+    const bool hasPreviousPoint = mHasPreviousNudgeValue && mPrevSliderHit >= 0;
+
+    if(!hasPreviousPoint)
+    {
+      changedValue = ApplyNudgeStep(sliderHit, cursorControlValue);
+    }
+    else if(mPrevSliderHit == sliderHit)
+    {
+      mPreviousNudgeValue = cursorControlValue;
+      mHasPreviousNudgeValue = true;
+      return false;
+    }
+    else
+    {
+      const int previousSliderHit = mPrevSliderHit;
+      const int lowBounds = std::min(previousSliderHit, sliderHit);
+      const int highBounds = std::max(previousSliderHit, sliderHit);
+      const double previousCursorValue = mPreviousNudgeValue;
+      const int span = highBounds - lowBounds;
+
+      for(int oscillatorIndex = lowBounds; oscillatorIndex <= highBounds; ++oscillatorIndex)
+      {
+        if(oscillatorIndex == previousSliderHit)
+          continue;
+
+        const double frac = span > 0
+          ? static_cast<double>(std::abs(oscillatorIndex - previousSliderHit)) / static_cast<double>(span)
+          : 1.0;
+        const double interpolatedCursorValue = iplug::Lerp(previousCursorValue, cursorControlValue, frac);
+        changedValue = ApplyNudgeStep(oscillatorIndex, interpolatedCursorValue) || changedValue;
+      }
+    }
+
+    mPrevSliderHit = sliderHit;
+    mPreviousNudgeValue = cursorControlValue;
+    mHasPreviousNudgeValue = true;
+    return changedValue;
   }
 
-  static double ClampSignedUnit(double value)
+  bool ApplyNudgeStep(int oscillatorIndex, double cursorControlValue)
   {
-    return std::clamp(value, -1.0, 1.0);
+    if(!IsOscillatorEditable(oscillatorIndex))
+      return false;
+
+    const double currentControlValue = GetValue(oscillatorIndex);
+    double nudgedControlValue = currentControlValue;
+
+    if(cursorControlValue > currentControlValue + kValueComparisonTolerance)
+      nudgedControlValue = Clamp01(currentControlValue + kNudgeControlStep);
+    else if(cursorControlValue < currentControlValue - kValueComparisonTolerance)
+      nudgedControlValue = Clamp01(currentControlValue - kNudgeControlStep);
+    else
+      return false;
+
+    if(std::fabs(nudgedControlValue - currentControlValue) <= kValueComparisonTolerance)
+      return false;
+
+    SetValue(nudgedControlValue, oscillatorIndex);
+    OnNewValue(oscillatorIndex, nudgedControlValue);
+    return true;
   }
 
   float GetReadoutBandHeight() const
@@ -576,6 +687,9 @@ private:
   int mVisibleOscillatorMax{SimplePreset::kNumOscillators - 1};
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
   IsOscillatorEditableFunc mIsOscillatorEditable{};
+  GetOscillatorEditModeFunc mGetOscillatorEditMode{};
+  double mPreviousNudgeValue{0.0};
+  bool mHasPreviousNudgeValue{false};
 };
 
 } // namespace plugin_ui

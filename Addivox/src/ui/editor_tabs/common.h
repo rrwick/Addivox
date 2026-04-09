@@ -161,6 +161,8 @@ inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode)
 {
   switch(mode)
   {
+    case EditorOscillatorEditMode::Nudge:
+      return "nudge";
     case EditorOscillatorEditMode::Set:
     default:
       return "set";
@@ -169,7 +171,9 @@ inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode)
 
 inline EditorOscillatorEditMode GetOscillatorEditModeFromLabel(const char* label)
 {
-  (void) label;
+  if(label && std::strcmp(label, "nudge") == 0)
+    return EditorOscillatorEditMode::Nudge;
+
   return EditorOscillatorEditMode::Set;
 }
 
@@ -288,7 +292,7 @@ inline ActionSelectionControl* CreateEditModeControl(const std::shared_ptr<std::
   auto* control = new ActionSelectionControl(
     IRECT(),
     GetOscillatorEditModeLabel((*editModes)[parameterIndex]),
-    {"set"},
+    {"set", "nudge"},
     styles.utilityDropdownText,
     styles.darkTab,
     true);
@@ -1408,6 +1412,10 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   else if(descriptor.parameter == OscillatorParameter::release)
     config.transform = GetSliderValueTransform(*context->attackReleaseTab.releaseTransform);
   control->SetConfig(config);
+  control->SetOscillatorEditModeFunc(
+    [context, parameter = descriptor.parameter]() {
+      return context->GetOscillatorEditMode(parameter);
+    });
   control->SetOscillatorEditableFunc(
     [context, parameter = descriptor.parameter](int oscillatorIndex) {
       return context->IsOscillatorEditable(parameter, oscillatorIndex);
