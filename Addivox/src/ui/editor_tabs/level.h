@@ -6,12 +6,6 @@ namespace plugin_ui
 {
 namespace editor
 {
-inline double GetLevelPseudoLogRolloffIntensity(int oscillatorIndex)
-{
-  const double displayRampValue = 1.0 - (static_cast<double>(oscillatorIndex) / static_cast<double>(SimplePreset::kNumOscillators));
-  return transformations::NormalizedExp(displayRampValue, transformations::GetGlobalPseudoLogShapeValue());
-}
-
 template <std::size_t N>
 inline bool IsListedHarmonic(int harmonicIndex, const std::array<int, N>& harmonics)
 {
@@ -33,27 +27,6 @@ inline bool IsOctavesFifthsAndThirdsHarmonic(int harmonicIndex)
 {
   static constexpr std::array<int, 18> kHarmonics{{1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96}};
   return IsListedHarmonic(harmonicIndex, kHarmonics);
-}
-
-inline bool ShouldApplyLevelShapeTopTaper(const char* shapeName)
-{
-  return std::strcmp(shapeName, "saw") == 0
-      || std::strcmp(shapeName, "square") == 0
-      || std::strcmp(shapeName, "triangle") == 0
-      || std::strcmp(shapeName, "flat") == 0;
-}
-
-inline double GetLevelShapeTopTaperScale(int oscillatorIndex)
-{
-  constexpr int kTopTaperStartOscillatorIndex = 80;
-  constexpr int kTopTaperZeroAtOscillatorIndex = SimplePreset::kNumOscillators;
-
-  if(oscillatorIndex < kTopTaperStartOscillatorIndex)
-    return 1.0;
-
-  const double taperPosition = static_cast<double>(oscillatorIndex - kTopTaperStartOscillatorIndex);
-  const double taperLength = static_cast<double>(kTopTaperZeroAtOscillatorIndex - kTopTaperStartOscillatorIndex);
-  return std::clamp(1.0 - (taperPosition / taperLength), 0.0, 1.0);
 }
 
 inline bool TryGetLevelShapeIntensity(const char* shapeName, int oscillatorIndex, double& intensity)
@@ -88,18 +61,6 @@ inline bool TryGetLevelShapeIntensity(const char* shapeName, int oscillatorIndex
   if(std::strcmp(shapeName, "flat") == 0)
   {
     intensity = 1.0;
-    return true;
-  }
-
-  if(std::strcmp(shapeName, "rolloff") == 0)
-  {
-    intensity = GetLevelPseudoLogRolloffIntensity(oscillatorIndex);
-    return true;
-  }
-
-  if(std::strcmp(shapeName, "rolloff odd") == 0)
-  {
-    intensity = (oscillatorIndex % 2 == 0) ? GetLevelPseudoLogRolloffIntensity(oscillatorIndex) : 0.0;
     return true;
   }
 
@@ -147,16 +108,6 @@ inline bool ApplyLevelShape(SimplePreset& preset, const char* shapeName)
     preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, intensity);
   }
 
-  if(ShouldApplyLevelShapeTopTaper(shapeName))
-  {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-    {
-      const double taperedIntensity =
-        preset.GetOscillatorSettings(oscillatorIndex).intensity * GetLevelShapeTopTaperScale(oscillatorIndex);
-      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, taperedIntensity);
-    }
-  }
-
   return preset.NormalizeIntensityWaveformRms();
 }
 
@@ -184,7 +135,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   auto* yTransformControl = CreateYTransformControl(context->levelTab.levelTransform, sliderControl, styles);
 
   auto* setShapeControl = new ActionSelectionControl(
-    IRECT(), "choose shape", {"sine", "saw", "square", "triangle", "flat", "rolloff", "rolloff odd", "octaves", "octaves+fifths", "octaves+fifths+thirds"}, styles.utilityDropdownText, styles.darkTab);
+    IRECT(), "choose shape", {"sine", "saw", "square", "triangle", "flat", "octaves", "octaves+fifths", "octaves+fifths+thirds"}, styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
     if(!selectedText)
       return;
@@ -200,7 +151,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "scale up", "scale down", "zero"},
+    {"normalise", "scale up", "scale down"},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -215,12 +166,6 @@ inline void AttachLevelTabChildren(IVTabPage* page,
           return preset.NormalizeIntensityWaveformRms();
         if(ApplyScaleAction(preset, OscillatorParameter::intensity, selectedText, 0.0, 1.0))
           return true;
-        if(std::strcmp(selectedText, "zero") == 0)
-        {
-          for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-            preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, 0.0);
-          return true;
-        }
         return false;
       });
   });
