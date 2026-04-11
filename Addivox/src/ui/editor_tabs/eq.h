@@ -8,15 +8,6 @@
 
 namespace editor
 {
-inline ITextControl* CreateEqTabTitleControl(const EditorStyles& styles)
-{
-  auto* control = new IMultiLineTextControl(IRECT(), "Formants EQ", styles.tabTitleText, COLOR_TRANSPARENT);
-  control->SetIgnoreMouse(false);
-  control->SetTooltip(help_text::oscillator_tabs::kEq);
-  control->DisablePrompt(true);
-  return control;
-}
-
 template <std::size_t N>
 inline EqCurve MakeEqCurveFromPointArrays(const std::array<double, N>& frequenciesHz,
                                           const std::array<double, N>& gainsDb)
@@ -205,7 +196,7 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
 
 inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 9)
+  if(pTab->NChildren() < 8)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -217,7 +208,6 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kTightGap = 0.f;
   constexpr float kBottomPad = 8.f;
   constexpr float kToggleLabelGap = 8.f;
-  constexpr float kDescriptionHeight = 64.f;
   constexpr float kEditorGap = 15.f;
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
@@ -234,12 +224,6 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
 
   const float rowL = leftColumnBounds.L + kColumnSideInset;
   const float rowR = leftColumnBounds.R - kColumnSideInset;
-  auto titleBounds = IRECT(
-    leftColumnBounds.L + 4.f,
-    leftColumnBounds.T + 2.f,
-    leftColumnBounds.R - 4.f,
-    leftColumnBounds.T + 2.f + kDescriptionHeight);
-
   const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
   auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
   auto allKeyNotesLabelBounds = IRECT(
@@ -262,15 +246,14 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
     rowR,
     setShapeBounds.T - kTightGap);
 
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(titleBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeLabelBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(actionsLabelBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(editorBounds);
+  pTab->GetChild(0)->SetTargetAndDrawRECTs(setShapeLabelBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(editorBounds);
 }
 
 inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context,
@@ -402,7 +385,6 @@ inline void AttachEqTabChildren(IVTabPage* page,
   *context->eqTab.restoreButton = restoreButton;
   *context->eqTab.editorControl = editorControl;
 
-  page->AddChildControl(CreateEqTabTitleControl(styles));
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
   page->AddChildControl(setShapeControl);
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
