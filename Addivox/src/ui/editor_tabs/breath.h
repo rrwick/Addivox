@@ -6,6 +6,26 @@ namespace plugin_ui
 {
 namespace editor
 {
+inline double ApplyLinearScale(double value, double scale, double minValue, double maxValue)
+{
+  return std::clamp(value * scale, minValue, maxValue);
+}
+
+inline double ApplyTowardMaxScale(double value, double factor, double minValue, double maxValue)
+{
+  return std::clamp(maxValue - ((maxValue - value) * factor), minValue, maxValue);
+}
+
+inline double ApplyCurveWarp(double value, double exponent, double minValue, double maxValue)
+{
+  if(!std::isfinite(exponent) || exponent <= 0.0 || maxValue <= minValue)
+    return std::clamp(value, minValue, maxValue);
+
+  const double normalizedValue = std::clamp((value - minValue) / (maxValue - minValue), 0.0, 1.0);
+  const double warpedValue = std::pow(normalizedValue, exponent);
+  return minValue + ((maxValue - minValue) * warpedValue);
+}
+
 inline bool TryGetBreathShapeValue(const char* shapeName, int oscillatorIndex, double& value)
 {
   const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
@@ -53,7 +73,47 @@ inline bool ApplyBreathShape(SimplePreset& preset, const char* shapeName)
 
 inline bool ApplyBreathAction(SimplePreset& preset, const char* actionName)
 {
-  return ApplyScaleAction(preset, OscillatorParameter::breath_power, actionName, 0.0, 100.0);
+  constexpr double kMinValue = 0.0;
+  constexpr double kMaxValue = 100.0;
+  constexpr double kScaleUp = 1.01010101010101;
+  constexpr double kScaleDown = 0.99;
+  constexpr double kTowardMaxFactor = 0.999;
+  constexpr double kAwayFromMaxFactor = 1.001001001001001;
+  constexpr double kCurveExponent = 1.05;
+  double currentMinValue = kMaxValue;
+  double currentMaxValue = kMinValue;
+
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    const double value = preset.GetOscillatorSettings(oscillatorIndex).breath_power;
+    currentMinValue = std::min(currentMinValue, value);
+    currentMaxValue = std::max(currentMaxValue, value);
+  }
+
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    const double value = preset.GetOscillatorSettings(oscillatorIndex).breath_power;
+    double updatedValue = value;
+
+    if(std::strcmp(actionName, "scale up") == 0)
+      updatedValue = ApplyLinearScale(value, kScaleUp, kMinValue, kMaxValue);
+    else if(std::strcmp(actionName, "scale down") == 0)
+      updatedValue = ApplyLinearScale(value, kScaleDown, kMinValue, kMaxValue);
+    else if(std::strcmp(actionName, "toward max") == 0)
+      updatedValue = ApplyTowardMaxScale(value, kTowardMaxFactor, kMinValue, kMaxValue);
+    else if(std::strcmp(actionName, "away from max") == 0)
+      updatedValue = ApplyTowardMaxScale(value, kAwayFromMaxFactor, kMinValue, kMaxValue);
+    else if(std::strcmp(actionName, "curve earlier") == 0)
+      updatedValue = ApplyCurveWarp(value, 1.0 / kCurveExponent, currentMinValue, currentMaxValue);
+    else if(std::strcmp(actionName, "curve later") == 0)
+      updatedValue = ApplyCurveWarp(value, kCurveExponent, currentMinValue, currentMaxValue);
+    else
+      return false;
+
+    preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::breath_power, updatedValue);
+  }
+
+  return true;
 }
 
 inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -100,7 +160,7 @@ inline void AttachBreathTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up", "scale down"},
+    {"scale up", "scale down", "toward max", "away from max", "curve earlier", "curve later"},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
