@@ -110,6 +110,24 @@ inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOs
   kOscillatorTabTitleStorage + 72,
 }};
 
+inline constexpr const char* kActionScaleUp = "scale up";
+inline constexpr const char* kActionScaleDown = "scale down";
+inline constexpr const char* kActionTowardMax = "toward max";
+inline constexpr const char* kActionAwayFromMax = "away from max";
+inline constexpr const char* kActionBendUp = "bend up";
+inline constexpr const char* kActionBendDown = "bend down";
+inline constexpr const char* kActionNormalize = "normalize";
+inline constexpr const char* kActionInvert = "invert";
+
+inline constexpr const char* kActionScaleUpMenuLabel = "scale up [Q]";
+inline constexpr const char* kActionScaleDownMenuLabel = "scale down [A]";
+inline constexpr const char* kActionTowardMaxMenuLabel = "toward max [W]";
+inline constexpr const char* kActionAwayFromMaxMenuLabel = "away from max [S]";
+inline constexpr const char* kActionBendUpMenuLabel = "bend up [E]";
+inline constexpr const char* kActionBendDownMenuLabel = "bend down [D]";
+inline constexpr const char* kActionNormalizeMenuLabel = "normalize [N]";
+inline constexpr const char* kActionInvertMenuLabel = "invert [I]";
+
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
 
 inline const char* GetOscillatorTabDescriptionForTitle(const char* title)
@@ -508,18 +526,205 @@ inline bool UsesHarmonicOscillatorTabLayout(OscillatorParameter parameter)
       || IsVariationParameter(parameter);
 }
 
+inline bool MatchesActionLabel(const char* selectedText, const char* actionName)
+{
+  if(!selectedText || !actionName)
+    return false;
+
+  const std::size_t actionNameLength = std::strlen(actionName);
+  if(std::strncmp(selectedText, actionName, actionNameLength) != 0)
+    return false;
+
+  const char suffixStart = selectedText[actionNameLength];
+  return suffixStart == '\0' || (suffixStart == ' ' && selectedText[actionNameLength + 1] == '[');
+}
+
+inline const char* GetEditorActionShortcutActionName(int keyVK)
+{
+  switch(keyVK)
+  {
+    case kVK_Q:
+      return kActionScaleUp;
+    case kVK_A:
+      return kActionScaleDown;
+    case kVK_W:
+      return kActionTowardMax;
+    case kVK_S:
+      return kActionAwayFromMax;
+    case kVK_E:
+      return kActionBendUp;
+    case kVK_D:
+      return kActionBendDown;
+    case kVK_N:
+      return kActionNormalize;
+    case kVK_I:
+      return kActionInvert;
+    default:
+      return nullptr;
+  }
+}
+
+inline bool IsEditorActionShortcutKey(int keyVK)
+{
+  return GetEditorActionShortcutActionName(keyVK) != nullptr;
+}
+
+inline int GetQwertyMidiNoteOffset(int keyVK)
+{
+  switch(keyVK)
+  {
+    case kVK_A:
+      return 0;
+    case kVK_W:
+      return 1;
+    case kVK_S:
+      return 2;
+    case kVK_E:
+      return 3;
+    case kVK_D:
+      return 4;
+    case kVK_F:
+      return 5;
+    case kVK_T:
+      return 6;
+    case kVK_G:
+      return 7;
+    case kVK_Y:
+      return 8;
+    case kVK_H:
+      return 9;
+    case kVK_U:
+      return 10;
+    case kVK_J:
+      return 11;
+    case kVK_K:
+      return 12;
+    case kVK_O:
+      return 13;
+    case kVK_L:
+      return 14;
+    default:
+      return -1;
+  }
+}
+
+inline bool IsQwertyMidiOctaveKey(int keyVK)
+{
+  return keyVK == kVK_Z || keyVK == kVK_X;
+}
+
+inline bool IsQwertyMidiKeyboardKey(int keyVK)
+{
+  return GetQwertyMidiNoteOffset(keyVK) >= 0 || IsQwertyMidiOctaveKey(keyVK);
+}
+
+inline bool MatchesOscillatorEditScope(EditorOscillatorEditScope editScope, int oscillatorIndex)
+{
+  switch(editScope)
+  {
+    case EditorOscillatorEditScope::Even:
+      return !IsOddHarmonic(oscillatorIndex);
+    case EditorOscillatorEditScope::Odd:
+      return IsOddHarmonic(oscillatorIndex);
+    case EditorOscillatorEditScope::All:
+    default:
+      return true;
+  }
+}
+
+inline double ApplyLinearScale(double value, double scale, double minValue, double maxValue)
+{
+  return std::clamp(value * scale, minValue, maxValue);
+}
+
+inline double ApplyTowardMaxScale(double value, double factor, double minValue, double maxValue)
+{
+  return std::clamp(maxValue - ((maxValue - value) * factor), minValue, maxValue);
+}
+
+inline double ApplyCurveWarp(double value, double exponent, double minValue, double maxValue)
+{
+  if(!std::isfinite(exponent) || exponent <= 0.0 || maxValue <= minValue)
+    return std::clamp(value, minValue, maxValue);
+
+  const double normalizedValue = std::clamp((value - minValue) / (maxValue - minValue), 0.0, 1.0);
+  const double warpedValue = std::pow(normalizedValue, exponent);
+  return minValue + ((maxValue - minValue) * warpedValue);
+}
+
+inline bool ApplyStandardHarmonicAction(SimplePreset& preset,
+                                        OscillatorParameter parameter,
+                                        const char* actionName,
+                                        double minValue,
+                                        double maxValue,
+                                        EditorOscillatorEditScope editScope = EditorOscillatorEditScope::All)
+{
+  constexpr double kScaleUp = 1.01010101010101;
+  constexpr double kScaleDown = 0.99;
+  constexpr double kTowardMaxFactor = 0.999;
+  constexpr double kAwayFromMaxFactor = 1.001001001001001;
+  constexpr double kBendExponent = 1.05;
+
+  const bool isScaleUp = MatchesActionLabel(actionName, kActionScaleUp);
+  const bool isScaleDown = MatchesActionLabel(actionName, kActionScaleDown);
+  const bool isTowardMax = MatchesActionLabel(actionName, kActionTowardMax);
+  const bool isAwayFromMax = MatchesActionLabel(actionName, kActionAwayFromMax);
+  const bool isBendUp = MatchesActionLabel(actionName, kActionBendUp);
+  const bool isBendDown = MatchesActionLabel(actionName, kActionBendDown);
+
+  if(!(isScaleUp || isScaleDown || isTowardMax || isAwayFromMax || isBendUp || isBendDown))
+    return false;
+
+  double currentMinValue = maxValue;
+  double currentMaxValue = minValue;
+  if(isBendUp || isBendDown)
+  {
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
+        continue;
+
+      const double value = preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+      currentMinValue = std::min(currentMinValue, value);
+      currentMaxValue = std::max(currentMaxValue, value);
+    }
+  }
+
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  {
+    if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
+      continue;
+
+    const double value = preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+    double updatedValue = value;
+
+    if(isScaleUp)
+      updatedValue = ApplyLinearScale(value, kScaleUp, minValue, maxValue);
+    else if(isScaleDown)
+      updatedValue = ApplyLinearScale(value, kScaleDown, minValue, maxValue);
+    else if(isTowardMax)
+      updatedValue = ApplyTowardMaxScale(value, kTowardMaxFactor, minValue, maxValue);
+    else if(isAwayFromMax)
+      updatedValue = ApplyTowardMaxScale(value, kAwayFromMaxFactor, minValue, maxValue);
+    else if(isBendUp)
+      updatedValue = ApplyCurveWarp(value, 1.0 / kBendExponent, currentMinValue, currentMaxValue);
+    else if(isBendDown)
+      updatedValue = ApplyCurveWarp(value, kBendExponent, currentMinValue, currentMaxValue);
+
+    preset.SetOscillatorParameter(oscillatorIndex, parameter, updatedValue);
+  }
+
+  return true;
+}
+
 inline bool ApplyScaleAction(SimplePreset& preset,
                              OscillatorParameter parameter,
                              const char* actionName,
                              double minValue,
-                             double maxValue)
+                             double maxValue,
+                             EditorOscillatorEditScope editScope = EditorOscillatorEditScope::All)
 {
-  if(std::strcmp(actionName, "scale up") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 1.111111111111111, minValue, maxValue);
-  if(std::strcmp(actionName, "scale down") == 0)
-    return preset.ScaleOscillatorParameterAll(parameter, 0.9, minValue, maxValue);
-
-  return false;
+  return ApplyStandardHarmonicAction(preset, parameter, actionName, minValue, maxValue, editScope);
 }
 
 inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
@@ -640,6 +845,11 @@ struct EditorContext
   int SelectedMidiNote() const
   {
     return *model.selectedMidiNote;
+  }
+
+  int SelectedTabIndex() const
+  {
+    return *model.selectedTabIndex;
   }
 
   void SetSelectedMidiNote(int midiNote) const

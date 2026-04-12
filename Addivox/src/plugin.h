@@ -84,6 +84,10 @@ private:
   std::string mActivePresetDisplayName;
   std::string mPendingRestoredStatePresetName;
   std::string mUserPresetDirectory;
+  std::array<bool, 128> mQwertyMidiKeysDown{};
+  int mQwertyMidiBaseNote{48};
+  bool mWasQwertyKeyboardInEditMode{false};
+  int mLastQwertyMIDINote{-1};
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;
@@ -91,7 +95,6 @@ private:
   SynthEngine mDSP;
   IPeakAvgSender<2> mMeterSender;
   HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
-  int mLastQwertyMIDINote{-1};
   std::atomic<double> mBreathLevel{1.0};
   double mLastSentBreathLevel{-1.};
 #endif

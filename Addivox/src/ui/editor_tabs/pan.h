@@ -62,23 +62,20 @@ inline bool ApplyPanShape(SimplePreset& preset, const char* shapeName)
   return true;
 }
 
-inline bool ApplyPanAction(SimplePreset& preset, const char* actionName)
+inline bool ApplyPanAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
 {
   constexpr double kPanMin = -1.0;
   constexpr double kPanMax = 1.0;
 
-  if(ApplyScaleAction(preset, OscillatorParameter::pan, actionName, kPanMin, kPanMax))
+  if(ApplyStandardHarmonicAction(preset, OscillatorParameter::pan, actionName, kPanMin, kPanMax, editScope))
     return true;
-  if(std::strcmp(actionName, "zero") == 0)
-  {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, 0.0);
-    return true;
-  }
-  if(std::strcmp(actionName, "flip sign") == 0)
+  if(MatchesActionLabel(actionName, kActionInvert))
   {
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
     {
+      if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
+        continue;
+
       const double pan = preset.GetOscillatorSettings(oscillatorIndex).pan;
       preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, -pan);
     }
@@ -129,7 +126,14 @@ inline void AttachPanTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up", "scale down", "zero", "flip sign"},
+    {
+      kActionScaleUpMenuLabel,
+      kActionScaleDownMenuLabel,
+      kActionTowardMaxMenuLabel,
+      kActionAwayFromMaxMenuLabel,
+      kActionBendUpMenuLabel,
+      kActionBendDownMenuLabel,
+      kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -139,8 +143,11 @@ inline void AttachPanTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::pan,
-      [selectedText](SimplePreset& preset) {
-        return ApplyPanAction(preset, selectedText);
+      [selectedText, context](SimplePreset& preset) {
+        return ApplyPanAction(
+          preset,
+          selectedText,
+          context->GetOscillatorEditScope(OscillatorParameter::pan));
       });
   });
   *context->panTab.setShapeControl = setShapeControl;

@@ -58,23 +58,20 @@ inline bool ApplyPitchShape(SimplePreset& preset, const char* shapeName)
   return true;
 }
 
-inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName)
+inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
 {
   constexpr double kPitchMin = -100.0;
   constexpr double kPitchMax = 100.0;
 
-  if(ApplyScaleAction(preset, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax))
+  if(ApplyStandardHarmonicAction(preset, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax, editScope))
     return true;
-  if(std::strcmp(actionName, "zero") == 0)
-  {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
-      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, 0.0);
-    return true;
-  }
-  if(std::strcmp(actionName, "flip sign") == 0)
+  if(MatchesActionLabel(actionName, kActionInvert))
   {
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
     {
+      if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
+        continue;
+
       const double pitch = preset.GetOscillatorSettings(oscillatorIndex).pitch;
       preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, -pitch);
     }
@@ -125,7 +122,14 @@ inline void AttachPitchTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up", "scale down", "zero", "flip sign"},
+    {
+      kActionScaleUpMenuLabel,
+      kActionScaleDownMenuLabel,
+      kActionTowardMaxMenuLabel,
+      kActionAwayFromMaxMenuLabel,
+      kActionBendUpMenuLabel,
+      kActionBendDownMenuLabel,
+      kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -135,8 +139,11 @@ inline void AttachPitchTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::pitch,
-      [selectedText](SimplePreset& preset) {
-        return ApplyPitchAction(preset, selectedText);
+      [selectedText, context](SimplePreset& preset) {
+        return ApplyPitchAction(
+          preset,
+          selectedText,
+          context->GetOscillatorEditScope(OscillatorParameter::pitch));
       });
   });
   *context->pitchTab.setShapeControl = setShapeControl;

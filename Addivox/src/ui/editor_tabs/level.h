@@ -111,6 +111,14 @@ inline bool ApplyLevelShape(SimplePreset& preset, const char* shapeName)
   return preset.NormalizeIntensityWaveformRms();
 }
 
+inline bool ApplyLevelAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
+{
+  if(MatchesActionLabel(actionName, kActionNormalize))
+    return preset.NormalizeIntensityWaveformRms();
+
+  return ApplyStandardHarmonicAction(preset, OscillatorParameter::intensity, actionName, 0.0, 1.0, editScope);
+}
+
 inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
 {
   descriptors.push_back({
@@ -151,7 +159,14 @@ inline void AttachLevelTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "scale up", "scale down"},
+    {
+      kActionScaleUpMenuLabel,
+      kActionScaleDownMenuLabel,
+      kActionTowardMaxMenuLabel,
+      kActionAwayFromMaxMenuLabel,
+      kActionBendUpMenuLabel,
+      kActionBendDownMenuLabel,
+      kActionNormalizeMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
@@ -161,12 +176,11 @@ inline void AttachLevelTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::intensity,
-      [selectedText](SimplePreset& preset) {
-        if(std::strcmp(selectedText, "normalise") == 0)
-          return preset.NormalizeIntensityWaveformRms();
-        if(ApplyScaleAction(preset, OscillatorParameter::intensity, selectedText, 0.0, 1.0))
-          return true;
-        return false;
+      [selectedText, context](SimplePreset& preset) {
+        return ApplyLevelAction(
+          preset,
+          selectedText,
+          context->GetOscillatorEditScope(OscillatorParameter::intensity));
       });
   });
 

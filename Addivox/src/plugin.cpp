@@ -377,8 +377,98 @@ Addivox::Addivox(const InstanceInfo& info)
       kCtrlTagBreathMeter,
       kCtrlTagMeter);
     
-    pGraphics->SetQwertyMidiKeyHandlerFunc([this, pGraphics](const IMidiMsg& msg) {
-      plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
+    pGraphics->SetKeyHandlerFunc([this, pGraphics](const IKeyPress& key, bool isUp) {
+      const auto sendQwertyMidi = [this, pGraphics](const IMidiMsg& msg) {
+        SendMidiMsgFromUI(msg);
+        plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
+      };
+
+      const auto releaseHeldQwertyMidiNotes = [&]() {
+        IMidiMsg msg;
+        for(int pitch = 0; pitch < static_cast<int>(mQwertyMidiKeysDown.size()); ++pitch)
+        {
+          if(!mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)])
+            continue;
+
+          msg.MakeNoteOffMsg(pitch, 0);
+          mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)] = false;
+          sendQwertyMidi(msg);
+        }
+      };
+
+      const bool editMode = mEditorState && mEditorState->editMode;
+      if(editMode && !mWasQwertyKeyboardInEditMode)
+        releaseHeldQwertyMidiNotes();
+      mWasQwertyKeyboardInEditMode = editMode;
+
+      if(editMode)
+      {
+        const bool popupExpanded = pGraphics->GetPopupMenuControl() && pGraphics->GetPopupMenuControl()->GetExpanded();
+        const bool textEntryActive = pGraphics->IsInPlatformTextEntry()
+          || (pGraphics->GetControlInTextEntry() != nullptr);
+        const bool modifiersActive = key.S || key.C || key.A;
+
+        if(!isUp && !popupExpanded && !textEntryActive && !modifiersActive)
+        {
+          if(const char* actionName = plugin_ui::editor::GetEditorActionShortcutActionName(key.VK))
+            plugin_ui::editor::ApplyKeyboardActionToSelectedTab(mEditorContext, actionName);
+        }
+
+        if(plugin_ui::editor::IsEditorActionShortcutKey(key.VK)
+           || plugin_ui::editor::IsQwertyMidiKeyboardKey(key.VK))
+          return true;
+
+        return true;
+      }
+
+      const int noteOffset = plugin_ui::editor::GetQwertyMidiNoteOffset(key.VK);
+      IMidiMsg msg;
+
+      if(noteOffset >= 0)
+      {
+        const int pitch = std::clamp(mQwertyMidiBaseNote + noteOffset, 0, 127);
+        const auto pitchIndex = static_cast<std::size_t>(pitch);
+
+        if(!isUp)
+        {
+          if(!mQwertyMidiKeysDown[pitchIndex])
+          {
+            msg.MakeNoteOnMsg(pitch, 127, 0);
+            mQwertyMidiKeysDown[pitchIndex] = true;
+            sendQwertyMidi(msg);
+          }
+        }
+        else if(mQwertyMidiKeysDown[pitchIndex])
+        {
+          msg.MakeNoteOffMsg(pitch, 0);
+          mQwertyMidiKeysDown[pitchIndex] = false;
+          sendQwertyMidi(msg);
+        }
+
+        return true;
+      }
+
+      if(key.VK == kVK_Z)
+      {
+        if(!isUp)
+        {
+          mQwertyMidiBaseNote = std::clamp(mQwertyMidiBaseNote - 12, 24, 96);
+          releaseHeldQwertyMidiNotes();
+        }
+        return true;
+      }
+
+      if(key.VK == kVK_X)
+      {
+        if(!isUp)
+        {
+          mQwertyMidiBaseNote = std::clamp(mQwertyMidiBaseNote + 12, 24, 96);
+          releaseHeldQwertyMidiNotes();
+        }
+        return true;
+      }
+
+      return true;
     });
   };
 #endif
@@ -652,6 +742,10 @@ void Addivox::OnUIOpen()
 void Addivox::OnUIClose()
 {
   mEditorContext.reset();
+  mQwertyMidiKeysDown.fill(false);
+  mQwertyMidiBaseNote = 48;
+  mWasQwertyKeyboardInEditMode = false;
+  mLastQwertyMIDINote = -1;
 }
 
 bool Addivox::OnHostRequestingAboutBox()
@@ -711,6 +805,9 @@ void Addivox::OnReset()
   mMeterSender.SetPeakHoldTimeMs(250.0, GetSampleRate());
   
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
+  mQwertyMidiKeysDown.fill(false);
+  mQwertyMidiBaseNote = 48;
+  mWasQwertyKeyboardInEditMode = false;
   mLastQwertyMIDINote = -1;
   mBreathLevel.store(1.0, std::memory_order_relaxed);
   mLastSentBreathLevel = -1.;

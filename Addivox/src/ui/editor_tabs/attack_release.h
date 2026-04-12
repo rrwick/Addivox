@@ -142,9 +142,18 @@ inline bool ApplyAttackReleaseShape(SimplePreset& preset, OscillatorParameter pa
   return true;
 }
 
-inline bool ApplyAttackReleaseAction(SimplePreset& preset, OscillatorParameter parameter, const char* actionName)
+inline bool ApplyAttackReleaseAction(SimplePreset& preset,
+                                     OscillatorParameter parameter,
+                                     const char* actionName,
+                                     EditorOscillatorEditScope editScope)
 {
-  return ApplyScaleAction(preset, parameter, actionName, 0.0, GetAttackReleaseMaxValue(parameter));
+  return ApplyStandardHarmonicAction(
+    preset,
+    parameter,
+    actionName,
+    0.0,
+    GetAttackReleaseMaxValue(parameter),
+    editScope);
 }
 
 inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -216,7 +225,13 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up", "scale down"},
+    {
+      kActionScaleUpMenuLabel,
+      kActionScaleDownMenuLabel,
+      kActionTowardMaxMenuLabel,
+      kActionAwayFromMaxMenuLabel,
+      kActionBendUpMenuLabel,
+      kActionBendDownMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
@@ -226,8 +241,12 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       parameter,
-      [selectedText, parameter](SimplePreset& preset) {
-        return ApplyAttackReleaseAction(preset, parameter, selectedText);
+      [selectedText, parameter, context](SimplePreset& preset) {
+        return ApplyAttackReleaseAction(
+          preset,
+          parameter,
+          selectedText,
+          context->GetOscillatorEditScope(parameter));
       });
   });
 

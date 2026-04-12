@@ -10,7 +10,7 @@ namespace help_text
 namespace main_ui
 {
 inline constexpr const char* kKeyboard =
-  "Click the keyboard to audition notes and choose which key note preset you are editing.";
+  "Click the keyboard to audition notes and choose which key note preset you are editing. Computer-keyboard note triggers are active in Viz mode only.";
 
 inline constexpr const char* kPitchBendWheel =
   "Bends the pitch of held notes. The bend range follows the synth pitch-bend settings.";

@@ -296,6 +296,94 @@ inline int GetEditorTabCount()
   return static_cast<int>(GetOscillatorTabDescriptors().size()) + 1;
 }
 
+inline const std::vector<const char*>& GetEditorTabTitlesInDisplayOrder()
+{
+  static const std::vector<const char*> titles = [] {
+    std::vector<const char*> result;
+    result.reserve(GetEditorTabCount());
+
+    for(const auto& descriptor : GetOscillatorTabDescriptors())
+      result.push_back(descriptor.title);
+
+    result.push_back(kEqTabTitle);
+    std::sort(result.begin(), result.end());
+    return result;
+  }();
+  return titles;
+}
+
+inline const OscillatorTabDescriptor* FindOscillatorTabDescriptorForTitle(const char* title)
+{
+  if(!title)
+    return nullptr;
+
+  for(const auto& descriptor : GetOscillatorTabDescriptors())
+  {
+    if(std::strcmp(descriptor.title, title) == 0)
+      return &descriptor;
+  }
+
+  return nullptr;
+}
+
+inline const OscillatorTabDescriptor* GetSelectedOscillatorTabDescriptor(const std::shared_ptr<EditorContext>& context)
+{
+  if(!context)
+    return nullptr;
+
+  const auto& tabTitles = GetEditorTabTitlesInDisplayOrder();
+  const int selectedTabIndex = context->SelectedTabIndex();
+  if(selectedTabIndex < 0 || selectedTabIndex >= static_cast<int>(tabTitles.size()))
+    return nullptr;
+
+  const char* selectedTitle = tabTitles[static_cast<std::size_t>(selectedTabIndex)];
+  if(!selectedTitle || std::strcmp(selectedTitle, kEqTabTitle) == 0)
+    return nullptr;
+
+  return FindOscillatorTabDescriptorForTitle(selectedTitle);
+}
+
+inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext>& context, const char* actionName)
+{
+  if(!context || !actionName || !context->IsEditMode())
+    return;
+
+  const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
+  if(!descriptor)
+    return;
+
+  const auto parameterIndex = static_cast<std::size_t>(descriptor->parameter);
+  auto* sliderControl = (*context->oscillatorTabControls.sliderControls)[parameterIndex];
+  if(!sliderControl)
+    return;
+
+  const auto parameter = descriptor->parameter;
+  const auto editScope = context->GetOscillatorEditScope(parameter);
+  context->ApplyOscillatorParameterActionToSelectedKeyNote(
+    sliderControl,
+    parameter,
+    [actionName, editScope, parameter](SimplePreset& preset) {
+      switch(parameter)
+      {
+        case OscillatorParameter::intensity:
+          return ApplyLevelAction(preset, actionName, editScope);
+        case OscillatorParameter::breath_power:
+          return ApplyBreathAction(preset, actionName, editScope);
+        case OscillatorParameter::attack:
+        case OscillatorParameter::release:
+          return ApplyAttackReleaseAction(preset, parameter, actionName, editScope);
+        case OscillatorParameter::pitch:
+          return ApplyPitchAction(preset, actionName, editScope);
+        case OscillatorParameter::pan:
+          return ApplyPanAction(preset, actionName, editScope);
+        default:
+          if(IsVariationParameter(parameter))
+            return ApplyVariationAction(preset, parameter, actionName, editScope);
+          return false;
+      }
+    });
+}
+
 inline void AttachDefaultTabChildren(IVTabPage* page,
                                      const std::shared_ptr<EditorContext>& context,
                                      const EditorStyles& styles,

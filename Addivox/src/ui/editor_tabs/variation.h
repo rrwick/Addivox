@@ -45,9 +45,12 @@ inline bool ApplyVariationShape(SimplePreset& preset, OscillatorParameter parame
   return true;
 }
 
-inline bool ApplyVariationAction(SimplePreset& preset, OscillatorParameter parameter, const char* actionName)
+inline bool ApplyVariationAction(SimplePreset& preset,
+                                 OscillatorParameter parameter,
+                                 const char* actionName,
+                                 EditorOscillatorEditScope editScope)
 {
-  return ApplyScaleAction(preset, parameter, actionName, 0.0, 10.0);
+  return ApplyStandardHarmonicAction(preset, parameter, actionName, 0.0, 10.0, editScope);
 }
 
 inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -130,7 +133,13 @@ inline void AttachVariationTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"scale up", "scale down"},
+    {
+      kActionScaleUpMenuLabel,
+      kActionScaleDownMenuLabel,
+      kActionTowardMaxMenuLabel,
+      kActionAwayFromMaxMenuLabel,
+      kActionBendUpMenuLabel,
+      kActionBendDownMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
   actionsControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
@@ -140,8 +149,12 @@ inline void AttachVariationTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       parameter,
-      [selectedText, parameter](SimplePreset& preset) {
-        return ApplyVariationAction(preset, parameter, selectedText);
+      [selectedText, parameter, context](SimplePreset& preset) {
+        return ApplyVariationAction(
+          preset,
+          parameter,
+          selectedText,
+          context->GetOscillatorEditScope(parameter));
       });
   });
 
