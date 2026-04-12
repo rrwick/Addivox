@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 
 #include "IPlugConstants.h"
@@ -114,25 +115,35 @@ private:
 
   static constexpr double kVariationParameterSmoothingTimeSec = 0.01;
   static constexpr double kVariationParameterEpsilon = 1.0e-6;
+  static constexpr int kVariationTargetRefreshIntervalSamples = 16;
 
   struct VariationState
   {
     void SetTargets(double amplitudeIn, double rateHzIn)
     {
-      targetAmplitude.store(std::max(0.0, amplitudeIn), std::memory_order_relaxed);
-      targetRateHz.store(std::max(0.0, rateHzIn), std::memory_order_relaxed);
+      pendingTargetAmplitude.store(std::max(0.0, amplitudeIn), std::memory_order_relaxed);
+      pendingTargetRateHz.store(std::max(0.0, rateHzIn), std::memory_order_relaxed);
+    }
+
+    void RefreshTargets()
+    {
+      targetAmplitude = pendingTargetAmplitude.load(std::memory_order_relaxed);
+      targetRateHz = pendingTargetRateHz.load(std::memory_order_relaxed);
     }
 
     void SnapToTargets()
     {
-      amplitude = targetAmplitude.load(std::memory_order_relaxed);
-      rateHz = targetRateHz.load(std::memory_order_relaxed);
+      RefreshTargets();
+      amplitude = targetAmplitude;
+      rateHz = targetRateHz;
     }
 
     double amplitude{0.0};
-    std::atomic<double> targetAmplitude{0.0};
+    double targetAmplitude{0.0};
+    std::atomic<double> pendingTargetAmplitude{0.0};
     double rateHz{0.0};
-    std::atomic<double> targetRateHz{0.0};
+    double targetRateHz{0.0};
+    std::atomic<double> pendingTargetRateHz{0.0};
     double position{0.0};
   };
 
@@ -141,7 +152,9 @@ private:
   VariationState mPitchVariation{};
   VariationState mPanVariation{};
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
+  double mMinPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
   void UpdateVariationParameterSmoothingRate();
+  void RefreshVariationTargets();
   void UpdatePitchTarget();
   void UpdateLevelTarget();
   void UpdatePanTargetGains();
@@ -161,6 +174,7 @@ private:
   static bool HasVariation(const VariationState& variation);
   static double VariationNoise(const VariationState& variation, uint32_t seed);
   double mVariationParameterSmoothingCoefficient = 1.0;
+  int mVariationTargetRefreshCountdown = 0;
 
   // The shape of variation (intensity, pitch, pan) over time is determined by gradient noise, which
   // is a smooth random function that is similar to Perlin noise.
