@@ -4,6 +4,20 @@
 #include <cstdint>
 #include <cmath>
 
+namespace
+{
+constexpr double kBreathCurveScale = 2.0;
+const double kBreathCurveLog = std::log1p(kBreathCurveScale);
+
+double EvaluateBreathLevel(double poweredBreath)
+{
+  if(poweredBreath <= 0.0)
+    return 0.0;
+
+  return std::expm1(kBreathCurveLog * poweredBreath) / kBreathCurveScale;
+}
+} // namespace
+
 SynthVoice::SynthVoice()
 {
   const uint32_t voiceSeed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
@@ -304,17 +318,19 @@ void SynthVoice::UpdateLevels()
 
 void SynthVoice::UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan)
 {
+  const double breath = mBreath;
+  const double levelScale = mGlobalVoiceSettings.levelScale;
+
   for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
   {
     const OscillatorSettings settings = mCompoundPreset.InterpolateOscillatorSettings(noteSpan, harmonic);
     const double frequencyHz = PitchSemitonesToFrequencyHz(mOscs[harmonic].GetCurrentPitchSemitones());
     const double eqGain = mCompoundPreset.EvaluateEqGain(noteSpan, frequencyHz);
-    const double level = (mBreath == 0.0)
-      ? 0.0
-      : settings.intensity
-          * std::pow(mBreath, settings.breath_power)
-          * eqGain
-          * mGlobalVoiceSettings.levelScale;
+    const double breathLevel = EvaluateBreathLevel(std::pow(breath, settings.breath_power));
+    const double level = settings.intensity
+      * breathLevel
+      * eqGain
+      * levelScale;
     mOscs[harmonic].SetLevel(level);
   }
 }
