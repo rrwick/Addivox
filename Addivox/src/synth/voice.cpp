@@ -6,7 +6,11 @@
 
 namespace
 {
+// Set to higher levels to make the curve more exponential (greater difference in volume between
+// low-breath and high-breath) and lower levels to make it more linear (less difference in volume
+// between low-breath and high-breath).
 constexpr double kBreathCurveScale = 2.0;
+
 const double kBreathCurveLog = std::log1p(kBreathCurveScale);
 
 double EvaluateBreathLevel(double poweredBreath)

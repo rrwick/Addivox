@@ -96,10 +96,12 @@ private:
   double mPhaseIncrement = 440.0 / 44100.0;  // how much phase advances each sample
   void UpdatePhaseIncrement(double frequencyHz);  // called every time a sample is rendered
 
-  // Stereo pan state. Uses constant-power pan law (-3 dB). The rate at which pan can change is
-  // limited to avoid crackling, but since rapid pan changes should be rare, the pan slew rate is
-  // hard-coded and not adjustable by the user.
+  // Stereo pan state. Uses constant-power pan law (-3 dB). Pan variation is evaluated
+  // sample-accurately to avoid control-rate zipper noise; a separate slew limiter still protects
+  // against abrupt pan jumps from UI or automation changes.
   double mBasePan = 0.0;  // ranges from -1 (left) to +1 (right)
+  double mBasePanLeftGain = 0.70710678;
+  double mBasePanRightGain = 0.70710678;
   double mPanLeftGain = 0.70710678;
   double mPanRightGain = 0.70710678;
   double mTargetPanLeftGain = 0.70710678;
@@ -119,10 +121,13 @@ private:
   double mPanVariationRateHz = 0.0;
   double mPanVariationPosition = 0.0;
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
-  static constexpr int kVariationControlIntervalSamples = 16;  // variation updates every N samples
-  int mVariationSamplesUntilUpdate = 0;  // counts down to next control-rate update
-  void UpdateVariationTargets();
-  void AdvanceVariationPositions(int numSamples);
+  static constexpr int kVariationControlIntervalSamples = 16;  // pitch/intensity update every N samples
+  int mVariationSamplesUntilUpdate = 0;  // counts down to next pitch/intensity control-rate update
+  void UpdateControlRateVariationTargets();
+  void AdvanceControlRateVariationPositions(int numSamples);
+  void UpdatePanTargetGains();
+  void AdvancePanVariationPosition();
+  bool HasPanVariation() const;
 
   // The shape of variation (intensity, pitch, pan) over time is determined by gradient noise, which
   // is a smooth random function that is similar to Perlin noise.
