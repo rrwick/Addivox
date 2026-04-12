@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 
 #include "IPlugConstants.h"
@@ -117,17 +118,25 @@ private:
   double mPitchVariationAmplitude = 0.0;
   double mPitchVariationRateHz = 0.0;
   double mPitchVariationPosition = 0.0;
-  double mPanVariationAmplitude = 0.0;
-  double mPanVariationRateHz = 0.0;
+  double mPanVariationAmplitude = 0.0;  // current smoothed pan-variation depth
+  std::atomic<double> mTargetPanVariationAmplitude{0.0};
+  double mPanVariationRateHz = 0.0;  // current smoothed pan-variation rate
+  std::atomic<double> mTargetPanVariationRateHz{0.0};
   double mPanVariationPosition = 0.0;
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
   static constexpr int kVariationControlIntervalSamples = 16;  // pitch/intensity update every N samples
+  static constexpr double kPanVariationSmoothingTimeSec = 0.01;
+  static constexpr double kPanVariationParameterEpsilon = 1.0e-6;
   int mVariationSamplesUntilUpdate = 0;  // counts down to next pitch/intensity control-rate update
   void UpdateControlRateVariationTargets();
   void AdvanceControlRateVariationPositions(int numSamples);
+  void UpdatePanVariationSmoothingRate();
+  void SmoothPanVariationParameters();
   void UpdatePanTargetGains();
   void AdvancePanVariationPosition();
+  bool IsPanVariationActiveNow() const;
   bool HasPanVariation() const;
+  double mPanVariationSmoothingCoefficient = 1.0;
 
   // The shape of variation (intensity, pitch, pan) over time is determined by gradient noise, which
   // is a smooth random function that is similar to Perlin noise.

@@ -15,6 +15,7 @@ void Oscillator::SetSampleRate(double sampleRate)
   UpdatePitchRate();
   UpdateLevelRates();
   UpdatePanSlewRate();
+  UpdatePanVariationSmoothingRate();
   UpdateControlRateVariationTargets();
   UpdatePanTargetGains();
 }
@@ -81,9 +82,8 @@ void Oscillator::SetPan(double pan)
 
 void Oscillator::SetPanVariation(double amplitude, double rateHz)
 {
-  mPanVariationAmplitude = std::max(0.0, amplitude);
-  mPanVariationRateHz = std::max(0.0, rateHz);
-  UpdatePanTargetGains();
+  mTargetPanVariationAmplitude.store(std::max(0.0, amplitude), std::memory_order_relaxed);
+  mTargetPanVariationRateHz.store(std::max(0.0, rateHz), std::memory_order_relaxed);
 }
 
 void Oscillator::SetLevel(double level)
@@ -98,6 +98,8 @@ void Oscillator::Reset()
   mLevel = 0.0;
   mPitch = mTargetPitch;
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
+  mPanVariationAmplitude = mTargetPanVariationAmplitude.load(std::memory_order_relaxed);
+  mPanVariationRateHz = mTargetPanVariationRateHz.load(std::memory_order_relaxed);
   // On full retrigger, start from the current pan target.
   UpdatePanTargetGains();
   mPanLeftGain = mTargetPanLeftGain;
@@ -118,8 +120,14 @@ std::array<iplug::sample, 2> Oscillator::Process()
 
   if(HasPanVariation())
   {
+    SmoothPanVariationParameters();
     UpdatePanTargetGains();
     AdvancePanVariationPosition();
+  }
+  else
+  {
+    mTargetPanLeftGain = mBasePanLeftGain;
+    mTargetPanRightGain = mBasePanRightGain;
   }
 
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
@@ -209,6 +217,12 @@ void Oscillator::UpdatePanSlewRate()
   mPanSlewPerSample = 1.0 / (kPanSlewTimeSec * mSampleRate);
 }
 
+void Oscillator::UpdatePanVariationSmoothingRate()
+{
+  mPanVariationSmoothingCoefficient =
+    dsp::ExponentialSmoothingCoefficient(mSampleRate, kPanVariationSmoothingTimeSec);
+}
+
 void Oscillator::UpdateControlRateVariationTargets()
 {
   const double intensityNoise = VariationNoise(
@@ -231,7 +245,7 @@ void Oscillator::UpdateControlRateVariationTargets()
 
 void Oscillator::UpdatePanTargetGains()
 {
-  if(!HasPanVariation())
+  if(!IsPanVariationActiveNow())
   {
     mTargetPanLeftGain = mBasePanLeftGain;
     mTargetPanRightGain = mBasePanRightGain;
@@ -243,6 +257,22 @@ void Oscillator::UpdatePanTargetGains()
   const auto panGains = dsp::PanToGains(modulatedPan);
   mTargetPanLeftGain = panGains[0];
   mTargetPanRightGain = panGains[1];
+}
+
+void Oscillator::SmoothPanVariationParameters()
+{
+  const double targetAmplitude = mTargetPanVariationAmplitude.load(std::memory_order_relaxed);
+  const double targetRateHz = mTargetPanVariationRateHz.load(std::memory_order_relaxed);
+
+  mPanVariationAmplitude =
+    dsp::SmoothValue(mPanVariationAmplitude, targetAmplitude, mPanVariationSmoothingCoefficient);
+  if(std::abs(mPanVariationAmplitude - targetAmplitude) <= kPanVariationParameterEpsilon)
+    mPanVariationAmplitude = targetAmplitude;
+
+  mPanVariationRateHz =
+    dsp::SmoothValue(mPanVariationRateHz, targetRateHz, mPanVariationSmoothingCoefficient);
+  if(std::abs(mPanVariationRateHz - targetRateHz) <= kPanVariationParameterEpsilon)
+    mPanVariationRateHz = targetRateHz;
 }
 
 void Oscillator::AdvanceControlRateVariationPositions(int numSamples)
@@ -257,15 +287,24 @@ void Oscillator::AdvanceControlRateVariationPositions(int numSamples)
 
 void Oscillator::AdvancePanVariationPosition()
 {
-  if(!HasPanVariation() || mSampleRate <= 0.0)
+  if(!IsPanVariationActiveNow() || mSampleRate <= 0.0)
     return;
 
   mPanVariationPosition += mPanVariationRateHz / mSampleRate;
 }
 
+bool Oscillator::IsPanVariationActiveNow() const
+{
+  return mPanVariationAmplitude > kPanVariationParameterEpsilon
+    && mPanVariationRateHz > kPanVariationParameterEpsilon;
+}
+
 bool Oscillator::HasPanVariation() const
 {
-  return mPanVariationAmplitude > 0.0 && mPanVariationRateHz > 0.0;
+  const double targetAmplitude = mTargetPanVariationAmplitude.load(std::memory_order_relaxed);
+  const double targetRateHz = mTargetPanVariationRateHz.load(std::memory_order_relaxed);
+  return std::max(mPanVariationAmplitude, targetAmplitude) > kPanVariationParameterEpsilon
+    && std::max(mPanVariationRateHz, targetRateHz) > kPanVariationParameterEpsilon;
 }
 
 double Oscillator::VariationNoise(double amplitude, double rateHz, double position, uint32_t seed)
