@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -111,35 +112,57 @@ private:
   double mPanSlewPerSample = 1.0;  // pan change rate in pan units per sample
   void UpdatePanSlewRate();
 
+  static constexpr double kVariationParameterSmoothingTimeSec = 0.01;
+  static constexpr double kVariationParameterEpsilon = 1.0e-6;
+
+  struct VariationState
+  {
+    void SetTargets(double amplitudeIn, double rateHzIn)
+    {
+      targetAmplitude.store(std::max(0.0, amplitudeIn), std::memory_order_relaxed);
+      targetRateHz.store(std::max(0.0, rateHzIn), std::memory_order_relaxed);
+    }
+
+    void SnapToTargets()
+    {
+      amplitude = targetAmplitude.load(std::memory_order_relaxed);
+      rateHz = targetRateHz.load(std::memory_order_relaxed);
+    }
+
+    double amplitude{0.0};
+    std::atomic<double> targetAmplitude{0.0};
+    double rateHz{0.0};
+    std::atomic<double> targetRateHz{0.0};
+    double position{0.0};
+  };
+
   // Variation controls and state.
-  double mIntensityVariationAmplitude = 0.0;
-  double mIntensityVariationRateHz = 0.0;
-  double mIntensityVariationPosition = 0.0;
-  double mPitchVariationAmplitude = 0.0;
-  double mPitchVariationRateHz = 0.0;
-  double mPitchVariationPosition = 0.0;
-  double mPanVariationAmplitude = 0.0;  // current smoothed pan-variation depth
-  std::atomic<double> mTargetPanVariationAmplitude{0.0};
-  double mPanVariationRateHz = 0.0;  // current smoothed pan-variation rate
-  std::atomic<double> mTargetPanVariationRateHz{0.0};
-  double mPanVariationPosition = 0.0;
+  VariationState mIntensityVariation{};
+  VariationState mPitchVariation{};
+  VariationState mPanVariation{};
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
-  static constexpr int kVariationControlIntervalSamples = 16;  // pitch/intensity update every N samples
-  static constexpr double kPanVariationSmoothingTimeSec = 0.01;
-  static constexpr double kPanVariationParameterEpsilon = 1.0e-6;
-  int mVariationSamplesUntilUpdate = 0;  // counts down to next pitch/intensity control-rate update
-  void UpdateControlRateVariationTargets();
-  void AdvanceControlRateVariationPositions(int numSamples);
-  void UpdatePanVariationSmoothingRate();
-  void SmoothPanVariationParameters();
+  void UpdateVariationParameterSmoothingRate();
+  void UpdatePitchTarget();
+  void UpdateLevelTarget();
   void UpdatePanTargetGains();
-  void AdvancePanVariationPosition();
-  bool IsPanVariationActiveNow() const;
-  bool HasPanVariation() const;
-  double mPanVariationSmoothingCoefficient = 1.0;
+  template <typename UpdateTargetFn>
+  void ProcessVariation(VariationState& variation, UpdateTargetFn&& updateTarget)
+  {
+    if(!HasVariation(variation))
+      return;
+
+    SmoothVariationParameters(variation);
+    updateTarget();
+    AdvanceVariationPosition(variation);
+  }
+  void SmoothVariationParameters(VariationState& variation);
+  void AdvanceVariationPosition(VariationState& variation);
+  static bool IsVariationActiveNow(const VariationState& variation);
+  static bool HasVariation(const VariationState& variation);
+  static double VariationNoise(const VariationState& variation, uint32_t seed);
+  double mVariationParameterSmoothingCoefficient = 1.0;
 
   // The shape of variation (intensity, pitch, pan) over time is determined by gradient noise, which
   // is a smooth random function that is similar to Perlin noise.
   uint32_t mVariationSeed = kDefaultVariationSeed;
-  static double VariationNoise(double amplitude, double rateHz, double position, uint32_t seed);
 };
