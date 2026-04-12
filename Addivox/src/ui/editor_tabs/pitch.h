@@ -62,9 +62,26 @@ inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName, Edito
 {
   constexpr double kPitchMin = -100.0;
   constexpr double kPitchMax = 100.0;
+  constexpr double kPitchShiftAmount = 1.0;
 
-  if(ApplyStandardHarmonicAction(preset, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax, editScope))
+  if(MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
+    return ApplyStandardHarmonicAction(preset, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax, editScope);
+  if(MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown))
+  {
+    const double shiftAmount = MatchesActionLabel(actionName, kActionShiftUp) ? kPitchShiftAmount : -kPitchShiftAmount;
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
+        continue;
+
+      const double pitch = preset.GetOscillatorSettings(oscillatorIndex).pitch;
+      preset.SetOscillatorParameter(
+        oscillatorIndex,
+        OscillatorParameter::pitch,
+        ApplyShiftOffset(pitch, shiftAmount, kPitchMin, kPitchMax));
+    }
     return true;
+  }
   if(MatchesActionLabel(actionName, kActionInvert))
   {
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
@@ -125,10 +142,8 @@ inline void AttachPitchTabChildren(IVTabPage* page,
     {
       kActionScaleUpMenuLabel,
       kActionScaleDownMenuLabel,
-      kActionTowardMaxMenuLabel,
-      kActionAwayFromMaxMenuLabel,
-      kActionBendUpMenuLabel,
-      kActionBendDownMenuLabel,
+      kActionShiftUpMenuLabel,
+      kActionShiftDownMenuLabel,
       kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);

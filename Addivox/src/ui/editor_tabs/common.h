@@ -116,6 +116,8 @@ inline constexpr const char* kActionTowardMax = "toward max";
 inline constexpr const char* kActionAwayFromMax = "away from max";
 inline constexpr const char* kActionBendUp = "bend up";
 inline constexpr const char* kActionBendDown = "bend down";
+inline constexpr const char* kActionShiftUp = "shift up";
+inline constexpr const char* kActionShiftDown = "shift down";
 inline constexpr const char* kActionNormalize = "normalize";
 inline constexpr const char* kActionInvert = "invert";
 
@@ -125,6 +127,8 @@ inline constexpr const char* kActionTowardMaxMenuLabel = "toward max [W]";
 inline constexpr const char* kActionAwayFromMaxMenuLabel = "away from max [S]";
 inline constexpr const char* kActionBendUpMenuLabel = "bend up [E]";
 inline constexpr const char* kActionBendDownMenuLabel = "bend down [D]";
+inline constexpr const char* kActionShiftUpMenuLabel = "shift up [W]";
+inline constexpr const char* kActionShiftDownMenuLabel = "shift down [S]";
 inline constexpr const char* kActionNormalizeMenuLabel = "normalize [N]";
 inline constexpr const char* kActionInvertMenuLabel = "invert [I]";
 
@@ -539,7 +543,7 @@ inline bool MatchesActionLabel(const char* selectedText, const char* actionName)
   return suffixStart == '\0' || (suffixStart == ' ' && selectedText[actionNameLength + 1] == '[');
 }
 
-inline const char* GetEditorActionShortcutActionName(int keyVK)
+inline const char* GetEditorActionShortcutActionName(OscillatorParameter parameter, int keyVK)
 {
   switch(keyVK)
   {
@@ -548,17 +552,27 @@ inline const char* GetEditorActionShortcutActionName(int keyVK)
     case kVK_A:
       return kActionScaleDown;
     case kVK_W:
-      return kActionTowardMax;
+      return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan)
+        ? kActionShiftUp
+        : kActionTowardMax;
     case kVK_S:
-      return kActionAwayFromMax;
+      return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan)
+        ? kActionShiftDown
+        : kActionAwayFromMax;
     case kVK_E:
-      return kActionBendUp;
+      return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan)
+        ? nullptr
+        : kActionBendUp;
     case kVK_D:
-      return kActionBendDown;
+      return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan)
+        ? nullptr
+        : kActionBendDown;
     case kVK_N:
-      return kActionNormalize;
+      return parameter == OscillatorParameter::intensity ? kActionNormalize : nullptr;
     case kVK_I:
-      return kActionInvert;
+      return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan)
+        ? kActionInvert
+        : nullptr;
     default:
       return nullptr;
   }
@@ -566,7 +580,20 @@ inline const char* GetEditorActionShortcutActionName(int keyVK)
 
 inline bool IsEditorActionShortcutKey(int keyVK)
 {
-  return GetEditorActionShortcutActionName(keyVK) != nullptr;
+  switch(keyVK)
+  {
+    case kVK_Q:
+    case kVK_A:
+    case kVK_W:
+    case kVK_S:
+    case kVK_E:
+    case kVK_D:
+    case kVK_N:
+    case kVK_I:
+      return true;
+    default:
+      return false;
+  }
 }
 
 inline int GetQwertyMidiNoteOffset(int keyVK)
@@ -640,6 +667,11 @@ inline double ApplyLinearScale(double value, double scale, double minValue, doub
 inline double ApplyTowardMaxScale(double value, double factor, double minValue, double maxValue)
 {
   return std::clamp(maxValue - ((maxValue - value) * factor), minValue, maxValue);
+}
+
+inline double ApplyShiftOffset(double value, double offset, double minValue, double maxValue)
+{
+  return std::clamp(value + offset, minValue, maxValue);
 }
 
 inline double ApplyCurveWarp(double value, double exponent, double minValue, double maxValue)

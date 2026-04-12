@@ -343,13 +343,17 @@ inline const OscillatorTabDescriptor* GetSelectedOscillatorTabDescriptor(const s
   return FindOscillatorTabDescriptorForTitle(selectedTitle);
 }
 
-inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext>& context, const char* actionName)
+inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext>& context, int keyVK)
 {
-  if(!context || !actionName || !context->IsEditMode())
+  if(!context || !context->IsEditMode())
     return;
 
   const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
   if(!descriptor)
+    return;
+
+  const char* actionName = GetEditorActionShortcutActionName(descriptor->parameter, keyVK);
+  if(!actionName)
     return;
 
   const auto parameterIndex = static_cast<std::size_t>(descriptor->parameter);

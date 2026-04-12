@@ -409,10 +409,7 @@ Addivox::Addivox(const InstanceInfo& info)
         const bool modifiersActive = key.S || key.C || key.A;
 
         if(!isUp && !popupExpanded && !textEntryActive && !modifiersActive)
-        {
-          if(const char* actionName = plugin_ui::editor::GetEditorActionShortcutActionName(key.VK))
-            plugin_ui::editor::ApplyKeyboardActionToSelectedTab(mEditorContext, actionName);
-        }
+          plugin_ui::editor::ApplyKeyboardActionToSelectedTab(mEditorContext, key.VK);
 
         if(plugin_ui::editor::IsEditorActionShortcutKey(key.VK)
            || plugin_ui::editor::IsQwertyMidiKeyboardKey(key.VK))

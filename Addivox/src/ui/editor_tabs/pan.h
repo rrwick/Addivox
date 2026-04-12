@@ -66,9 +66,26 @@ inline bool ApplyPanAction(SimplePreset& preset, const char* actionName, EditorO
 {
   constexpr double kPanMin = -1.0;
   constexpr double kPanMax = 1.0;
+  constexpr double kPanShiftAmount = 0.01;
 
-  if(ApplyStandardHarmonicAction(preset, OscillatorParameter::pan, actionName, kPanMin, kPanMax, editScope))
+  if(MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
+    return ApplyStandardHarmonicAction(preset, OscillatorParameter::pan, actionName, kPanMin, kPanMax, editScope);
+  if(MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown))
+  {
+    const double shiftAmount = MatchesActionLabel(actionName, kActionShiftUp) ? kPanShiftAmount : -kPanShiftAmount;
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    {
+      if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
+        continue;
+
+      const double pan = preset.GetOscillatorSettings(oscillatorIndex).pan;
+      preset.SetOscillatorParameter(
+        oscillatorIndex,
+        OscillatorParameter::pan,
+        ApplyShiftOffset(pan, shiftAmount, kPanMin, kPanMax));
+    }
     return true;
+  }
   if(MatchesActionLabel(actionName, kActionInvert))
   {
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
@@ -129,10 +146,8 @@ inline void AttachPanTabChildren(IVTabPage* page,
     {
       kActionScaleUpMenuLabel,
       kActionScaleDownMenuLabel,
-      kActionTowardMaxMenuLabel,
-      kActionAwayFromMaxMenuLabel,
-      kActionBendUpMenuLabel,
-      kActionBendDownMenuLabel,
+      kActionShiftUpMenuLabel,
+      kActionShiftDownMenuLabel,
       kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
