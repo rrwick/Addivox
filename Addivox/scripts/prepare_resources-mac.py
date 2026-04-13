@@ -9,7 +9,7 @@ kAudioUnitType_MIDIProcessor    = "aumi"
 
 DONT_COPY = ("")
 
-import plistlib, os, datetime, fileinput, glob, sys, string, shutil
+import plistlib, os, datetime, fileinput, glob, sys, string, shutil, tempfile
 
 scriptpath = os.path.dirname(os.path.realpath(__file__))
 projectpath = os.path.abspath(os.path.join(scriptpath, os.pardir))
@@ -47,6 +47,38 @@ def copy_resources_to_destination(projectpath, dst, label=""):
     for asset in os.listdir(projectpath + "/assets/"):
       print("copying " + asset + " to " + display_dst)
       shutil.copy(projectpath + "/assets/" + asset, dst)
+
+def load_plist(plistpath):
+  with open(plistpath, 'rb') as fp:
+    return plistlib.load(fp)
+
+def dump_plist_atomic(plistpath, plist):
+  # Multiple macOS targets rewrite these shared plists in parallel during
+  # aggregate builds, so replace them atomically to avoid readers seeing a
+  # truncated file between open(..., 'wb') and plistlib.dump().
+  plist_bytes = plistlib.dumps(plist)
+
+  try:
+    with open(plistpath, 'rb') as fp:
+      if fp.read() == plist_bytes:
+        return
+    file_mode = os.stat(plistpath).st_mode & 0o777
+  except FileNotFoundError:
+    file_mode = 0o644
+
+  fd, tmppath = tempfile.mkstemp(
+    prefix=os.path.basename(plistpath) + ".",
+    suffix=".tmp",
+    dir=os.path.dirname(plistpath))
+  try:
+    with os.fdopen(fd, 'wb') as fp:
+      fp.write(plist_bytes)
+    os.chmod(tmppath, file_mode)
+    os.replace(tmppath, plistpath)
+  except:
+    if os.path.exists(tmppath):
+      os.remove(tmppath)
+    raise
 
 def main():
   config = parse_config(projectpath)
@@ -88,8 +120,7 @@ def main():
 # VST3
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-VST3-Info.plist"
-  with open(plistpath, 'rb') as fp:
-    vst3 = plistlib.load(fp)
+  vst3 = load_plist(plistpath)
   vst3['CFBundleExecutable'] = config['BUNDLE_NAME']
   vst3['CFBundleGetInfoString'] = CFBundleGetInfoString
   vst3['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".vst3." + config['BUNDLE_NAME'] + ""
@@ -101,13 +132,11 @@ def main():
   vst3['CFBundleSignature'] = config['PLUG_UNIQUE_ID']
   vst3['CSResourcesFileMapped'] = CSResourcesFileMapped
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(vst3, fp)
+  dump_plist_atomic(plistpath, vst3)
 # VST2
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-VST2-Info.plist"
-  with open(plistpath, 'rb') as fp:
-    vst2 = plistlib.load(fp)
+  vst2 = load_plist(plistpath)
   vst2['CFBundleExecutable'] = config['BUNDLE_NAME']
   vst2['CFBundleGetInfoString'] = CFBundleGetInfoString
   vst2['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".vst." + config['BUNDLE_NAME'] + ""
@@ -119,14 +148,12 @@ def main():
   vst2['CFBundleSignature'] = config['PLUG_UNIQUE_ID']
   vst2['CSResourcesFileMapped'] = CSResourcesFileMapped
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(vst2, fp)
+  dump_plist_atomic(plistpath, vst2)
 
 # CLAP
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-CLAP-Info.plist"
-  with open(plistpath, 'rb') as fp:
-      clap = plistlib.load(fp)
+  clap = load_plist(plistpath)
   clap['CFBundleExecutable'] = config['BUNDLE_NAME']
   clap['CFBundleGetInfoString'] = CFBundleGetInfoString
   clap['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".clap." + config['BUNDLE_NAME'] + ""
@@ -138,14 +165,12 @@ def main():
   clap['CFBundleSignature'] = config['PLUG_UNIQUE_ID']
   clap['CSResourcesFileMapped'] = CSResourcesFileMapped
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(clap, fp)
+  dump_plist_atomic(plistpath, clap)
 
 # AUDIOUNIT v2
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-AU-Info.plist"
-  with open(plistpath, 'rb') as fp:
-    auv2 = plistlib.load(fp)
+  auv2 = load_plist(plistpath)
   auv2['CFBundleExecutable'] = config['BUNDLE_NAME']
   auv2['CFBundleGetInfoString'] = CFBundleGetInfoString
   auv2['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".audiounit." + config['BUNDLE_NAME'] + ""
@@ -178,8 +203,7 @@ def main():
   auv2['AudioComponents'][0]['version'] = config['PLUG_VERSION_INT']
   auv2['AudioComponents'][0]['sandboxSafe'] = True
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(auv2, fp)
+  dump_plist_atomic(plistpath, auv2)
 # AUDIOUNIT v3
 
   if config['PLUG_HAS_UI']:
@@ -188,8 +212,7 @@ def main():
     NSEXTENSIONPOINTIDENTIFIER  = "com.apple.AudioUnit"
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-macOS-AUv3-Info.plist"
-  with open(plistpath, 'rb') as fp:
-    auv3 = plistlib.load(fp)
+  auv3 = load_plist(plistpath)
   auv3['CFBundleExecutable'] = config['BUNDLE_NAME']
   auv3['CFBundleGetInfoString'] = CFBundleGetInfoString
   auv3['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".app." + config['BUNDLE_NAME'] + ".AUv3"
@@ -221,13 +244,11 @@ def main():
   else:
     auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'][0]['tags'][0] = "Effects"
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(auv3, fp)
+  dump_plist_atomic(plistpath, auv3)
 # AAX
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-AAX-Info.plist"
-  with open(plistpath, 'rb') as fp:
-    aax = plistlib.load(fp)
+  aax = load_plist(plistpath)
   aax['CFBundleExecutable'] = config['BUNDLE_NAME']
   aax['CFBundleGetInfoString'] = CFBundleGetInfoString
   aax['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".aax." + config['BUNDLE_NAME'] + ""
@@ -237,13 +258,11 @@ def main():
   aax['LSMinimumSystemVersion'] = LSMinimumSystemVersion
   aax['CSResourcesFileMapped'] = CSResourcesFileMapped
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(aax, fp)
+  dump_plist_atomic(plistpath, aax)
 # APP
 
   plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-macOS-Info.plist"
-  with open(plistpath, 'rb') as fp:
-    macOSapp = plistlib.load(fp)
+  macOSapp = load_plist(plistpath)
   macOSapp['CFBundleExecutable'] = config['BUNDLE_NAME']
   macOSapp['CFBundleGetInfoString'] = CFBundleGetInfoString
   macOSapp['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".app." + config['BUNDLE_NAME'] + ""
@@ -260,7 +279,6 @@ def main():
   macOSapp['CFBundleIconFile'] = config['BUNDLE_NAME'] + ".icns"
 #  macOSapp['NSMicrophoneUsageDescription'] = 	"This app needs mic access to process audio."
 
-  with open(plistpath, 'wb') as fp:
-    plistlib.dump(macOSapp, fp)
+  dump_plist_atomic(plistpath, macOSapp)
 if __name__ == '__main__':
   main()
