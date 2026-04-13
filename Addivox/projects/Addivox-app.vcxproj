@@ -363,7 +363,7 @@
     <ClCompile Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP_dialog.cpp" />
-    <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP_host.cpp" />
+    <ClCompile Include="..\src\standalone\IPlugAPP_host.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP_main.cpp" />
     <ClCompile Include="..\src\synth\oscillator.cpp" />
     <ClCompile Include="..\src\settings\oscillator.cpp" />
