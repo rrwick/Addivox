@@ -65,6 +65,7 @@ public:
 private:
   // Global DSP configuration.
   double mSampleRate = 44100.0;
+  double mInverseSampleRate = 1.0 / 44100.0;
 
   // Pitch is measured in semitones relative to A4 (440 Hz).
   double mPitch = 0.0;  // the actual pitch that the oscillator is currently producing
@@ -145,6 +146,7 @@ private:
     double targetRateHz{0.0};
     std::atomic<double> pendingTargetRateHz{0.0};
     double position{0.0};
+    double positionIncrement{0.0};
     int noiseLattice{0};
     double noiseGradient0{0.0};
     double noiseGradient1{0.0};
@@ -160,17 +162,18 @@ private:
   VariationState mIntensityVariation{};
   VariationState mPitchVariation{};
   VariationState mPanVariation{};
+  bool mHasIntensityVariation = false;
+  bool mHasPitchVariation = false;
+  bool mHasPanVariation = false;
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
   double mMinPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
   void UpdateVariationParameterSmoothingRate();
   void RefreshVariationTargets();
-  bool PrepareVariation(VariationState& variation, uint32_t seed, double& noise);
   void UpdatePitchTarget(double pitchNoise = 0.0);
   void UpdateLevelTarget(double intensityNoise = 0.0);
   void UpdatePanTargetGains(double panNoise = 0.0);
   void SmoothVariationParameters(VariationState& variation);
   static bool IsVariationActiveNow(const VariationState& variation);
-  static bool HasVariation(const VariationState& variation);
   static double CurrentVariationNoise(VariationState& variation, uint32_t seed);
   static double VariationNoise(VariationState& variation, uint32_t seed);
   double mVariationParameterSmoothingCoefficient = 1.0;

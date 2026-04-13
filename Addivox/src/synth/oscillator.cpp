@@ -10,6 +10,7 @@
 void Oscillator::SetSampleRate(double sampleRate)
 {
   mSampleRate = (sampleRate > 0.0) ? sampleRate : dsp::kDefaultSampleRate;
+  mInverseSampleRate = 1.0 / mSampleRate;
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   UpdatePhaseIncrement(frequencyHz);
   UpdatePitchRate();
@@ -121,17 +122,44 @@ std::array<iplug::sample, 2> Oscillator::Process()
   }
   --mVariationTargetRefreshCountdown;
 
-  double intensityNoise = 0.0;
-  if(PrepareVariation(mIntensityVariation, mVariationSeed ^ 0xF1023A17u, intensityNoise))
-    UpdateLevelTarget(intensityNoise);
+  if(mHasIntensityVariation)
+  {
+    SmoothVariationParameters(mIntensityVariation);
+    if(IsVariationActiveNow(mIntensityVariation))
+    {
+      const double intensityNoise = VariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u);
+      mIntensityVariation.position += mIntensityVariation.positionIncrement;
+      UpdateLevelTarget(intensityNoise);
+    }
+    else
+      UpdateLevelTarget();
+  }
 
-  double panNoise = 0.0;
-  if(PrepareVariation(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu, panNoise))
-    UpdatePanTargetGains(panNoise);
+  if(mHasPanVariation)
+  {
+    SmoothVariationParameters(mPanVariation);
+    if(IsVariationActiveNow(mPanVariation))
+    {
+      const double panNoise = VariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu);
+      mPanVariation.position += mPanVariation.positionIncrement;
+      UpdatePanTargetGains(panNoise);
+    }
+    else
+      UpdatePanTargetGains();
+  }
 
-  double pitchNoise = 0.0;
-  if(PrepareVariation(mPitchVariation, mVariationSeed ^ 0x17D39EF5u, pitchNoise))
-    UpdatePitchTarget(pitchNoise);
+  if(mHasPitchVariation)
+  {
+    SmoothVariationParameters(mPitchVariation);
+    if(IsVariationActiveNow(mPitchVariation))
+    {
+      const double pitchNoise = VariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u);
+      mPitchVariation.position += mPitchVariation.positionIncrement;
+      UpdatePitchTarget(pitchNoise);
+    }
+    else
+      UpdatePitchTarget();
+  }
 
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
@@ -187,7 +215,7 @@ HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const
 
 void Oscillator::UpdatePhaseIncrement(double frequencyHz)
 {
-  mPhaseIncrement = frequencyHz / mSampleRate;
+  mPhaseIncrement = frequencyHz * mInverseSampleRate;
 }
 
 void Oscillator::UpdatePitchRate()
@@ -217,7 +245,7 @@ void Oscillator::UpdatePanSlewRate()
   }
 
   // Linear pan slew: fixed max gain step per sample.
-  mPanSlewPerSample = 1.0 / (kPanSlewTimeSec * mSampleRate);
+  mPanSlewPerSample = mInverseSampleRate / kPanSlewTimeSec;
 }
 
 void Oscillator::UpdateVariationParameterSmoothingRate()
@@ -231,22 +259,21 @@ void Oscillator::RefreshVariationTargets()
   mIntensityVariation.RefreshTargets();
   mPitchVariation.RefreshTargets();
   mPanVariation.RefreshTargets();
-}
-
-bool Oscillator::PrepareVariation(VariationState& variation, uint32_t seed, double& noise)
-{
-  noise = 0.0;
-  if(!HasVariation(variation))
-    return false;
-
-  SmoothVariationParameters(variation);
-  if(IsVariationActiveNow(variation))
-  {
-    noise = VariationNoise(variation, seed);
-    if(mSampleRate > 0.0)
-      variation.position += variation.rateHz / mSampleRate;
-  }
-  return true;
+  mHasIntensityVariation =
+    (mIntensityVariation.amplitude > kVariationParameterEpsilon
+      || mIntensityVariation.targetAmplitude > kVariationParameterEpsilon)
+    && (mIntensityVariation.rateHz > kVariationParameterEpsilon
+      || mIntensityVariation.targetRateHz > kVariationParameterEpsilon);
+  mHasPitchVariation =
+    (mPitchVariation.amplitude > kVariationParameterEpsilon
+      || mPitchVariation.targetAmplitude > kVariationParameterEpsilon)
+    && (mPitchVariation.rateHz > kVariationParameterEpsilon
+      || mPitchVariation.targetRateHz > kVariationParameterEpsilon);
+  mHasPanVariation =
+    (mPanVariation.amplitude > kVariationParameterEpsilon
+      || mPanVariation.targetAmplitude > kVariationParameterEpsilon)
+    && (mPanVariation.rateHz > kVariationParameterEpsilon
+      || mPanVariation.targetRateHz > kVariationParameterEpsilon);
 }
 
 void Oscillator::UpdatePitchTarget(double pitchNoise)
@@ -270,33 +297,33 @@ void Oscillator::UpdatePanTargetGains(double panNoise)
     return;
   }
 
-  const double modulatedPan = std::clamp(mBasePan + (mPanVariation.amplitude * panNoise), -1.0, 1.0);
+  double modulatedPan = mBasePan + (mPanVariation.amplitude * panNoise);
+  if(modulatedPan < -1.0)
+    modulatedPan = -1.0;
+  else if(modulatedPan > 1.0)
+    modulatedPan = 1.0;
   dsp::PanToGains(modulatedPan, mTargetPanLeftGain, mTargetPanRightGain);
 }
 
 void Oscillator::SmoothVariationParameters(VariationState& variation)
 {
-  variation.amplitude =
-    dsp::SmoothValue(variation.amplitude, variation.targetAmplitude, mVariationParameterSmoothingCoefficient);
-  if(std::abs(variation.amplitude - variation.targetAmplitude) <= kVariationParameterEpsilon)
+  const double amplitudeDelta = variation.targetAmplitude - variation.amplitude;
+  variation.amplitude += mVariationParameterSmoothingCoefficient * amplitudeDelta;
+  if(amplitudeDelta <= kVariationParameterEpsilon && amplitudeDelta >= -kVariationParameterEpsilon)
     variation.amplitude = variation.targetAmplitude;
 
-  variation.rateHz =
-    dsp::SmoothValue(variation.rateHz, variation.targetRateHz, mVariationParameterSmoothingCoefficient);
-  if(std::abs(variation.rateHz - variation.targetRateHz) <= kVariationParameterEpsilon)
+  const double rateDelta = variation.targetRateHz - variation.rateHz;
+  variation.rateHz += mVariationParameterSmoothingCoefficient * rateDelta;
+  if(rateDelta <= kVariationParameterEpsilon && rateDelta >= -kVariationParameterEpsilon)
     variation.rateHz = variation.targetRateHz;
+
+  variation.positionIncrement = variation.rateHz * mInverseSampleRate;
 }
 
 bool Oscillator::IsVariationActiveNow(const VariationState& variation)
 {
   return variation.amplitude > kVariationParameterEpsilon
     && variation.rateHz > kVariationParameterEpsilon;
-}
-
-bool Oscillator::HasVariation(const VariationState& variation)
-{
-  return std::max(variation.amplitude, variation.targetAmplitude) > kVariationParameterEpsilon
-    && std::max(variation.rateHz, variation.targetRateHz) > kVariationParameterEpsilon;
 }
 
 double Oscillator::CurrentVariationNoise(VariationState& variation, uint32_t seed)
@@ -331,6 +358,10 @@ double Oscillator::VariationNoise(VariationState& variation, uint32_t seed)
   const double fade = dsp::Quintic(t);
   const double value0 = variation.noiseGradient0 * t;
   const double value1 = variation.noiseGradient1 * (t - 1.0);
-  const double blended = value0 + ((value1 - value0) * fade);
-  return std::clamp(blended * 1.8, -1.0, 1.0);
+  const double scaled = (value0 + ((value1 - value0) * fade)) * 1.8;
+  if(scaled < -1.0)
+    return -1.0;
+  if(scaled > 1.0)
+    return 1.0;
+  return scaled;
 }
