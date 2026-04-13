@@ -46,11 +46,50 @@ inline double CutoffHzToCoefficient(double sampleRate,
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
 
-inline std::array<double, 2> PanToGains(double pan)
+namespace detail
+{
+constexpr int kPanGainLookupTableSize = 2049;
+constexpr double kPanGainLookupScale = 0.5 * static_cast<double>(kPanGainLookupTableSize - 1);
+
+inline const std::array<std::array<float, 2>, kPanGainLookupTableSize>& PanGainLookupTable()
+{
+  static const auto table = []()
+  {
+    std::array<std::array<float, 2>, kPanGainLookupTableSize> gains{};
+    for(int index = 0; index < kPanGainLookupTableSize; ++index)
+    {
+      const double pan = (static_cast<double>(index) / static_cast<double>(kPanGainLookupTableSize - 1)) * 2.0 - 1.0;
+      const double angle = (pan + 1.0) * (kPi * 0.25);
+      gains[static_cast<std::size_t>(index)] = {
+        static_cast<float>(std::cos(angle)),
+        static_cast<float>(std::sin(angle))};
+    }
+    return gains;
+  }();
+  return table;
+}
+} // namespace detail
+
+inline void PanToGains(double pan, double& leftGain, double& rightGain)
 {
   const double clampedPan = std::clamp(pan, -1.0, 1.0);
-  const double angle = (clampedPan + 1.0) * (kPi * 0.25);
-  return {std::cos(angle), std::sin(angle)};
+  const double lookupPosition = (clampedPan + 1.0) * detail::kPanGainLookupScale;
+  const int index0 = static_cast<int>(lookupPosition);
+  const int index1 = std::min(index0 + 1, detail::kPanGainLookupTableSize - 1);
+  const double frac = lookupPosition - static_cast<double>(index0);
+  const auto& table = detail::PanGainLookupTable();
+  const auto& gain0 = table[static_cast<std::size_t>(index0)];
+  const auto& gain1 = table[static_cast<std::size_t>(index1)];
+  leftGain = static_cast<double>(gain0[0]) + ((static_cast<double>(gain1[0]) - static_cast<double>(gain0[0])) * frac);
+  rightGain = static_cast<double>(gain0[1]) + ((static_cast<double>(gain1[1]) - static_cast<double>(gain0[1])) * frac);
+}
+
+inline std::array<double, 2> PanToGains(double pan)
+{
+  double leftGain = 0.0;
+  double rightGain = 0.0;
+  PanToGains(pan, leftGain, rightGain);
+  return {leftGain, rightGain};
 }
 
 struct DelayLine

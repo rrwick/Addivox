@@ -145,6 +145,15 @@ private:
     double targetRateHz{0.0};
     std::atomic<double> pendingTargetRateHz{0.0};
     double position{0.0};
+    int noiseLattice{0};
+    double noiseGradient0{0.0};
+    double noiseGradient1{0.0};
+    bool noiseCacheValid{false};
+
+    void InvalidateNoiseCache()
+    {
+      noiseCacheValid = false;
+    }
   };
 
   // Variation controls and state.
@@ -155,24 +164,15 @@ private:
   double mMinPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
   void UpdateVariationParameterSmoothingRate();
   void RefreshVariationTargets();
-  void UpdatePitchTarget();
-  void UpdateLevelTarget();
-  void UpdatePanTargetGains();
-  template <typename UpdateTargetFn>
-  void ProcessVariation(VariationState& variation, UpdateTargetFn&& updateTarget)
-  {
-    if(!HasVariation(variation))
-      return;
-
-    SmoothVariationParameters(variation);
-    updateTarget();
-    AdvanceVariationPosition(variation);
-  }
+  bool PrepareVariation(VariationState& variation, uint32_t seed, double& noise);
+  void UpdatePitchTarget(double pitchNoise = 0.0);
+  void UpdateLevelTarget(double intensityNoise = 0.0);
+  void UpdatePanTargetGains(double panNoise = 0.0);
   void SmoothVariationParameters(VariationState& variation);
-  void AdvanceVariationPosition(VariationState& variation);
   static bool IsVariationActiveNow(const VariationState& variation);
   static bool HasVariation(const VariationState& variation);
-  static double VariationNoise(const VariationState& variation, uint32_t seed);
+  static double CurrentVariationNoise(VariationState& variation, uint32_t seed);
+  static double VariationNoise(VariationState& variation, uint32_t seed);
   double mVariationParameterSmoothingCoefficient = 1.0;
   int mVariationTargetRefreshCountdown = 0;
 

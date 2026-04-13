@@ -17,9 +17,9 @@ void Oscillator::SetSampleRate(double sampleRate)
   UpdatePanSlewRate();
   UpdateVariationParameterSmoothingRate();
   RefreshVariationTargets();
-  UpdatePitchTarget();
-  UpdateLevelTarget();
-  UpdatePanTargetGains();
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
+  UpdateLevelTarget(CurrentVariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u));
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
 }
 
 void Oscillator::SetVariationSeed(uint32_t seed)
@@ -30,17 +30,20 @@ void Oscillator::SetVariationSeed(uint32_t seed)
   mIntensityVariation.position = (dsp::HashToSignedUnitFloat(mVariationSeed ^ 0x68E31DA4u) + 1.0) * 100.0;
   mPitchVariation.position = (dsp::HashToSignedUnitFloat(mVariationSeed ^ 0xB5297A4Du) + 1.0) * 100.0;
   mPanVariation.position = (dsp::HashToSignedUnitFloat(mVariationSeed ^ 0x1B56C4E9u) + 1.0) * 100.0;
+  mIntensityVariation.InvalidateNoiseCache();
+  mPitchVariation.InvalidateNoiseCache();
+  mPanVariation.InvalidateNoiseCache();
 
   RefreshVariationTargets();
-  UpdatePitchTarget();
-  UpdateLevelTarget();
-  UpdatePanTargetGains();
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
+  UpdateLevelTarget(CurrentVariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u));
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
 }
 
 void Oscillator::SetPitch(double pitchSemitones)
 {
   mBasePitch = pitchSemitones;
-  UpdatePitchTarget();
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
 }
 
 void Oscillator::SetPitchTime(double pitchTimeSec)
@@ -74,10 +77,8 @@ void Oscillator::SetIntensityVariation(double amplitude, double rateHz)
 void Oscillator::SetPan(double pan)
 {
   mBasePan = std::clamp(pan, -1.0, 1.0);
-  const auto panGains = dsp::PanToGains(mBasePan);
-  mBasePanLeftGain = panGains[0];
-  mBasePanRightGain = panGains[1];
-  UpdatePanTargetGains();
+  dsp::PanToGains(mBasePan, mBasePanLeftGain, mBasePanRightGain);
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
 }
 
 void Oscillator::SetPanVariation(double amplitude, double rateHz)
@@ -88,7 +89,7 @@ void Oscillator::SetPanVariation(double amplitude, double rateHz)
 void Oscillator::SetLevel(double level)
 {
   mBaseLevel = (level >= 0.0) ? level : 0.0;
-  UpdateLevelTarget();
+  UpdateLevelTarget(CurrentVariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u));
 }
 
 void Oscillator::Reset()
@@ -100,12 +101,12 @@ void Oscillator::Reset()
   mPitchVariation.SnapToTargets();
   mPanVariation.SnapToTargets();
   mVariationTargetRefreshCountdown = kVariationTargetRefreshIntervalSamples;
-  UpdatePitchTarget();
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
   mPitch = mTargetPitch;
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
-  UpdateLevelTarget();
+  UpdateLevelTarget(CurrentVariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u));
   // On full retrigger, start from the current pan target.
-  UpdatePanTargetGains();
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
   mPanLeftGain = mTargetPanLeftGain;
   mPanRightGain = mTargetPanRightGain;
   UpdatePhaseIncrement(frequencyHz);
@@ -120,9 +121,17 @@ std::array<iplug::sample, 2> Oscillator::Process()
   }
   --mVariationTargetRefreshCountdown;
 
-  ProcessVariation(mIntensityVariation, [this]() { UpdateLevelTarget(); });
-  ProcessVariation(mPanVariation, [this]() { UpdatePanTargetGains(); });
-  ProcessVariation(mPitchVariation, [this]() { UpdatePitchTarget(); });
+  double intensityNoise = 0.0;
+  if(PrepareVariation(mIntensityVariation, mVariationSeed ^ 0xF1023A17u, intensityNoise))
+    UpdateLevelTarget(intensityNoise);
+
+  double panNoise = 0.0;
+  if(PrepareVariation(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu, panNoise))
+    UpdatePanTargetGains(panNoise);
+
+  double pitchNoise = 0.0;
+  if(PrepareVariation(mPitchVariation, mVariationSeed ^ 0x17D39EF5u, pitchNoise))
+    UpdatePitchTarget(pitchNoise);
 
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
@@ -224,40 +233,45 @@ void Oscillator::RefreshVariationTargets()
   mPanVariation.RefreshTargets();
 }
 
-void Oscillator::UpdatePitchTarget()
+bool Oscillator::PrepareVariation(VariationState& variation, uint32_t seed, double& noise)
 {
-  const double pitchNoise = VariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u);
+  noise = 0.0;
+  if(!HasVariation(variation))
+    return false;
+
+  SmoothVariationParameters(variation);
+  if(IsVariationActiveNow(variation))
+  {
+    noise = VariationNoise(variation, seed);
+    if(mSampleRate > 0.0)
+      variation.position += variation.rateHz / mSampleRate;
+  }
+  return true;
+}
+
+void Oscillator::UpdatePitchTarget(double pitchNoise)
+{
   const double pitchSemitones = mBasePitch + (mPitchVariation.amplitude * pitchNoise);
   mTargetPitch = std::max(mMinPitchSemitones, pitchSemitones);
 }
 
-void Oscillator::UpdateLevelTarget()
+void Oscillator::UpdateLevelTarget(double intensityNoise)
 {
-  if(!IsVariationActiveNow(mIntensityVariation))
-  {
-    mTargetLevel = mBaseLevel;
-    return;
-  }
-
-  const double intensityNoise = VariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u);
   const double levelScale = std::max(0.0, 1.0 + (mIntensityVariation.amplitude * intensityNoise));
   mTargetLevel = mBaseLevel * levelScale;
 }
 
-void Oscillator::UpdatePanTargetGains()
+void Oscillator::UpdatePanTargetGains(double panNoise)
 {
-  if(!IsVariationActiveNow(mPanVariation))
+  if(panNoise == 0.0)
   {
     mTargetPanLeftGain = mBasePanLeftGain;
     mTargetPanRightGain = mBasePanRightGain;
     return;
   }
 
-  const double panNoise = VariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu);
   const double modulatedPan = std::clamp(mBasePan + (mPanVariation.amplitude * panNoise), -1.0, 1.0);
-  const auto panGains = dsp::PanToGains(modulatedPan);
-  mTargetPanLeftGain = panGains[0];
-  mTargetPanRightGain = panGains[1];
+  dsp::PanToGains(modulatedPan, mTargetPanLeftGain, mTargetPanRightGain);
 }
 
 void Oscillator::SmoothVariationParameters(VariationState& variation)
@@ -273,14 +287,6 @@ void Oscillator::SmoothVariationParameters(VariationState& variation)
     variation.rateHz = variation.targetRateHz;
 }
 
-void Oscillator::AdvanceVariationPosition(VariationState& variation)
-{
-  if(!IsVariationActiveNow(variation) || mSampleRate <= 0.0)
-    return;
-
-  variation.position += variation.rateHz / mSampleRate;
-}
-
 bool Oscillator::IsVariationActiveNow(const VariationState& variation)
 {
   return variation.amplitude > kVariationParameterEpsilon
@@ -293,10 +299,38 @@ bool Oscillator::HasVariation(const VariationState& variation)
     && std::max(variation.rateHz, variation.targetRateHz) > kVariationParameterEpsilon;
 }
 
-double Oscillator::VariationNoise(const VariationState& variation, uint32_t seed)
+double Oscillator::CurrentVariationNoise(VariationState& variation, uint32_t seed)
 {
   if(!IsVariationActiveNow(variation))
     return 0.0;
 
-  return dsp::GradientNoise1D(variation.position, seed);
+  return VariationNoise(variation, seed);
+}
+
+double Oscillator::VariationNoise(VariationState& variation, uint32_t seed)
+{
+  const int lattice = static_cast<int>(variation.position);
+  if(!variation.noiseCacheValid || lattice < variation.noiseLattice || lattice > (variation.noiseLattice + 1))
+  {
+    variation.noiseLattice = lattice;
+    variation.noiseGradient0 =
+      dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(variation.noiseLattice) ^ seed));
+    variation.noiseGradient1 =
+      dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(variation.noiseLattice + 1) ^ seed));
+    variation.noiseCacheValid = true;
+  }
+  else if(lattice == (variation.noiseLattice + 1))
+  {
+    variation.noiseLattice = lattice;
+    variation.noiseGradient0 = variation.noiseGradient1;
+    variation.noiseGradient1 =
+      dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(variation.noiseLattice + 1) ^ seed));
+  }
+
+  const double t = variation.position - static_cast<double>(variation.noiseLattice);
+  const double fade = dsp::Quintic(t);
+  const double value0 = variation.noiseGradient0 * t;
+  const double value1 = variation.noiseGradient1 * (t - 1.0);
+  const double blended = value0 + ((value1 - value0) * fade);
+  return std::clamp(blended * 1.8, -1.0, 1.0);
 }
