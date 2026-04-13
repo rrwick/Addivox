@@ -1300,7 +1300,8 @@ struct EditorContext
   template <typename Action>
   void ApplyOscillatorParameterActionToSelectedKeyNote(OscillatorSliderControl* control,
                                                        OscillatorParameter parameter,
-                                                       Action&& action) const
+                                                       Action&& action,
+                                                       bool applyEditScope = true) const
   {
     const int midiNote = SelectedMidiNote();
     const SimplePreset* keyNotePreset = Preset().GetKeyNotePreset(midiNote);
@@ -1318,7 +1319,8 @@ struct EditorContext
       values[static_cast<std::size_t>(oscillatorIndex)] =
         updatedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
     }
-    ApplyOscillatorEditScopeToValues(parameter, originalValues, values);
+    if(applyEditScope)
+      ApplyOscillatorEditScopeToValues(parameter, originalValues, values);
 
     if(!Preset().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values))
       return;

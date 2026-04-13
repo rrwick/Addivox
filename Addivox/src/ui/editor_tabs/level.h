@@ -173,6 +173,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
     if(!selectedText)
       return;
 
+    const bool applyEditScope = !MatchesActionLabel(selectedText, kActionNormalize);
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::intensity,
@@ -181,7 +182,8 @@ inline void AttachLevelTabChildren(IVTabPage* page,
           preset,
           selectedText,
           context->GetOscillatorEditScope(OscillatorParameter::intensity));
-      });
+      },
+      applyEditScope);
   });
 
   *context->levelTab.setShapeControl = setShapeControl;

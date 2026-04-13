@@ -363,6 +363,8 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
 
   const auto parameter = descriptor->parameter;
   const auto editScope = context->GetOscillatorEditScope(parameter);
+  const bool applyEditScope =
+    !(parameter == OscillatorParameter::intensity && MatchesActionLabel(actionName, kActionNormalize));
   context->ApplyOscillatorParameterActionToSelectedKeyNote(
     sliderControl,
     parameter,
@@ -385,7 +387,8 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
             return ApplyVariationAction(preset, parameter, actionName, editScope);
           return false;
       }
-    });
+    },
+    applyEditScope);
 }
 
 inline void AttachDefaultTabChildren(IVTabPage* page,
