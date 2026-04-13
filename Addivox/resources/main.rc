@@ -90,8 +90,10 @@ BEGIN
         MENUITEM "&Show Control Bounds\tCtrl+B", ID_SHOW_BOUNDS
         MENUITEM "&Show Drawn Area\tCtrl+D",    ID_SHOW_DRAWN
         MENUITEM "&Show FPS\tCtrl+F",           ID_SHOW_FPS
+#if !defined(OS_MAC)
         MENUITEM SEPARATOR
         MENUITEM "&Save Screenshot\tCtrl+Shift+S", ID_SCREENSHOT
+#endif
     END
     POPUP "&Help"
     BEGIN
