@@ -9,7 +9,11 @@
 
 void Oscillator::SetSampleRate(double sampleRate)
 {
-  mSampleRate = (sampleRate > 0.0) ? sampleRate : dsp::kDefaultSampleRate;
+  const double nextSampleRate = (sampleRate > 0.0) ? sampleRate : dsp::kDefaultSampleRate;
+  if(nextSampleRate == mSampleRate)
+    return;
+
+  mSampleRate = nextSampleRate;
   mInverseSampleRate = 1.0 / mSampleRate;
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   UpdatePhaseIncrement(frequencyHz);
@@ -43,13 +47,20 @@ void Oscillator::SetVariationSeed(uint32_t seed)
 
 void Oscillator::SetPitch(double pitchSemitones)
 {
+  if(pitchSemitones == mBasePitch)
+    return;
+
   mBasePitch = pitchSemitones;
   UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
 }
 
 void Oscillator::SetPitchTime(double pitchTimeSec)
 {
-  mPitchTimeSec = std::max(0.0, pitchTimeSec);
+  const double clampedPitchTimeSec = std::max(0.0, pitchTimeSec);
+  if(clampedPitchTimeSec == mPitchTimeSec)
+    return;
+
+  mPitchTimeSec = clampedPitchTimeSec;
   UpdatePitchRate();
 }
 
@@ -60,13 +71,21 @@ void Oscillator::SetPitchVariation(double amplitudeSemitones, double rateHz)
 
 void Oscillator::SetAttackTime(double attackTimeSec)
 {
-  mAttackTimeSec = std::max(0.0, attackTimeSec);
+  const double clampedAttackTimeSec = std::max(0.0, attackTimeSec);
+  if(clampedAttackTimeSec == mAttackTimeSec)
+    return;
+
+  mAttackTimeSec = clampedAttackTimeSec;
   UpdateLevelRates();
 }
 
 void Oscillator::SetReleaseTime(double releaseTimeSec)
 {
-  mReleaseTimeSec = std::max(0.0, releaseTimeSec);
+  const double clampedReleaseTimeSec = std::max(0.0, releaseTimeSec);
+  if(clampedReleaseTimeSec == mReleaseTimeSec)
+    return;
+
+  mReleaseTimeSec = clampedReleaseTimeSec;
   UpdateLevelRates();
 }
 
@@ -77,7 +96,11 @@ void Oscillator::SetIntensityVariation(double amplitude, double rateHz)
 
 void Oscillator::SetPan(double pan)
 {
-  mBasePan = std::clamp(pan, -1.0, 1.0);
+  const double clampedPan = std::clamp(pan, -1.0, 1.0);
+  if(clampedPan == mBasePan)
+    return;
+
+  mBasePan = clampedPan;
   dsp::PanToGains(mBasePan, mBasePanLeftGain, mBasePanRightGain);
   UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
 }
@@ -89,7 +112,11 @@ void Oscillator::SetPanVariation(double amplitude, double rateHz)
 
 void Oscillator::SetLevel(double level)
 {
-  mBaseLevel = (level >= 0.0) ? level : 0.0;
+  const double clampedLevel = (level >= 0.0) ? level : 0.0;
+  if(clampedLevel == mBaseLevel)
+    return;
+
+  mBaseLevel = clampedLevel;
   UpdateLevelTarget(CurrentVariationNoise(mIntensityVariation, mVariationSeed ^ 0xF1023A17u));
 }
 

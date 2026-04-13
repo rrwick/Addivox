@@ -367,7 +367,8 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
   const int endIdx = startIdx + nFrames;
   for(int i = startIdx; i < endIdx; i++)
   {
-    if(mNoteControlSamplesUntilUpdate <= 0)
+    const bool pitchIsMoving = (mRenderedMidiPitch != mTargetMidiPitch);
+    if(pitchIsMoving && mNoteControlSamplesUntilUpdate <= 0)
       RefreshNoteDependentState(kNoteControlIntervalSamples);
 
     iplug::sample leftSample = 0.0;
@@ -381,8 +382,11 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
     outputs[0][i] += leftSample;
     outputs[1][i] += rightSample;
 
-    AdvanceRenderedPitch(1);
-    --mNoteControlSamplesUntilUpdate;
+    if(pitchIsMoving)
+    {
+      AdvanceRenderedPitch(1);
+      --mNoteControlSamplesUntilUpdate;
+    }
   }
 }
 
