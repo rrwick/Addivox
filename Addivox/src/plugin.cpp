@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 
 namespace
 {
@@ -289,6 +290,61 @@ std::string GetDefaultUserPresetDirectory()
     "Presets");
 }
 
+std::string GetStandaloneSettingsDirectory()
+{
+  WDL_String appSupportPath;
+  AppSupportPath(appSupportPath, false);
+  if(appSupportPath.GetLength() == 0)
+    return {};
+
+  return preset_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME);
+}
+
+std::string GetStandaloneBreathCCSourcePath()
+{
+  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
+  if(settingsDirectory.empty())
+    return {};
+
+  return preset_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
+}
+
+bool LoadStandaloneBreathCCSource(BreathCCSource& source)
+{
+  const std::string path = GetStandaloneBreathCCSourcePath();
+  if(path.empty())
+    return false;
+
+  std::ifstream stream(path);
+  if(!stream.is_open())
+    return false;
+
+  int rawValue = static_cast<int>(kDefaultBreathCCSource);
+  stream >> rawValue;
+  if(!stream)
+    return false;
+
+  source = SanitizeBreathCCSource(rawValue);
+  return true;
+}
+
+void SaveStandaloneBreathCCSource(BreathCCSource source)
+{
+  const std::string path = GetStandaloneBreathCCSourcePath();
+  if(path.empty())
+    return;
+
+  const std::string parentPath = preset_io::detail::ParentPath(path);
+  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
+    return;
+
+  std::ofstream stream(path, std::ios::trunc);
+  if(!stream.is_open())
+    return;
+
+  stream << static_cast<int>(source) << '\n';
+}
+
 std::string GetTemporaryDirectoryPath()
 {
 #if defined(OS_WIN)
@@ -521,10 +577,25 @@ void Addivox::SetBreathCCSource(BreathCCSource source)
   if(mEditorState)
     mEditorState->breathCCSource = mBreathCCSource;
 
+  if(GetHost() == kHostStandalone)
+    SaveStandaloneBreathCCSource(mBreathCCSource);
+
 #if IPLUG_DSP
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();
 #endif
+}
+
+void Addivox::EnsureStandaloneBreathCCSourceInitialized()
+{
+  if(mStandaloneBreathCCSourceInitialized || GetHost() != kHostStandalone)
+    return;
+
+  mStandaloneBreathCCSourceInitialized = true;
+
+  BreathCCSource persistedSource = kDefaultBreathCCSource;
+  if(LoadStandaloneBreathCCSource(persistedSource))
+    SetBreathCCSource(persistedSource);
 }
 
 void Addivox::SendBreathControlFromUI(double value, int channel, int offset)
@@ -811,6 +882,7 @@ void Addivox::OnRestoreState()
 
 void Addivox::OnUIOpen()
 {
+  EnsureStandaloneBreathCCSourceInitialized();
   Plugin::OnUIOpen();
   RefreshEditorUI();
 }
@@ -873,6 +945,7 @@ void Addivox::OnIdle()
 
 void Addivox::OnReset()
 {
+  EnsureStandaloneBreathCCSourceInitialized();
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();

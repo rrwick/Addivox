@@ -71,6 +71,7 @@ public:
 
 private:
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
+  void EnsureStandaloneBreathCCSourceInitialized();
   void SetBreathCCSource(BreathCCSource source);
   void SendBreathControlFromUI(double value, int channel, int offset);
   void PromptLoadPresetFromFile();
@@ -92,6 +93,7 @@ private:
   bool mWasQwertyKeyboardInEditMode{false};
   int mLastQwertyMIDINote{-1};
   BreathCCSource mBreathCCSource{kDefaultBreathCCSource};
+  bool mStandaloneBreathCCSourceInitialized{false};
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;
