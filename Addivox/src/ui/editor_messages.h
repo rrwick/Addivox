@@ -19,6 +19,7 @@ inline constexpr int kMsgTagSetKeyNoteEqCurve = 1006;
 inline constexpr int kMsgTagSetAllKeyNotesEnabled = 1007;
 inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
 inline constexpr int kMsgTagSetBreathCCSource = 1009;
+inline constexpr int kMsgTagSetHarmonicVisualizerEnabled = 1010;
 
 struct SetKeyNoteOscillatorParameterPayload
 {
@@ -55,6 +56,11 @@ struct SetAllKeyNotesEqEnabledPayload
 struct SetBreathCCSourcePayload
 {
   int source{static_cast<int>(kDefaultBreathCCSource)};
+};
+
+struct SetHarmonicVisualizerEnabledPayload
+{
+  int enabled{1};
 };
 
 struct EqCurvePointPayload

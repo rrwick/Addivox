@@ -14,6 +14,7 @@
 #include "../settings/params.h"
 
 #include <array>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -292,10 +293,14 @@ private:
 class SettingsMenuButton final : public IVButtonControl
 {
 public:
-  SettingsMenuButton(const IRECT& bounds, const ISVG& gearIcon, const std::shared_ptr<BreathCCSource>& breathCCSource)
+  SettingsMenuButton(const IRECT& bounds,
+                     const ISVG& gearIcon,
+                     const std::shared_ptr<BreathCCSource>& breathCCSource,
+                     const std::shared_ptr<bool>& harmonicVisualizerEnabled)
   : IVButtonControl(bounds, EmptyClickActionFunc, "", theme::AboutIconButtonStyle(), false, false, EVShape::Ellipse)
   , mGearIcon(gearIcon)
   , mBreathCCSource(breathCCSource)
+  , mHarmonicVisualizerEnabled(harmonicVisualizerEnabled)
   {
     SetTooltip("Settings");
     SetActionFunction(MakeImmediateButtonAction([this](IControl*) { OpenMenu(); }));
@@ -316,23 +321,42 @@ public:
 
   void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
   {
-    BreathCCSource selectedSource = kDefaultBreathCCSource;
     if(selectedMenu && selectedMenu->GetChosenItem())
     {
       const char* selectedText = selectedMenu->GetChosenItem()->GetText();
-      if(TryParseBreathCCSourceMenuLabel(selectedText, selectedSource))
+      if(selectedText && std::strcmp(selectedText, kVisualizerEnabledMenuLabel) == 0)
       {
-        if(mBreathCCSource)
-          *mBreathCCSource = selectedSource;
+        const bool enabled = !(mHarmonicVisualizerEnabled && *mHarmonicVisualizerEnabled);
+        if(mHarmonicVisualizerEnabled)
+          *mHarmonicVisualizerEnabled = enabled;
 
         if(auto* delegate = GetDelegate())
         {
-          const editor_messages::SetBreathCCSourcePayload payload{static_cast<int>(selectedSource)};
+          const editor_messages::SetHarmonicVisualizerEnabledPayload payload{enabled ? 1 : 0};
           delegate->SendArbitraryMsgFromUI(
-            editor_messages::kMsgTagSetBreathCCSource,
+            editor_messages::kMsgTagSetHarmonicVisualizerEnabled,
             GetTag(),
             sizeof(payload),
             &payload);
+        }
+      }
+      else
+      {
+        BreathCCSource selectedSource = kDefaultBreathCCSource;
+        if(TryParseBreathCCSourceMenuLabel(selectedText, selectedSource))
+        {
+          if(mBreathCCSource)
+            *mBreathCCSource = selectedSource;
+
+          if(auto* delegate = GetDelegate())
+          {
+            const editor_messages::SetBreathCCSourcePayload payload{static_cast<int>(selectedSource)};
+            delegate->SendArbitraryMsgFromUI(
+              editor_messages::kMsgTagSetBreathCCSource,
+              GetTag(),
+              sizeof(payload),
+              &payload);
+          }
         }
       }
     }
@@ -354,7 +378,9 @@ private:
   void BuildMenu()
   {
     mMenu.Clear();
-    mMenu.AddItem("Visualizer enabled", -1, IPopupMenu::Item::kChecked);
+    const int visualizerFlags =
+      (mHarmonicVisualizerEnabled && *mHarmonicVisualizerEnabled) ? IPopupMenu::Item::kChecked : 0;
+    mMenu.AddItem(kVisualizerEnabledMenuLabel, -1, visualizerFlags);
     mMenu.AddSeparator();
 
     auto* breathMenu = new IPopupMenu("Breath CC");
@@ -371,6 +397,9 @@ private:
   IPopupMenu mMenu{"Settings"};
   ISVG mGearIcon;
   std::shared_ptr<BreathCCSource> mBreathCCSource;
+  std::shared_ptr<bool> mHarmonicVisualizerEnabled;
+
+  static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer enabled";
 };
 
 inline void AttachTitlePanelControls(IGraphics* pGraphics,
@@ -410,7 +439,8 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
   auto* settingsButton = new SettingsMenuButton(
     IRECT::MakeXYWH(822.f, 19.f, 32.f, 32.f),
     pGraphics->LoadSVG("gear.svg"),
-    context->model.breathCCSource);
+    context->model.breathCCSource,
+    context->model.harmonicVisualizerEnabled);
 
   auto* aboutButton = new IVButtonControl(
     IRECT::MakeXYWH(860.f, 19.f, 32.f, 32.f),

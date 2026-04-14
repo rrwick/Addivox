@@ -39,6 +39,21 @@ public:
     }
   }
 
+  void ClearQueuedData()
+  {
+    iplug::ISenderData<1, TFrame> discarded;
+    while(this->mQueue.Pop(discarded))
+    {
+    }
+  }
+
+  void PushFrame(int ctrlTag, const TFrame& frame)
+  {
+    iplug::ISenderData<1, TFrame> data{ctrlTag, 1, 0};
+    data.vals[0] = frame;
+    this->PushData(data);
+  }
+
 private:
   int mSamplesPerUpdate{735}; // 44.1 kHz / 60 Hz
   int mSamplesUntilNextUpdate{0};

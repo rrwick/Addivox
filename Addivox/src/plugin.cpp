@@ -17,7 +17,7 @@
 
 namespace
 {
-constexpr uint32_t kPluginStateSettingsMagic = 0x42524343u; // "BRCC"
+constexpr uint32_t kPluginStateSettingsMagic = 0x42524343u; // Legacy plugin-state settings block magic.
 
 GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const Addivox& plugin)
 {
@@ -127,14 +127,22 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
     && chunk.Put(&effectsSettings.tone) > 0;
 }
 
-bool AppendPluginStateSettingsChunk(IByteChunk& chunk, BreathCCSource breathCCSource)
+bool AppendPluginStateSettingsChunk(IByteChunk& chunk,
+                                    BreathCCSource breathCCSource,
+                                    bool harmonicVisualizerEnabled)
 {
   const uint32_t magic = kPluginStateSettingsMagic;
   const int32_t rawBreathCCSource = static_cast<int32_t>(breathCCSource);
-  return chunk.Put(&magic) > 0 && chunk.Put(&rawBreathCCSource) > 0;
+  const int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
+  return chunk.Put(&magic) > 0
+    && chunk.Put(&rawBreathCCSource) > 0
+    && chunk.Put(&rawHarmonicVisualizerEnabled) > 0;
 }
 
-bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathCCSource& breathCCSource)
+bool ReadPluginStateSettingsChunk(const IByteChunk& chunk,
+                                  int startPos,
+                                  BreathCCSource& breathCCSource,
+                                  bool& harmonicVisualizerEnabled)
 {
   uint32_t magic = 0;
   int position = chunk.Get(&magic, startPos);
@@ -147,6 +155,12 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathC
     return false;
 
   breathCCSource = SanitizeBreathCCSource(rawBreathCCSource);
+
+  int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
+  const int nextPosition = chunk.Get(&rawHarmonicVisualizerEnabled, position);
+  if(nextPosition >= 0)
+    harmonicVisualizerEnabled = (rawHarmonicVisualizerEnabled != 0);
+
   return true;
 }
 
@@ -309,6 +323,15 @@ std::string GetStandaloneBreathCCSourcePath()
   return preset_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
 }
 
+std::string GetStandaloneHarmonicVisualizerEnabledPath()
+{
+  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
+  if(settingsDirectory.empty())
+    return {};
+
+  return preset_io::detail::JoinPath(settingsDirectory, "harmonic_visualizer_enabled.txt");
+}
+
 bool LoadStandaloneBreathCCSource(BreathCCSource& source)
 {
   const std::string path = GetStandaloneBreathCCSourcePath();
@@ -343,6 +366,42 @@ void SaveStandaloneBreathCCSource(BreathCCSource source)
     return;
 
   stream << static_cast<int>(source) << '\n';
+}
+
+bool LoadStandaloneHarmonicVisualizerEnabled(bool& enabled)
+{
+  const std::string path = GetStandaloneHarmonicVisualizerEnabledPath();
+  if(path.empty())
+    return false;
+
+  std::ifstream stream(path);
+  if(!stream.is_open())
+    return false;
+
+  int rawValue = enabled ? 1 : 0;
+  stream >> rawValue;
+  if(!stream)
+    return false;
+
+  enabled = (rawValue != 0);
+  return true;
+}
+
+void SaveStandaloneHarmonicVisualizerEnabled(bool enabled)
+{
+  const std::string path = GetStandaloneHarmonicVisualizerEnabledPath();
+  if(path.empty())
+    return;
+
+  const std::string parentPath = preset_io::detail::ParentPath(path);
+  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
+    return;
+
+  std::ofstream stream(path, std::ios::trunc);
+  if(!stream.is_open())
+    return;
+
+  stream << (enabled ? 1 : 0) << '\n';
 }
 
 std::string GetTemporaryDirectoryPath()
@@ -598,6 +657,34 @@ void Addivox::EnsureStandaloneBreathCCSourceInitialized()
     SetBreathCCSource(persistedSource);
 }
 
+void Addivox::SetHarmonicVisualizerEnabled(bool enabled)
+{
+  mHarmonicVisualizerEnabled.store(enabled, std::memory_order_relaxed);
+  mHarmonicVisualizerBlankPending.store(!enabled, std::memory_order_relaxed);
+  if(mEditorState)
+    mEditorState->harmonicVisualizerEnabled = enabled;
+
+  if(GetHost() == kHostStandalone)
+    SaveStandaloneHarmonicVisualizerEnabled(enabled);
+
+#if IPLUG_DSP
+  mHarmonicVisualizerSender.ClearQueuedData();
+  mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
+#endif
+}
+
+void Addivox::EnsureStandaloneHarmonicVisualizerEnabledInitialized()
+{
+  if(mStandaloneHarmonicVisualizerEnabledInitialized || GetHost() != kHostStandalone)
+    return;
+
+  mStandaloneHarmonicVisualizerEnabledInitialized = true;
+
+  bool persistedEnabled = true;
+  if(LoadStandaloneHarmonicVisualizerEnabled(persistedEnabled))
+    SetHarmonicVisualizerEnabled(persistedEnabled);
+}
+
 void Addivox::SendBreathControlFromUI(double value, int channel, int offset)
 {
   if(IsHighResolutionBreathCCSource(mBreathCCSource))
@@ -823,7 +910,10 @@ bool Addivox::SerializeState(IByteChunk& chunk) const
 
   return chunk.PutStr(preset_io::SerializePresetToToml(document).c_str()) > 0
     && SerializeParams(chunk)
-    && AppendPluginStateSettingsChunk(chunk, mBreathCCSource);
+    && AppendPluginStateSettingsChunk(
+      chunk,
+      mBreathCCSource,
+      mHarmonicVisualizerEnabled.load(std::memory_order_relaxed));
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
@@ -857,8 +947,16 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
   LEAVE_PARAMS_MUTEX
 
   BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
-  if(ReadPluginStateSettingsChunk(chunk, pos, restoredBreathCCSource))
+  bool restoredHarmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
+  if(ReadPluginStateSettingsChunk(
+       chunk,
+       pos,
+       restoredBreathCCSource,
+       restoredHarmonicVisualizerEnabled))
+  {
     SetBreathCCSource(restoredBreathCCSource);
+    SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
+  }
 
   return pos;
 }
@@ -883,6 +981,7 @@ void Addivox::OnRestoreState()
 void Addivox::OnUIOpen()
 {
   EnsureStandaloneBreathCCSourceInitialized();
+  EnsureStandaloneHarmonicVisualizerEnabledInitialized();
   Plugin::OnUIOpen();
   RefreshEditorUI();
 }
@@ -925,16 +1024,32 @@ void Addivox::ProcessBlock(sample** inputs, sample** outputs, int nFrames)
   (void) inputs;
   mDSP.ProcessBlock(outputs, nFrames);
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
-  mHarmonicVisualizerSender.ProcessBlock(
-    nFrames,
-    kCtrlTagHarmonicVisualizer,
-    [this](VisualizerFrame& frame) { mDSP.GetVisualizerFrame(frame); });
+  if(mHarmonicVisualizerEnabled.load(std::memory_order_relaxed))
+  {
+    mHarmonicVisualizerSender.ProcessBlock(
+      nFrames,
+      kCtrlTagHarmonicVisualizer,
+      [this](VisualizerFrame& frame) { mDSP.GetVisualizerFrame(frame); });
+  }
 }
 
 void Addivox::OnIdle()
 {
   mMeterSender.TransmitData(*this);
-  mHarmonicVisualizerSender.TransmitData(*this);
+  if(mHarmonicVisualizerEnabled.load(std::memory_order_relaxed))
+  {
+    mHarmonicVisualizerSender.TransmitData(*this);
+  }
+  else
+  {
+    mHarmonicVisualizerSender.ClearQueuedData();
+    if(mHarmonicVisualizerBlankPending.exchange(false, std::memory_order_relaxed))
+    {
+      mHarmonicVisualizerSender.PushFrame(kCtrlTagHarmonicVisualizer, VisualizerFrame{});
+      mHarmonicVisualizerSender.TransmitData(*this);
+    }
+  }
+
   const double breathLevel = mBreathLevel.load(std::memory_order_relaxed);
   if(breathLevel != mLastSentBreathLevel)
   {
@@ -946,6 +1061,7 @@ void Addivox::OnIdle()
 void Addivox::OnReset()
 {
   EnsureStandaloneBreathCCSourceInitialized();
+  EnsureStandaloneHarmonicVisualizerEnabledInitialized();
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();
@@ -956,6 +1072,10 @@ void Addivox::OnReset()
   mMeterSender.SetPeakHoldTimeMs(250.0, GetSampleRate());
   
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
+  if(!mHarmonicVisualizerEnabled.load(std::memory_order_relaxed))
+    mHarmonicVisualizerBlankPending.store(true, std::memory_order_relaxed);
+  else
+    mHarmonicVisualizerBlankPending.store(false, std::memory_order_relaxed);
   mQwertyMidiKeysDown.fill(false);
   mQwertyMidiBaseNote = 48;
   mWasQwertyKeyboardInEditMode = false;
@@ -999,6 +1119,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   {
     const auto* payload = static_cast<const editor_messages::SetBreathCCSourcePayload*>(pData);
     SetBreathCCSource(SanitizeBreathCCSource(payload->source));
+    return true;
+  }
+
+  if(msgTag == editor_messages::kMsgTagSetHarmonicVisualizerEnabled
+    && dataSize == sizeof(editor_messages::SetHarmonicVisualizerEnabledPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetHarmonicVisualizerEnabledPayload*>(pData);
+    SetHarmonicVisualizerEnabled(payload->enabled != 0);
     return true;
   }
 

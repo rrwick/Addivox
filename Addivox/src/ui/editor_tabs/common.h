@@ -769,6 +769,7 @@ struct EditorModelRefs
 {
   std::shared_ptr<CompoundPreset> compoundPreset;
   std::shared_ptr<BreathCCSource> breathCCSource;
+  std::shared_ptr<bool> harmonicVisualizerEnabled;
   std::shared_ptr<int> selectedMidiNote;
   std::shared_ptr<int> selectedTabIndex;
   std::shared_ptr<bool> editMode;

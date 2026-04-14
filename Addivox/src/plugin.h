@@ -72,7 +72,9 @@ public:
 private:
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
   void EnsureStandaloneBreathCCSourceInitialized();
+  void EnsureStandaloneHarmonicVisualizerEnabledInitialized();
   void SetBreathCCSource(BreathCCSource source);
+  void SetHarmonicVisualizerEnabled(bool enabled);
   void SendBreathControlFromUI(double value, int channel, int offset);
   void PromptLoadPresetFromFile();
   void PromptSavePresetToFile();
@@ -94,6 +96,9 @@ private:
   int mLastQwertyMIDINote{-1};
   BreathCCSource mBreathCCSource{kDefaultBreathCCSource};
   bool mStandaloneBreathCCSourceInitialized{false};
+  std::atomic<bool> mHarmonicVisualizerEnabled{true};
+  std::atomic<bool> mHarmonicVisualizerBlankPending{false};
+  bool mStandaloneHarmonicVisualizerEnabledInitialized{false};
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;

@@ -34,6 +34,7 @@ struct EditorState
 {
   CompoundPreset compoundPreset{};
   BreathCCSource breathCCSource{kDefaultBreathCCSource};
+  bool harmonicVisualizerEnabled{true};
   int selectedMidiNote{60};
   bool editMode{false};
   int selectedTabIndex{0};
