@@ -16,6 +16,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace plugin_ui
@@ -65,6 +66,20 @@ inline bool ShowAboutBox(IGraphics* pGraphics, int aboutBoxTag)
 
   aboutBox->Show();
   return true;
+}
+
+template <typename Callback>
+inline IActionFunction MakeImmediateButtonAction(Callback&& callback)
+{
+  return [cb = std::forward<Callback>(callback)](IControl* caller) mutable {
+    if(caller)
+    {
+      caller->SetValue(0.);
+      caller->SetDirty(false);
+    }
+
+    cb(caller);
+  };
 }
 
 inline void AttachKnob(IGraphics* pGraphics,
@@ -211,12 +226,9 @@ public:
       caller->GetUI()->CreatePopupMenu(*this, mPresetMenu, caller->GetRECT());
     };
 
-    AddChildControl(new IVButtonControl(IRECT(), SplashClickActionFunc, "<", mStyle))
-      ->SetAnimationEndActionFunction(prevPresetFunc);
-    AddChildControl(new IVButtonControl(IRECT(), SplashClickActionFunc, ">", mStyle))
-      ->SetAnimationEndActionFunction(nextPresetFunc);
-    AddChildControl(mPresetNameButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Choose Preset...", mStyle))
-      ->SetAnimationEndActionFunction(choosePresetFunc);
+    AddChildControl(new IVButtonControl(IRECT(), MakeImmediateButtonAction(prevPresetFunc), "<", mStyle));
+    AddChildControl(new IVButtonControl(IRECT(), MakeImmediateButtonAction(nextPresetFunc), ">", mStyle));
+    AddChildControl(mPresetNameButton = new IVButtonControl(IRECT(), MakeImmediateButtonAction(choosePresetFunc), "Choose Preset...", mStyle));
 
     OnResize();
     UpdatePresetLabel(dynamic_cast<iplug::IPluginBase*>(GetDelegate()));
@@ -277,6 +289,68 @@ private:
   IVButtonControl* mPresetNameButton = nullptr;
 };
 
+class SettingsMenuButton final : public IVButtonControl
+{
+public:
+  SettingsMenuButton(const IRECT& bounds, const ISVG& gearIcon)
+  : IVButtonControl(bounds, EmptyClickActionFunc, "", theme::AboutIconButtonStyle(), false, false, EVShape::Ellipse)
+  , mGearIcon(gearIcon)
+  {
+    SetTooltip("Settings");
+    SetActionFunction(MakeImmediateButtonAction([this](IControl*) { OpenMenu(); }));
+  }
+
+  void DrawWidget(IGraphics& g) override
+  {
+    const bool pressed = GetValue() > 0.5;
+    DrawPressableShape(g, EVShape::Ellipse, mWidgetBounds, pressed, mMouseIsOver, IsDisabled());
+
+    IColor iconColor = colour::ui::kValueText;
+    if(IsDisabled())
+      iconColor = GetColor(kFR);
+    else if(pressed || mMouseIsOver)
+      iconColor = GetColor(kX1);
+    g.DrawSVG(mGearIcon, mWidgetBounds.GetPadded(-7.f), &mBlend, nullptr, &iconColor);
+  }
+
+  void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
+  {
+    IControl::OnPopupMenuSelection(selectedMenu, valIdx);
+  }
+
+private:
+  void OpenMenu()
+  {
+    auto* ui = GetUI();
+    if(!ui)
+      return;
+
+    BuildMenu();
+    ui->CreatePopupMenu(*this, mMenu, mRECT);
+  }
+
+  void BuildMenu()
+  {
+    mMenu.Clear();
+    mMenu.AddItem("Visualizer enabled", -1, IPopupMenu::Item::kChecked);
+    mMenu.AddSeparator();
+
+    auto* breathMenu = new IPopupMenu("Breath CC");
+    breathMenu->AddItem("CC 1 (mod wheel)");
+    breathMenu->AddItem("CC 2 (breath)", -1, IPopupMenu::Item::kChecked);
+    breathMenu->AddItem("CC 2 + CC 34 (high-res breath)");
+    breathMenu->AddItem("CC 7 (volume)");
+    breathMenu->AddItem("CC 7 + CC 39 (high-res volume)");
+    breathMenu->AddItem("CC 11 (expression)");
+    breathMenu->AddItem("CC 11 + CC 43 (high-res expression)");
+
+    mMenu.AddItem("Breath CC", breathMenu);
+  }
+
+  IPopupMenu mMenu{"Settings"};
+  ISVG mGearIcon;
+};
+
 inline void AttachTitlePanelControls(IGraphics* pGraphics,
                                      const std::shared_ptr<editor::EditorContext>& context,
                                      int aboutBoxTag)
@@ -289,25 +363,45 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
       delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
   };
 
-  auto* loadPresetButton = new IVButtonControl(IRECT::MakeXYWH(775.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Load", theme::PresetActionButtonStyle(), true, false);
-  loadPresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
-    sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
-  });
+  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(430.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
 
-  auto* savePresetButton = new IVButtonControl(IRECT::MakeXYWH(825.f, 14.f, 50.f, 42.f), SplashClickActionFunc, "Save", theme::PresetActionButtonStyle(), true, false);
-  savePresetButton->SetAnimationEndActionFunction([sendPresetFileMessage](IControl* caller) {
-    sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
-  });
+  auto* loadPresetButton = new IVButtonControl(
+    IRECT::MakeXYWH(715.f, 14.f, 50.f, 42.f),
+    MakeImmediateButtonAction([sendPresetFileMessage](IControl* caller) {
+      sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
+    }),
+    "Load",
+    theme::PresetActionButtonStyle(),
+    true,
+    false);
 
-  auto* aboutButton = new IVButtonControl(IRECT::MakeXYWH(878.f, 25.f, 20.f, 20.f), SplashClickActionFunc, "i", theme::AboutIconButtonStyle(), true, false);
+  auto* savePresetButton = new IVButtonControl(
+    IRECT::MakeXYWH(765.f, 14.f, 50.f, 42.f),
+    MakeImmediateButtonAction([sendPresetFileMessage](IControl* caller) {
+      sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
+    }),
+    "Save",
+    theme::PresetActionButtonStyle(),
+    true,
+    false);
+
+  auto* settingsButton = new SettingsMenuButton(
+    IRECT::MakeXYWH(822.f, 19.f, 32.f, 32.f),
+    pGraphics->LoadSVG("gear.svg"));
+
+  auto* aboutButton = new IVButtonControl(
+    IRECT::MakeXYWH(860.f, 19.f, 32.f, 32.f),
+    MakeImmediateButtonAction([pGraphics, aboutBoxTag](IControl*) {
+      ShowAboutBox(pGraphics, aboutBoxTag);
+    }),
+    "i",
+    theme::AboutIconButtonStyle(),
+    true,
+    false);
   aboutButton->SetTooltip("About Addivox");
-  aboutButton->SetAnimationEndActionFunction([pGraphics, aboutBoxTag](IControl*) {
-    ShowAboutBox(pGraphics, aboutBoxTag);
-  });
-
-  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(490.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
 
   pGraphics->AttachControl(aboutButton);
+  pGraphics->AttachControl(settingsButton);
   pGraphics->AttachControl(loadPresetButton);
   pGraphics->AttachControl(savePresetButton);
   pGraphics->AttachControl(presetManagerControl);

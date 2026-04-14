@@ -82,11 +82,10 @@ inline IVStyle PresetActionButtonStyle()
 inline IVStyle AboutIconButtonStyle()
 {
   return BaseStyle(true, false)
-    .WithLabelText(IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))
+    .WithLabelText(IText(20.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))
     .WithRoundness(1.f)
     .WithFrameThickness(1.4f)
     .WithColor(kFG, colour::ui::kControlBody)
-    .WithColor(kFR, colour::ui::kAccentPrimary)
     .WithColor(kHL, colour::ui::kControlHighlight);
 }
 
