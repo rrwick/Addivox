@@ -2,6 +2,7 @@
 
 #include "IPlugConstants.h"
 #include "IPlugMidi.h"
+#include "midi/breath_control.h"
 #include "midi_file_parser.h"
 #include "settings/effects.h"
 #include "settings/global.h"
@@ -31,6 +32,8 @@ struct ScheduledMidiEvent
   int64_t sampleOffset{0};
   iplug::IMidiMsg message;
 };
+
+using DetectedBreathCCSources = std::array<std::optional<BreathCCSource>, 16>;
 
 struct WaveFormatDescriptor
 {
@@ -373,6 +376,44 @@ std::vector<ScheduledMidiEvent> BuildMidiFileEvents(const midi_file::ParsedFile&
   return events;
 }
 
+bool DetectMidiFileBreathCCSources(const midi_file::ParsedFile& parsedFile,
+                                   DetectedBreathCCSources& breathCCSources,
+                                   std::string* errorMessage)
+{
+  std::array<std::array<bool, 128>, 16> seenControllers{};
+  breathCCSources.fill(std::nullopt);
+
+  for(const midi_file::TimedEvent& timedEvent : parsedFile.events)
+  {
+    const iplug::IMidiMsg& message = timedEvent.message;
+    if(message.StatusMsg() != iplug::IMidiMsg::kControlChange)
+      continue;
+
+    const int controller = std::clamp(static_cast<int>(message.mData1), 0, 127);
+    if(!IsSupportedBreathCCController(controller))
+      continue;
+
+    seenControllers[static_cast<std::size_t>(std::clamp(message.Channel(), 0, 15))]
+                   [static_cast<std::size_t>(controller)] = true;
+  }
+
+  bool foundBreathCCSource = false;
+  for(int channel = 0; channel < 16; ++channel)
+  {
+    breathCCSources[static_cast<std::size_t>(channel)] = DetectBreathCCSource(
+      seenControllers[static_cast<std::size_t>(channel)]);
+    foundBreathCCSource = foundBreathCCSource || breathCCSources[static_cast<std::size_t>(channel)].has_value();
+  }
+
+  if(foundBreathCCSource)
+    return true;
+
+  SetErrorMessage(
+    errorMessage,
+    "MIDI file contains no supported breath controllers; expected CC2/34, CC2, CC11/43, CC11, CC7/39, CC7, or CC1");
+  return false;
+}
+
 void ApplyPresetAndOverrides(SynthEngine& engine,
                              const preset_io::PresetDocument& document,
                              const HeadlessRenderOptions& options)
@@ -578,6 +619,7 @@ bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::stri
 bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
                                 const std::vector<ScheduledMidiEvent>& events,
                                 int64_t lastEventFrame,
+                                const DetectedBreathCCSources* breathCCSources,
                                 std::string* errorMessage)
 {
   preset_io::PresetDocument document;
@@ -586,6 +628,15 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
 
   SynthEngine engine;
   ApplyPresetAndOverrides(engine, document, options);
+  if(breathCCSources)
+  {
+    for(int channel = 0; channel < 16; ++channel)
+    {
+      const auto& source = (*breathCCSources)[static_cast<std::size_t>(channel)];
+      if(source.has_value())
+        engine.SetBreathCCSourceForChannel(channel, *source);
+    }
+  }
 
   const int64_t requiredSilentFrames = std::max<int64_t>(
     1,
@@ -702,7 +753,7 @@ bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* er
     1,
     static_cast<int64_t>(std::llround(options.durationSeconds * options.sampleRate)));
   const std::vector<ScheduledMidiEvent> events = BuildSingleNoteEvents(options, noteDurationFrames);
-  return RenderScheduledEventsToWav(options, events, noteDurationFrames, errorMessage);
+  return RenderScheduledEventsToWav(options, events, noteDurationFrames, nullptr, errorMessage);
 }
 
 bool RenderMidiFileToWav(const HeadlessRenderOptions& options,
@@ -722,7 +773,11 @@ bool RenderMidiFileToWav(const HeadlessRenderOptions& options,
   if(!midi_file::ParseFile(midiPath, parsedFile, errorMessage))
     return false;
 
+  DetectedBreathCCSources breathCCSources;
+  if(!DetectMidiFileBreathCCSources(parsedFile, breathCCSources, errorMessage))
+    return false;
+
   int64_t lastEventFrame = 0;
   const std::vector<ScheduledMidiEvent> events = BuildMidiFileEvents(parsedFile, options.sampleRate, lastEventFrame);
-  return RenderScheduledEventsToWav(options, events, lastEventFrame, errorMessage);
+  return RenderScheduledEventsToWav(options, events, lastEventFrame, &breathCCSources, errorMessage);
 }

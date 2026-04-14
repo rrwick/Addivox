@@ -63,6 +63,16 @@ public:
     mSynth.AddMidiMsgToQueue(msg);
   }
 
+  void SetBreathCCSource(BreathCCSource source)
+  {
+    mSynth.SetBreathCCSource(source);
+  }
+
+  void SetBreathCCSourceForChannel(int channel, BreathCCSource source)
+  {
+    mSynth.SetBreathCCSourceForChannel(channel, source);
+  }
+
   void SetParam(int paramIdx, double value)
   {
     if(paramIdx == kParamTranspose)

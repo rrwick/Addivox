@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "midi/breath_control.h"
 #include "settings/oscillator.h"
 #include "ui/editor_state.h"
 #include "visualizer/harmonic_visualizer_sender.h"
@@ -70,6 +71,8 @@ public:
 
 private:
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
+  void SetBreathCCSource(BreathCCSource source);
+  void SendBreathControlFromUI(double value, int channel, int offset);
   void PromptLoadPresetFromFile();
   void PromptSavePresetToFile();
   bool ShowAboutBox();
@@ -88,6 +91,7 @@ private:
   int mQwertyMidiBaseNote{48};
   bool mWasQwertyKeyboardInEditMode{false};
   int mLastQwertyMIDINote{-1};
+  BreathCCSource mBreathCCSource{kDefaultBreathCCSource};
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;
@@ -95,6 +99,7 @@ private:
   SynthEngine mDSP;
   IPeakAvgSender<2> mMeterSender;
   HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
+  BreathCCInputTracker mBreathCCInputTracker;
   std::atomic<double> mBreathLevel{1.0};
   double mLastSentBreathLevel{-1.};
 #endif

@@ -11,6 +11,7 @@
 #include "IPlugConstants.h"
 #include "IPlugMidi.h"
 #include "blip_guard.h"
+#include "../midi/breath_control.h"
 
 BEGIN_IPLUG_NAMESPACE
 
@@ -28,6 +29,8 @@ public:
   : mMidiQueue(blockSize)
   {
     mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.0, 0.0};
+    mBreathCCSources.fill(kDefaultBreathCCSource);
+    mBreathCCInputTracker.Reset();
     ClearVoiceControls();
   }
 
@@ -39,6 +42,7 @@ public:
     mMidiState.currentPitchBend = 0.0;
     mMidiState.currentBreath = 1.0;
     mMidiState.currentPortamento = 0.0;
+    mBreathCCInputTracker.Reset();
     mTargetChannel = 0;
     mTargetKey = kNoKey;
     mOutputKey = kNoKey;
@@ -64,6 +68,19 @@ public:
   void AddMidiMsgToQueue(const IMidiMsg& msg)
   {
     mMidiQueue.Add(msg);
+  }
+
+  void SetBreathCCSource(BreathCCSource source)
+  {
+    mBreathCCSources.fill(source);
+    mBreathCCInputTracker.Reset();
+  }
+
+  void SetBreathCCSourceForChannel(int channel, BreathCCSource source)
+  {
+    const std::size_t index = static_cast<std::size_t>(Clip(channel, 0, 15));
+    mBreathCCSources[index] = source;
+    mBreathCCInputTracker.ResetChannel(static_cast<int>(index));
   }
 
   void SetBlipGuardDelayMs(double delayMs)
@@ -199,11 +216,18 @@ private:
       }
       case IMidiMsg::kControlChange:
       {
+        const BreathCCValueUpdate breathUpdate = mBreathCCInputTracker.HandleMessage(
+          mBreathCCSources[static_cast<std::size_t>(Clip(channel, 0, 15))],
+          msg);
+        if(breathUpdate.consumed)
+        {
+          if(breathUpdate.hasValue)
+            Breath(channel, breathUpdate.value);
+          break;
+        }
+
         switch(msg.ControlChangeIdx())
         {
-          case IMidiMsg::kBreathController:
-            Breath(channel, static_cast<double>(msg.ControlChange(IMidiMsg::kBreathController)));
-            break;
           case IMidiMsg::kPortamentoTime:
             Portamento(channel, static_cast<double>(msg.ControlChange(IMidiMsg::kPortamentoTime)));
             break;
@@ -514,6 +538,8 @@ private:
 
   IMidiQueue mMidiQueue;
   MonoMidiState mMidiState{};
+  std::array<BreathCCSource, 16> mBreathCCSources{};
+  BreathCCInputTracker mBreathCCInputTracker{};
   VoiceT mVoice{};
   uint8_t mTargetChannel{0};
   // Latest input note we are targeting. This can differ from mOutputKey while a

@@ -292,9 +292,10 @@ private:
 class SettingsMenuButton final : public IVButtonControl
 {
 public:
-  SettingsMenuButton(const IRECT& bounds, const ISVG& gearIcon)
+  SettingsMenuButton(const IRECT& bounds, const ISVG& gearIcon, const std::shared_ptr<BreathCCSource>& breathCCSource)
   : IVButtonControl(bounds, EmptyClickActionFunc, "", theme::AboutIconButtonStyle(), false, false, EVShape::Ellipse)
   , mGearIcon(gearIcon)
+  , mBreathCCSource(breathCCSource)
   {
     SetTooltip("Settings");
     SetActionFunction(MakeImmediateButtonAction([this](IControl*) { OpenMenu(); }));
@@ -315,6 +316,27 @@ public:
 
   void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
   {
+    BreathCCSource selectedSource = kDefaultBreathCCSource;
+    if(selectedMenu && selectedMenu->GetChosenItem())
+    {
+      const char* selectedText = selectedMenu->GetChosenItem()->GetText();
+      if(TryParseBreathCCSourceMenuLabel(selectedText, selectedSource))
+      {
+        if(mBreathCCSource)
+          *mBreathCCSource = selectedSource;
+
+        if(auto* delegate = GetDelegate())
+        {
+          const editor_messages::SetBreathCCSourcePayload payload{static_cast<int>(selectedSource)};
+          delegate->SendArbitraryMsgFromUI(
+            editor_messages::kMsgTagSetBreathCCSource,
+            GetTag(),
+            sizeof(payload),
+            &payload);
+        }
+      }
+    }
+
     IControl::OnPopupMenuSelection(selectedMenu, valIdx);
   }
 
@@ -336,19 +358,19 @@ private:
     mMenu.AddSeparator();
 
     auto* breathMenu = new IPopupMenu("Breath CC");
-    breathMenu->AddItem("CC 1 (mod wheel)");
-    breathMenu->AddItem("CC 2 (breath)", -1, IPopupMenu::Item::kChecked);
-    breathMenu->AddItem("CC 2 + CC 34 (high-res breath)");
-    breathMenu->AddItem("CC 7 (volume)");
-    breathMenu->AddItem("CC 7 + CC 39 (high-res volume)");
-    breathMenu->AddItem("CC 11 (expression)");
-    breathMenu->AddItem("CC 11 + CC 43 (high-res expression)");
+    const BreathCCSource currentSource = mBreathCCSource ? *mBreathCCSource : kDefaultBreathCCSource;
+    for(const BreathCCSource source : kBreathCCSources)
+    {
+      const int flags = (source == currentSource) ? IPopupMenu::Item::kChecked : 0;
+      breathMenu->AddItem(GetBreathCCSourceMenuLabel(source), -1, flags);
+    }
 
     mMenu.AddItem("Breath CC", breathMenu);
   }
 
   IPopupMenu mMenu{"Settings"};
   ISVG mGearIcon;
+  std::shared_ptr<BreathCCSource> mBreathCCSource;
 };
 
 inline void AttachTitlePanelControls(IGraphics* pGraphics,
@@ -387,7 +409,8 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
 
   auto* settingsButton = new SettingsMenuButton(
     IRECT::MakeXYWH(822.f, 19.f, 32.f, 32.f),
-    pGraphics->LoadSVG("gear.svg"));
+    pGraphics->LoadSVG("gear.svg"),
+    context->model.breathCCSource);
 
   auto* aboutButton = new IVButtonControl(
     IRECT::MakeXYWH(860.f, 19.f, 32.f, 32.f),

@@ -31,6 +31,7 @@ void PrintUsage(std::ostream& stream)
     << "\n"
     << "MIDI playback:\n"
     << "      --midi PATH          MIDI file to render\n"
+    << "                           Breath source is auto-detected from CC2/34, CC2, CC11/43, CC11, CC7/39, CC7, or CC1\n"
     << "\n"
     << "Envelope:\n"
     << "      --attack N           Attack scaling, 0-100\n"

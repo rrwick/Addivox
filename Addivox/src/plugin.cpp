@@ -8,12 +8,16 @@
 #include "ui/transformations.h"
 #include "ui/layout.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 
 namespace
 {
+constexpr uint32_t kPluginStateSettingsMagic = 0x42524343u; // "BRCC"
+
 GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const Addivox& plugin)
 {
   GlobalVoiceSettings settings{};
@@ -120,6 +124,39 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
     && chunk.Put(&effectsSettings.drive) > 0
     && chunk.Put(&effectsSettings.chorus) > 0
     && chunk.Put(&effectsSettings.tone) > 0;
+}
+
+bool AppendPluginStateSettingsChunk(IByteChunk& chunk, BreathCCSource breathCCSource)
+{
+  const uint32_t magic = kPluginStateSettingsMagic;
+  const int32_t rawBreathCCSource = static_cast<int32_t>(breathCCSource);
+  return chunk.Put(&magic) > 0 && chunk.Put(&rawBreathCCSource) > 0;
+}
+
+bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathCCSource& breathCCSource)
+{
+  uint32_t magic = 0;
+  int position = chunk.Get(&magic, startPos);
+  if(position < 0 || magic != kPluginStateSettingsMagic)
+    return false;
+
+  int32_t rawBreathCCSource = static_cast<int32_t>(kDefaultBreathCCSource);
+  position = chunk.Get(&rawBreathCCSource, position);
+  if(position < 0)
+    return false;
+
+  breathCCSource = SanitizeBreathCCSource(rawBreathCCSource);
+  return true;
+}
+
+int GetSevenBitControllerValue(double value)
+{
+  return std::clamp(static_cast<int>(std::lround(std::clamp(value, 0.0, 1.0) * 127.0)), 0, 127);
+}
+
+int GetHighResolutionControllerValue(double value)
+{
+  return std::clamp(static_cast<int>(std::lround(std::clamp(value, 0.0, 1.0) * 16383.0)), 0, 16383);
 }
 
 bool SetParamFromChunkValue(Addivox& plugin,
@@ -474,6 +511,45 @@ Addivox::Addivox(const InstanceInfo& info)
   RestorePreset(0);
   if(mActivePresetDisplayName.empty() && NPresets() > 0)
     mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
+
+  SetBreathCCSource(kDefaultBreathCCSource);
+}
+
+void Addivox::SetBreathCCSource(BreathCCSource source)
+{
+  mBreathCCSource = SanitizeBreathCCSource(static_cast<int>(source));
+  if(mEditorState)
+    mEditorState->breathCCSource = mBreathCCSource;
+
+#if IPLUG_DSP
+  mDSP.SetBreathCCSource(mBreathCCSource);
+  mBreathCCInputTracker.Reset();
+#endif
+}
+
+void Addivox::SendBreathControlFromUI(double value, int channel, int offset)
+{
+  if(IsHighResolutionBreathCCSource(mBreathCCSource))
+  {
+    const int rawValue = GetHighResolutionControllerValue(value);
+    Plugin::SendMidiMsgFromUI(MakeControlChangeMsg(
+      GetBreathCCSourceMSBController(mBreathCCSource),
+      rawValue / 128,
+      channel,
+      offset));
+    Plugin::SendMidiMsgFromUI(MakeControlChangeMsg(
+      GetBreathCCSourceLSBController(mBreathCCSource),
+      rawValue % 128,
+      channel,
+      offset));
+    return;
+  }
+
+  Plugin::SendMidiMsgFromUI(MakeControlChangeMsg(
+    GetBreathCCSourceMSBController(mBreathCCSource),
+    GetSevenBitControllerValue(value),
+    channel,
+    offset));
 }
 
 void Addivox::ApplyPresetDocument(const preset_io::PresetDocument& document)
@@ -634,9 +710,7 @@ void Addivox::SendMidiMsgFromUI(const IMidiMsg& msg)
   }
 
   const auto sendBreathFromUI = [this, &msg](double value) {
-    IMidiMsg breathMsg;
-    breathMsg.MakeControlChangeMsg(IMidiMsg::kBreathController, value, msg.Channel(), msg.mOffset);
-    Plugin::SendMidiMsgFromUI(breathMsg);
+    SendBreathControlFromUI(value, msg.Channel(), msg.mOffset);
   };
 
   if(isNoteOn)
@@ -677,7 +751,8 @@ bool Addivox::SerializeState(IByteChunk& chunk) const
   document.compoundPreset = mEditorState->compoundPreset;
 
   return chunk.PutStr(preset_io::SerializePresetToToml(document).c_str()) > 0
-    && SerializeParams(chunk);
+    && SerializeParams(chunk)
+    && AppendPluginStateSettingsChunk(chunk, mBreathCCSource);
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
@@ -709,6 +784,10 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
   OnParamReset(kPresetRecall);
   SyncPresetOwnedParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX
+
+  BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
+  if(ReadPluginStateSettingsChunk(chunk, pos, restoredBreathCCSource))
+    SetBreathCCSource(restoredBreathCCSource);
 
   return pos;
 }
@@ -795,6 +874,8 @@ void Addivox::OnIdle()
 void Addivox::OnReset()
 {
   mDSP.Reset(GetSampleRate(), GetBlockSize());
+  mDSP.SetBreathCCSource(mBreathCCSource);
+  mBreathCCInputTracker.Reset();
 
   // Make the meter respond more quickly to changes in level.
   mMeterSender.Reset(GetSampleRate());
@@ -812,10 +893,9 @@ void Addivox::OnReset()
 
 void Addivox::ProcessMidiMsg(const IMidiMsg& msg)
 {
-  if(msg.StatusMsg() == IMidiMsg::kControlChange && msg.ControlChangeIdx() == IMidiMsg::kBreathController)
-  {
-    mBreathLevel.store(static_cast<double>(msg.ControlChange(IMidiMsg::kBreathController)), std::memory_order_relaxed);
-  }
+  const BreathCCValueUpdate breathUpdate = mBreathCCInputTracker.HandleMessage(mBreathCCSource, msg);
+  if(breathUpdate.hasValue)
+    mBreathLevel.store(breathUpdate.value, std::memory_order_relaxed);
 
   mDSP.ProcessMidiMsg(msg);
   SendMidiMsg(msg);
@@ -837,6 +917,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   if(msgTag == editor_messages::kMsgTagPromptSavePresetToFile)
   {
     PromptSavePresetToFile();
+    return true;
+  }
+
+  if(msgTag == editor_messages::kMsgTagSetBreathCCSource
+    && dataSize == sizeof(editor_messages::SetBreathCCSourcePayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetBreathCCSourcePayload*>(pData);
+    SetBreathCCSource(SanitizeBreathCCSource(payload->source));
     return true;
   }
 

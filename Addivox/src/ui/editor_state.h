@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "../midi/breath_control.h"
 #include "../settings/oscillator.h"
 
 namespace plugin_ui
@@ -32,6 +33,7 @@ enum class EditorOscillatorEditScope
 struct EditorState
 {
   CompoundPreset compoundPreset{};
+  BreathCCSource breathCCSource{kDefaultBreathCCSource};
   int selectedMidiNote{60};
   bool editMode{false};
   int selectedTabIndex{0};

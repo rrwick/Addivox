@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "IPlugStructs.h"
+#include "../midi/breath_control.h"
 #include "../settings/oscillator.h"
 
 namespace editor_messages
@@ -17,6 +18,7 @@ inline constexpr int kMsgTagPromptSavePresetToFile = 1005;
 inline constexpr int kMsgTagSetKeyNoteEqCurve = 1006;
 inline constexpr int kMsgTagSetAllKeyNotesEnabled = 1007;
 inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
+inline constexpr int kMsgTagSetBreathCCSource = 1009;
 
 struct SetKeyNoteOscillatorParameterPayload
 {
@@ -48,6 +50,11 @@ struct SetAllKeyNotesEnabledPayload
 struct SetAllKeyNotesEqEnabledPayload
 {
   int enabled{0};
+};
+
+struct SetBreathCCSourcePayload
+{
+  int source{static_cast<int>(kDefaultBreathCCSource)};
 };
 
 struct EqCurvePointPayload
