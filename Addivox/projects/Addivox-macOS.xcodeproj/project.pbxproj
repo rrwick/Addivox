@@ -535,6 +535,7 @@
 		A1B2C3013C7F000100000002 /* effects.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = effects.cpp; path = ../src/settings/effects.cpp; sourceTree = SOURCE_ROOT; };
 		4F6E674621C5614C005991A9 /* transformations.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = transformations.h; path = ../src/ui/transformations.h; sourceTree = SOURCE_ROOT; };
 		4F6E674721C5614C005991A9 /* transformations.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = transformations.cpp; path = ../src/ui/transformations.cpp; sourceTree = SOURCE_ROOT; };
+		A1B2C3013C7F0001000000F1 /* knob.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = knob.h; path = ../src/ui/knob.h; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000003 /* reverb.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = reverb.h; path = ../src/effects/reverb.h; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000004 /* reverb.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = reverb.cpp; path = ../src/effects/reverb.cpp; sourceTree = SOURCE_ROOT; };
 		A1B2C3013C7F000100000005 /* drive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = drive.h; path = ../src/effects/drive.h; sourceTree = SOURCE_ROOT; };
@@ -1226,6 +1227,7 @@
 					A1B2C3013C7F000100000009 /* tone.h */,
 					A1B2C3013C7F000100000010 /* tone.cpp */,
 					4F6E674621C5614C005991A9 /* transformations.h */,
+					A1B2C3013C7F0001000000F1 /* knob.h */,
 				4F6E674721C5614C005991A9 /* transformations.cpp */,
 			);
 			path = Synth;

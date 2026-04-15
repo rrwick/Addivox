@@ -4,13 +4,12 @@
 #include "IVPresetManagerControls.h"
 #include "about_built_with_control.h"
 #include "colour.h"
-#include "control_utils.h"
-#include "layered_svg_knob_control.h"
-#include "number_box_control.h"
+#include "editor_messages.h"
 #include "editor_panel.h"
 #include "help_text.h"
+#include "knob.h"
+#include "number_box_control.h"
 #include "theme.h"
-#include "editor_messages.h"
 #include "../settings/params.h"
 
 #include <array>
@@ -27,31 +26,6 @@ using namespace igraphics;
 
 namespace layout
 {
-struct KnobAssets
-{
-  ISVG fixed;
-  ISVG rotating;
-};
-
-struct KnobValueSpec
-{
-  IRECT knobBounds;
-  IRECT valueBounds;
-  int paramIdx = kNoParameter;
-};
-
-struct LabelledKnobValueSpec : KnobValueSpec
-{
-  const char* label = "";
-  IRECT labelBounds;
-};
-
-inline void SetTooltipIfPresent(IControl* control, const char* tooltip)
-{
-  if(control && tooltip && tooltip[0] != '\0')
-    control->SetTooltip(tooltip);
-}
-
 inline bool ShowAboutBox(IGraphics* pGraphics, int aboutBoxTag)
 {
   if(!pGraphics)
@@ -81,64 +55,6 @@ inline IActionFunction MakeImmediateButtonAction(Callback&& callback)
 
     cb(caller);
   };
-}
-
-inline void AttachKnob(IGraphics* pGraphics,
-                       const KnobAssets& assets,
-                       const IRECT& bounds,
-                       int paramIdx,
-                       const char* tooltip = nullptr)
-{
-  auto* control = new LayeredSVGKnobControl(bounds, assets.fixed, assets.rotating, paramIdx);
-  SetTooltipIfPresent(control, tooltip);
-  pGraphics->AttachControl(control);
-}
-
-inline void AttachPassiveText(IGraphics* pGraphics,
-                              const IRECT& bounds,
-                              const char* text,
-                              const IText& style,
-                              const char* tooltip = nullptr)
-{
-  auto* control = MakePassiveControl(new ITextControl(bounds, text, style, COLOR_TRANSPARENT));
-  SetTooltipIfPresent(control, tooltip);
-  pGraphics->AttachControl(control);
-}
-
-inline void AttachPassiveCaption(IGraphics* pGraphics,
-                                 const IRECT& bounds,
-                                 int paramIdx,
-                                 const IText& style,
-                                 const char* tooltip = nullptr)
-{
-  auto* control = MakePassiveControl(new ICaptionControl(bounds, paramIdx, style, COLOR_TRANSPARENT, true));
-  SetTooltipIfPresent(control, tooltip);
-  pGraphics->AttachControl(control);
-}
-
-inline void AttachKnobWithValue(IGraphics* pGraphics,
-                                const KnobAssets& assets,
-                                const KnobValueSpec& spec,
-                                const IText& valueText)
-{
-  const char* const tooltip = help_text::main_ui::GetParam(spec.paramIdx);
-  AttachPassiveCaption(pGraphics, spec.valueBounds, spec.paramIdx, valueText, tooltip);
-  AttachKnob(pGraphics, assets, spec.knobBounds, spec.paramIdx, tooltip);
-}
-
-inline void AttachLabelledKnobWithValue(IGraphics* pGraphics,
-                                        const KnobAssets& assets,
-                                        const LabelledKnobValueSpec& spec,
-                                        const IText& labelText,
-                                        const IText& valueText)
-{
-  AttachKnobWithValue(pGraphics, assets, spec, valueText);
-  AttachPassiveText(
-    pGraphics,
-    spec.labelBounds,
-    spec.label,
-    labelText,
-    help_text::main_ui::GetParam(spec.paramIdx));
 }
 
 using OutMeterLEDRange = IVLEDMeterControl<2>::LEDRange;
@@ -672,29 +588,16 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachEnvelopePanelControls(IGraphics* pGraphics,
-                                        const PanelResources& resources)
+                                        const PanelResources&)
 {
-  const std::array<LabelledKnobValueSpec, 2> envelopeKnobs{{
-    {{IRECT::MakeMidXYWH(216.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(245.f, 481.f, 70.f, 12.f), kParamGlobalAttackScale}, "Attack", IRECT::MakeXYWH(245.f, 468.f, 70.f, 12.f)},
-    {{IRECT::MakeMidXYWH(312.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(343.f, 481.f, 70.f, 12.f), kParamGlobalReleaseScale}, "Release", IRECT::MakeXYWH(343.f, 468.f, 70.f, 12.f)}
-  }};
-
-  for(const auto& spec : envelopeKnobs)
-    AttachLabelledKnobWithValue(pGraphics, resources.knobAssets, spec, resources.compactLabelText, resources.compactValueText);
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(190.f, 454.5f, 108.f, 52.f), kParamGlobalAttackScale, "Attack", 3.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(286.f, 454.5f, 108.f, 52.f), kParamGlobalReleaseScale, "Release", 5.f));
 }
 
 inline void AttachPitchPanelControls(IGraphics* pGraphics,
                                      const PanelResources& resources)
 {
-  const LabelledKnobValueSpec pitchKnob{
-    {IRECT::MakeMidXYWH(510.f, 480.5f, resources.knobSize, resources.knobSize),
-     IRECT::MakeXYWH(543.f, 481.f, 70.f, 12.f),
-     kParamGlobalPitchShift},
-    "Pitch",
-    IRECT::MakeXYWH(543.f, 468.f, 70.f, 12.f)
-  };
-
-  AttachLabelledKnobWithValue(pGraphics, resources.knobAssets, pitchKnob, resources.compactLabelText, resources.compactValueText);
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(484.f, 454.5f, 108.f, 52.f), kParamGlobalPitchShift, "Pitch", 7.f));
   AttachPassiveCaption(
     pGraphics,
     IRECT::MakeXYWH(588.5f, 470.f, 50.f, 20.f),
@@ -738,8 +641,7 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
 inline void AttachBlipGuardPanelControls(IGraphics* pGraphics,
                                          const PanelResources& resources)
 {
-  const LabelledKnobValueSpec delayKnob{{IRECT::MakeMidXYWH(760.f, 480.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(792.f, 481.f, 44.f, 12.f), kParamBlipGuardDelay}, "Delay", IRECT::MakeXYWH(792.f, 468.f, 44.f, 12.f)};
-  AttachLabelledKnobWithValue(pGraphics,resources.knobAssets,delayKnob,resources.compactLabelText,resources.compactValueText);
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(734.f, 454.5f, 102.f, 52.f), kParamBlipGuardDelay, "Delay"));
   AttachPassiveText(pGraphics,IRECT::MakeXYWH(837.f, 458.f, 70.f, 12.f),"Interval",resources.compactLabelText,help_text::main_ui::kBlipGuardInterval);
   auto* intervalControl = new NumberBoxControl(IRECT::MakeXYWH(837.f, 474.f, 58.f, 30.f), kParamBlipGuardInterval, resources.numberBoxStyle, 7.0, 2.0, 12.0, "%0.0f");
   pGraphics->AttachControl(intervalControl);
@@ -763,36 +665,19 @@ inline void AttachVariationPanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachOutputPanelControls(IGraphics* pGraphics,
-                                      const PanelResources& resources)
+                                      const PanelResources&)
 {
-  const std::array<LabelledKnobValueSpec, 2> outputKnobs{{
-    {{IRECT::MakeMidXYWH(946.f, 342.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(978.f, 343.f, 50.f, 12.f), kParamGlobalPanShift}, "Pan", IRECT::MakeXYWH(978.f, 330.f, 50.f, 12.f)},
-    {{IRECT::MakeMidXYWH(1052.f, 342.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1084.f, 343.f, 50.f, 12.f), kParamGlobalLevel}, "Level", IRECT::MakeXYWH(1084.f, 330.f, 50.f, 12.f)}
-  }};
-
-  for(const auto& spec : outputKnobs)
-    AttachLabelledKnobWithValue(pGraphics, resources.knobAssets, spec, resources.compactLabelText, resources.compactValueText);
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(920.f, 316.5f, 108.f, 52.f), kParamGlobalPanShift, "Pan"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(1026.f, 316.5f, 108.f, 52.f), kParamGlobalLevel, "Level"));
 }
 
 inline void AttachEffectsPanelControls(IGraphics* pGraphics,
-                                       const PanelResources& resources)
+                                       const PanelResources&)
 {
-  const std::array<LabelledKnobValueSpec, 4> effectKnobs{{
-    {{IRECT::MakeMidXYWH(946.f, 430.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(978.f, 431.f, 60.f, 12.f), kParamEffectsDrive}, "Drive", IRECT::MakeXYWH(978.f, 418.f, 60.f, 12.f)},
-    {{IRECT::MakeMidXYWH(1052.f, 430.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1084.f, 431.f, 60.f, 12.f), kParamEffectsTone}, "Tone", IRECT::MakeXYWH(1084.f, 418.f, 60.f, 12.f)},
-    {{IRECT::MakeMidXYWH(946.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(978.f, 483.f, 60.f, 12.f), kParamEffectsChorus}, "Chorus", IRECT::MakeXYWH(978.f, 470.f, 60.f, 12.f)},
-    {{IRECT::MakeMidXYWH(1052.f, 482.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1084.f, 483.f, 60.f, 12.f), kParamEffectsReverb}, "Reverb", IRECT::MakeXYWH(1084.f, 470.f, 60.f, 12.f)}
-  }};
-
-  for(const auto& spec : effectKnobs)
-  {
-    AttachLabelledKnobWithValue(
-      pGraphics,
-      resources.knobAssets,
-      spec,
-      resources.compactLabelText,
-      resources.compactValueText);
-  }
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(920.f, 404.5f, 108.f, 52.f), kParamEffectsDrive, "Drive"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(1026.f, 404.5f, 108.f, 52.f), kParamEffectsTone, "Tone"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(920.f, 456.5f, 108.f, 52.f), kParamEffectsChorus, "Chorus"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(1026.f, 456.5f, 108.f, 52.f), kParamEffectsReverb, "Reverb"));
 }
 } // namespace layout
 
