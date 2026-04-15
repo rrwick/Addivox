@@ -70,7 +70,6 @@ public:
       mConfig.range = ValueRange{};
 
     ApplyBaseValue();
-
     for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
       SetOscillatorValue(oscillatorIndex, oscillatorValues[static_cast<std::size_t>(oscillatorIndex)]);
 
@@ -179,11 +178,16 @@ public:
       return;
 
     IRECT plotBounds = mWidgetBounds.GetReducedFromTop(readoutBandHeight).GetReducedFromBottom(readoutBandHeight);
-    const float sidePadding = 15.f;
-    mWidgetBounds = plotBounds.GetReducedFromLeft(sidePadding).GetReducedFromRight(sidePadding);
+    mWidgetBounds = plotBounds.GetReducedFromLeft(15.f).GetReducedFromRight(15.f);
     MakeTrackRects(mWidgetBounds);
     MakeStepRects(mWidgetBounds, mNSteps);
     SetDirty(false);
+  }
+
+  void OnRescale() override
+  {
+    Base::OnRescale();
+    OnResize();
   }
 
   void DrawWidget(IGraphics& g) override
@@ -195,6 +199,55 @@ public:
       return;
 
     DrawOscillatorReadout(g, oscillatorIndex);
+  }
+
+  void DrawBackground(IGraphics& g, const IRECT& r) override
+  {
+    g.FillRect(GetColor(kBG), r, &mBlend);
+
+    if(mBaseValue <= 0.)
+      return;
+
+    const float scale = GetBackingPixelScale();
+    if(mDirection == EDirection::Horizontal)
+    {
+      const float baseX = RoundToPixelBoundary(r.L + (r.W() * static_cast<float>(mBaseValue)), scale);
+      g.DrawVerticalLine(GetColor(kSH), baseX, r.T, r.B, &mBlend);
+    }
+    else
+    {
+      const float baseY = RoundToPixelBoundary(r.B - (r.H() * static_cast<float>(mBaseValue)), scale);
+      g.DrawHorizontalLine(GetColor(kSH), baseY, r.L, r.R, &mBlend);
+    }
+  }
+
+  void DrawTrackHandle(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override
+  {
+    const IColor fillColor = chIdx == mHighlightedTrack ? GetColor(kX1) : GetColor(kFG);
+
+    if(UsesBipolarRange())
+    {
+      DrawBipolarBarFill(g, r, aboveBaseValue, fillColor);
+
+      if(chIdx == mMouseOverTrack)
+        DrawBipolarBarFill(g, r, aboveBaseValue, GetColor(kHL));
+
+      return;
+    }
+
+    const IRECT alignedRect = GetAlignedFillRect(r, aboveBaseValue);
+    if(alignedRect.W() <= 0.f || alignedRect.H() <= 0.f)
+      return;
+
+    DrawBarFill(g, r, alignedRect, aboveBaseValue, fillColor);
+
+    if(chIdx == mMouseOverTrack)
+      DrawBarFill(g, r, alignedRect, aboveBaseValue, GetColor(kHL));
+  }
+
+  void DrawPeak(IGraphics&, const IRECT&, int, bool) override
+  {
+    // Remove the inherited contrasting cap for a cleaner look.
   }
 
   void SnapToMouse(float x,
@@ -274,6 +327,286 @@ private:
   static double ClampSignedUnit(double value)
   {
     return std::clamp(value, -1.0, 1.0);
+  }
+
+  static float FloorToPixelBoundary(float value, float scale)
+  {
+    return static_cast<float>(std::floor(static_cast<double>(value) * static_cast<double>(scale))
+                              / static_cast<double>(scale));
+  }
+
+  static float CeilToPixelBoundary(float value, float scale)
+  {
+    return static_cast<float>(std::ceil(static_cast<double>(value) * static_cast<double>(scale))
+                              / static_cast<double>(scale));
+  }
+
+  static float RoundToPixelBoundary(float value, float scale)
+  {
+    return static_cast<float>(std::round(static_cast<double>(value) * static_cast<double>(scale))
+                              / static_cast<double>(scale));
+  }
+
+  float GetBackingPixelScale() const
+  {
+    if(const IGraphics* ui = GetUI())
+      return std::max(1.f, ui->GetTotalScale());
+
+    return 1.f;
+  }
+
+  static IColor ScaleColorOpacity(const IColor& color, float opacity)
+  {
+    IColor scaled = color;
+    scaled.A = static_cast<int>(std::round(static_cast<float>(color.A) * std::clamp(opacity, 0.f, 1.f)));
+    return scaled;
+  }
+
+  static std::pair<float, float> GetPixelAlignedLengthParts(float length, float scale)
+  {
+    const double scaledLength = std::max(0.0, static_cast<double>(length) * static_cast<double>(scale));
+    double wholePixels = 0.0;
+    double fractional = std::modf(scaledLength, &wholePixels);
+
+    if(fractional <= 1.0e-6)
+      fractional = 0.0;
+    else if((1.0 - fractional) <= 1.0e-6)
+    {
+      wholePixels += 1.0;
+      fractional = 0.0;
+    }
+
+    return {
+      static_cast<float>(wholePixels / static_cast<double>(scale)),
+      static_cast<float>(fractional)
+    };
+  }
+
+  static float GetPositiveEdgeCoverage(float edge, float scale)
+  {
+    const double scaledEdge = static_cast<double>(edge) * static_cast<double>(scale);
+    const double fractional = scaledEdge - std::floor(scaledEdge);
+
+    if(fractional <= 1.0e-6 || fractional >= 1.0 - 1.0e-6)
+      return 0.f;
+
+    return static_cast<float>(fractional);
+  }
+
+  static float GetNegativeEdgeCoverage(float edge, float scale)
+  {
+    const float coverage = GetPositiveEdgeCoverage(edge, scale);
+    if(coverage <= 0.f)
+      return 0.f;
+
+    return 1.f - coverage;
+  }
+
+  float GetTipCoverage(const IRECT& r, bool aboveBaseValue, float scale) const
+  {
+    if(r.W() <= 0.f || r.H() <= 0.f)
+      return 0.f;
+
+    if(mDirection == EDirection::Horizontal)
+      return aboveBaseValue ? GetPositiveEdgeCoverage(r.R, scale) : GetNegativeEdgeCoverage(r.L, scale);
+
+    return aboveBaseValue ? GetNegativeEdgeCoverage(r.T, scale) : GetPositiveEdgeCoverage(r.B, scale);
+  }
+
+  IRECT GetBipolarCoreRect(const IRECT& r, bool aboveBaseValue, float scale) const
+  {
+    const float thickness = 2.f / scale;
+    const float halfThickness = thickness * 0.5f;
+
+    if(mDirection == EDirection::Horizontal)
+    {
+      const float baseX = aboveBaseValue ? r.L : r.R;
+      const float left = RoundToPixelBoundary(baseX - halfThickness, scale);
+      return IRECT(left, r.T, left + thickness, r.B);
+    }
+
+    const float baseY = aboveBaseValue ? r.B : r.T;
+    const float top = RoundToPixelBoundary(baseY - halfThickness, scale);
+    return IRECT(r.L, top, r.R, top + thickness);
+  }
+
+  IRECT ExtendRectOutward(const IRECT& anchorRect, float length, bool aboveBaseValue) const
+  {
+    if(length <= 0.f)
+      return IRECT();
+
+    if(mDirection == EDirection::Horizontal)
+    {
+      if(aboveBaseValue)
+        return IRECT(anchorRect.R, anchorRect.T, anchorRect.R + length, anchorRect.B);
+
+      return IRECT(anchorRect.L - length, anchorRect.T, anchorRect.L, anchorRect.B);
+    }
+
+    if(aboveBaseValue)
+      return IRECT(anchorRect.L, anchorRect.T - length, anchorRect.R, anchorRect.T);
+
+    return IRECT(anchorRect.L, anchorRect.B, anchorRect.R, anchorRect.B + length);
+  }
+
+  void DrawBipolarBarFill(IGraphics& g,
+                          const IRECT& originalRect,
+                          bool aboveBaseValue,
+                          const IColor& color) const
+  {
+    const float scale = GetBackingPixelScale();
+    const float tipThickness = 1.f / scale;
+
+    // Keep a stable 2-pixel core centered on zero so exact-zero and near-zero
+    // bipolar values stay visually ordered while the value grows outward.
+    const IRECT coreRect = GetBipolarCoreRect(originalRect, aboveBaseValue, scale);
+    g.FillRect(color, coreRect, &mBlend);
+
+    const float extensionLength = mDirection == EDirection::Horizontal ? originalRect.W() : originalRect.H();
+    if(extensionLength <= 0.f)
+      return;
+
+    const auto [solidLength, tipCoverage] = GetPixelAlignedLengthParts(extensionLength, scale);
+    IRECT anchorRect = coreRect;
+
+    if(solidLength > 0.f)
+    {
+      const IRECT bodyRect = ExtendRectOutward(coreRect, solidLength, aboveBaseValue);
+      if(bodyRect.W() > 0.f && bodyRect.H() > 0.f)
+      {
+        g.FillRect(color, bodyRect, &mBlend);
+        anchorRect = bodyRect;
+      }
+    }
+
+    if(tipCoverage > 0.f)
+    {
+      const IRECT tipRect = ExtendRectOutward(anchorRect, tipThickness, aboveBaseValue);
+      if(tipRect.W() > 0.f && tipRect.H() > 0.f)
+        DrawPixelAlignedTip(g, tipRect, ScaleColorOpacity(color, tipCoverage));
+    }
+  }
+
+  void DrawPixelAlignedTip(IGraphics& g, const IRECT& tipRect, const IColor& color) const
+  {
+    if(tipRect.W() <= 0.f || tipRect.H() <= 0.f)
+      return;
+
+    // Use a line rather than a tiny rectangle so the partially covered final
+    // pixel row/column gets uniform alpha across the bar width.
+    if(mDirection == EDirection::Horizontal)
+    {
+      const float x = tipRect.MW();
+      g.DrawVerticalLine(color, x, tipRect.T, tipRect.B, &mBlend, tipRect.W());
+    }
+    else
+    {
+      const float y = tipRect.MH();
+      g.DrawHorizontalLine(color, y, tipRect.L, tipRect.R, &mBlend, tipRect.H());
+    }
+  }
+
+  void SplitAlignedTipRect(IRECT& bodyRect, IRECT& tipRect, bool aboveBaseValue, float tipThickness) const
+  {
+    if(mDirection == EDirection::Horizontal)
+    {
+      if(aboveBaseValue)
+      {
+        bodyRect.R = std::max(bodyRect.L, bodyRect.R - tipThickness);
+        tipRect.L = std::max(tipRect.L, tipRect.R - tipThickness);
+      }
+      else
+      {
+        bodyRect.L = std::min(bodyRect.R, bodyRect.L + tipThickness);
+        tipRect.R = std::min(tipRect.R, tipRect.L + tipThickness);
+      }
+    }
+    else
+    {
+      if(aboveBaseValue)
+      {
+        bodyRect.T = std::min(bodyRect.B, bodyRect.T + tipThickness);
+        tipRect.B = std::min(tipRect.B, tipRect.T + tipThickness);
+      }
+      else
+      {
+        bodyRect.B = std::max(bodyRect.T, bodyRect.B - tipThickness);
+        tipRect.T = std::max(tipRect.T, tipRect.B - tipThickness);
+      }
+    }
+  }
+
+  void DrawBarFill(IGraphics& g,
+                   const IRECT& originalRect,
+                   const IRECT& alignedRect,
+                   bool aboveBaseValue,
+                   const IColor& color) const
+  {
+    const float scale = GetBackingPixelScale();
+    const float tipCoverage = GetTipCoverage(originalRect, aboveBaseValue, scale);
+    if(tipCoverage <= 0.f)
+    {
+      g.FillRect(color, alignedRect, &mBlend);
+      return;
+    }
+
+    const float tipThickness = std::min(1.f / scale,
+                                        mDirection == EDirection::Horizontal ? alignedRect.W() : alignedRect.H());
+    IRECT bodyRect = alignedRect;
+    IRECT tipRect = alignedRect;
+    SplitAlignedTipRect(bodyRect, tipRect, aboveBaseValue, tipThickness);
+
+    if(bodyRect.W() > 0.f && bodyRect.H() > 0.f)
+      g.FillRect(color, bodyRect, &mBlend);
+
+    if(tipRect.W() > 0.f && tipRect.H() > 0.f)
+      DrawPixelAlignedTip(g, tipRect, ScaleColorOpacity(color, tipCoverage));
+  }
+
+  IRECT GetAlignedFillRect(const IRECT& r, bool aboveBaseValue) const
+  {
+    if(r.W() <= 0.f || r.H() <= 0.f)
+      return IRECT();
+
+    const float scale = GetBackingPixelScale();
+    IRECT aligned = r;
+
+    if(mDirection == EDirection::Horizontal)
+    {
+      if(aboveBaseValue)
+      {
+        aligned.L = RoundToPixelBoundary(r.L, scale);
+        aligned.R = CeilToPixelBoundary(r.R, scale);
+      }
+      else
+      {
+        aligned.L = FloorToPixelBoundary(r.L, scale);
+        aligned.R = RoundToPixelBoundary(r.R, scale);
+      }
+    }
+    else
+    {
+      if(aboveBaseValue)
+      {
+        aligned.T = FloorToPixelBoundary(r.T, scale);
+        aligned.B = RoundToPixelBoundary(r.B, scale);
+      }
+      else
+      {
+        aligned.T = RoundToPixelBoundary(r.T, scale);
+        aligned.B = CeilToPixelBoundary(r.B, scale);
+      }
+    }
+
+    return aligned;
+  }
+
+  static float GetSnappedSubdivisionEdge(float origin, float length, int index, int count, float scale)
+  {
+    const double scaledOrigin = static_cast<double>(origin) * static_cast<double>(scale);
+    const double scaledLength = static_cast<double>(length) * static_cast<double>(scale);
+    const double scaledEdge = scaledOrigin + (scaledLength * static_cast<double>(index)) / static_cast<double>(count);
+    return static_cast<float>(std::round(scaledEdge) / static_cast<double>(scale));
   }
 
   EditorOscillatorEditMode GetOscillatorEditMode() const
@@ -747,9 +1080,14 @@ private:
     return mConfig.range.min + (Clamp01(normalizedValue) * range);
   }
 
+  bool UsesBipolarRange() const
+  {
+    return mConfig.range.min < 0.0 && mConfig.range.max > 0.0;
+  }
+
   bool UsesMirroredBipolarTransform() const
   {
-    if(mConfig.range.min >= 0.0 || mConfig.range.max <= 0.0)
+    if(!UsesBipolarRange())
       return false;
 
     const double minMagnitude = std::fabs(mConfig.range.min);
@@ -893,6 +1231,8 @@ private:
   {
     const int nVals = NVals();
     const int dir = static_cast<int>(mDirection);
+    const float scale = GetBackingPixelScale();
+    const float gapSize = 2.f / scale;
 
     for(int ch = 0; ch < nVals; ++ch)
       mTrackBounds.Get()[ch] = IRECT();
@@ -904,9 +1244,31 @@ private:
     for(int ch = visibleMin; ch <= visibleMax; ++ch)
     {
       const int visibleIndex = ch - visibleMin;
-      mTrackBounds.Get()[ch] = bounds.SubRect(EDirection(!dir), visibleCount, visibleIndex)
-                                     .GetPadded(0, -mTrackPadding * static_cast<float>(dir),
-                                                -mTrackPadding * static_cast<float>(!dir), -mTrackPadding);
+      IRECT trackBounds = bounds.SubRect(EDirection(!dir), visibleCount, visibleIndex)
+                                .GetPadded(0, -mTrackPadding * static_cast<float>(dir),
+                                           -mTrackPadding * static_cast<float>(!dir), -mTrackPadding);
+
+      if(mDirection == EDirection::Horizontal)
+      {
+        trackBounds.T = GetSnappedSubdivisionEdge(bounds.T, bounds.H(), visibleIndex, visibleCount, scale);
+        trackBounds.B = GetSnappedSubdivisionEdge(bounds.T, bounds.H(), visibleIndex + 1, visibleCount, scale);
+      }
+      else
+      {
+        trackBounds.L = GetSnappedSubdivisionEdge(bounds.L, bounds.W(), visibleIndex, visibleCount, scale);
+        trackBounds.R = GetSnappedSubdivisionEdge(bounds.L, bounds.W(), visibleIndex + 1, visibleCount, scale);
+      }
+
+      // Keep a visible separator between adjacent bars after snapping columns to the pixel grid.
+      if(ch < visibleMax)
+      {
+        if(mDirection == EDirection::Horizontal)
+          trackBounds.B = std::max(trackBounds.T, trackBounds.B - gapSize);
+        else
+          trackBounds.R = std::max(trackBounds.L, trackBounds.R - gapSize);
+      }
+
+      mTrackBounds.Get()[ch] = trackBounds;
     }
   }
 
