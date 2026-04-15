@@ -514,9 +514,13 @@ inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& re
       },
       [](IContainerBase* pParent, const IRECT& r) {
         const IRECT content = r.GetCentredInside(920.f, 320.f);
+        const IRECT urlRow = IRECT::MakeXYWH(content.L + 24.f, content.T + 210.f, content.W() - 48.f, 24.f);
+        IRECT urlTextBounds;
+        pParent->GetUI()->MeasureText(theme::AboutLinkText(), PLUG_URL_DISPLAY_STR, urlTextBounds);
+
         pParent->GetChild(0)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.MW() - 410.f, content.T +  30.f, 820.f, 112.f));
         pParent->GetChild(1)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L,            content.T + 160.f, content.W(),        30.f));
-        pParent->GetChild(2)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + 24.f,     content.T + 210.f, content.W() - 48.f, 24.f));
+        pParent->GetChild(2)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(urlRow.MW() - (urlTextBounds.W() * 0.5f), urlRow.T, urlTextBounds.W(), urlRow.H()));
         pParent->GetChild(3)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L,            content.T + 240.f, content.W(),        24.f));
         pParent->GetChild(4)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + 24.f,     content.T + 270.f, content.W() - 48.f, 24.f));
         pParent->GetChild(5)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L,            content.T + 300.f, content.W(),        24.f));
