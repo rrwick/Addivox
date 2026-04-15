@@ -79,8 +79,8 @@ struct HarmonicTabLayout
 // pointer values rather than insertion order. Keeping all titles in one contiguous buffer
 // makes the pointer order deterministic and match the desired tab order.
 inline constexpr char kOscillatorTabTitleStorage[] =
-  "Level\0"
   "EQ\0"
+  "Level\0"
   "Breath\0"
   "Attack\0"
   "Release\0"
@@ -93,10 +93,10 @@ inline constexpr char kOscillatorTabTitleStorage[] =
   "PchVarAmt\0"
   "PchVarRate\0";
 
-inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 6;
+inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 0;
 
 inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOscillatorTabTitles{{
-  kOscillatorTabTitleStorage + 0,
+  kOscillatorTabTitleStorage + 3,
   kOscillatorTabTitleStorage + 9,
   kOscillatorTabTitleStorage + 16,
   kOscillatorTabTitleStorage + 23,
