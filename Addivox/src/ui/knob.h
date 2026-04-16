@@ -66,7 +66,7 @@ public:
 
     mKnobControl = new LayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
     mValueControl = MakePassiveControl(
-      new ICaptionControl(IRECT(), mParamIdx, theme::CompactValueText(EAlign::Center), COLOR_TRANSPARENT, true));
+      new ICaptionControl(IRECT(), mParamIdx, theme::CompactValueText(EAlign::Center), COLOR_TRANSPARENT, false));
     mLabelControl = MakePassiveControl(
       new ITextControl(IRECT(), mLabel.Get(), theme::CompactLabelText(EAlign::Center), COLOR_TRANSPARENT));
 

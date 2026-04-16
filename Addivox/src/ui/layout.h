@@ -582,50 +582,24 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
 inline void AttachEnvelopePanelControls(IGraphics* pGraphics,
                                         const PanelResources&)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(190.f, 454.5f, 50.f, 60.f), kParamGlobalAttackScale, "Attack", 3.f));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(286.f, 454.5f, 50.f, 60.f), kParamGlobalReleaseScale, "Release", 5.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(190.f, 550.f, 50.f, 60.f), kParamGlobalAttackScale, "Attack", 3.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(286.f, 550.f, 50.f, 60.f), kParamGlobalReleaseScale, "Release", 5.f));
 }
 
 inline void AttachPitchPanelControls(IGraphics* pGraphics,
                                      const PanelResources& resources)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(484.f, 454.5f, 50.f, 60.f), kParamGlobalPitchShift, "Pitch", 7.f));
-  AttachPassiveCaption(
-    pGraphics,
-    IRECT::MakeXYWH(588.5f, 470.f, 50.f, 20.f),
-    kParamPortamentoAtCC5Min,
-    resources.portamentoValueText,
-    help_text::main_ui::kPortamento);
-  AttachPassiveCaption(
-    pGraphics,
-    IRECT::MakeXYWH(664.f, 489.f, 50.f, 20.f),
-    kParamPortamentoAtCC5Max,
-    resources.portamentoValueText,
-    help_text::main_ui::kPortamento);
-  auto* portamentoControl = new IVRangeSliderControl(
-    IRECT::MakeXYWH(585.f, 474.f, 132.f, 30.f),
-    {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max},
-    "",
-    resources.portamentoRangeSliderStyle,
-    EDirection::Horizontal,
-    true,
-    9.f,
-    3.f);
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(484.f, 550.f, 50.f, 60.f), kParamGlobalPitchShift, "Pitch", 7.f));
+
+  AttachPassiveText(pGraphics, IRECT::MakeXYWH(564.f, 594.f, 70.f, 12.f), "Portamento", resources.compactLabelText, help_text::main_ui::kPortamento);
+  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(533.5f, 554.f, 50.f, 20.f), kParamPortamentoAtCC5Min, resources.portamentoValueText, help_text::main_ui::kPortamento);
+  AttachPassiveCaption(pGraphics, IRECT::MakeXYWH(609.f, 573.f, 50.f, 20.f), kParamPortamentoAtCC5Max, resources.portamentoValueText, help_text::main_ui::kPortamento);
+  auto* portamentoControl = new IVRangeSliderControl(IRECT::MakeXYWH(530.f, 558.f, 132.f, 30.f), {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max}, "", resources.portamentoRangeSliderStyle, EDirection::Horizontal, true, 9.f, 3.f);
   portamentoControl->SetTooltip(help_text::main_ui::kPortamento);
   pGraphics->AttachControl(portamentoControl);
-  AttachPassiveText(
-    pGraphics,
-    IRECT::MakeXYWH(594.f, 458.f, 70.f, 12.f),
-    "Portamento",
-    resources.compactLabelText,
-    help_text::main_ui::kPortamento);
-  AttachPassiveText(
-    pGraphics,
-    IRECT::MakeXYWH(410.f, 458.f, 80.f, 12.f),
-    "Transpose",
-    resources.compactLabelText,
-    help_text::main_ui::kTranspose);
-  auto* transposeControl = new NumberBoxControl(IRECT::MakeXYWH(410.f, 474.f, 58.f, 30.f), kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%0.0f");
+
+  AttachPassiveText(pGraphics, IRECT::MakeXYWH(420.f, 594.f, 80.f, 12.f), "Transpose", resources.compactLabelText, help_text::main_ui::kTranspose);
+  auto* transposeControl = new NumberBoxControl(IRECT::MakeXYWH(420.f, 560.f, 58.f, 30.f), kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%0.0f");
   pGraphics->AttachControl(transposeControl);
   transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 }
