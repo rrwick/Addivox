@@ -64,11 +64,11 @@ public:
     const ISVG fixedSVG = ui->LoadSVG("knob-fixed.svg");
     const ISVG rotatingSVG = ui->LoadSVG("knob-rotating.svg");
 
-    mKnobControl = new LayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx);
+    mKnobControl = new LayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
     mValueControl = MakePassiveControl(
-      new ICaptionControl(IRECT(), mParamIdx, theme::CompactValueText(), COLOR_TRANSPARENT, true));
+      new ICaptionControl(IRECT(), mParamIdx, theme::CompactValueText(EAlign::Center), COLOR_TRANSPARENT, true));
     mLabelControl = MakePassiveControl(
-      new ITextControl(IRECT(), mLabel.Get(), theme::CompactLabelText(), COLOR_TRANSPARENT));
+      new ITextControl(IRECT(), mLabel.Get(), theme::CompactLabelText(EAlign::Center), COLOR_TRANSPARENT));
 
     AddChildControl(mKnobControl);
     AddChildControl(mValueControl);
@@ -94,26 +94,33 @@ public:
   }
 
 private:
-  IRECT GetKnobBounds() const
+  float GetKnobTextGap() const
   {
-    return IRECT::MakeXYWH(mRECT.L, mRECT.T, mRECT.H(), mRECT.H());
+    return std::clamp(mKnobTextGap, 0.f, 2.f);
   }
 
-  IRECT GetTextBlockBounds() const
+  IRECT GetKnobBounds() const
   {
-    const float textWidth = std::max(0.f, mRECT.W() - mRECT.H() - mKnobTextGap);
-    return IRECT::MakeXYWH(mRECT.L + mRECT.H() + mKnobTextGap, mRECT.T, textWidth, mRECT.H());
+    constexpr float kTextHeight = 12.f;
+    constexpr float kTextLineGap = 0.f;
+
+    const float knobTextGap = GetKnobTextGap();
+    const float textBlockHeight = (2.f * kTextHeight) + kTextLineGap;
+    const float knobSize = std::max(0.f, std::min(mRECT.W(), mRECT.H() - textBlockHeight - knobTextGap));
+    return IRECT::MakeXYWH(mRECT.MW() - (knobSize * 0.5f), mRECT.T, knobSize, knobSize);
   }
 
   IRECT GetTextLineBounds(int lineDirection) const
   {
     constexpr float kTextHeight = 12.f;
-    constexpr float kLineCenterOffset = 6.5f;
+    constexpr float kTextLineGap = 0.f;
 
-    const IRECT textBounds = GetTextBlockBounds();
-    const float centerYOffset = kLineCenterOffset * static_cast<float>(lineDirection);
-    const float centerY = mRECT.MH() + centerYOffset;
-    return IRECT::MakeXYWH(textBounds.L, centerY - (kTextHeight * 0.5f), textBounds.W(), kTextHeight);
+    const IRECT knobBounds = GetKnobBounds();
+    const float labelTop = knobBounds.B + GetKnobTextGap();
+    const float valueTop = labelTop + kTextHeight + kTextLineGap;
+    const float top = (lineDirection < 0) ? labelTop : valueTop;
+
+    return IRECT::MakeXYWH(mRECT.L, top, mRECT.W(), kTextHeight);
   }
 
   int mParamIdx = kNoParameter;

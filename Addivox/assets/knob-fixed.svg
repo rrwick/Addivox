@@ -1,24 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 126 126">
-  <defs>
-    <linearGradient id="linear-gradient" x1="27.64" y1="27.64" x2="98.36" y2="98.36" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#fff"/>
-      <stop offset="1" stop-color="#000"/>
-    </linearGradient>
-  </defs>
-  <circle cx="63" cy="63" r="49.5" style="fill: #bcbcbc;"/>
-  <path d="M63,18c24.81,0,45,20.19,45,45s-20.19,45-45,45-45-20.19-45-45S38.19,18,63,18M63,13c-27.61,0-50,22.39-50,50s22.39,50,50,50,50-22.39,50-50S90.61,13,63,13h0Z" style="fill: url(#linear-gradient);"/>
-  <circle cx="104.01" cy="104.01" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="21.99" cy="104.01" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="9.41" cy="85.2" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="5" cy="63" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="9.41" cy="40.8" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="21.99" cy="21.99" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="40.8" cy="9.41" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="63" cy="5" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="85.2" cy="9.41" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="104.01" cy="21.99" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="116.59" cy="40.8" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="121" cy="63" r="2.5" style="fill: #bcbcbc;"/>
-  <circle cx="116.59" cy="85.2" r="2.5" style="fill: #bcbcbc;"/>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+  <path d="M28.996,97.308c-14.943-8.646-24.996-24.803-24.996-43.308C4,26.386,26.386,4,54,4s50,22.386,50,50c0,18.505-10.053,34.663-24.996,43.308" fill="none" stroke="#bcbcbc" stroke-linecap="round" stroke-miterlimit="10" stroke-width="8"/>
 </svg>

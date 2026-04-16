@@ -330,36 +330,28 @@ inline void AttachTitlePanelControls(IGraphics* pGraphics,
       delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
   };
 
-  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(430.f, 14.f, 285.f, 42.f), "", theme::PresetManagerStyle());
+  auto* presetManagerControl = new BakedPresetManagerControl(IRECT::MakeXYWH(325.f, 14.f, 270.f, 42.f), "", theme::PresetManagerStyle());
 
   auto* loadPresetButton = new IVButtonControl(
-    IRECT::MakeXYWH(715.f, 14.f, 50.f, 42.f),
+    IRECT::MakeXYWH(595.f, 14.f, 50.f, 42.f),
     MakeImmediateButtonAction([sendPresetFileMessage](IControl* caller) {
       sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
-    }),
-    "Load",
-    theme::PresetActionButtonStyle(),
-    true,
-    false);
+    }), "Load", theme::PresetActionButtonStyle(), true, false);
 
   auto* savePresetButton = new IVButtonControl(
-    IRECT::MakeXYWH(765.f, 14.f, 50.f, 42.f),
+    IRECT::MakeXYWH(645.f, 14.f, 50.f, 42.f),
     MakeImmediateButtonAction([sendPresetFileMessage](IControl* caller) {
       sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
-    }),
-    "Save",
-    theme::PresetActionButtonStyle(),
-    true,
-    false);
+    }), "Save", theme::PresetActionButtonStyle(), true, false);
 
   auto* settingsButton = new SettingsMenuButton(
-    IRECT::MakeXYWH(822.f, 19.f, 32.f, 32.f),
+    IRECT::MakeXYWH(707.f, 19.f, 32.f, 32.f),
     pGraphics->LoadSVG("gear.svg"),
     context->model.breathCCSource,
     context->model.harmonicVisualizerEnabled);
 
   auto* aboutButton = new IVButtonControl(
-    IRECT::MakeXYWH(860.f, 19.f, 32.f, 32.f),
+    IRECT::MakeXYWH(745.f, 19.f, 32.f, 32.f),
     MakeImmediateButtonAction([pGraphics, aboutBoxTag](IControl*) {
       ShowAboutBox(pGraphics, aboutBoxTag);
     }),
@@ -406,7 +398,7 @@ inline PanelResources MakePanelResources(IGraphics* pGraphics)
 
 inline void AttachOutputMeterPanel(IGraphics* pGraphics, const PanelResources& resources, int outMeterTag)
 {
-  const IRECT outMeterBounds = IRECT::MakeXYWH(913.f, 11.f, 226.f, 46.f);
+  const IRECT outMeterBounds = IRECT::MakeXYWH(790.f, 11.f, 200.f, 46.f);
   auto* outMeter = new IVLEDMeterControl<2>(
     outMeterBounds, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
   outMeter->SetResponse(IVMeterControl<2>::EResponse::Linear);
@@ -568,8 +560,8 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
                                         int keyboardTag,
                                         int benderTag)
 {
-  const IRECT wheelsBounds = IRECT::MakeXYWH(6.f, 522.f, 35.f, 114.f);
-  const IRECT keyboardBounds = IRECT::MakeXYWH(40.f, 522.f, 1098.f, 114.f);
+  const IRECT wheelsBounds = IRECT::MakeXYWH(4.f, 630.f, 35.f, 110.f);
+  const IRECT keyboardBounds = IRECT::MakeXYWH(38.f, 630.f, 952.f, 110.f);
 
   auto* keyboardControl = new KeyboardControl(keyboardBounds, 21, 108);
   RefreshKeyboardKeyNoteHighlights(keyboardControl, context->Preset());
@@ -577,7 +569,7 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
     context->SetSelectedMidiNote(midiNote);
     context->RefreshOscillatorTabs();
     context->RefreshEditorActionButtons();
-  });
+});
   keyboardControl->SetSelectedMidiNote(context->SelectedMidiNote());
   keyboardControl->SetTooltip(help_text::main_ui::kKeyboard);
 
@@ -590,14 +582,14 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
 inline void AttachEnvelopePanelControls(IGraphics* pGraphics,
                                         const PanelResources&)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(190.f, 454.5f, 108.f, 52.f), kParamGlobalAttackScale, "Attack", 3.f));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(286.f, 454.5f, 108.f, 52.f), kParamGlobalReleaseScale, "Release", 5.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(190.f, 454.5f, 50.f, 60.f), kParamGlobalAttackScale, "Attack", 3.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(286.f, 454.5f, 50.f, 60.f), kParamGlobalReleaseScale, "Release", 5.f));
 }
 
 inline void AttachPitchPanelControls(IGraphics* pGraphics,
                                      const PanelResources& resources)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(484.f, 454.5f, 108.f, 52.f), kParamGlobalPitchShift, "Pitch", 7.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(484.f, 454.5f, 50.f, 60.f), kParamGlobalPitchShift, "Pitch", 7.f));
   AttachPassiveCaption(
     pGraphics,
     IRECT::MakeXYWH(588.5f, 470.f, 50.f, 20.f),
@@ -667,17 +659,17 @@ inline void AttachVariationPanelControls(IGraphics* pGraphics,
 inline void AttachOutputPanelControls(IGraphics* pGraphics,
                                       const PanelResources&)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(920.f, 316.5f, 108.f, 52.f), kParamGlobalPanShift, "Pan"));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(1026.f, 316.5f, 108.f, 52.f), kParamGlobalLevel, "Level"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(670.f, 550.f, 50.f, 60.f), kParamGlobalPanShift, "Pan"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(720.f, 550.f, 50.f, 60.f), kParamGlobalLevel, "Level"));
 }
 
 inline void AttachEffectsPanelControls(IGraphics* pGraphics,
                                        const PanelResources&)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(920.f, 404.5f, 108.f, 52.f), kParamEffectsDrive, "Drive"));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(1026.f, 404.5f, 108.f, 52.f), kParamEffectsTone, "Tone"));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(920.f, 456.5f, 108.f, 52.f), kParamEffectsChorus, "Chorus"));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(1026.f, 456.5f, 108.f, 52.f), kParamEffectsReverb, "Reverb"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(790.f, 550.f, 50.f, 60.f), kParamEffectsDrive, "Drive"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(840.f, 550.f, 50.f, 60.f), kParamEffectsTone, "Tone"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(890.f, 550.f, 50.f, 60.f), kParamEffectsChorus, "Chorus"));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(940.f, 550.f, 50.f, 60.f), kParamEffectsReverb, "Reverb"));
 }
 } // namespace layout
 
@@ -702,8 +694,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachOutputMeterPanel(pGraphics, resources, outMeterTag);
 
   // Viz/edit panel: x=4, y=428, w=180, h=84
-  const auto vizEditPanel = layout::AttachVizEditPanelControls(
-    pGraphics, resources, context, harmonicVisualizerTag, editorTabsTag, keyboardTag, breathMeterTag);
+  const auto vizEditPanel = layout::AttachVizEditPanelControls(pGraphics, resources, context, harmonicVisualizerTag, editorTabsTag, keyboardTag, breathMeterTag);
 
   // Envelope panel: x=186, y=428, w=212, h=84
   layout::AttachEnvelopePanelControls(pGraphics, resources);
