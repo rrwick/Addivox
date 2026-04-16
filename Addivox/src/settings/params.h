@@ -20,7 +20,5 @@ enum EParams
   kParamEffectsChorus,
   kParamEffectsTone,
   kParamTranspose,
-  kParamBlipGuardDelay,
-  kParamBlipGuardInterval,
   kNumParams
 };

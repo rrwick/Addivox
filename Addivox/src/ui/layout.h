@@ -630,16 +630,6 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
   transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 }
 
-inline void AttachBlipGuardPanelControls(IGraphics* pGraphics,
-                                         const PanelResources& resources)
-{
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(734.f, 454.5f, 102.f, 52.f), kParamBlipGuardDelay, "Delay"));
-  AttachPassiveText(pGraphics,IRECT::MakeXYWH(837.f, 458.f, 70.f, 12.f),"Interval",resources.compactLabelText,help_text::main_ui::kBlipGuardInterval);
-  auto* intervalControl = new NumberBoxControl(IRECT::MakeXYWH(837.f, 474.f, 58.f, 30.f), kParamBlipGuardInterval, resources.numberBoxStyle, 7.0, 2.0, 12.0, "%0.0f");
-  pGraphics->AttachControl(intervalControl);
-  intervalControl->SetTooltip(help_text::main_ui::kBlipGuardInterval);
-}
-
 inline void AttachVariationPanelControls(IGraphics* pGraphics,
                                          const PanelResources& resources)
 {
@@ -701,9 +691,6 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
 
   // Pitch panel: x=400, y=428, w=322, h=84
   layout::AttachPitchPanelControls(pGraphics, resources);
-
-  // Blip guard panel: x=724, y=428, w=180, h=84
-  layout::AttachBlipGuardPanelControls(pGraphics, resources);
 
   // Variation panel: x=906, y=66, w=240, h=222
   layout::AttachVariationPanelControls(pGraphics, resources);
