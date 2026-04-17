@@ -118,6 +118,8 @@ inline void AttachPanTabChildren(IVTabPage* page,
                                  const EditorStyles& styles,
                                  const OscillatorTabDescriptor& descriptor,
                                  IVButtonControl* restoreButton,
+                                 IVButtonControl* addButton,
+                                 IVButtonControl* deleteButton,
                                  OscillatorSliderControl* sliderControl)
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
@@ -179,6 +181,8 @@ inline void AttachPanTabChildren(IVTabPage* page,
     actionsControl,
     allKeyNotesControls,
     restoreButton,
+    addButton,
+    deleteButton,
     sliderControl);
 }
 } // namespace editor

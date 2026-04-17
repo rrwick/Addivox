@@ -6,6 +6,7 @@
 #include "../action_selection_control.h"
 #include "../editor_state.h"
 #include "../eq_editor.h"
+#include "../keyboard_control.h"
 #include "../oscillator_slider_control.h"
 #include "../theme.h"
 #include "../editor_messages.h"
@@ -44,7 +45,8 @@ inline constexpr float kHarmonicTabToggleLabelGap = 8.f;
 inline constexpr float kHarmonicTabScopeRightInset = 4.f;
 inline constexpr float kHarmonicTabLabelGap = 0.f;
 inline constexpr float kHarmonicTabScopeGap = 0.f;
-inline constexpr int kHarmonicTabChildCount = 16;
+inline constexpr float kTabButtonHalfGap = 3.f;
+inline constexpr int kHarmonicTabChildCount = 18;
 
 struct OscillatorTabDescriptor
 {
@@ -72,6 +74,8 @@ struct HarmonicTabLayout
   IRECT allKeyNotesToggleBounds{};
   IRECT allKeyNotesLabelBounds{};
   IRECT restoreButtonBounds{};
+  IRECT addButtonBounds{};
+  IRECT deleteButtonBounds{};
   IRECT sliderBounds{};
 };
 
@@ -832,6 +836,8 @@ struct EqTabRefs
   std::shared_ptr<ActionSelectionControl*> actionsControl;
   std::shared_ptr<IVToggleControl*> allKeyNotesToggle;
   std::shared_ptr<IVButtonControl*> restoreButton;
+  std::shared_ptr<IVButtonControl*> addButton;
+  std::shared_ptr<IVButtonControl*> deleteButton;
   std::shared_ptr<EqEditorControl*> editorControl;
 };
 
@@ -842,12 +848,8 @@ struct OscillatorTabControlRefs
   std::shared_ptr<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>> xRangeMaxControls;
   std::shared_ptr<std::array<IVToggleControl*, OscillatorSettings::kNumParameters>> allKeyNotesToggles;
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> restoreButtons;
-};
-
-struct EditorButtonRefs
-{
-  std::shared_ptr<IVButtonControl*> addButton;
-  std::shared_ptr<IVButtonControl*> deleteButton;
+  std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> addButtons;
+  std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> deleteButtons;
 };
 
 struct TitleControlRefs
@@ -868,7 +870,7 @@ struct EditorContext
   AttackReleaseTabRefs attackReleaseTab;
   EqTabRefs eqTab;
   OscillatorTabControlRefs oscillatorTabControls;
-  EditorButtonRefs buttons;
+  std::shared_ptr<KeyboardControl*> keyboardControl;
   TitleControlRefs title;
 
   CompoundPreset& Preset() const
@@ -1153,15 +1155,67 @@ struct EditorContext
     }
   }
 
-  void RefreshEditorActionButtons() const
+  void SetKeyboardKeyNoteHighlight(int midiNote, bool highlighted) const
+  {
+    if(keyboardControl && *keyboardControl)
+      (*keyboardControl)->SetHighlightedMidiNote(midiNote, highlighted);
+  }
+
+  bool CanAddSelectedKeyNote() const
   {
     const int midiNote = SelectedMidiNote();
     const bool midiNoteValid = midiNote >= CompoundPreset::kMinMidiNote && midiNote <= CompoundPreset::kMaxMidiNote;
-    const bool keyNoteSelected = midiNoteValid && Preset().HasKeyNotePreset(midiNote);
-    const bool canRemoveKeyNote = Preset().GetNumKeyNotePresets() > 1;
+    return IsEditMode() && midiNoteValid && !Preset().HasKeyNotePreset(midiNote);
+  }
 
-    SetDisabledState(*buttons.addButton, !(IsEditMode() && midiNoteValid && !keyNoteSelected));
-    SetDisabledState(*buttons.deleteButton, !(IsEditMode() && keyNoteSelected && canRemoveKeyNote));
+  bool CanDeleteSelectedKeyNote() const
+  {
+    const int midiNote = SelectedMidiNote();
+    const bool midiNoteValid = midiNote >= CompoundPreset::kMinMidiNote && midiNote <= CompoundPreset::kMaxMidiNote;
+    return IsEditMode() && midiNoteValid && Preset().HasKeyNotePreset(midiNote) && Preset().GetNumKeyNotePresets() > 1;
+  }
+
+  void AddSelectedKeyNote(IControl* caller) const
+  {
+    if(!caller || !CanAddSelectedKeyNote())
+      return;
+
+    const int midiNote = SelectedMidiNote();
+    Preset().SetKeyNotePreset(midiNote, Preset().GetPresetForMidiNote(midiNote));
+    SendKeyNotePresetEditToDSP(caller, editor_messages::kMsgTagAddKeyNotePreset, midiNote);
+    SetKeyboardKeyNoteHighlight(midiNote, true);
+    RefreshOscillatorTabs();
+    RefreshEditorActionButtons();
+  }
+
+  void DeleteSelectedKeyNote(IControl* caller) const
+  {
+    if(!caller || !CanDeleteSelectedKeyNote())
+      return;
+
+    const int midiNote = SelectedMidiNote();
+    if(!Preset().RemoveKeyNotePreset(midiNote))
+      return;
+
+    SendKeyNotePresetEditToDSP(caller, editor_messages::kMsgTagRemoveKeyNotePreset, midiNote);
+    SetKeyboardKeyNoteHighlight(midiNote, false);
+    RefreshOscillatorTabs();
+    RefreshEditorActionButtons();
+  }
+
+  void RefreshEditorActionButtons() const
+  {
+    const bool addEnabled = CanAddSelectedKeyNote();
+    const bool deleteEnabled = CanDeleteSelectedKeyNote();
+
+    for(auto* addButton : *oscillatorTabControls.addButtons)
+      SetDisabledState(addButton, !addEnabled);
+
+    for(auto* deleteButton : *oscillatorTabControls.deleteButtons)
+      SetDisabledState(deleteButton, !deleteEnabled);
+
+    SetDisabledState(*eqTab.addButton, !addEnabled);
+    SetDisabledState(*eqTab.deleteButton, !deleteEnabled);
   }
 
   void RefreshOscillatorTabs() const
@@ -1363,6 +1417,30 @@ struct AllKeyNotesControls
   ITextControl* labelControl{};
 };
 
+struct KeyNoteActionButtons
+{
+  IVButtonControl* addButton{};
+  IVButtonControl* deleteButton{};
+};
+
+inline KeyNoteActionButtons CreateKeyNoteActionButtons(const std::shared_ptr<EditorContext>& context,
+                                                       const EditorStyles& styles)
+{
+  auto* addButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Add", styles.restoreButtonStyle, true, false);
+  addButton->SetTooltip(help_text::oscillator_tabs::kAddButton);
+  addButton->SetAnimationEndActionFunction([context](IControl* caller) {
+    context->AddSelectedKeyNote(caller);
+  });
+
+  auto* deleteButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Del", styles.restoreButtonStyle, true, false);
+  deleteButton->SetTooltip(help_text::oscillator_tabs::kDeleteButton);
+  deleteButton->SetAnimationEndActionFunction([context](IControl* caller) {
+    context->DeleteSelectedKeyNote(caller);
+  });
+
+  return {addButton, deleteButton};
+}
+
 inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<EditorContext>& context,
                                                      const OscillatorTabDescriptor& descriptor,
                                                      const EditorStyles& styles)
@@ -1422,6 +1500,8 @@ inline void AttachHarmonicTabChildren(IVTabPage* page,
                                       ActionSelectionControl* actionsControl,
                                       const AllKeyNotesControls& allKeyNotesControls,
                                       IVButtonControl* restoreButton,
+                                      IVButtonControl* addButton,
+                                      IVButtonControl* deleteButton,
                                       OscillatorSliderControl* sliderControl)
 {
   page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
@@ -1439,6 +1519,8 @@ inline void AttachHarmonicTabChildren(IVTabPage* page,
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
+  page->AddChildControl(addButton);
+  page->AddChildControl(deleteButton);
   page->AddChildControl(sliderControl);
 }
 
@@ -1476,8 +1558,13 @@ inline HarmonicTabLayout GetHarmonicTabLayout(IContainerBase* pTab, const IRECT&
   HarmonicTabLayout layout;
   layout.sliderBounds = GetOscillatorSliderBounds(pTab, r, kHarmonicTabLeftInset);
 
-  const float restoreTop = leftColumnBounds.B - (kEditorControlHeight + kHarmonicTabBottomPad);
-  layout.restoreButtonBounds = IRECT(rowL, restoreTop, rowR, leftColumnBounds.B - kHarmonicTabBottomPad);
+  const float buttonRowBottom = leftColumnBounds.B - kHarmonicTabBottomPad;
+  const float buttonRowTop = buttonRowBottom - kEditorControlHeight;
+  layout.addButtonBounds = IRECT(rowL, buttonRowTop, rowMid - kTabButtonHalfGap, buttonRowBottom);
+  layout.deleteButtonBounds = IRECT(rowMid + kTabButtonHalfGap, buttonRowTop, rowR, buttonRowBottom);
+
+  const float restoreTop = layout.addButtonBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
+  layout.restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kEditorControlHeight);
 
   const float allKeyNotesTop = layout.restoreButtonBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
   layout.allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kEditorControlHeight, allKeyNotesTop + kEditorControlHeight);
@@ -1548,6 +1635,8 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
     layout.allKeyNotesToggleBounds,
     layout.allKeyNotesLabelBounds,
     layout.restoreButtonBounds,
+    layout.addButtonBounds,
+    layout.deleteButtonBounds,
     layout.sliderBounds
   }};
 
@@ -1557,7 +1646,7 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
 
 inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 10)
+  if(pTab->NChildren() < 12)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -1573,13 +1662,17 @@ inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
   auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-  const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
-  auto restoreButtonBounds = IRECT(leftColumnBounds.L + 8.f, restoreTop, leftColumnBounds.R - 8.f, leftColumnBounds.B - kBottomPad);
   const float rowL = leftColumnBounds.L + 8.f;
   const float rowR = leftColumnBounds.R - 8.f;
   const float rowMid = (rowL + rowR) * 0.5f;
   const float scopeRowL = rowL;
   const float scopeRowR = leftColumnBounds.R - 4.f;
+  const float buttonRowBottom = leftColumnBounds.B - kBottomPad;
+  const float buttonRowTop = buttonRowBottom - kButtonHeight;
+  auto addButtonBounds = IRECT(rowL, buttonRowTop, rowMid - kTabButtonHalfGap, buttonRowBottom);
+  auto deleteButtonBounds = IRECT(rowMid + kTabButtonHalfGap, buttonRowTop, rowR, buttonRowBottom);
+  const float restoreTop = addButtonBounds.T - kGap - kButtonHeight;
+  auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kButtonHeight);
   const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
   auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
   auto allKeyNotesLabelBounds = IRECT(
@@ -1607,7 +1700,9 @@ inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(6)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
   pTab->GetChild(7)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
   pTab->GetChild(8)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(addButtonBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(deleteButtonBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context,

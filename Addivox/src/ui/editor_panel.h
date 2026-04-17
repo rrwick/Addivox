@@ -396,6 +396,8 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
                                      const EditorStyles& styles,
                                      const OscillatorTabDescriptor& descriptor,
                                      IVButtonControl* restoreButton,
+                                     IVButtonControl* addButton,
+                                     IVButtonControl* deleteButton,
                                      OscillatorSliderControl* sliderControl)
 {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
@@ -411,6 +413,8 @@ inline void AttachDefaultTabChildren(IVTabPage* page,
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
+  page->AddChildControl(addButton);
+  page->AddChildControl(deleteButton);
   page->AddChildControl(sliderControl);
 }
 
@@ -423,27 +427,30 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
   restoreButton->SetAnimationEndActionFunction([context, descriptor](IControl* caller) {
     RestoreOscillatorTabValues(context, caller, descriptor);
   });
+  const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   auto* sliderControl = CreateOscillatorSliderControl(context, descriptor, styles);
   const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
   (*context->oscillatorTabControls.sliderControls)[parameterIndex] = sliderControl;
   (*context->oscillatorTabControls.restoreButtons)[parameterIndex] = restoreButton;
+  (*context->oscillatorTabControls.addButtons)[parameterIndex] = keyNoteActionButtons.addButton;
+  (*context->oscillatorTabControls.deleteButtons)[parameterIndex] = keyNoteActionButtons.deleteButton;
 
   if(descriptor.parameter == OscillatorParameter::intensity)
-    AttachLevelTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachLevelTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if(descriptor.parameter == OscillatorParameter::breath_power)
-    AttachBreathTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachBreathTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if(descriptor.parameter == OscillatorParameter::attack
        || descriptor.parameter == OscillatorParameter::release)
-    AttachAttackReleaseTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachAttackReleaseTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if(descriptor.parameter == OscillatorParameter::pitch)
-    AttachPitchTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachPitchTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if(descriptor.parameter == OscillatorParameter::pan)
-    AttachPanTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachPanTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if(IsVariationParameter(descriptor.parameter))
-    AttachVariationTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachVariationTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else
-    AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, sliderControl);
+    AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
 
   context->RefreshOscillatorTabs();
 }
@@ -562,6 +569,12 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorTabControls.restoreButtons =
     std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.restoreButtons->fill(nullptr);
+  context->oscillatorTabControls.addButtons =
+    std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.addButtons->fill(nullptr);
+  context->oscillatorTabControls.deleteButtons =
+    std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.deleteButtons->fill(nullptr);
   context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
@@ -582,9 +595,10 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->eqTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->eqTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
   context->eqTab.restoreButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->eqTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->eqTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
-  context->buttons.addButton = std::make_shared<IVButtonControl*>(nullptr);
-  context->buttons.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->keyboardControl = std::make_shared<KeyboardControl*>(nullptr);
   context->title.presetManagerControl = std::make_shared<IControl*>(nullptr);
 
   *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePreset::kNumOscillators);

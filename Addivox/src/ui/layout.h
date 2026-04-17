@@ -471,9 +471,7 @@ inline VizEditPanelControls AttachVizEditPanelControls(IGraphics* pGraphics,
                                                        int keyboardTag,
                                                        int breathMeterTag)
 {
-  const IRECT mainPanelModeSwitchBounds = IRECT::MakeXYWH(73.f, 442.f, 42.f, 26.f);
-  const IRECT addButtonBounds = IRECT::MakeXYWH(14.f, 477.f, 75.f, 26.f);
-  const IRECT deleteButtonBounds = IRECT::MakeXYWH(99.f, 477.f, 75.f, 26.f);
+  const IRECT mainPanelModeSwitchBounds = IRECT::MakeXYWH(73.f, 460.f, 42.f, 26.f);
 
   const auto setMainPanelVizVisible = [pGraphics, breathMeterTag, harmonicVisualizerTag](bool visible) {
     if(auto* breathMeter = pGraphics->GetControlWithTag(breathMeterTag))
@@ -510,48 +508,6 @@ inline VizEditPanelControls AttachVizEditPanelControls(IGraphics* pGraphics,
     context->IsEditMode() ? 1 : 0);
   pGraphics->AttachControl(mainPanelModeSwitch);
 
-  auto* addButtonControl = new IVButtonControl(
-    addButtonBounds, SplashClickActionFunc, "ADD", resources.vizEditButtonStyle, true, false);
-  addButtonControl->SetTooltip(help_text::oscillator_tabs::kAddButton);
-  addButtonControl->SetAnimationEndActionFunction(
-    [pGraphics, keyboardTag, context](IControl* caller) {
-      if(!caller || !context->HasValidSelectedMidiNote())
-        return;
-
-      const int midiNote = context->SelectedMidiNote();
-      if(context->Preset().HasKeyNotePreset(midiNote))
-        return;
-
-      context->Preset().SetKeyNotePreset(midiNote, context->Preset().GetPresetForMidiNote(midiNote));
-      context->SendKeyNotePresetEditToDSP(caller, editor_messages::kMsgTagAddKeyNotePreset, midiNote);
-      SetKeyboardKeyNoteHighlight(pGraphics, keyboardTag, midiNote, true);
-      context->RefreshOscillatorTabs();
-      context->RefreshEditorActionButtons();
-    });
-
-  auto* deleteButtonControl = new IVButtonControl(
-    deleteButtonBounds, SplashClickActionFunc, "DELETE", resources.vizEditButtonStyle, true, false);
-  deleteButtonControl->SetTooltip(help_text::oscillator_tabs::kDeleteButton);
-  deleteButtonControl->SetAnimationEndActionFunction(
-    [pGraphics, keyboardTag, context](IControl* caller) {
-      if(!caller || !context->HasValidSelectedMidiNote())
-        return;
-
-      const int midiNote = context->SelectedMidiNote();
-      if(!context->Preset().RemoveKeyNotePreset(midiNote))
-        return;
-
-      context->SendKeyNotePresetEditToDSP(caller, editor_messages::kMsgTagRemoveKeyNotePreset, midiNote);
-      SetKeyboardKeyNoteHighlight(pGraphics, keyboardTag, midiNote, false);
-      context->RefreshOscillatorTabs();
-      context->RefreshEditorActionButtons();
-    });
-
-  pGraphics->AttachControl(addButtonControl);
-  pGraphics->AttachControl(deleteButtonControl);
-  *context->buttons.addButton = addButtonControl;
-  *context->buttons.deleteButton = deleteButtonControl;
-
   return {mainPanelModeSwitch, setMainPanelMode};
 }
 
@@ -572,6 +528,7 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
 });
   keyboardControl->SetSelectedMidiNote(context->SelectedMidiNote());
   keyboardControl->SetTooltip(help_text::main_ui::kKeyboard);
+  *context->keyboardControl = keyboardControl;
 
   auto* wheelControl = new IWheelControl(wheelsBounds);
   wheelControl->SetTooltip(help_text::main_ui::kPitchBendWheel);

@@ -196,7 +196,7 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
 
 inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 8)
+  if(pTab->NChildren() < 10)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -215,15 +215,15 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   auto editorBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
   editorBounds.L += kEditorGap;
 
-  const float restoreTop = leftColumnBounds.B - (kButtonHeight + kBottomPad);
-  auto restoreButtonBounds = IRECT(
-    leftColumnBounds.L + kColumnSideInset,
-    restoreTop,
-    leftColumnBounds.R - kColumnSideInset,
-    leftColumnBounds.B - kBottomPad);
-
   const float rowL = leftColumnBounds.L + kColumnSideInset;
   const float rowR = leftColumnBounds.R - kColumnSideInset;
+  const float rowMid = (rowL + rowR) * 0.5f;
+  const float buttonRowBottom = leftColumnBounds.B - kBottomPad;
+  const float buttonRowTop = buttonRowBottom - kButtonHeight;
+  auto addButtonBounds = IRECT(rowL, buttonRowTop, rowMid - kTabButtonHalfGap, buttonRowBottom);
+  auto deleteButtonBounds = IRECT(rowMid + kTabButtonHalfGap, buttonRowTop, rowR, buttonRowBottom);
+  const float restoreTop = addButtonBounds.T - kGap - kButtonHeight;
+  auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kButtonHeight);
   const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
   auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
   auto allKeyNotesLabelBounds = IRECT(
@@ -253,7 +253,9 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(4)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
   pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
   pTab->GetChild(6)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(editorBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(addButtonBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(deleteButtonBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(editorBounds);
 }
 
 inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context,
@@ -352,6 +354,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
     styles.darkTab);
   auto* editorControl = CreateEqEditorControl(context);
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
+  const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   setShapeControl->SetOnSelection([context, editorControl](const char* selectedText) {
     if(!selectedText)
@@ -383,6 +386,8 @@ inline void AttachEqTabChildren(IVTabPage* page,
   *context->eqTab.setShapeControl = setShapeControl;
   *context->eqTab.actionsControl = actionsControl;
   *context->eqTab.restoreButton = restoreButton;
+  *context->eqTab.addButton = keyNoteActionButtons.addButton;
+  *context->eqTab.deleteButton = keyNoteActionButtons.deleteButton;
   *context->eqTab.editorControl = editorControl;
 
   page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
@@ -392,6 +397,8 @@ inline void AttachEqTabChildren(IVTabPage* page,
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
+  page->AddChildControl(keyNoteActionButtons.addButton);
+  page->AddChildControl(keyNoteActionButtons.deleteButton);
   page->AddChildControl(editorControl);
 }
 
