@@ -611,29 +611,19 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
 inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics* pGraphics,
                                                                                           const std::shared_ptr<EditorState>& editorState,
                                                                                           int harmonicVisualizerTag,
-                                                                                          int editorTabsTag,
-                                                                                          int breathMeterTag)
+                                                                                          int editorTabsTag)
 {
   using namespace editor;
 
-  const IRECT breathMeterBounds = IRECT::MakeXYWH(12.f, 113.f, 20.f, 266.f);
-  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(38.f, 74.f, 948.f, 374.f);
-  const IRECT editorTabsBounds = IRECT::MakeXYWH(12.f, 74.f, 974.f, 374.f);
-  const IVStyle meterStyle = theme::MeterStyle();
+  const IRECT harmonicVisualizerBounds = IRECT::MakeXYWH(12.f, 74.f, 976.f, 384.f);
+  const IRECT editorTabsBounds = IRECT::MakeXYWH(12.f, 74.f, 976.f, 384.f);
   const EditorStyles styles{};
 
   auto context = CreateEditorContext(editorState, editorTabsTag);
 
-  pGraphics->AttachControl(new IVMeterControl<1>(breathMeterBounds, "", meterStyle), breathMeterTag);
   pGraphics->AttachControl(new HarmonicVisualizerControl(harmonicVisualizerBounds), harmonicVisualizerTag);
 
-  auto* editorTabsControl = new EditorTabbedPagesControl(
-    editorTabsBounds,
-    CreateOscillatorTabPages(context, styles),
-    "",
-    styles.tabsStyle,
-    20.f,
-    1.f);
+  auto* editorTabsControl = new EditorTabbedPagesControl(editorTabsBounds, CreateOscillatorTabPages(context, styles), "", styles.tabsStyle, 20.f, 1.f);
   pGraphics->AttachControl(editorTabsControl, editorTabsTag);
   RestoreSelectedTab(editorTabsControl, context->model.selectedTabIndex);
   context->RefreshOscillatorTabs();

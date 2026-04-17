@@ -138,28 +138,6 @@ inline void SetTooltipIfPresent(IControl* control, const char* tooltip)
     control->SetTooltip(tooltip);
 }
 
-inline void AttachPassiveText(IGraphics* pGraphics,
-                              const IRECT& bounds,
-                              const char* text,
-                              const IText& style,
-                              const char* tooltip = nullptr)
-{
-  auto* control = MakePassiveControl(new ITextControl(bounds, text, style, COLOR_TRANSPARENT));
-  SetTooltipIfPresent(control, tooltip);
-  pGraphics->AttachControl(control);
-}
-
-inline void AttachPassiveCaption(IGraphics* pGraphics,
-                                 const IRECT& bounds,
-                                 int paramIdx,
-                                 const IText& style,
-                                 const char* tooltip = nullptr)
-{
-  auto* control = MakePassiveControl(new ICaptionControl(bounds, paramIdx, style, COLOR_TRANSPARENT, true));
-  SetTooltipIfPresent(control, tooltip);
-  pGraphics->AttachControl(control);
-}
-
 inline void AttachKnob(IGraphics* pGraphics,
                        const KnobAssets& assets,
                        const IRECT& bounds,
@@ -177,7 +155,10 @@ inline void AttachKnobWithValue(IGraphics* pGraphics,
                                 const IText& valueText)
 {
   const char* const tooltip = help_text::main_ui::GetParam(spec.paramIdx);
-  AttachPassiveCaption(pGraphics, spec.valueBounds, spec.paramIdx, valueText, tooltip);
+  auto* valueControl = MakePassiveControl(
+    new ICaptionControl(spec.valueBounds, spec.paramIdx, valueText, COLOR_TRANSPARENT, true));
+  SetTooltipIfPresent(valueControl, tooltip);
+  pGraphics->AttachControl(valueControl);
   AttachKnob(pGraphics, assets, spec.knobBounds, spec.paramIdx, tooltip);
 }
 } // namespace layout
