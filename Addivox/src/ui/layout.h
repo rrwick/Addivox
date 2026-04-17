@@ -582,8 +582,8 @@ inline void AttachKeyboardPanelControls(IGraphics* pGraphics,
 inline void AttachEnvelopePanelControls(IGraphics* pGraphics,
                                         const PanelResources&)
 {
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(190.f, 550.f, 50.f, 60.f), kParamGlobalAttackScale, "Attack", 3.f));
-  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(286.f, 550.f, 50.f, 60.f), kParamGlobalReleaseScale, "Release", 5.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(130.f, 550.f, 50.f, 60.f), kParamGlobalAttackScale, "Attack", 3.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(180.f, 550.f, 50.f, 60.f), kParamGlobalReleaseScale, "Release", 5.f));
 }
 
 inline void AttachPitchPanelControls(IGraphics* pGraphics,
@@ -605,19 +605,14 @@ inline void AttachPitchPanelControls(IGraphics* pGraphics,
 }
 
 inline void AttachVariationPanelControls(IGraphics* pGraphics,
-                                         const PanelResources& resources)
+                                         const PanelResources&)
 {
-  const std::array<KnobValueSpec, 6> variationKnobs{{
-    {IRECT::MakeMidXYWH(983.f, 141.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1011.f, 134.f, 70.f, 12.f), kParamGlobalIntensityVariationAmplitudeScale},
-    {IRECT::MakeMidXYWH(1078.f, 141.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1106.f, 134.f, 70.f, 12.f), kParamGlobalIntensityVariationRateScale},
-    {IRECT::MakeMidXYWH(983.f, 195.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1011.f, 188.f, 70.f, 12.f), kParamGlobalPanVariationAmplitudeScale},
-    {IRECT::MakeMidXYWH(1078.f, 195.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1106.f, 188.f, 70.f, 12.f), kParamGlobalPanVariationRateScale},
-    {IRECT::MakeMidXYWH(983.f, 249.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1011.f, 242.f, 70.f, 12.f), kParamGlobalPitchVariationAmplitudeScale},
-    {IRECT::MakeMidXYWH(1078.f, 249.5f, resources.knobSize, resources.knobSize), IRECT::MakeXYWH(1106.f, 242.f, 70.f, 12.f), kParamGlobalPitchVariationRateScale}
-  }};
-
-  for(const auto& spec : variationKnobs)
-    AttachKnobWithValue(pGraphics, resources.knobAssets, spec, resources.compactValueText);
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(250.f, 480.f, 50.f, 60.f), kParamGlobalIntensityVariationAmplitudeScale, "LvlAmt", 0.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(250.f, 550.f, 50.f, 60.f), kParamGlobalIntensityVariationRateScale,      "LvlRate", 0.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(300.f, 480.f, 50.f, 60.f), kParamGlobalPanVariationAmplitudeScale,       "PanAmt", 0.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(300.f, 550.f, 50.f, 60.f), kParamGlobalPanVariationRateScale,            "PanRate", 0.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(350.f, 480.f, 50.f, 60.f), kParamGlobalPitchVariationAmplitudeScale,     "PchAmt", 0.f));
+  pGraphics->AttachControl(new LabelledKnob(IRECT::MakeXYWH(350.f, 550.f, 50.f, 60.f), kParamGlobalPitchVariationRateScale,          "PchRate", 0.f));
 }
 
 inline void AttachOutputPanelControls(IGraphics* pGraphics,
