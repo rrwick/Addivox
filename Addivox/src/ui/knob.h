@@ -28,6 +28,125 @@ struct KnobValueSpec
   int paramIdx = kNoParameter;
 };
 
+class KnobReadoutControl final : public ITextControl
+{
+public:
+  KnobReadoutControl(const IRECT& bounds, int paramIdx, const char* label, const IText& text)
+  : ITextControl(bounds, label ? label : "", text, COLOR_TRANSPARENT)
+  , mLabel(label ? label : "")
+  {
+    SetParamIdx(paramIdx);
+    SetIgnoreMouse(true);
+    DisablePrompt(true);
+  }
+
+  void ShowValueWhileInteracting()
+  {
+    mShowValueWhileInteracting = true;
+    SetDirty(false);
+  }
+
+  void ShowValueTemporarily(int durationMs)
+  {
+    if(mShowValueWhileInteracting)
+      return;
+
+    mShowValueTemporarily = true;
+    SetAnimation(DefaultAnimationFunc, durationMs);
+    SetDirty(false);
+  }
+
+  void ShowLabel()
+  {
+    mShowValueWhileInteracting = false;
+    mShowValueTemporarily = false;
+    SetAnimation(nullptr);
+    SetDirty(false);
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    if(ShouldShowValue())
+    {
+      if(const IParam* param = GetParam())
+        param->GetDisplay(mStr);
+      else
+        mStr.Set(mLabel.Get());
+    }
+    else
+    {
+      mStr.Set(mLabel.Get());
+    }
+
+    ITextControl::Draw(g);
+  }
+
+  void OnEndAnimation() override
+  {
+    mShowValueTemporarily = false;
+    IControl::OnEndAnimation();
+    SetDirty(false);
+  }
+
+private:
+  bool ShouldShowValue() const
+  {
+    return mShowValueWhileInteracting || mShowValueTemporarily;
+  }
+
+  WDL_String mLabel;
+  bool mShowValueWhileInteracting = false;
+  bool mShowValueTemporarily = false;
+};
+
+class InteractiveLayeredSVGKnobControl final : public LayeredSVGKnobControl
+{
+public:
+  InteractiveLayeredSVGKnobControl(const IRECT& bounds,
+                                   const ISVG& fixedSVG,
+                                   const ISVG& rotatingSVG,
+                                   int paramIdx = kNoParameter,
+                                   float startAngle = -135.f,
+                                   float endAngle = 135.f,
+                                   EDirection direction = EDirection::Vertical,
+                                   double gearing = DEFAULT_GEARING)
+  : LayeredSVGKnobControl(bounds, fixedSVG, rotatingSVG, paramIdx, startAngle, endAngle, direction, gearing)
+  {
+  }
+
+  void SetReadoutControl(KnobReadoutControl* readoutControl)
+  {
+    mReadoutControl = readoutControl;
+  }
+
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override
+  {
+    LayeredSVGKnobControl::OnMouseDown(x, y, mod);
+
+    if(mod.L && mReadoutControl)
+      mReadoutControl->ShowValueWhileInteracting();
+  }
+
+  void OnMouseUp(float x, float y, const IMouseMod& mod) override
+  {
+    LayeredSVGKnobControl::OnMouseUp(x, y, mod);
+
+    if(mReadoutControl)
+      mReadoutControl->ShowLabel();
+  }
+
+  void OnMouseWheel(float x, float y, const IMouseMod& mod, float d) override
+  {
+    LayeredSVGKnobControl::OnMouseWheel(x, y, mod, d);
+
+    if(d != 0.f && mReadoutControl)
+      mReadoutControl->ShowValueTemporarily(250);
+  }
+
+private:
+  KnobReadoutControl* mReadoutControl = nullptr;
+};
+
 class LabelledKnob final : public IContainerBase
 {
 public:
@@ -49,10 +168,8 @@ public:
 
     if(mKnobControl)
       mKnobControl->SetTooltip(mTooltip.Get());
-    if(mValueControl)
-      mValueControl->SetTooltip(mTooltip.Get());
-    if(mLabelControl)
-      mLabelControl->SetTooltip(mTooltip.Get());
+    if(mReadoutControl)
+      mReadoutControl->SetTooltip(mTooltip.Get());
   }
 
   void OnAttached() override
@@ -64,15 +181,12 @@ public:
     const ISVG fixedSVG = ui->LoadSVG("knob-fixed.svg");
     const ISVG rotatingSVG = ui->LoadSVG("knob-rotating.svg");
 
-    mKnobControl = new LayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
-    mValueControl = MakePassiveControl(
-      new ICaptionControl(IRECT(), mParamIdx, theme::CompactValueText(EAlign::Center), COLOR_TRANSPARENT, false));
-    mLabelControl = MakePassiveControl(
-      new ITextControl(IRECT(), mLabel.Get(), theme::CompactLabelText(EAlign::Center), COLOR_TRANSPARENT));
+    mKnobControl = new InteractiveLayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
+    mReadoutControl = new KnobReadoutControl(IRECT(), mParamIdx, mLabel.Get(), theme::CompactLabelText(EAlign::Center));
+    mKnobControl->SetReadoutControl(mReadoutControl);
 
     AddChildControl(mKnobControl);
-    AddChildControl(mValueControl);
-    AddChildControl(mLabelControl);
+    AddChildControl(mReadoutControl);
 
     const char* const tooltip = help_text::main_ui::GetParam(mParamIdx);
     SetTooltip((mTooltip.GetLength() > 0) ? mTooltip.Get() : tooltip);
@@ -81,16 +195,14 @@ public:
 
   void OnResize() override
   {
-    if(!mKnobControl || !mValueControl || !mLabelControl)
+    if(!mKnobControl || !mReadoutControl)
       return;
 
     const IRECT knobBounds = GetKnobBounds();
-    const IRECT labelBounds = GetTextLineBounds(-1);
-    const IRECT valueBounds = GetTextLineBounds(+1);
+    const IRECT readoutBounds = GetTextBounds();
 
     mKnobControl->SetTargetAndDrawRECTs(knobBounds);
-    mLabelControl->SetTargetAndDrawRECTs(labelBounds);
-    mValueControl->SetTargetAndDrawRECTs(valueBounds);
+    mReadoutControl->SetTargetAndDrawRECTs(readoutBounds);
   }
 
 private:
@@ -102,24 +214,19 @@ private:
   IRECT GetKnobBounds() const
   {
     constexpr float kTextHeight = 12.f;
-    constexpr float kTextLineGap = 0.f;
 
     const float knobTextGap = GetKnobTextGap();
-    const float textBlockHeight = (2.f * kTextHeight) + kTextLineGap;
+    const float textBlockHeight = kTextHeight;
     const float knobSize = std::max(0.f, std::min(mRECT.W(), mRECT.H() - textBlockHeight - knobTextGap));
     return IRECT::MakeXYWH(mRECT.MW() - (knobSize * 0.5f), mRECT.T, knobSize, knobSize);
   }
 
-  IRECT GetTextLineBounds(int lineDirection) const
+  IRECT GetTextBounds() const
   {
     constexpr float kTextHeight = 12.f;
-    constexpr float kTextLineGap = 0.f;
 
     const IRECT knobBounds = GetKnobBounds();
-    const float labelTop = knobBounds.B + GetKnobTextGap();
-    const float valueTop = labelTop + kTextHeight + kTextLineGap;
-    const float top = (lineDirection < 0) ? labelTop : valueTop;
-
+    const float top = knobBounds.B + GetKnobTextGap();
     return IRECT::MakeXYWH(mRECT.L, top, mRECT.W(), kTextHeight);
   }
 
@@ -127,9 +234,8 @@ private:
   float mKnobTextGap = 6.f;
   WDL_String mLabel;
   WDL_String mTooltip;
-  LayeredSVGKnobControl* mKnobControl = nullptr;
-  ICaptionControl* mValueControl = nullptr;
-  ITextControl* mLabelControl = nullptr;
+  InteractiveLayeredSVGKnobControl* mKnobControl = nullptr;
+  KnobReadoutControl* mReadoutControl = nullptr;
 };
 
 inline void SetTooltipIfPresent(IControl* control, const char* tooltip)

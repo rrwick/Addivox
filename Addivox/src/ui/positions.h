@@ -20,31 +20,31 @@ inline const IRECT            kEditorTabs = IRECT::MakeXYWH( 12,  74, 976, 384);
 
 inline const IRECT            kModeSwitch = IRECT::MakeXYWH(872, 467,  42,  26);
 
-inline const IRECT            kAttackKnob = IRECT::MakeXYWH( 80, 480,  50,  60);
-inline const IRECT           kReleaseKnob = IRECT::MakeXYWH( 80, 550,  50,  60);
+inline const IRECT            kAttackKnob = IRECT::MakeXYWH( 70, 480,  45,  60);
+inline const IRECT           kReleaseKnob = IRECT::MakeXYWH( 70, 550,  45,  60);
 
-inline const IRECT       kLevelAmountKnob = IRECT::MakeXYWH(150, 480,  50,  60);
-inline const IRECT         kLevelRateKnob = IRECT::MakeXYWH(150, 550,  50,  60);
-inline const IRECT         kPanAmountKnob = IRECT::MakeXYWH(200, 480,  50,  60);
-inline const IRECT           kPanRateKnob = IRECT::MakeXYWH(200, 550,  50,  60);
-inline const IRECT       kPitchAmountKnob = IRECT::MakeXYWH(250, 480,  50,  60);
-inline const IRECT         kPitchRateKnob = IRECT::MakeXYWH(250, 550,  50,  60);
+inline const IRECT       kLevelAmountKnob = IRECT::MakeXYWH(145, 480,  45,  60);
+inline const IRECT         kLevelRateKnob = IRECT::MakeXYWH(145, 550,  45,  60);
+inline const IRECT         kPanAmountKnob = IRECT::MakeXYWH(200, 480,  45,  60);
+inline const IRECT           kPanRateKnob = IRECT::MakeXYWH(200, 550,  45,  60);
+inline const IRECT       kPitchAmountKnob = IRECT::MakeXYWH(255, 480,  45,  60);
+inline const IRECT         kPitchRateKnob = IRECT::MakeXYWH(255, 550,  45,  60);
 
 inline const IRECT        kTransposeLabel = IRECT::MakeXYWH(335, 524,  80,  12);
 inline const IRECT    kTransposeNumberBox = IRECT::MakeXYWH(335, 490,  58,  30);
-inline const IRECT             kPitchKnob = IRECT::MakeXYWH(400, 480,  50,  60);
+inline const IRECT             kPitchKnob = IRECT::MakeXYWH(400, 480,  45,  60);
 inline const IRECT       kPortamentoLabel = IRECT::MakeXYWH(357, 594,  70,  12);
 inline const IRECT  kPortamentoMinCaption = IRECT::MakeXYWH(331, 554,  50,  20);
 inline const IRECT  kPortamentoMaxCaption = IRECT::MakeXYWH(397, 573,  50,  20);
 inline const IRECT kPortamentoRangeSlider = IRECT::MakeXYWH(327, 558, 124,  30);
 
-inline const IRECT               kPanKnob = IRECT::MakeXYWH(500, 480,  50,  60);
-inline const IRECT             kLevelKnob = IRECT::MakeXYWH(500, 550,  50,  60);
+inline const IRECT               kPanKnob = IRECT::MakeXYWH(500, 480,  45,  60);
+inline const IRECT             kLevelKnob = IRECT::MakeXYWH(500, 550,  45,  60);
 
-inline const IRECT             kDriveKnob = IRECT::MakeXYWH(590, 480,  50,  60);
-inline const IRECT              kToneKnob = IRECT::MakeXYWH(640, 480,  50,  60);
-inline const IRECT            kChorusKnob = IRECT::MakeXYWH(590, 550,  50,  60);
-inline const IRECT            kReverbKnob = IRECT::MakeXYWH(640, 550,  50,  60);
+inline const IRECT             kDriveKnob = IRECT::MakeXYWH(585, 480,  45,  60);
+inline const IRECT              kToneKnob = IRECT::MakeXYWH(640, 480,  45,  60);
+inline const IRECT            kChorusKnob = IRECT::MakeXYWH(585, 550,  45,  60);
+inline const IRECT            kReverbKnob = IRECT::MakeXYWH(640, 550,  45,  60);
 
 inline const IRECT           kBreathMeter = IRECT::MakeXYWH(800, 510, 187,  20);
 inline const IRECT           kBreathLabel = IRECT::MakeXYWH(875, 532,  80,  12);
