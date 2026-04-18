@@ -223,15 +223,11 @@ public:
 
   void DrawTrackHandle(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override
   {
-    const IColor fillColor = chIdx == mHighlightedTrack ? GetColor(kX1) : GetColor(kFG);
+    const IColor fillColor = GetDisplayedBarColor(r, chIdx, aboveBaseValue);
 
     if(UsesBipolarRange())
     {
       DrawBipolarBarFill(g, r, aboveBaseValue, fillColor);
-
-      if(chIdx == mMouseOverTrack)
-        DrawBipolarBarFill(g, r, aboveBaseValue, GetColor(kHL));
-
       return;
     }
 
@@ -240,9 +236,6 @@ public:
       return;
 
     DrawBarFill(g, r, alignedRect, aboveBaseValue, fillColor);
-
-    if(chIdx == mMouseOverTrack)
-      DrawBarFill(g, r, alignedRect, aboveBaseValue, GetColor(kHL));
   }
 
   void DrawPeak(IGraphics&, const IRECT&, int, bool) override
@@ -360,6 +353,63 @@ private:
     IColor scaled = color;
     scaled.A = static_cast<int>(std::round(static_cast<float>(color.A) * std::clamp(opacity, 0.f, 1.f)));
     return scaled;
+  }
+
+  static IColor LightenColor(const IColor& color, float amount)
+  {
+    return colour::visualizer::LerpColor(color, COLOR_WHITE, std::clamp(amount, 0.f, 1.f));
+  }
+
+  float GetFillLength(const IRECT& rect) const
+  {
+    return mDirection == EDirection::Horizontal ? rect.W() : rect.H();
+  }
+
+  float GetTrackLength(const IRECT& rect) const
+  {
+    return mDirection == EDirection::Horizontal ? rect.W() : rect.H();
+  }
+
+  IColor GetBaseBarColor(const IRECT& fillRect, int chIdx, bool aboveBaseValue) const
+  {
+    const IRECT& trackBounds = mTrackBounds.Get()[chIdx];
+    if(trackBounds.Empty())
+      return colour::visualizer::GradientColor(0.f);
+
+    const float currentLength = std::max(0.f, GetFillLength(fillRect));
+
+    if(UsesBipolarRange())
+    {
+      const float basePosition = mDirection == EDirection::Horizontal
+        ? (trackBounds.L + (trackBounds.W() * static_cast<float>(mBaseValue)))
+        : (trackBounds.B - (trackBounds.H() * static_cast<float>(mBaseValue)));
+      const float maxLength = mDirection == EDirection::Horizontal
+        ? (aboveBaseValue ? (trackBounds.R - basePosition) : (basePosition - trackBounds.L))
+        : (aboveBaseValue ? (basePosition - trackBounds.T) : (trackBounds.B - basePosition));
+      const float normalizedLength = (maxLength > 0.f)
+        ? std::clamp(currentLength / maxLength, 0.f, 1.f)
+        : 0.f;
+      return colour::visualizer::GradientColor(0.5f + ((aboveBaseValue ? 1.f : -1.f) * normalizedLength * 0.5f));
+    }
+
+    const float trackLength = GetTrackLength(trackBounds);
+    const float normalizedLength = (trackLength > 0.f)
+      ? std::clamp(currentLength / trackLength, 0.f, 1.f)
+      : 0.f;
+    return colour::visualizer::GradientColor(normalizedLength);
+  }
+
+  IColor GetDisplayedBarColor(const IRECT& fillRect, int chIdx, bool aboveBaseValue) const
+  {
+    const IColor baseColor = GetBaseBarColor(fillRect, chIdx, aboveBaseValue);
+
+    float lightenAmount = 0.f;
+    if(chIdx == mHighlightedTrack)
+      lightenAmount += 0.35f;
+    if(chIdx == mMouseOverTrack)
+      lightenAmount += 0.25f;
+
+    return lightenAmount > 0.f ? LightenColor(baseColor, std::min(lightenAmount, 0.6f)) : baseColor;
   }
 
   static std::pair<float, float> GetPixelAlignedLengthParts(float length, float scale)
