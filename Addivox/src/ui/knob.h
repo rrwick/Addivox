@@ -96,10 +96,10 @@ private:
   {
     if(const IParam* param = GetParam())
     {
-      if(param->GetMin() <= 0.0 && param->GetMax() >= 0.0)
-        return param->ToNormalized(0.0);
+      if(param->GetMin() < 0.0 && param->GetMax() > 0.0)
+        return 0.5;
 
-      return param->ToNormalized(param->GetMin());
+      return 0.0;
     }
 
     return 0.0;
@@ -108,10 +108,7 @@ private:
   IColor ValueArcColor() const
   {
     const float normalizedValue = std::clamp(static_cast<float>(GetValue()), 0.f, 1.f);
-    return IColor::LinearInterpolateBetween(
-      colour::visualizer::kKnobMin,
-      colour::visualizer::kKnobMax,
-      normalizedValue);
+    return colour::visualizer::GradientColor(normalizedValue);
   }
 
   void DrawValueArc(IGraphics& g)
@@ -140,7 +137,7 @@ private:
   ISVG mRotatingSVG;
   float mStartAngle = -135.f;
   float mEndAngle = 135.f;
-  float mValueArcThickness = 4.f;
+  float mValueArcThickness = 3.f;
 };
 
 class KnobReadoutControl final : public ITextControl
