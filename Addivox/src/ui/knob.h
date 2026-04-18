@@ -1,9 +1,9 @@
 #pragma once
 
 #include "IControls.h"
+#include "colour.h"
 #include "control_utils.h"
 #include "help_text.h"
-#include "layered_svg_knob_control.h"
 #include "theme.h"
 
 #include <algorithm>
@@ -26,6 +26,121 @@ struct KnobValueSpec
   IRECT knobBounds;
   IRECT valueBounds;
   int paramIdx = kNoParameter;
+};
+
+class LayeredSVGKnobControl : public IKnobControlBase
+{
+public:
+  LayeredSVGKnobControl(const IRECT& bounds,
+                        const ISVG& fixedSVG,
+                        const ISVG& rotatingSVG,
+                        int paramIdx = kNoParameter,
+                        float startAngle = -135.f,
+                        float endAngle = 135.f,
+                        EDirection direction = EDirection::Vertical,
+                        double gearing = DEFAULT_GEARING)
+  : IKnobControlBase(bounds, paramIdx, direction, gearing)
+  , mFixedSVG(fixedSVG)
+  , mRotatingSVG(rotatingSVG)
+  , mStartAngle(startAngle)
+  , mEndAngle(endAngle)
+  {
+  }
+
+  void Draw(IGraphics& g) override
+  {
+    DrawValueArc(g);
+    g.DrawSVG(mFixedSVG, mRECT, &mBlend);
+    g.DrawRotatedSVG(mRotatingSVG, mRECT.MW(), mRECT.MH(), mRECT.W(), mRECT.H(), AngleForValue(), &mBlend);
+  }
+
+  void SetFixedSVG(const ISVG& fixedSVG)
+  {
+    mFixedSVG = fixedSVG;
+    SetDirty(false);
+  }
+
+  void SetRotatingSVG(const ISVG& rotatingSVG)
+  {
+    mRotatingSVG = rotatingSVG;
+    SetDirty(false);
+  }
+
+  void SetAngleRange(float startAngle, float endAngle)
+  {
+    mStartAngle = startAngle;
+    mEndAngle = endAngle;
+    SetDirty(false);
+  }
+
+  void SetValueArcThickness(float valueArcThickness)
+  {
+    mValueArcThickness = std::max(0.f, valueArcThickness);
+    SetDirty(false);
+  }
+
+private:
+  static constexpr float kArcRadiusRatio = 0.35f;
+
+  float AngleForValue() const
+  {
+    return mStartAngle + static_cast<float>(GetValue()) * (mEndAngle - mStartAngle);
+  }
+
+  float AngleForNormalizedValue(double normalizedValue) const
+  {
+    return mStartAngle + static_cast<float>(normalizedValue) * (mEndAngle - mStartAngle);
+  }
+
+  double ArcStartNormalizedValue() const
+  {
+    if(const IParam* param = GetParam())
+    {
+      if(param->GetMin() <= 0.0 && param->GetMax() >= 0.0)
+        return param->ToNormalized(0.0);
+
+      return param->ToNormalized(param->GetMin());
+    }
+
+    return 0.0;
+  }
+
+  IColor ValueArcColor() const
+  {
+    const float normalizedValue = std::clamp(static_cast<float>(GetValue()), 0.f, 1.f);
+    return IColor::LinearInterpolateBetween(
+      colour::visualizer::kKnobMin,
+      colour::visualizer::kKnobMax,
+      normalizedValue);
+  }
+
+  void DrawValueArc(IGraphics& g)
+  {
+    if(mValueArcThickness <= 0.f)
+      return;
+
+    const float startAngle = AngleForNormalizedValue(ArcStartNormalizedValue());
+    const float endAngle = AngleForValue();
+    const float angleMin = std::min(startAngle, endAngle);
+    const float angleMax = std::max(startAngle, endAngle);
+
+    if(angleMin == angleMax)
+      return;
+
+    IStrokeOptions options;
+    options.mCapOption = ELineCap::Round;
+
+    const float radius = std::min(mRECT.W(), mRECT.H()) * kArcRadiusRatio;
+    g.PathClear();
+    g.PathArc(mRECT.MW(), mRECT.MH(), radius, angleMin, angleMax);
+    g.PathStroke(ValueArcColor(), mValueArcThickness, options, &mBlend);
+  }
+
+  ISVG mFixedSVG;
+  ISVG mRotatingSVG;
+  float mStartAngle = -135.f;
+  float mEndAngle = 135.f;
+  float mValueArcThickness = 4.f;
 };
 
 class KnobReadoutControl final : public ITextControl

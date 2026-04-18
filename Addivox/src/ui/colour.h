@@ -67,14 +67,16 @@ static const IColor kGridMajor{130, 92, 102, 118};
 // X-axis label text color.
 static const IColor kLabelText{220, 255, 255, 255};
 
-// Harmonic gradient start color (low-frequency side).
-static const IColor kHarmonicGradientStart{255, 0, 100, 255};
-
-// Harmonic gradient end color (high-frequency side).
-static const IColor kHarmonicGradientEnd{255, 255, 100, 0};
-
 // Bright white core stroke for harmonic bars.
 static const IColor kHarmonicCore{255, 255, 255, 255};
+
+// Harmonic gradient start (low-frequency) to end (high-frequency) colour.
+static const IColor kHarmonicGradientStart{255, 0, 100, 255};
+static const IColor kHarmonicGradientEnd{255, 255, 100, 0};
+
+// Knobs contain a line that changes colour from min to max value.
+static const IColor kKnobMin{255, 255, 178, 128};
+static const IColor kKnobMax{255, 128, 178, 255};
 
 // Output meter LED colours ordered from lowest to highest dB range.
 inline const std::array<IColor, 26> kOutputMeterLEDColors{{
