@@ -92,7 +92,7 @@ public:
       const float logFrequency = std::log(clampedFrequencyHz);
       const float xNorm = xMapping.NormalizeFromLog(logFrequency);
       const float colorT = colorMapping.NormalizeFromLog(logFrequency);
-      const IColor harmonicColor = plugin_ui::colour::visualizer::GradientColor(colorT);
+      const IColor harmonicColor = LerpColor(plugin_ui::colour::visualizer::kHarmonicGradientStart, plugin_ui::colour::visualizer::kHarmonicGradientEnd, colorT);
       const float x = LerpXFromNormalized(xNorm, barPlot);
       const float mappedLevel = harmonic_visualizer_level::MapPseudoLog(osc.level);
 
@@ -168,6 +168,21 @@ private:
   static float LerpXFromNormalized(float xNorm, const IRECT& bounds)
   {
     return bounds.L + (xNorm * bounds.W());
+  }
+
+  static IColor LerpColor(const IColor& a, const IColor& b, float t)
+  {
+    const float clampedT = std::clamp(t, 0.f, 1.f);
+
+    const auto lerpChannel = [clampedT](int x, int y) {
+      return static_cast<int>(std::lround(static_cast<double>(x) + static_cast<double>(y - x) * static_cast<double>(clampedT)));
+    };
+
+    return IColor(
+      lerpChannel(a.A, b.A),
+      lerpChannel(a.R, b.R),
+      lerpChannel(a.G, b.G),
+      lerpChannel(a.B, b.B));
   }
 
   static const IStrokeOptions& RoundCapStrokeOptions()

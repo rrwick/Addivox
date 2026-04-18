@@ -49,8 +49,8 @@ public:
 
   void Draw(IGraphics& g) override
   {
-    DrawValueArc(g);
     g.DrawSVG(mFixedSVG, mRECT, &mBlend);
+    DrawValueArc(g);
     g.DrawRotatedSVG(mRotatingSVG, mRECT.MW(), mRECT.MH(), mRECT.W(), mRECT.H(), AngleForValue(), &mBlend);
   }
 
@@ -80,7 +80,7 @@ public:
   }
 
 private:
-  static constexpr float kArcRadiusRatio = 0.35f;
+  static constexpr float kArcRadiusRatio = 0.44f;
 
   float AngleForValue() const
   {
@@ -96,10 +96,10 @@ private:
   {
     if(const IParam* param = GetParam())
     {
-      if(param->GetMin() < 0.0 && param->GetMax() > 0.0)
-        return 0.5;
+      if(param->GetMin() <= 0.0 && param->GetMax() >= 0.0)
+        return param->ToNormalized(0.0);
 
-      return 0.0;
+      return param->ToNormalized(param->GetMin());
     }
 
     return 0.0;
@@ -107,8 +107,7 @@ private:
 
   IColor ValueArcColor() const
   {
-    const float normalizedValue = std::clamp(static_cast<float>(GetValue()), 0.f, 1.f);
-    return colour::visualizer::GradientColor(normalizedValue);
+    return colour::visualizer::kKnob;
   }
 
   void DrawValueArc(IGraphics& g)
@@ -137,7 +136,7 @@ private:
   ISVG mRotatingSVG;
   float mStartAngle = -135.f;
   float mEndAngle = 135.f;
-  float mValueArcThickness = 3.f;
+  float mValueArcThickness = 4.8f;
 };
 
 class KnobReadoutControl final : public ITextControl

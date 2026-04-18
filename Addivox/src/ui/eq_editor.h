@@ -226,7 +226,7 @@ public:
 private:
   static constexpr int kNoPointIndex = -1;
   static constexpr float kPointRadiusPx = 5.f;
-  static constexpr float kCurveThicknessPx = 5.0f;
+  static constexpr float kCurveThicknessPx = 2.0f;
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
   static constexpr double kDraggedPointFrequencyEpsilonHz = 1.0e-6;
   static constexpr double kDraggedPointGainEpsilonDb = 1.0e-6;
@@ -374,55 +374,35 @@ private:
 
   void DrawCurve(IGraphics& g, const IRECT& plotBounds) const
   {
-    const auto curveColorForDb = [](double gainDb) {
-      const float t = std::clamp(
-        static_cast<float>((gainDb - EqCurve::kMinFiniteGainDb) / (EqCurve::kMaxGainDb - EqCurve::kMinFiniteGainDb)),
-        0.f,
-        1.f);
-      return colour::visualizer::GradientColor(t);
-    };
-
-    const auto drawSmoothedCurve = [&](const EqCurve& curve, float thickness) {
+    const auto drawSmoothedCurve = [&](const EqCurve& curve, const IColor& color, float thickness) {
       const int numSamples = std::max(2, static_cast<int>(std::ceil(plotBounds.W())));
+      for(int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex)
+      {
+        const float t = (numSamples <= 1)
+          ? 0.f
+          : static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
+        const float x = plotBounds.L + (t * plotBounds.W());
+        const float y = YFromDb(curve.EvaluateDb(FrequencyFromX(x, plotBounds)), plotBounds);
+        if(sampleIndex == 0)
+          g.PathMoveTo(x, y);
+        else
+          g.PathLineTo(x, y);
+      }
+
       IStrokeOptions strokeOptions;
       strokeOptions.mCapOption = ELineCap::Round;
       strokeOptions.mJoinOption = ELineJoin::Round;
-
-      double previousGainDb = curve.EvaluateDb(FrequencyFromX(plotBounds.L, plotBounds));
-      float previousX = plotBounds.L;
-      float previousY = YFromDb(previousGainDb, plotBounds);
-
-      for(int sampleIndex = 1; sampleIndex < numSamples; ++sampleIndex)
-      {
-        const float t = static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
-        const float x = plotBounds.L + (t * plotBounds.W());
-        const double gainDb = curve.EvaluateDb(FrequencyFromX(x, plotBounds));
-        const float y = YFromDb(gainDb, plotBounds);
-
-        g.PathClear();
-        g.PathMoveTo(previousX, previousY);
-        g.PathLineTo(x, y);
-        g.PathStroke(curveColorForDb((previousGainDb + gainDb) * 0.5), thickness, strokeOptions, &mBlend);
-
-        previousGainDb = gainDb;
-        previousX = x;
-        previousY = y;
-      }
+      g.PathStroke(color, thickness, strokeOptions, &mBlend);
     };
 
-    drawSmoothedCurve(mCurve, kCurveThicknessPx);
+    const IColor glowColor = colour::ui::kAccentPrimary.WithOpacity(70);
+    const IColor lineColor = colour::ui::kAccentPrimary;
+    drawSmoothedCurve(mCurve, glowColor, kCurveThicknessPx + 3.f);
+    drawSmoothedCurve(mCurve, lineColor, kCurveThicknessPx);
   }
 
   void DrawPoints(IGraphics& g, const IRECT& plotBounds) const
   {
-    const auto pointColorForDb = [](double gainDb) {
-      const float t = std::clamp(
-        static_cast<float>((gainDb - EqCurve::kMinFiniteGainDb) / (EqCurve::kMaxGainDb - EqCurve::kMinFiniteGainDb)),
-        0.f,
-        1.f);
-      return colour::visualizer::GradientColor(t);
-    };
-
     for(std::size_t i = 0; i < mCurve.GetPoints().size(); ++i)
     {
       const auto& point = mCurve.GetPoints()[i];
@@ -430,8 +410,7 @@ private:
       const float y = YFromDb(point.gainDb, plotBounds);
       const bool active = static_cast<int>(i) == mDraggedPointIndex;
       const float radius = active ? (kPointRadiusPx + 1.f) : kPointRadiusPx;
-      const IColor pointColor = pointColorForDb(point.gainDb);
-      g.FillCircle(active ? pointColor.WithContrast(0.15f) : pointColor, x, y, radius, &mBlend);
+      g.FillCircle(active ? colour::ui::kAccentSecondary : colour::ui::kAccentPrimary, x, y, radius, &mBlend);
       g.DrawCircle(colour::visualizer::kHarmonicCore, x, y, radius, &mBlend, 1.f);
     }
   }

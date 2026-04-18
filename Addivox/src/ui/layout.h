@@ -77,7 +77,6 @@ using OutMeterLEDRange = IVLEDMeterControl<2>::LEDRange;
 inline std::vector<OutMeterLEDRange> MakeOutputMeterLEDRanges()
 {
   constexpr int kNumBars = 26;
-  constexpr int kNumRedBars = 2;
   constexpr float kLowDB = -73.5f;
   constexpr float kHighDB = 4.5f;
   constexpr float kStepDB = (kHighDB - kLowDB) / static_cast<float>(kNumBars);
@@ -87,47 +86,10 @@ inline std::vector<OutMeterLEDRange> MakeOutputMeterLEDRanges()
   for(int i = 0; i < kNumBars; ++i)
   {
     const float lowDB = kLowDB + (kStepDB * static_cast<float>(i));
-    IColor color = COLOR_RED;
-
-    if(i >= kNumRedBars)
-    {
-      constexpr float kGradientBarCount = static_cast<float>(kNumBars - kNumRedBars - 1);
-      const float gradientT = 1.f - ((static_cast<float>(i - kNumRedBars)) / kGradientBarCount);
-      color = colour::visualizer::GradientColor(gradientT);
-    }
-
-    ranges.emplace_back(lowDB, lowDB + kStepDB, 1, color);
+    ranges.emplace_back(lowDB, lowDB + kStepDB, 1, colour::visualizer::kOutputMeterLEDColors[static_cast<std::size_t>(i)]);
   }
   return ranges;
 }
-
-class GradientBreathMeterControl final : public IVMeterControl<1>
-{
-public:
-  GradientBreathMeterControl(const IRECT& bounds, const IVStyle& style)
-  : IVMeterControl<1>(bounds, "", style, EDirection::Horizontal)
-  {
-  }
-
-private:
-  IColor CurrentValueColor(int chIdx) const
-  {
-    return colour::visualizer::GradientColor(std::clamp(static_cast<float>(GetValue(chIdx)), 0.f, 1.f));
-  }
-
-  void DrawTrackHandle(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override
-  {
-    g.FillRect(CurrentValueColor(chIdx), r, &mBlend);
-
-    if(chIdx == mMouseOverTrack)
-      g.FillRect(GetColor(kHL), r, &mBlend);
-  }
-
-  void DrawPeak(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override
-  {
-    g.FillRect(CurrentValueColor(chIdx), r, &mBlend);
-  }
-};
 
 class BakedPresetManagerControl final : public IVBakedPresetManagerControl
 {
@@ -449,7 +411,7 @@ inline void AttachOutputMeterControls(IGraphics* pGraphics,
 {
   AttachPassiveText(pGraphics, positions::kBreathLabel, "Breath", resources.compactLabelText);
 
-  pGraphics->AttachControl(new GradientBreathMeterControl(positions::kBreathMeter, resources.meterStyle), breathMeterTag);
+  pGraphics->AttachControl(new IVMeterControl<1>(positions::kBreathMeter, "", resources.meterStyle, EDirection::Horizontal), breathMeterTag);
   auto* outMeter = new IVLEDMeterControl<2>(positions::kOutputMeter, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
   outMeter->SetResponse(IVMeterControl<2>::EResponse::Linear);
   pGraphics->AttachControl(outMeter, outMeterTag);
