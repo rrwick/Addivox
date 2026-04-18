@@ -54,61 +54,13 @@ inline const IRECT           kOutputLabel = IRECT::MakeXYWH(875, 600,  80,  12);
 inline const IRECT        kPitchBendWheel = IRECT::MakeXYWH(  4, 630,  35, 110);
 inline const IRECT              kKeyboard = IRECT::MakeXYWH( 38, 630, 952, 110);
 
-inline constexpr float kContentWidth = 920;
-inline constexpr float kContentHeight = 320;
-inline constexpr float kHorizontalInset = 24;
-inline constexpr float kDoubleHorizontalInset = 48;
-inline constexpr float kUrlRowOffsetY = 210;
-inline constexpr float kUrlRowHeight = 24;
-inline constexpr float kLogoOffsetY = 30;
-inline constexpr float kLogoWidth = 820;
-inline constexpr float kLogoHeight = 112;
-inline constexpr float kSubtitleOffsetY = 160;
-inline constexpr float kSubtitleHeight = 30;
-inline constexpr float kVersionOffsetY = 240;
-inline constexpr float kMetaRowHeight = 24;
-inline constexpr float kCopyrightOffsetY = 270;
-inline constexpr float kBuiltWithOffsetY = 300;
-
-inline IRECT GetContentBounds(const IRECT& parentBounds)
-{
-  return parentBounds.GetCentredInside(kContentWidth, kContentHeight);
-}
-
-inline IRECT GetUrlRowBounds(const IRECT& contentBounds)
-{
-  return IRECT::MakeXYWH(contentBounds.L + kHorizontalInset, contentBounds.T + kUrlRowOffsetY, contentBounds.W() - kDoubleHorizontalInset, kUrlRowHeight);
-}
-
-inline IRECT GetLogoBounds(const IRECT& contentBounds)
-{
-  return IRECT::MakeXYWH(contentBounds.MW() - (kLogoWidth * 0.5f), contentBounds.T + kLogoOffsetY, kLogoWidth, kLogoHeight);
-}
-
-inline IRECT GetSubtitleBounds(const IRECT& contentBounds)
-{
-  return IRECT::MakeXYWH(contentBounds.L, contentBounds.T + kSubtitleOffsetY, contentBounds.W(), kSubtitleHeight);
-}
-
-inline IRECT GetUrlTextBounds(const IRECT& urlRowBounds, float textWidth)
-{
-  return IRECT::MakeXYWH(urlRowBounds.MW() - (textWidth * 0.5f), urlRowBounds.T, textWidth, urlRowBounds.H());
-}
-
-inline IRECT GetVersionBounds(const IRECT& contentBounds)
-{
-  return IRECT::MakeXYWH(contentBounds.L, contentBounds.T + kVersionOffsetY, contentBounds.W(), kMetaRowHeight);
-}
-
-inline IRECT GetCopyrightBounds(const IRECT& contentBounds)
-{
-  return IRECT::MakeXYWH(contentBounds.L + kHorizontalInset, contentBounds.T + kCopyrightOffsetY, contentBounds.W() - kDoubleHorizontalInset, kMetaRowHeight);
-}
-
-inline IRECT GetBuiltWithBounds(const IRECT& contentBounds)
-{
-  return IRECT::MakeXYWH(contentBounds.L, contentBounds.T + kBuiltWithOffsetY, contentBounds.W(), kMetaRowHeight);
-}
+inline const IRECT          kAboutContent = IRECT::MakeXYWH(  0,   0, 920, 320);
+inline const IRECT             kAboutLogo = IRECT::MakeXYWH(110,  40, 700,  96);
+inline const IRECT         kAboutSubtitle = IRECT::MakeXYWH(  0, 160, 920,  30);
+inline const IRECT           kAboutUrlRow = IRECT::MakeXYWH(  0, 210, 920,  24);
+inline const IRECT          kAboutVersion = IRECT::MakeXYWH(  0, 240, 920,  24);
+inline const IRECT        kAboutCopyright = IRECT::MakeXYWH(  0, 270, 920,  24);
+inline const IRECT        kAboutBuiltWith = IRECT::MakeXYWH(  0, 300, 920,  24);
 
 } // namespace positions
 } // namespace plugin_ui

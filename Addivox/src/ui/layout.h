@@ -434,17 +434,40 @@ inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& re
         pParent->AddChildControl(new AboutBuiltWithControl(IRECT(), "https://iplug2.github.io/"));
       },
       [](IContainerBase* pParent, const IRECT& r) {
-        const IRECT content = positions::GetContentBounds(r);
-        const IRECT urlRow = positions::GetUrlRowBounds(content);
+        const IRECT content = r.GetCentredInside(positions::kAboutContent.W(), positions::kAboutContent.H());
         IRECT urlTextBounds;
         pParent->GetUI()->MeasureText(theme::AboutLinkText(), PLUG_URL_DISPLAY_STR, urlTextBounds);
 
-        pParent->GetChild(0)->SetTargetAndDrawRECTs(positions::GetLogoBounds(content));
-        pParent->GetChild(1)->SetTargetAndDrawRECTs(positions::GetSubtitleBounds(content));
-        pParent->GetChild(2)->SetTargetAndDrawRECTs(positions::GetUrlTextBounds(urlRow, urlTextBounds.W()));
-        pParent->GetChild(3)->SetTargetAndDrawRECTs(positions::GetVersionBounds(content));
-        pParent->GetChild(4)->SetTargetAndDrawRECTs(positions::GetCopyrightBounds(content));
-        pParent->GetChild(5)->SetTargetAndDrawRECTs(positions::GetBuiltWithBounds(content));
+        pParent->GetChild(0)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(
+          content.L + positions::kAboutLogo.L,
+          content.T + positions::kAboutLogo.T,
+          positions::kAboutLogo.W(),
+          positions::kAboutLogo.H()));
+        pParent->GetChild(1)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(
+          content.L + positions::kAboutSubtitle.L,
+          content.T + positions::kAboutSubtitle.T,
+          positions::kAboutSubtitle.W(),
+          positions::kAboutSubtitle.H()));
+        pParent->GetChild(2)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(
+          content.L + positions::kAboutUrlRow.MW() - (urlTextBounds.W() * 0.5f),
+          content.T + positions::kAboutUrlRow.T,
+          urlTextBounds.W(),
+          positions::kAboutUrlRow.H()));
+        pParent->GetChild(3)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(
+          content.L + positions::kAboutVersion.L,
+          content.T + positions::kAboutVersion.T,
+          positions::kAboutVersion.W(),
+          positions::kAboutVersion.H()));
+        pParent->GetChild(4)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(
+          content.L + positions::kAboutCopyright.L,
+          content.T + positions::kAboutCopyright.T,
+          positions::kAboutCopyright.W(),
+          positions::kAboutCopyright.H()));
+        pParent->GetChild(5)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(
+          content.L + positions::kAboutBuiltWith.L,
+          content.T + positions::kAboutBuiltWith.T,
+          positions::kAboutBuiltWith.W(),
+          positions::kAboutBuiltWith.H()));
       },
       180),
     aboutBoxTag)->Hide(true);
