@@ -3,6 +3,17 @@
 #include "params.h"
 
 #include <algorithm>
+#include <cmath>
+
+namespace
+{
+double SanitizeTuningCents(double value)
+{
+  const double roundedValue = std::round(value);
+  const double clampedValue = std::clamp(roundedValue, -50.0, 50.0);
+  return (clampedValue == 0.0) ? 0.0 : clampedValue;
+}
+} // namespace
 
 namespace global_settings
 {
@@ -12,6 +23,7 @@ GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings)
   sanitized.levelScale = std::max(0.0, sanitized.levelScale);
   sanitized.attackScale = std::max(0.0, sanitized.attackScale);
   sanitized.releaseScale = std::max(0.0, sanitized.releaseScale);
+  sanitized.tuningCents = SanitizeTuningCents(sanitized.tuningCents);
   sanitized.panOffset = std::clamp(sanitized.panOffset, -1.0, 1.0);
   sanitized.intensityVariationAmplitudeScale = std::max(0.0, sanitized.intensityVariationAmplitudeScale);
   sanitized.intensityVariationRateScale = std::max(0.0, sanitized.intensityVariationRateScale);
@@ -37,8 +49,8 @@ bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings)
     case kParamGlobalReleaseScale:
       settings.releaseScale = std::max(0.0, value);
       return true;
-    case kParamGlobalPitchShift:
-      settings.pitchOffsetCents = value;
+    case kParamGlobalTuning:
+      settings.tuningCents = SanitizeTuningCents(value);
       return true;
     case kParamGlobalPanShift:
       settings.panOffset = std::clamp(value, -1.0, 1.0);

@@ -6,7 +6,7 @@ struct GlobalVoiceSettings
   double levelScale{1.0};
   double attackScale{1.0};
   double releaseScale{1.0};
-  double pitchOffsetCents{0.0};
+  double tuningCents{0.0};
   double panOffset{0.0};
   double intensityVariationAmplitudeScale{0.0};
   double intensityVariationRateScale{1.0};

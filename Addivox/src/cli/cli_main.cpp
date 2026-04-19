@@ -37,9 +37,9 @@ void PrintUsage(std::ostream& stream)
     << "      --attack N           Attack scaling, 0-100\n"
     << "      --release N          Release scaling, 0-100\n"
     << "\n"
-    << "Pitch:\n"
+    << "Tuning:\n"
     << "      --transpose N        Transpose in semitones, -36 to 36 (default: 0)\n"
-    << "      --pitch N            Pitch offset in cents, -50 to 50 (default: 0)\n"
+    << "      --tuning N           Tuning offset in cents, -50 to 50 (default: 0)\n"
     << "      --port_min N         Portamento minimum in seconds\n"
     << "      --port_max N         Portamento maximum in seconds\n"
     << "\n"
@@ -321,7 +321,7 @@ int main(int argc, char** argv)
       options.levelScale = value;
       continue;
     }
-    if(argument == "--pitch" || argument == "--pitch-offset")
+    if(argument == "--tuning" || argument == "--tuning-cents" || argument == "--pitch" || argument == "--pitch-offset")
     {
       double value = 0.0;
       if(!ReadParsedValue(
@@ -330,12 +330,12 @@ int main(int argc, char** argv)
            index,
            value,
            ParseDoubleArgument,
-           "--pitch",
+           "--tuning",
            errorMessage))
       {
         break;
       }
-      options.pitchOffsetCents = value;
+      options.tuningCents = value;
       continue;
     }
     if(argument == "--pan" || argument == "--pan-offset")

@@ -65,6 +65,15 @@ inline void AttachPassiveText(IGraphics* pGraphics, const IRECT& bounds, const c
   pGraphics->AttachControl(control);
 }
 
+inline void AttachPassiveSectionLabel(IGraphics* pGraphics,
+                                      const IRECT& bounds,
+                                      const char* text,
+                                      float angle = -90.f,
+                                      const char* tooltip = nullptr)
+{
+  AttachPassiveText(pGraphics, bounds, text, theme::SectionLabelText(angle), tooltip);
+}
+
 inline void AttachPassiveCaption(IGraphics* pGraphics, const IRECT& bounds, int paramIdx,  const IText& style, const char* tooltip = nullptr)
 {
   auto* control = MakePassiveControl(new ICaptionControl(bounds, paramIdx, style, COLOR_TRANSPARENT, true));
@@ -410,12 +419,13 @@ inline void AttachOutputMeterControls(IGraphics* pGraphics,
                                       int outMeterTag)
 {
   AttachPassiveText(pGraphics, positions::kBreathLabel, "Breath", resources.compactLabelText);
+  AttachPassiveText(pGraphics, positions::kMainOutLabel, "Main Out", resources.compactLabelText);
 
-  pGraphics->AttachControl(new IVMeterControl<1>(positions::kBreathMeter, "", resources.meterStyle, EDirection::Horizontal), breathMeterTag);
+  const IVStyle breathMeterStyle = resources.meterStyle.WithColor(kHL, COLOR_TRANSPARENT);
+  pGraphics->AttachControl(new IVMeterControl<1>(positions::kBreathMeter, "", breathMeterStyle, EDirection::Horizontal), breathMeterTag);
   auto* outMeter = new IVLEDMeterControl<2>(positions::kOutputMeter, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
   outMeter->SetResponse(IVMeterControl<2>::EResponse::Linear);
   pGraphics->AttachControl(outMeter, outMeterTag);
-  AttachPassiveText(pGraphics, positions::kOutputLabel, "Output", resources.compactLabelText);
 }
 
 inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& resources, int aboutBoxTag)
@@ -538,6 +548,8 @@ inline VizEditControls AttachVizEditControls(IGraphics* pGraphics,
     2,
     context->IsEditMode() ? 1 : 0);
   pGraphics->AttachControl(mainPanelModeSwitch);
+  AttachPassiveSectionLabel(pGraphics, positions::kVizModeLabel, "VIZ", 0.0);
+  AttachPassiveSectionLabel(pGraphics, positions::kEditModeLabel, "EDIT", 0.0);
 
   return {mainPanelModeSwitch, setMainPanelMode};
 }
@@ -566,18 +578,20 @@ inline void AttachKeyboardControls(IGraphics* pGraphics,
 
 inline void AttachEnvelopeControls(IGraphics* pGraphics, const PanelResources&)
 {
+  AttachPassiveSectionLabel(pGraphics, positions::kEnvelopeLabel, "ENVELOPE");
   pGraphics->AttachControl(new LabelledKnob(positions::kAttackKnob, kParamGlobalAttackScale, "Attack", 3.f));
   pGraphics->AttachControl(new LabelledKnob(positions::kReleaseKnob, kParamGlobalReleaseScale, "Release", 5.f));
 }
 
 inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& resources)
 {
+  AttachPassiveSectionLabel(pGraphics, positions::kPitchLabel, "PITCH");
   AttachPassiveText(pGraphics, positions::kTransposeLabel, "Transpose", resources.compactLabelText, help_text::main_ui::kTranspose);
   auto* transposeControl = new NumberBoxControl(positions::kTransposeNumberBox, kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%0.0f");
   pGraphics->AttachControl(transposeControl);
   transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 
-  pGraphics->AttachControl(new LabelledKnob(positions::kPitchKnob, kParamGlobalPitchShift, "Pitch", 7.f));
+  pGraphics->AttachControl(new LabelledKnob(positions::kTuningKnob, kParamGlobalTuning, "Tuning", 7.f));
 
   AttachPassiveText(pGraphics, positions::kPortamentoLabel, "Portamento", resources.compactLabelText, help_text::main_ui::kPortamento);
   AttachPassiveCaption(pGraphics, positions::kPortamentoMinCaption, kParamPortamentoAtCC5Min, resources.portamentoValueText, help_text::main_ui::kPortamento);
@@ -590,22 +604,32 @@ inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& reso
 
 inline void AttachVariationControls(IGraphics* pGraphics, const PanelResources&)
 {
-  pGraphics->AttachControl(new LabelledKnob(positions::kLevelAmountKnob, kParamGlobalIntensityVariationAmplitudeScale, "LvlAmt", 0.f));
-  pGraphics->AttachControl(new LabelledKnob(positions::kLevelRateKnob, kParamGlobalIntensityVariationRateScale, "LvlRate", 0.f));
-  pGraphics->AttachControl(new LabelledKnob(positions::kPanAmountKnob, kParamGlobalPanVariationAmplitudeScale, "PanAmt", 0.f));
-  pGraphics->AttachControl(new LabelledKnob(positions::kPanRateKnob, kParamGlobalPanVariationRateScale, "PanRate", 0.f));
-  pGraphics->AttachControl(new LabelledKnob(positions::kPitchAmountKnob, kParamGlobalPitchVariationAmplitudeScale, "PchAmt", 0.f));
-  pGraphics->AttachControl(new LabelledKnob(positions::kPitchRateKnob, kParamGlobalPitchVariationRateScale, "PchRate", 0.f));
+  AttachPassiveSectionLabel(pGraphics, positions::kVariationLabel, "VARIATION");
+  pGraphics->AttachControl(new LabelledKnob(positions::kLevelAmountKnob, kParamGlobalIntensityVariationAmplitudeScale, "LvlAmt"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kLevelRateKnob, kParamGlobalIntensityVariationRateScale, "LvlRate"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kPanAmountKnob, kParamGlobalPanVariationAmplitudeScale, "PanAmt"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kPanRateKnob, kParamGlobalPanVariationRateScale, "PanRate"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kPitchAmountKnob, kParamGlobalPitchVariationAmplitudeScale, "PchAmt"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kPitchRateKnob, kParamGlobalPitchVariationRateScale, "PchRate"));
 }
 
 inline void AttachOutputControls(IGraphics* pGraphics, const PanelResources&)
 {
+  AttachPassiveSectionLabel(pGraphics, positions::kOutputLabel, "OUTPUT");
   pGraphics->AttachControl(new LabelledKnob(positions::kPanKnob, kParamGlobalPanShift, "Pan"));
   pGraphics->AttachControl(new LabelledKnob(positions::kLevelKnob, kParamGlobalLevel, "Level"));
 }
 
+inline void AttachNoiseControls(IGraphics* pGraphics, const PanelResources&)
+{
+  AttachPassiveSectionLabel(pGraphics, positions::kNoiseLabel, "NOISE");
+  // pGraphics->AttachControl(new LabelledKnob(positions::kNoiseAttackKnob, kParamGlobalNoiseAttack, "Attack"));
+  // pGraphics->AttachControl(new LabelledKnob(positions::kNoiseSustainKnob, kParamGlobalNoiseSustain, "Sustain"));
+}
+
 inline void AttachEffectsControls(IGraphics* pGraphics, const PanelResources&)
 {
+  AttachPassiveSectionLabel(pGraphics, positions::kEffectsLabel, "EFFECTS");
   pGraphics->AttachControl(new LabelledKnob(positions::kDriveKnob, kParamEffectsDrive, "Drive"));
   pGraphics->AttachControl(new LabelledKnob(positions::kToneKnob, kParamEffectsTone, "Tone"));
   pGraphics->AttachControl(new LabelledKnob(positions::kChorusKnob, kParamEffectsChorus, "Chorus"));
@@ -632,6 +656,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachPitchControls(pGraphics, resources);
   layout::AttachVariationControls(pGraphics, resources);
   layout::AttachOutputControls(pGraphics, resources);
+  layout::AttachNoiseControls(pGraphics, resources);
   layout::AttachEffectsControls(pGraphics, resources);
   layout::AttachKeyboardControls(pGraphics, context, keyboardTag, benderTag);
   layout::AttachAboutBoxControl(pGraphics, resources, kCtrlTagAboutBox);

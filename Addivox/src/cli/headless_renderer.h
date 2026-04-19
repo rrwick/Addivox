@@ -30,7 +30,7 @@ struct HeadlessRenderOptions
   std::optional<double> drive;
   std::optional<double> tone;
   std::optional<double> chorus;
-  std::optional<double> pitchOffsetCents;
+  std::optional<double> tuningCents;
   std::optional<double> panOffset;
   std::optional<double> intensityVariationAmplitudeScale;
   std::optional<double> intensityVariationRateScale;

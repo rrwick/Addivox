@@ -24,8 +24,8 @@ inline constexpr const char* kRelease =
 inline constexpr const char* kTranspose =
   "Transposes every played note in semitones. This control is not tied to a preset and will hold its value as the preset changes.";
 
-inline constexpr const char* kPitchShift =
-  "Applies a global pitch offset in cents to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
+inline constexpr const char* kTuning =
+  "Applies a global tuning offset in cents to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
 
 inline constexpr const char* kPanShift =
   "Applies a global stereo pan offset to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
@@ -74,8 +74,8 @@ inline const char* GetParam(int paramIdx)
       return kAttack;
     case kParamGlobalReleaseScale:
       return kRelease;
-    case kParamGlobalPitchShift:
-      return kPitchShift;
+    case kParamGlobalTuning:
+      return kTuning;
     case kParamGlobalPanShift:
       return kPanShift;
     case kParamGlobalIntensityVariationAmplitudeScale:

@@ -262,7 +262,7 @@ double SynthVoice::GetOscillatorBasePitchSemitones(int harmonic,
 {
   const double harmonicPitchOffsetSemitones = 12.0 * std::log2(static_cast<double>(harmonic + 1));
   const double presetPitchOffsetSemitones =
-    (settings.pitch + globalSettings.pitchOffsetCents) / 100.0;
+    (settings.pitch + globalSettings.tuningCents) / 100.0;
   return fundamentalPitchSemitones + harmonicPitchOffsetSemitones + presetPitchOffsetSemitones;
 }
 

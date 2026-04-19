@@ -39,15 +39,15 @@ EffectsSettings GetEffectsSettingsFromParams(const Addivox& plugin)
 
 void SetGlobalVoiceSettingsParams(Addivox& plugin,
                                   const GlobalVoiceSettings& voiceSettings,
-                                  bool includePitchShift = true,
+                                  bool includeTuning = true,
                                   bool includePanShift = true)
 {
   const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
   plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
   plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
   plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
-  if(includePitchShift)
-    plugin.GetParam(kParamGlobalPitchShift)->Set(sanitizedVoiceSettings.pitchOffsetCents);
+  if(includeTuning)
+    plugin.GetParam(kParamGlobalTuning)->Set(sanitizedVoiceSettings.tuningCents);
   if(includePanShift)
     plugin.GetParam(kParamGlobalPanShift)->Set(sanitizedVoiceSettings.panOffset);
   plugin.GetParam(kParamGlobalIntensityVariationAmplitudeScale)->Set(sanitizedVoiceSettings.intensityVariationAmplitudeScale);
@@ -78,7 +78,7 @@ bool IsPresetOwnedParam(int paramIdx)
   // keep their constructor defaults instead of following the last recalled preset.
   switch(paramIdx)
   {
-    case kParamGlobalPitchShift:
+    case kParamGlobalTuning:
     case kParamGlobalPanShift:
     case kParamEffectsReverb:
     case kParamTranspose:
@@ -109,7 +109,7 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
     && chunk.Put(&voiceSettings.levelScale) > 0
     && chunk.Put(&voiceSettings.attackScale) > 0
     && chunk.Put(&voiceSettings.releaseScale) > 0
-    && chunk.Put(&voiceSettings.pitchOffsetCents) > 0
+    && chunk.Put(&voiceSettings.tuningCents) > 0
     && chunk.Put(&voiceSettings.panOffset) > 0
     && chunk.Put(&voiceSettings.intensityVariationAmplitudeScale) > 0
     && chunk.Put(&voiceSettings.intensityVariationRateScale) > 0
@@ -224,7 +224,7 @@ int RestoreStateParamsFromChunk(Addivox& plugin,
   {
     for(int paramIdx = 0; paramIdx <= kParamPortamentoAtCC5Max; ++paramIdx)
     {
-      const bool applyValue = (paramIdx != kParamGlobalPitchShift) && (paramIdx != kParamGlobalPanShift);
+      const bool applyValue = (paramIdx != kParamGlobalTuning) && (paramIdx != kParamGlobalPanShift);
       if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position, applyValue))
         return position;
     }
@@ -453,10 +453,13 @@ Addivox::Addivox(const InstanceInfo& info)
   const auto formatPercentDisplay = [](double value, WDL_String& str) {
     str.SetFormatted(32, "%.1f%%", value);
   };
-  const auto formatCentsDisplay = [](double value, WDL_String& str) {
-    const double roundedValue = std::round(value * 10.0) / 10.0;
+  const auto formatSignedCentsDisplay = [](double value, WDL_String& str) {
+    const double roundedValue = std::round(value);
     const double normalizedValue = (roundedValue == 0.0) ? 0.0 : roundedValue;
-    str.SetFormatted(32, "%.1f\xC2\xA2", normalizedValue);
+    if(normalizedValue > 0.0)
+      str.SetFormatted(32, "+%.0f\xC2\xA2", normalizedValue);
+    else
+      str.SetFormatted(32, "%.0f\xC2\xA2", normalizedValue);
   };
   const auto formatSignedUnitDisplay = [](double value, WDL_String& str) {
     const double roundedValue = std::round(value * 100.0) / 100.0;
@@ -470,7 +473,7 @@ Addivox::Addivox(const InstanceInfo& info)
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
-  GetParam(kParamGlobalPitchShift)->InitDouble("Pitch Shift", 0., -50., 50., 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCents, formatCentsDisplay);
+  GetParam(kParamGlobalTuning)->InitDouble("Tuning", 0., -50., 50., 1.0, "", iplug::IParam::kFlagStepped, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCents, formatSignedCentsDisplay);
   GetParam(kParamGlobalPanShift)->InitDouble("Pan Shift", 0., -1., 1., 0.01, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatSignedUnitDisplay);
   initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Level Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Level Variation Rate");

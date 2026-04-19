@@ -430,8 +430,8 @@ void ApplyPresetAndOverrides(SynthEngine& engine,
   if(options.releaseScale)
     voiceSettings.releaseScale = *options.releaseScale;
 
-  if(options.pitchOffsetCents)
-    voiceSettings.pitchOffsetCents = *options.pitchOffsetCents;
+  if(options.tuningCents)
+    voiceSettings.tuningCents = *options.tuningCents;
 
   if(options.panOffset)
     voiceSettings.panOffset = *options.panOffset;
@@ -520,8 +520,8 @@ bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::stri
   if(options.releaseScale && !ValidateFiniteRange("Release", *options.releaseScale, 0.0, 100.0, errorMessage))
     return false;
 
-  if(options.pitchOffsetCents
-     && !ValidateFiniteRange("Pitch offset", *options.pitchOffsetCents, -50.0, 50.0, errorMessage))
+  if(options.tuningCents
+     && !ValidateFiniteRange("Tuning", *options.tuningCents, -50.0, 50.0, errorMessage))
   {
     return false;
   }

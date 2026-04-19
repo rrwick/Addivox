@@ -47,6 +47,11 @@ inline IText CompactLabelText(EAlign align = EAlign::Near)
   return {14.f, colour::ui::kLabelText, "Roboto-Black", align};
 }
 
+inline IText SectionLabelText(float angle = -90.f)
+{
+  return {22.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center, EVAlign::Middle, angle};
+}
+
 inline IText CompactValueText(EAlign align = EAlign::Near)
 {
   return {14.f, colour::ui::kValueText, "Roboto-Black", align};

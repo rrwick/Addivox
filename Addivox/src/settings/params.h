@@ -5,7 +5,7 @@ enum EParams
   kParamGlobalLevel = 0,
   kParamGlobalAttackScale,
   kParamGlobalReleaseScale,
-  kParamGlobalPitchShift,
+  kParamGlobalTuning,
   kParamGlobalPanShift,
   kParamGlobalIntensityVariationAmplitudeScale,
   kParamGlobalIntensityVariationRateScale,
