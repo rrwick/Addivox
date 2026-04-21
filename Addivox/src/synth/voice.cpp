@@ -12,7 +12,12 @@ namespace
 constexpr double kBreathCurveScale = 2.0;
 
 const double kBreathCurveLog = std::log1p(kBreathCurveScale);
-constexpr double kNoiseSustainOutputScale = 0.25;
+constexpr double kNoiseAttackDerivativeToExcitationScale = 0.1;
+constexpr double kNoiseAttackDetectorTimeSec = 0.003;
+constexpr double kNoiseAttackDerivativeDeadbandPerSecond = 0.05;
+constexpr double kNoiseAttackVisualizationDecayTimeSec = 0.05;
+constexpr double kNoiseAttackActivityEpsilon = 1.0e-5;
+constexpr double kNoiseOutputScale = 0.25;
 constexpr double kNoiseSustainGainSmoothingTimeSec = 0.01;
 constexpr double kNoiseSustainPanSmoothingTimeSec = 0.02;
 constexpr double kNoiseSustainActivityEpsilon = 1.0e-5;
@@ -63,10 +68,13 @@ SynthVoice::SynthVoice()
   }
 
   mNoiseSustainNoiseState = voiceSeed ^ 0x4F1BBCDCu;
+  mNoiseAttackNoiseState = voiceSeed ^ 0x91A4DC27u;
   UpdateNoiseSustainFilters();
   UpdateNoiseSustainGainSmoothing();
+  UpdateNoiseAttackDetectorSmoothing();
   UpdateNoiseSustainPanTargets();
   UpdateNoiseSustainPanSmoothing();
+  UpdateNoiseAttackVisualizationDecay();
   mNoiseSustainPanLeftGain = mTargetNoiseSustainPanLeftGain;
   mNoiseSustainPanRightGain = mTargetNoiseSustainPanRightGain;
   UpdatePitchRate();
@@ -83,6 +91,9 @@ bool SynthVoice::IsActive() const
   for(int bandIndex = 0; bandIndex < kNumNoiseBands; ++bandIndex)
   {
     const auto index = static_cast<std::size_t>(bandIndex);
+    if(mNoiseAttackBandVisualization[index] > kNoiseAttackActivityEpsilon)
+      return true;
+
     if(mNoiseSustainBandGains[index] > kNoiseSustainActivityEpsilon
       || mTargetNoiseSustainBandGains[index] > kNoiseSustainActivityEpsilon)
     {
@@ -90,10 +101,13 @@ bool SynthVoice::IsActive() const
     }
   }
 
-  return false;
+  return (mNoiseAttackTargetBreathLevel - mNoiseAttackDetectorBreath) > kNoiseAttackActivityEpsilon;
 }
 
-void SynthVoice::Start(double pitch, double pitchBend, double breath)
+void SynthVoice::Start(double pitch,
+                       double pitchBend,
+                       double breath,
+                       double previousBreath)
 {
   const bool retrigger = !IsActive();
   mNotePitch = pitch;
@@ -101,7 +115,9 @@ void SynthVoice::Start(double pitch, double pitchBend, double breath)
   mTargetMidiPitch = GetTargetMidiPitch();
   if(retrigger)
     mRenderedMidiPitch = mTargetMidiPitch;
-  mBreath = SmoothBreath(breath);
+  mRawBreath = std::clamp(breath, 0.0, 1.0);
+  mBreath = SmoothBreath(mRawBreath);
+  mNoiseAttackTargetBreathLevel = EvaluateBreathLevel(mBreath);
   UpdatePitch();
 
   if(retrigger)
@@ -109,11 +125,14 @@ void SynthVoice::Start(double pitch, double pitchBend, double breath)
     for(auto& osc : mOscs)
       osc.Reset();
 
+    ResetNoiseAttackState();
     ResetNoiseSustainState();
+    mNoiseAttackDetectorBreath = EvaluateBreathLevel(SmoothBreath(std::clamp(previousBreath, 0.0, 1.0)));
     mNoiseSustainPanLeftGain = mTargetNoiseSustainPanLeftGain;
     mNoiseSustainPanRightGain = mTargetNoiseSustainPanRightGain;
-    UpdateLevels();
   }
+
+  UpdateLevels();
 }
 
 void SynthVoice::Stop()
@@ -155,11 +174,14 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic,
 
 void SynthVoice::SetBreath(double breath)
 {
-  const double smoothedBreath = SmoothBreath(breath);
-  if(smoothedBreath == mBreath)
+  const double clampedBreath = std::clamp(breath, 0.0, 1.0);
+  const double smoothedBreath = SmoothBreath(clampedBreath);
+  if(clampedBreath == mRawBreath && smoothedBreath == mBreath)
     return;
 
+  mRawBreath = clampedBreath;
   mBreath = smoothedBreath;
+  mNoiseAttackTargetBreathLevel = EvaluateBreathLevel(mBreath);
   UpdateLevels();
 }
 
@@ -262,6 +284,16 @@ bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   return true;
 }
 
+bool SynthVoice::SetKeyNoteNoiseAttackProfile(double midiNote, const NoiseBandProfile& profile)
+{
+  const bool updated = mCompoundPreset.SetKeyNoteNoiseAttackProfile(midiNote, profile);
+  if(!updated)
+    return false;
+
+  UpdateLevels();
+  return true;
+}
+
 bool SynthVoice::SetKeyNoteNoiseSustainProfile(double midiNote, const NoiseBandProfile& profile)
 {
   const bool updated = mCompoundPreset.SetKeyNoteNoiseSustainProfile(midiNote, profile);
@@ -282,6 +314,13 @@ bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, 
 bool SynthVoice::SetAllKeyNotesEqEnabled(bool enabled)
 {
   mCompoundPreset.SetAllKeyNotesEqEnabled(enabled);
+  UpdateLevels();
+  return true;
+}
+
+bool SynthVoice::SetAllKeyNotesNoiseAttackEnabled(bool enabled)
+{
+  mCompoundPreset.SetAllKeyNotesNoiseAttackEnabled(enabled);
   UpdateLevels();
   return true;
 }
@@ -310,11 +349,15 @@ void SynthVoice::Clear()
   Stop();
   mNotePitch = 0.0;
   mPitchBend = 0.0;
+  mRawBreath = 0.0;
   mBreath = 0.0;
+  mNoiseAttackTargetBreathLevel = 0.0;
+  mNoiseAttackDetectorBreath = 0.0;
   mPortamentoControl = 0.0;
   mRenderedMidiPitch = 0.0;
   mTargetMidiPitch = 0.0;
   mNoteControlSamplesUntilUpdate = 0;
+  ResetNoiseAttackState();
   ResetNoiseSustainState();
   mNoiseSustainPanLeftGain = mTargetNoiseSustainPanLeftGain;
   mNoiseSustainPanRightGain = mTargetNoiseSustainPanRightGain;
@@ -416,6 +459,7 @@ void SynthVoice::UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan)
     mOscs[harmonic].SetLevel(level);
   }
 
+  UpdateNoiseAttackTargets(noteSpan);
   UpdateNoiseSustainTargets(noteSpan);
 }
 
@@ -469,7 +513,7 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
       mTargetNoiseSustainPanRightGain,
       mNoiseSustainPanSmoothingCoefficient);
 
-    const double noiseSample = ProcessNoiseSustain();
+    const double noiseSample = ProcessNoiseAttack() + ProcessNoiseSustain();
     leftSample += static_cast<iplug::sample>(noiseSample * mNoiseSustainPanLeftGain);
     rightSample += static_cast<iplug::sample>(noiseSample * mNoiseSustainPanRightGain);
 
@@ -492,7 +536,9 @@ void SynthVoice::SetSampleRate(double sampleRate)
 
   UpdateNoiseSustainFilters();
   UpdateNoiseSustainGainSmoothing();
+  UpdateNoiseAttackDetectorSmoothing();
   UpdateNoiseSustainPanSmoothing();
+  UpdateNoiseAttackVisualizationDecay();
   UpdatePitchRate();
   mNoteControlSamplesUntilUpdate = 0;
 }
@@ -505,10 +551,23 @@ void SynthVoice::GetVisualizerFrame(VisualizerFrame& frame) const
   for(int bandIndex = 0; bandIndex < kNumNoiseBands; ++bandIndex)
   {
     const auto index = static_cast<std::size_t>(bandIndex);
-    const double bandLevel = std::max(0.0, mNoiseSustainBandGains[index]);
+    const double bandLevel = std::max(0.0, mNoiseSustainBandGains[index]) + std::max(0.0, mNoiseAttackBandVisualization[index]);
     frame.noiseBands[index] = HarmonicVisualizerNoiseBand{
       static_cast<float>(bandLevel * std::max(0.0, mNoiseSustainPanLeftGain)),
       static_cast<float>(bandLevel * std::max(0.0, mNoiseSustainPanRightGain))};
+  }
+}
+
+void SynthVoice::UpdateNoiseAttackTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan)
+{
+  const NoiseBandProfile profile = mCompoundPreset.InterpolateNoiseAttackProfile(noteSpan);
+  const auto& values = profile.GetValues();
+
+  for(int bandIndex = 0; bandIndex < kNumNoiseBands; ++bandIndex)
+  {
+    const double eqGain = EvaluateNoiseBandEqGain(mCompoundPreset, noteSpan, bandIndex);
+    mNoiseAttackBandWeights[static_cast<std::size_t>(bandIndex)] =
+      NoiseBandProfile::ClampBandValue(values[static_cast<std::size_t>(bandIndex)]) * eqGain;
   }
 }
 
@@ -525,6 +584,17 @@ void SynthVoice::UpdateNoiseSustainTargets(const CompoundPreset::ResolvedNoteSpa
     mTargetNoiseSustainBandGains[static_cast<std::size_t>(bandIndex)] =
       NoiseBandProfile::ClampBandValue(values[static_cast<std::size_t>(bandIndex)]) * breathScale * eqGain;
   }
+}
+
+void SynthVoice::ResetNoiseAttackState()
+{
+  for(auto& bandpassStages : mNoiseAttackBandpasses)
+  {
+    for(auto& bandpass : bandpassStages)
+      bandpass.Clear();
+  }
+
+  mNoiseAttackBandVisualization.fill(0.0);
 }
 
 void SynthVoice::ResetNoiseSustainState()
@@ -552,6 +622,17 @@ void SynthVoice::UpdateNoiseSustainFilters()
     const double bandwidthHz = std::max(upperHz - lowerHz, 1.0);
     const double q = std::max(centerHz / bandwidthHz, 0.1);
     const double stageQ = std::max(q / kNoiseSustainBandpassCascadeQScale, 0.1);
+    for(auto& bandpass : mNoiseAttackBandpasses[static_cast<std::size_t>(bandIndex)])
+    {
+      bandpass.SetBandpassHz(
+        safeSampleRate,
+        centerHz,
+        stageQ,
+        1.0,
+        0.49,
+        0.1,
+        100.0);
+    }
     for(auto& bandpass : mNoiseSustainBandpasses[static_cast<std::size_t>(bandIndex)])
     {
       bandpass.SetBandpassHz(
@@ -574,6 +655,12 @@ void SynthVoice::UpdateNoiseSustainGainSmoothing()
     dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseSustainGainSmoothingTimeSec);
 }
 
+void SynthVoice::UpdateNoiseAttackDetectorSmoothing()
+{
+  mNoiseAttackDetectorSmoothingCoefficient =
+    dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseAttackDetectorTimeSec);
+}
+
 void SynthVoice::UpdateNoiseSustainPanTargets()
 {
   dsp::PanToGains(
@@ -586,6 +673,65 @@ void SynthVoice::UpdateNoiseSustainPanSmoothing()
 {
   mNoiseSustainPanSmoothingCoefficient =
     dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseSustainPanSmoothingTimeSec);
+}
+
+void SynthVoice::UpdateNoiseAttackVisualizationDecay()
+{
+  mNoiseAttackVisualizationDecayCoefficient =
+    dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseAttackVisualizationDecayTimeSec);
+}
+
+double SynthVoice::ProcessNoiseAttack()
+{
+  double maxVisualization = 0.0;
+  for(const double value : mNoiseAttackBandVisualization)
+    maxVisualization = std::max(maxVisualization, value);
+
+  if((mNoiseAttackTargetBreathLevel - mNoiseAttackDetectorBreath) <= kNoiseAttackActivityEpsilon
+    && maxVisualization <= kNoiseAttackActivityEpsilon)
+  {
+    return 0.0;
+  }
+
+  const double previousDetectorBreath = mNoiseAttackDetectorBreath;
+  mNoiseAttackDetectorBreath = dsp::SmoothValue(
+    mNoiseAttackDetectorBreath,
+    mNoiseAttackTargetBreathLevel,
+    mNoiseAttackDetectorSmoothingCoefficient);
+  if(std::abs(mNoiseAttackDetectorBreath) < dsp::kDenormalFloor)
+    mNoiseAttackDetectorBreath = 0.0;
+
+  const double safeSampleRate = mSampleRate > 0.0 ? mSampleRate : 44100.0;
+  const double positiveDerivativePerSecond = std::max(
+    0.0,
+    ((mNoiseAttackDetectorBreath - previousDetectorBreath) * safeSampleRate)
+      - kNoiseAttackDerivativeDeadbandPerSecond);
+  const double excitation = (positiveDerivativePerSecond > 0.0)
+    ? (NextWhiteNoiseSample(mNoiseAttackNoiseState)
+      * positiveDerivativePerSecond
+      * kNoiseAttackDerivativeToExcitationScale)
+    : 0.0;
+
+  const double outputScale = mGlobalVoiceSettings.levelScale * mGlobalVoiceSettings.noiseAttackScale;
+  double output = 0.0;
+  for(int bandIndex = 0; bandIndex < kNumNoiseBands; ++bandIndex)
+  {
+    const auto index = static_cast<std::size_t>(bandIndex);
+    double bandSample = excitation;
+    for(auto& bandpass : mNoiseAttackBandpasses[index])
+      bandSample = bandpass.Process(bandSample);
+
+    const double weightedBandSample = bandSample * mNoiseSustainBandNormalizations[index] * mNoiseAttackBandWeights[index] * outputScale;
+    output += weightedBandSample;
+
+    mNoiseAttackBandVisualization[index] = std::max(
+      std::abs(weightedBandSample),
+      dsp::SmoothValue(mNoiseAttackBandVisualization[index], 0.0, mNoiseAttackVisualizationDecayCoefficient));
+    if(mNoiseAttackBandVisualization[index] < dsp::kDenormalFloor)
+      mNoiseAttackBandVisualization[index] = 0.0;
+  }
+
+  return dsp::FlushDenormal(output * kNoiseOutputScale);
 }
 
 double SynthVoice::ProcessNoiseSustain()
@@ -620,7 +766,7 @@ double SynthVoice::ProcessNoiseSustain()
     output += bandSample * mNoiseSustainBandNormalizations[index] * mNoiseSustainBandGains[index];
   }
 
-  return dsp::FlushDenormal(output * kNoiseSustainOutputScale);
+  return dsp::FlushDenormal(output * kNoiseOutputScale);
 }
 
 double SynthVoice::NextWhiteNoiseSample(uint32_t& state)

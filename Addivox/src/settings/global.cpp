@@ -22,6 +22,7 @@ GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings)
   GlobalVoiceSettings sanitized = settings;
   sanitized.levelScale = std::max(0.0, sanitized.levelScale);
   sanitized.noiseSustainScale = std::max(0.0, sanitized.noiseSustainScale);
+  sanitized.noiseAttackScale = std::max(0.0, sanitized.noiseAttackScale);
   sanitized.attackScale = std::max(0.0, sanitized.attackScale);
   sanitized.releaseScale = std::max(0.0, sanitized.releaseScale);
   sanitized.tuningCents = SanitizeTuningCents(sanitized.tuningCents);
@@ -46,6 +47,9 @@ bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings)
       return true;
     case kParamGlobalNoiseSustain:
       settings.noiseSustainScale = std::max(0.0, value);
+      return true;
+    case kParamGlobalNoiseAttack:
+      settings.noiseAttackScale = std::max(0.0, value);
       return true;
     case kParamGlobalAttackScale:
       settings.attackScale = std::max(0.0, value);

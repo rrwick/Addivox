@@ -241,6 +241,8 @@ public:
     const SimplePreset* upperPreset{nullptr};
     const EqCurve* lowerEqCurve{nullptr};
     const EqCurve* upperEqCurve{nullptr};
+    const NoiseBandProfile* lowerNoiseAttackProfile{nullptr};
+    const NoiseBandProfile* upperNoiseAttackProfile{nullptr};
     const NoiseBandProfile* lowerNoiseSustainProfile{nullptr};
     const NoiseBandProfile* upperNoiseSustainProfile{nullptr};
     double t{0.0};
@@ -257,6 +259,8 @@ public:
   const SimplePreset* GetKeyNotePreset(double midiNote) const;
   EqCurve GetEqCurveForMidiNote(double midiNote) const;
   const EqCurve* GetKeyNoteEqCurve(double midiNote) const;
+  NoiseBandProfile GetNoiseAttackProfileForMidiNote(double midiNote) const;
+  const NoiseBandProfile* GetKeyNoteNoiseAttackProfile(double midiNote) const;
   NoiseBandProfile GetNoiseSustainProfileForMidiNote(double midiNote) const;
   const NoiseBandProfile* GetKeyNoteNoiseSustainProfile(double midiNote) const;
   const std::map<int, SimplePreset>& GetKeyNotePresets() const;
@@ -266,11 +270,14 @@ public:
   const OscillatorParameterValues& GetAllKeyNotesValues(OscillatorSettings::Parameter parameter) const;
   bool IsAllKeyNotesEqEnabled() const;
   const EqCurve& GetAllKeyNotesEqCurve() const;
+  bool IsAllKeyNotesNoiseAttackEnabled() const;
+  const NoiseBandProfile& GetAllKeyNotesNoiseAttackProfile() const;
   bool IsAllKeyNotesNoiseSustainEnabled() const;
   const NoiseBandProfile& GetAllKeyNotesNoiseSustainProfile() const;
   ResolvedNoteSpan ResolveNoteSpan(double midiNote) const;
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
   double EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const;
+  NoiseBandProfile InterpolateNoiseAttackProfile(const ResolvedNoteSpan& span) const;
   NoiseBandProfile InterpolateNoiseSustainProfile(const ResolvedNoteSpan& span) const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
@@ -283,6 +290,7 @@ public:
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
+  bool SetKeyNoteNoiseAttackProfile(double midiNote, const NoiseBandProfile& profile);
   bool SetKeyNoteNoiseSustainProfile(double midiNote, const NoiseBandProfile& profile);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
   void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter,
@@ -290,6 +298,8 @@ public:
                              double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
+  void EnableAllKeyNotesNoiseAttack(const NoiseBandProfile& profile);
+  void SetAllKeyNotesNoiseAttackEnabled(bool enabled);
   void EnableAllKeyNotesNoiseSustain(const NoiseBandProfile& profile);
   void SetAllKeyNotesNoiseSustainEnabled(bool enabled);
   bool RemoveKeyNotePreset(int midiNote);
@@ -304,17 +314,22 @@ private:
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
   const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
+  const NoiseBandProfile& GetKeyNoteNoiseAttackProfileOrDefault(int midiNote) const;
   const NoiseBandProfile& GetKeyNoteNoiseSustainProfileOrDefault(int midiNote) const;
   void SetAllKeyNoteEqCurves(const EqCurve& curve);
+  void SetAllKeyNoteNoiseAttackProfiles(const NoiseBandProfile& profile);
   void SetAllKeyNoteNoiseSustainProfiles(const NoiseBandProfile& profile);
 
   std::map<int, SimplePreset> mKeyNotePresets{};
   std::map<int, EqCurve> mKeyNoteEqCurves{};
+  std::map<int, NoiseBandProfile> mKeyNoteNoiseAttackProfiles{};
   std::map<int, NoiseBandProfile> mKeyNoteNoiseSustainProfiles{};
   std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
   std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};
   bool mAllKeyNotesEqEnabled{false};
   EqCurve mAllKeyNotesEqCurve{};
+  bool mAllKeyNotesNoiseAttackEnabled{false};
+  NoiseBandProfile mAllKeyNotesNoiseAttackProfile{};
   bool mAllKeyNotesNoiseSustainEnabled{false};
   NoiseBandProfile mAllKeyNotesNoiseSustainProfile{};
 };

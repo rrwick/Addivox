@@ -69,9 +69,10 @@ struct OscillatorParameterDescriptor
   OscillatorParameter parameter;
 };
 
-inline constexpr std::array<GlobalVoiceSettingDescriptor, 12> kGlobalVoiceSettingDescriptors{{
+inline constexpr std::array<GlobalVoiceSettingDescriptor, 13> kGlobalVoiceSettingDescriptors{{
   {"levelScale", &GlobalVoiceSettings::levelScale},
   {"noiseSustainScale", &GlobalVoiceSettings::noiseSustainScale},
+  {"noiseAttackScale", &GlobalVoiceSettings::noiseAttackScale},
   {"attackScale", &GlobalVoiceSettings::attackScale},
   {"releaseScale", &GlobalVoiceSettings::releaseScale},
   {"intensityVariationAmplitudeScale", &GlobalVoiceSettings::intensityVariationAmplitudeScale},
@@ -466,9 +467,11 @@ inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve
   AppendAlignedStringArray(stream, kEqDbKey, prefixWidth, gainsDb, columnWidths);
 }
 
-inline void AppendNoiseBandProfileArray(std::ostringstream& stream, const NoiseBandProfile& profile)
+inline void AppendNoiseBandProfileArray(std::ostringstream& stream,
+                                        std::string_view key,
+                                        const NoiseBandProfile& profile)
 {
-  stream << "noise_sus = [";
+  stream << key << " = [";
   const auto& values = profile.GetValues();
   for(int bandIndex = 0; bandIndex < NoiseBandProfile::kNumBands; ++bandIndex)
   {
@@ -739,6 +742,17 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
     detail::AppendEqCurveArrays(stream, document.compoundPreset.GetAllKeyNotesEqCurve());
   }
 
+  if(document.compoundPreset.IsAllKeyNotesNoiseAttackEnabled())
+  {
+    if(!wroteAllKeyNotes)
+    {
+      stream << "\n[all_key_notes]\n";
+      wroteAllKeyNotes = true;
+    }
+
+    detail::AppendNoiseBandProfileArray(stream, "noise_atk", document.compoundPreset.GetAllKeyNotesNoiseAttackProfile());
+  }
+
   if(document.compoundPreset.IsAllKeyNotesNoiseSustainEnabled())
   {
     if(!wroteAllKeyNotes)
@@ -747,7 +761,7 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
       wroteAllKeyNotes = true;
     }
 
-    detail::AppendNoiseBandProfileArray(stream, document.compoundPreset.GetAllKeyNotesNoiseSustainProfile());
+    detail::AppendNoiseBandProfileArray(stream, "noise_sus", document.compoundPreset.GetAllKeyNotesNoiseSustainProfile());
   }
 
   for(const auto& [midiNote, preset] : document.compoundPreset.GetKeyNotePresets())
@@ -769,12 +783,21 @@ inline std::string SerializePresetToToml(const PresetDocument& document)
         detail::AppendEqCurveArrays(stream, *eqCurve);
     }
 
+    if(!document.compoundPreset.IsAllKeyNotesNoiseAttackEnabled())
+    {
+      if(const auto* profile = document.compoundPreset.GetKeyNoteNoiseAttackProfile(midiNote))
+      {
+        if(!profile->Empty())
+          detail::AppendNoiseBandProfileArray(stream, "noise_atk", *profile);
+      }
+    }
+
     if(!document.compoundPreset.IsAllKeyNotesNoiseSustainEnabled())
     {
       if(const auto* profile = document.compoundPreset.GetKeyNoteNoiseSustainProfile(midiNote))
       {
         if(!profile->Empty())
-          detail::AppendNoiseBandProfileArray(stream, *profile);
+          detail::AppendNoiseBandProfileArray(stream, "noise_sus", *profile);
       }
     }
   }
@@ -799,6 +822,8 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     int midiNote = 60;
     bool hasMidiNote = false;
     SimplePreset preset = detail::MakeDefaultKeyNotePreset();
+    bool hasNoiseAttack = false;
+    NoiseBandProfile noiseAttackProfile{};
     bool hasNoiseSustain = false;
     NoiseBandProfile noiseSustainProfile{};
     bool hasEqFreqHz = false;
@@ -839,6 +864,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   std::vector<ParsedKeyNote> keyNotes;
   std::array<ParsedAllKeyNotesParameter, OscillatorSettings::kNumParameters> allKeyNotesParameters{};
   ParsedEqCurve allKeyNotesEqCurve{};
+  ParsedNoiseBandProfile allKeyNotesNoiseAttackProfile{};
   ParsedNoiseBandProfile allKeyNotesNoiseSustainProfile{};
   ParsedKeyNote* currentKeyNote = nullptr;
   bool sawFormatVersion = false;
@@ -909,6 +935,32 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
 
     if(section == Section::AllKeyNotes)
     {
+      if(key == "noise_atk")
+      {
+        std::vector<double> values;
+        if(!detail::ParseDoubleArray(value, values))
+          return fail("Invalid noise_atk array on line " + std::to_string(assignmentLine));
+        if(static_cast<int>(values.size()) != NoiseBandProfile::kNumBands)
+        {
+          return fail(
+            "noise_atk array must contain "
+            + std::to_string(NoiseBandProfile::kNumBands)
+            + " values on line "
+            + std::to_string(assignmentLine));
+        }
+
+        NoiseBandProfile::BandValues bandValues{};
+        for(int bandIndex = 0; bandIndex < NoiseBandProfile::kNumBands; ++bandIndex)
+        {
+          bandValues[static_cast<std::size_t>(bandIndex)] =
+            NoiseBandProfile::ClampBandValue(values[static_cast<std::size_t>(bandIndex)]);
+        }
+
+        allKeyNotesNoiseAttackProfile.present = true;
+        allKeyNotesNoiseAttackProfile.profile.SetValues(bandValues);
+        return true;
+      }
+
       if(key == "noise_sus")
       {
         std::vector<double> values;
@@ -1026,6 +1078,32 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
 
         keyNote->hasNoiseSustain = true;
         keyNote->noiseSustainProfile.SetValues(bandValues);
+        return true;
+      }
+
+      if(key == "noise_atk")
+      {
+        std::vector<double> values;
+        if(!detail::ParseDoubleArray(value, values))
+          return fail("Invalid noise_atk array on line " + std::to_string(assignmentLine));
+        if(static_cast<int>(values.size()) != NoiseBandProfile::kNumBands)
+        {
+          return fail(
+            "noise_atk array must contain "
+            + std::to_string(NoiseBandProfile::kNumBands)
+            + " values on line "
+            + std::to_string(assignmentLine));
+        }
+
+        NoiseBandProfile::BandValues bandValues{};
+        for(int bandIndex = 0; bandIndex < NoiseBandProfile::kNumBands; ++bandIndex)
+        {
+          bandValues[static_cast<std::size_t>(bandIndex)] =
+            NoiseBandProfile::ClampBandValue(values[static_cast<std::size_t>(bandIndex)]);
+        }
+
+        keyNote->hasNoiseAttack = true;
+        keyNote->noiseAttackProfile.SetValues(bandValues);
         return true;
       }
 
@@ -1207,6 +1285,12 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
         return fail("Could not apply EQ curve for midi_note " + std::to_string(keyNote.midiNote));
     }
 
+    if(keyNote.hasNoiseAttack)
+    {
+      if(!compoundPreset.SetKeyNoteNoiseAttackProfile(keyNote.midiNote, keyNote.noiseAttackProfile))
+        return fail("Could not apply noise_atk profile for midi_note " + std::to_string(keyNote.midiNote));
+    }
+
     if(keyNote.hasNoiseSustain)
     {
       if(!compoundPreset.SetKeyNoteNoiseSustainProfile(keyNote.midiNote, keyNote.noiseSustainProfile))
@@ -1232,6 +1316,9 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
 
     compoundPreset.EnableAllKeyNotesEq(eqCurve);
   }
+
+  if(allKeyNotesNoiseAttackProfile.present)
+    compoundPreset.EnableAllKeyNotesNoiseAttack(allKeyNotesNoiseAttackProfile.profile);
 
   if(allKeyNotesNoiseSustainProfile.present)
     compoundPreset.EnableAllKeyNotesNoiseSustain(allKeyNotesNoiseSustainProfile.profile);

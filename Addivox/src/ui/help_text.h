@@ -57,6 +57,9 @@ inline constexpr const char* kLevel =
 inline constexpr const char* kNoiseSustain =
   "Scales sustain noise across the whole synth. Higher values make all sustain noise louder relative to the harmonic sound.";
 
+inline constexpr const char* kNoiseAttack =
+  "Scales attack noise across the whole synth. Higher values make breath-onset noise bursts louder.";
+
 inline constexpr const char* kDrive =
   "Effect 1/4: Saturation. Adds warmth and harmonics to the sound. Higher values lead to a more distorted tone.";
 
@@ -100,6 +103,8 @@ inline const char* GetParam(int paramIdx)
       return kLevel;
     case kParamGlobalNoiseSustain:
       return kNoiseSustain;
+    case kParamGlobalNoiseAttack:
+      return kNoiseAttack;
     case kParamEffectsReverb:
       return kReverb;
     case kParamEffectsDrive:
@@ -128,6 +133,9 @@ inline constexpr const char* kEq =
 
 inline constexpr const char* kNoiseSustain =
   "Controls sustain noise per fixed frequency band. The noise scales with breath level and stays fixed in Hz as notes change.";
+
+inline constexpr const char* kNoiseAttack =
+  "Controls attack noise per fixed frequency band. The noise responds to positive breath changes and stays fixed in Hz as notes change.";
 
 inline constexpr const char* kBreath =
   "Controls how strongly breath scales each harmonic level.";

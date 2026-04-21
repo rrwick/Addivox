@@ -16,7 +16,7 @@ public:
 
   SynthVoice();
   bool IsActive() const;
-  void Start(double pitch, double pitchBend, double breath);
+  void Start(double pitch, double pitchBend, double breath, double previousBreath = 0.0);
   void Stop();
   void SetPitchBend(double pitchBend);
   void SetBreath(double breath);
@@ -35,9 +35,11 @@ public:
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
+  bool SetKeyNoteNoiseAttackProfile(double midiNote, const NoiseBandProfile& profile);
   bool SetKeyNoteNoiseSustainProfile(double midiNote, const NoiseBandProfile& profile);
   bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote);
   bool SetAllKeyNotesEqEnabled(bool enabled);
+  bool SetAllKeyNotesNoiseAttackEnabled(bool enabled);
   bool SetAllKeyNotesNoiseSustainEnabled(bool enabled);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
@@ -49,12 +51,17 @@ private:
   void UpdatePitch();
   void UpdateLevels();
   void UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void UpdateNoiseAttackTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan);
   void UpdateNoiseSustainTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void ResetNoiseAttackState();
   void ResetNoiseSustainState();
   void UpdateNoiseSustainFilters();
   void UpdateNoiseSustainGainSmoothing();
+  void UpdateNoiseAttackDetectorSmoothing();
   void UpdateNoiseSustainPanTargets();
   void UpdateNoiseSustainPanSmoothing();
+  void UpdateNoiseAttackVisualizationDecay();
+  double ProcessNoiseAttack();
   double ProcessNoiseSustain();
   static double NextWhiteNoiseSample(uint32_t& state);
   void UpdatePitchRate();
@@ -91,11 +98,20 @@ private:
   double mPitchRatePerSample{std::numeric_limits<double>::infinity()};
   int mNoteControlSamplesUntilUpdate{0};
 
-  // Breath is a linear value from 0 to 1.
+  // Raw breath is the controller input in the range [0, 1]. mBreath is the smoothed breath.
+  double mRawBreath{0.0};
   double mBreath{0.0};
   double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
+  std::array<std::array<dsp::BiquadBandpass, 4>, kNumNoiseBands> mNoiseAttackBandpasses{};
+  std::array<double, kNumNoiseBands> mNoiseAttackBandWeights{};
+  std::array<double, kNumNoiseBands> mNoiseAttackBandVisualization{};
+  double mNoiseAttackTargetBreathLevel{0.0};
+  double mNoiseAttackDetectorBreath{0.0};
+  double mNoiseAttackDetectorSmoothingCoefficient{1.0};
+  double mNoiseAttackVisualizationDecayCoefficient{1.0};
+  uint32_t mNoiseAttackNoiseState{0x5D1F0A7Bu};
   std::array<std::array<dsp::BiquadBandpass, 4>, kNumNoiseBands> mNoiseSustainBandpasses{};
   std::array<double, kNumNoiseBands> mNoiseSustainBandGains{};
   std::array<double, kNumNoiseBands> mTargetNoiseSustainBandGains{};

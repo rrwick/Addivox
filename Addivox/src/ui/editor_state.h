@@ -44,9 +44,11 @@ struct EditorState
   EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
   EditorLevelTransform attackTransform{EditorLevelTransform::Linear};
   EditorLevelTransform releaseTransform{EditorLevelTransform::Linear};
+  EditorLevelTransform noiseAttackTransform{EditorLevelTransform::Linear};
   EditorLevelTransform noiseSustainTransform{EditorLevelTransform::Linear};
   EditorLevelTransform pitchTransform{EditorLevelTransform::Linear};
   EditorLevelTransform panTransform{EditorLevelTransform::Linear};
+  EditorOscillatorEditMode noiseAttackEditMode{EditorOscillatorEditMode::Set};
   EditorOscillatorEditMode noiseSustainEditMode{EditorOscillatorEditMode::Set};
   std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> oscillatorEditModes = [] {
     std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> result{};

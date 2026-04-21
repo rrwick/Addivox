@@ -119,6 +119,7 @@ public:
       }
 
       mMidiQueue.Flush(nFrames);
+      return;
     }
   }
 
@@ -177,7 +178,7 @@ private:
           if(mMidiState.currentBreath >= kBreathGateOnThreshold)
           {
             mBreathGateOpen = true;
-            StartVoice(channel, key, static_cast<double>(key));
+            StartVoice(channel, key, static_cast<double>(key), mMidiState.currentBreath);
           }
           else
           {
@@ -276,10 +277,13 @@ private:
     }
   }
 
-  void StartVoice(int channel, int key, double pitch)
+  void StartVoice(int channel,
+                  int key,
+                  double pitch,
+                  double previousBreath)
   {
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
-    mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath);
+    mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath, previousBreath);
     mActiveChannel = static_cast<uint8_t>(channel);
     mActiveKey = static_cast<uint8_t>(key);
   }
@@ -311,6 +315,7 @@ private:
     if(mActiveKey != kNoKey && !IsActiveChannel(breathChannel))
       return;
 
+    const double previousBreath = mMidiState.currentBreath;
     mMidiState.currentBreath = value;
 
     if(mActiveKey == kNoKey)
@@ -331,7 +336,11 @@ private:
     else if(value >= kBreathGateOnThreshold)
     {
       mBreathGateOpen = true;
-      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(mActiveKey), static_cast<double>(mActiveKey));
+      StartVoice(
+        static_cast<int>(mActiveChannel),
+        static_cast<int>(mActiveKey),
+        static_cast<double>(mActiveKey),
+        previousBreath);
     }
   }
 

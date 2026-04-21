@@ -21,5 +21,6 @@ enum EParams
   kParamEffectsTone,
   kParamTranspose,
   kParamGlobalNoiseSustain,
+  kParamGlobalNoiseAttack,
   kNumParams
 };

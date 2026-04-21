@@ -45,6 +45,7 @@ void SetGlobalVoiceSettingsParams(Addivox& plugin,
   const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
   plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
   plugin.GetParam(kParamGlobalNoiseSustain)->Set(sanitizedVoiceSettings.noiseSustainScale);
+  plugin.GetParam(kParamGlobalNoiseAttack)->Set(sanitizedVoiceSettings.noiseAttackScale);
   plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
   plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
   if(includeTuning)
@@ -211,6 +212,17 @@ int RestoreStateParamsFromChunk(Addivox& plugin,
   if(remainingValues == kNumParams)
   {
     for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+    {
+      if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
+        break;
+    }
+    return position;
+  }
+
+  // Older full-state chunks may contain fewer params if newer globals were appended at the end.
+  if(remainingValues > (kParamEffectsTone + 1) && remainingValues < kNumParams)
+  {
+    for(int paramIdx = 0; paramIdx < remainingValues; ++paramIdx)
     {
       if(!SetParamFromChunkValue(plugin, chunk, paramIdx, position))
         break;
@@ -473,6 +485,7 @@ Addivox::Addivox(const InstanceInfo& info)
 
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   GetParam(kParamGlobalNoiseSustain)->InitDouble("Noise Sustain", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
+  GetParam(kParamGlobalNoiseAttack)->InitDouble("Noise Attack", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
   GetParam(kParamGlobalTuning)->InitDouble("Tuning", 0., -50., 50., 1.0, "", iplug::IParam::kFlagStepped, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCents, formatSignedCentsDisplay);
@@ -1168,6 +1181,17 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetKeyNoteNoiseAttackProfile
+    && dataSize == sizeof(editor_messages::SetKeyNoteNoiseAttackProfilePayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetKeyNoteNoiseAttackProfilePayload*>(pData);
+    return mDSP.mSynth.GetVoice().SetKeyNoteNoiseAttackProfile(
+      payload->midiNote,
+      NoiseBandProfile{payload->values});
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
     && msgTag == editor_messages::kMsgTagSetKeyNoteNoiseSustainProfile
     && dataSize == sizeof(editor_messages::SetKeyNoteNoiseSustainProfilePayload)
     && pData)
@@ -1198,6 +1222,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
     return mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetAllKeyNotesNoiseAttackEnabled
+    && dataSize == sizeof(editor_messages::SetAllKeyNotesNoiseAttackEnabledPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesNoiseAttackEnabledPayload*>(pData);
+    return mDSP.mSynth.GetVoice().SetAllKeyNotesNoiseAttackEnabled(payload->enabled != 0);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
