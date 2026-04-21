@@ -20,6 +20,8 @@ inline constexpr int kMsgTagSetAllKeyNotesEnabled = 1007;
 inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
 inline constexpr int kMsgTagSetBreathCCSource = 1009;
 inline constexpr int kMsgTagSetHarmonicVisualizerEnabled = 1010;
+inline constexpr int kMsgTagSetKeyNoteNoiseSustainProfile = 1011;
+inline constexpr int kMsgTagSetAllKeyNotesNoiseSustainEnabled = 1012;
 
 struct SetKeyNoteOscillatorParameterPayload
 {
@@ -49,6 +51,17 @@ struct SetAllKeyNotesEnabledPayload
 };
 
 struct SetAllKeyNotesEqEnabledPayload
+{
+  int enabled{0};
+};
+
+struct SetKeyNoteNoiseSustainProfilePayload
+{
+  int midiNote{0};
+  NoiseBandProfile::BandValues values{};
+};
+
+struct SetAllKeyNotesNoiseSustainEnabledPayload
 {
   int enabled{0};
 };

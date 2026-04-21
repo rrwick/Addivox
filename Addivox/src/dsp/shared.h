@@ -200,4 +200,54 @@ struct OnePoleHighpass
   double coefficient{1.0};
   double lowState{0.0};
 };
+
+struct BiquadBandpass
+{
+  void SetBandpassHz(double sampleRate,
+                     double centerHz,
+                     double q,
+                     double minimumCenterHz = 1.0,
+                     double maximumCenterScale = 0.49,
+                     double minimumQ = 0.1,
+                     double maximumQ = 100.0,
+                     double defaultSampleRate = kDefaultSampleRate)
+  {
+    const double safeSampleRate = sampleRate > 0.0 ? sampleRate : defaultSampleRate;
+    const double safeCenterHz = std::clamp(centerHz, minimumCenterHz, maximumCenterScale * safeSampleRate);
+    const double safeQ = std::clamp(q, minimumQ, maximumQ);
+    const double omega = (2.0 * kPi * safeCenterHz) / safeSampleRate;
+    const double sinOmega = std::sin(omega);
+    const double cosOmega = std::cos(omega);
+    const double alpha = sinOmega / (2.0 * safeQ);
+    const double invA0 = 1.0 / (1.0 + alpha);
+
+    b0 = alpha * invA0;
+    b1 = 0.0;
+    b2 = -alpha * invA0;
+    a1 = (-2.0 * cosOmega) * invA0;
+    a2 = (1.0 - alpha) * invA0;
+  }
+
+  void Clear()
+  {
+    z1 = 0.0;
+    z2 = 0.0;
+  }
+
+  double Process(double input)
+  {
+    const double output = (b0 * input) + z1;
+    z1 = FlushDenormal((b1 * input) - (a1 * output) + z2);
+    z2 = FlushDenormal((b2 * input) - (a2 * output));
+    return FlushDenormal(output);
+  }
+
+  double b0{1.0};
+  double b1{0.0};
+  double b2{0.0};
+  double a1{0.0};
+  double a2{0.0};
+  double z1{0.0};
+  double z2{0.0};
+};
 } // namespace dsp

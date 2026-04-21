@@ -7,6 +7,7 @@
 #include "../editor_state.h"
 #include "../eq_editor.h"
 #include "../keyboard_control.h"
+#include "../noise_band_slider_control.h"
 #include "../oscillator_slider_control.h"
 #include "../theme.h"
 #include "../editor_messages.h"
@@ -88,6 +89,7 @@ inline constexpr char kOscillatorTabTitleStorage[] =
   "Breath\0"
   "Attack\0"
   "Release\0"
+  "NoiseSus\0"
   "Pitch\0"
   "Pan\0"
   "LvlVarAmt\0"
@@ -98,20 +100,21 @@ inline constexpr char kOscillatorTabTitleStorage[] =
   "PchVarRate\0";
 
 inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 0;
+inline constexpr const char* kNoiseSustainTabTitle = kOscillatorTabTitleStorage + 31;
 
 inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOscillatorTabTitles{{
   kOscillatorTabTitleStorage + 3,
   kOscillatorTabTitleStorage + 9,
   kOscillatorTabTitleStorage + 16,
   kOscillatorTabTitleStorage + 23,
-  kOscillatorTabTitleStorage + 31,
-  kOscillatorTabTitleStorage + 37,
-  kOscillatorTabTitleStorage + 41,
-  kOscillatorTabTitleStorage + 51,
-  kOscillatorTabTitleStorage + 83,
-  kOscillatorTabTitleStorage + 93,
-  kOscillatorTabTitleStorage + 62,
-  kOscillatorTabTitleStorage + 72,
+  kOscillatorTabTitleStorage + 40,
+  kOscillatorTabTitleStorage + 46,
+  kOscillatorTabTitleStorage + 50,
+  kOscillatorTabTitleStorage + 60,
+  kOscillatorTabTitleStorage + 92,
+  kOscillatorTabTitleStorage + 102,
+  kOscillatorTabTitleStorage + 71,
+  kOscillatorTabTitleStorage + 81,
 }};
 
 inline constexpr const char* kActionScaleUp = "scale up";
@@ -145,6 +148,8 @@ inline const char* GetOscillatorTabDescriptionForTitle(const char* title)
 
   if(std::strcmp(title, kEqTabTitle) == 0)
     return help_text::oscillator_tabs::kEq;
+  if(std::strcmp(title, kNoiseSustainTabTitle) == 0)
+    return help_text::oscillator_tabs::kNoiseSustain;
 
   for(const auto& descriptor : GetOscillatorTabDescriptors())
   {
@@ -841,6 +846,19 @@ struct EqTabRefs
   std::shared_ptr<EqEditorControl*> editorControl;
 };
 
+struct NoiseSustainTabRefs
+{
+  std::shared_ptr<EditorLevelTransform> transform;
+  std::shared_ptr<EditorOscillatorEditMode> editMode;
+  std::shared_ptr<ActionSelectionControl*> setShapeControl;
+  std::shared_ptr<ActionSelectionControl*> actionsControl;
+  std::shared_ptr<IVToggleControl*> allKeyNotesToggle;
+  std::shared_ptr<IVButtonControl*> restoreButton;
+  std::shared_ptr<IVButtonControl*> addButton;
+  std::shared_ptr<IVButtonControl*> deleteButton;
+  std::shared_ptr<NoiseBandSliderControl*> sliderControl;
+};
+
 struct OscillatorTabControlRefs
 {
   std::shared_ptr<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>> sliderControls;
@@ -869,6 +887,7 @@ struct EditorContext
   VariationTabRefs variationTab;
   AttackReleaseTabRefs attackReleaseTab;
   EqTabRefs eqTab;
+  NoiseSustainTabRefs noiseSustainTab;
   OscillatorTabControlRefs oscillatorTabControls;
   std::shared_ptr<KeyboardControl*> keyboardControl;
   TitleControlRefs title;
@@ -1015,6 +1034,9 @@ struct EditorContext
 
     if(eqTab.editorControl && *eqTab.editorControl)
       (*eqTab.editorControl)->ClearRestoreState();
+
+    if(noiseSustainTab.sliderControl && *noiseSustainTab.sliderControl)
+      (*noiseSustainTab.sliderControl)->ClearRestoreState();
   }
 
   bool IsAllKeyNotesEnabled(OscillatorParameter parameter) const
@@ -1025,6 +1047,11 @@ struct EditorContext
   bool IsAllKeyNotesEqEnabled() const
   {
     return Preset().IsAllKeyNotesEqEnabled();
+  }
+
+  bool IsAllKeyNotesNoiseSustainEnabled() const
+  {
+    return Preset().IsAllKeyNotesNoiseSustainEnabled();
   }
 
   template <typename Action>
@@ -1125,6 +1152,26 @@ struct EditorContext
     }
   }
 
+  void SendNoiseSustainProfileToDSP(IControl* sourceControl,
+                                    int midiNote,
+                                    const NoiseBandProfile& profile) const
+  {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      editor_messages::SetKeyNoteNoiseSustainProfilePayload payload;
+      payload.midiNote = midiNote;
+      payload.values = profile.GetValues();
+      delegate->SendArbitraryMsgFromUI(
+        editor_messages::kMsgTagSetKeyNoteNoiseSustainProfile,
+        editorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  }
+
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const
   {
     if(!sourceControl)
@@ -1136,6 +1183,23 @@ struct EditorContext
       payload.enabled = enabled ? 1 : 0;
       delegate->SendArbitraryMsgFromUI(
         editor_messages::kMsgTagSetAllKeyNotesEqEnabled,
+        editorTabsTag,
+        sizeof(payload),
+        &payload);
+    }
+  }
+
+  void SendAllKeyNotesNoiseSustainEnabledToDSP(IControl* sourceControl, bool enabled) const
+  {
+    if(!sourceControl)
+      return;
+
+    if(auto* delegate = sourceControl->GetDelegate())
+    {
+      editor_messages::SetAllKeyNotesNoiseSustainEnabledPayload payload;
+      payload.enabled = enabled ? 1 : 0;
+      delegate->SendArbitraryMsgFromUI(
+        editor_messages::kMsgTagSetAllKeyNotesNoiseSustainEnabled,
         editorTabsTag,
         sizeof(payload),
         &payload);
@@ -1216,6 +1280,8 @@ struct EditorContext
 
     SetDisabledState(*eqTab.addButton, !addEnabled);
     SetDisabledState(*eqTab.deleteButton, !deleteEnabled);
+    SetDisabledState(*noiseSustainTab.addButton, !addEnabled);
+    SetDisabledState(*noiseSustainTab.deleteButton, !deleteEnabled);
   }
 
   void RefreshOscillatorTabs() const
@@ -1271,6 +1337,23 @@ struct EditorContext
         SetDisabledState(*eqTab.allKeyNotesToggle, true);
       }
       SetDisabledState(*eqTab.restoreButton, true);
+
+      if(noiseSustainTab.sliderControl && *noiseSustainTab.sliderControl)
+      {
+        for(int bandIndex = 0; bandIndex < NoiseBandProfile::kNumBands; ++bandIndex)
+          (*noiseSustainTab.sliderControl)->SetBandValue(bandIndex, 0.0);
+        (*noiseSustainTab.sliderControl)->SetEditable(false);
+        (*noiseSustainTab.sliderControl)->SetDirty(false);
+      }
+
+      SetDisabledState(*noiseSustainTab.setShapeControl, true);
+      SetDisabledState(*noiseSustainTab.actionsControl, true);
+      if(noiseSustainTab.allKeyNotesToggle && *noiseSustainTab.allKeyNotesToggle)
+      {
+        SetControlValueSilently(*noiseSustainTab.allKeyNotesToggle, IsAllKeyNotesNoiseSustainEnabled() ? 1.0 : 0.0);
+        SetDisabledState(*noiseSustainTab.allKeyNotesToggle, true);
+      }
+      SetDisabledState(*noiseSustainTab.restoreButton, true);
       return;
     }
 
@@ -1297,6 +1380,8 @@ struct EditorContext
       SetDisabledState(control, !editable);
     SetDisabledState(*eqTab.setShapeControl, !editable);
     SetDisabledState(*eqTab.actionsControl, !editable);
+    SetDisabledState(*noiseSustainTab.setShapeControl, !editable);
+    SetDisabledState(*noiseSustainTab.actionsControl, !editable);
 
     for(const auto& descriptor : GetOscillatorTabDescriptors())
     {
@@ -1351,6 +1436,47 @@ struct EditorContext
     SetDisabledState(
       *eqTab.restoreButton,
       !((*eqTab.editorControl) && editable && (*eqTab.editorControl)->HasRestoreStateForMidiNote(midiNote)));
+
+    if(noiseSustainTab.sliderControl && *noiseSustainTab.sliderControl)
+    {
+      const NoiseBandProfile* keyNoteProfile = Preset().GetKeyNoteNoiseSustainProfile(midiNote);
+      const NoiseBandProfile selectedProfile =
+        keyNoteProfile ? *keyNoteProfile : Preset().GetNoiseSustainProfileForMidiNote(midiNote);
+      const auto& values = selectedProfile.GetValues();
+
+      bool sliderChanged = false;
+      for(int bandIndex = 0; bandIndex < NoiseBandProfile::kNumBands; ++bandIndex)
+      {
+        const double value = values[static_cast<std::size_t>(bandIndex)];
+        if(AreNearlyEqual((*noiseSustainTab.sliderControl)->GetBandValue(bandIndex), value))
+          continue;
+
+        (*noiseSustainTab.sliderControl)->SetBandValue(bandIndex, value);
+        sliderChanged = true;
+      }
+
+      if(!(*noiseSustainTab.sliderControl)->IsHidden()
+        && !(*noiseSustainTab.sliderControl)->HasRestoreStateForMidiNote(midiNote))
+      {
+        (*noiseSustainTab.sliderControl)->CaptureRestoreState(midiNote);
+      }
+
+      (*noiseSustainTab.sliderControl)->SetEditable(editable);
+      if(sliderChanged)
+        (*noiseSustainTab.sliderControl)->SetDirty(false);
+    }
+
+    if(noiseSustainTab.allKeyNotesToggle && *noiseSustainTab.allKeyNotesToggle)
+    {
+      SetControlValueSilently(*noiseSustainTab.allKeyNotesToggle, IsAllKeyNotesNoiseSustainEnabled() ? 1.0 : 0.0);
+      SetDisabledState(*noiseSustainTab.allKeyNotesToggle, !editable);
+    }
+
+    SetDisabledState(
+      *noiseSustainTab.restoreButton,
+      !((*noiseSustainTab.sliderControl)
+        && editable
+        && (*noiseSustainTab.sliderControl)->HasRestoreStateForMidiNote(midiNote)));
   }
 
   template <typename Action>
@@ -1401,6 +1527,25 @@ struct EditorContext
       return;
 
     SendEqCurveToDSP(control, midiNote, updatedCurve);
+    RefreshOscillatorTabs();
+  }
+
+  template <typename Action>
+  void ApplyNoiseSustainActionToSelectedKeyNote(NoiseBandSliderControl* control, Action&& action) const
+  {
+    const int midiNote = SelectedMidiNote();
+    const NoiseBandProfile* keyNoteProfile = Preset().GetKeyNoteNoiseSustainProfile(midiNote);
+    if(!keyNoteProfile)
+      return;
+
+    NoiseBandProfile updatedProfile = *keyNoteProfile;
+    if(!std::forward<Action>(action)(updatedProfile))
+      return;
+
+    if(!Preset().SetKeyNoteNoiseSustainProfile(midiNote, updatedProfile))
+      return;
+
+    SendNoiseSustainProfileToDSP(control, midiNote, updatedProfile);
     RefreshOscillatorTabs();
   }
 };

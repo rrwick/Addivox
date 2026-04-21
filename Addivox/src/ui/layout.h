@@ -624,7 +624,7 @@ inline void AttachNoiseControls(IGraphics* pGraphics, const PanelResources&)
 {
   AttachPassiveSectionLabel(pGraphics, positions::kNoiseLabel, "NOISE");
   // pGraphics->AttachControl(new LabelledKnob(positions::kNoiseAttackKnob, kParamGlobalNoiseAttack, "Attack"));
-  // pGraphics->AttachControl(new LabelledKnob(positions::kNoiseSustainKnob, kParamGlobalNoiseSustain, "Sustain"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kNoiseSustainKnob, kParamGlobalNoiseSustain, "Sustain"));
 }
 
 inline void AttachEffectsControls(IGraphics* pGraphics, const PanelResources&)

@@ -49,6 +49,7 @@ private:
 };
 
 #include "editor_tabs/eq.h"
+#include "editor_tabs/noise_sustain.h"
 
 namespace editor
 {
@@ -294,7 +295,7 @@ inline const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors()
 
 inline int GetEditorTabCount()
 {
-  return static_cast<int>(GetOscillatorTabDescriptors().size()) + 1;
+  return static_cast<int>(GetOscillatorTabDescriptors().size()) + 2;
 }
 
 inline const std::vector<const char*>& GetEditorTabTitlesInDisplayOrder()
@@ -306,6 +307,7 @@ inline const std::vector<const char*>& GetEditorTabTitlesInDisplayOrder()
     for(const auto& descriptor : GetOscillatorTabDescriptors())
       result.push_back(descriptor.title);
 
+    result.push_back(kNoiseSustainTabTitle);
     result.push_back(kEqTabTitle);
     std::sort(result.begin(), result.end());
     return result;
@@ -338,8 +340,12 @@ inline const OscillatorTabDescriptor* GetSelectedOscillatorTabDescriptor(const s
     return nullptr;
 
   const char* selectedTitle = tabTitles[static_cast<std::size_t>(selectedTabIndex)];
-  if(!selectedTitle || std::strcmp(selectedTitle, kEqTabTitle) == 0)
+  if(!selectedTitle
+    || std::strcmp(selectedTitle, kEqTabTitle) == 0
+    || std::strcmp(selectedTitle, kNoiseSustainTabTitle) == 0)
+  {
     return nullptr;
+  }
 
   return FindOscillatorTabDescriptorForTitle(selectedTitle);
 }
@@ -348,6 +354,30 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
 {
   if(!context || !context->IsEditMode())
     return;
+
+  const auto& tabTitles = GetEditorTabTitlesInDisplayOrder();
+  const int selectedTabIndex = context->SelectedTabIndex();
+  if(selectedTabIndex < 0 || selectedTabIndex >= static_cast<int>(tabTitles.size()))
+    return;
+
+  const char* selectedTitle = tabTitles[static_cast<std::size_t>(selectedTabIndex)];
+  if(selectedTitle && std::strcmp(selectedTitle, kNoiseSustainTabTitle) == 0)
+  {
+    const char* actionName = GetEditorActionShortcutActionName(OscillatorParameter::intensity, keyVK);
+    if(!actionName)
+      return;
+
+    auto* control = context->noiseSustainTab.sliderControl ? *context->noiseSustainTab.sliderControl : nullptr;
+    if(!control)
+      return;
+
+    context->ApplyNoiseSustainActionToSelectedKeyNote(
+      control,
+      [actionName](NoiseBandProfile& profile) {
+        return ApplyNoiseSustainAction(profile, actionName);
+      });
+    return;
+  }
 
   const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
   if(!descriptor)
@@ -496,7 +526,10 @@ inline PageMap CreateOscillatorTabPages(const std::shared_ptr<EditorContext>& co
   {
     pages.insert({descriptor.title, CreateOscillatorTabPage(context, styles, descriptor)});
     if(descriptor.parameter == OscillatorParameter::intensity)
+    {
+      pages.insert({kNoiseSustainTabTitle, CreateNoiseSustainTabPage(context, styles)});
       pages.insert({kEqTabTitle, CreateEqTabPage(context, styles)});
+    }
   }
   return pages;
 }
@@ -550,6 +583,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
   context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
+  context->noiseSustainTab.transform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->noiseSustainTransform);
+  context->noiseSustainTab.editMode = std::shared_ptr<EditorOscillatorEditMode>(editorState, &editorState->noiseSustainEditMode);
   context->pitchTab.pitchTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->pitchTransform);
   context->panTab.panTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->panTransform);
   context->variationTab.transforms = std::shared_ptr<std::array<EditorLevelTransform, 6>>(editorState, &editorState->variationTransforms);
@@ -599,6 +634,13 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->eqTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
+  context->noiseSustainTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->noiseSustainTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context->noiseSustainTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
+  context->noiseSustainTab.restoreButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->noiseSustainTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->noiseSustainTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
+  context->noiseSustainTab.sliderControl = std::make_shared<NoiseBandSliderControl*>(nullptr);
   context->keyboardControl = std::make_shared<KeyboardControl*>(nullptr);
   context->title.presetManagerControl = std::make_shared<IControl*>(nullptr);
 

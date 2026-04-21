@@ -74,6 +74,9 @@ static const IColor kHarmonicCore{255, 255, 255, 255};
 static const IColor kHarmonicGradientStart{255, 0, 100, 255};
 static const IColor kHarmonicGradientEnd{255, 255, 100, 0};
 
+// Noise visualizer fill colour.
+static const IColor kNoiseFill{255, 114, 169, 219};
+
 // Coloured line in the knobs.
 static const IColor kKnob{255, 107, 158, 226};
 

@@ -54,6 +54,9 @@ inline constexpr const char* kPitchVariationRate =
 inline constexpr const char* kLevel =
   "Sets the overall output level of the synth (all oscillators).";
 
+inline constexpr const char* kNoiseSustain =
+  "Scales sustain noise across the whole synth. Higher values make all sustain noise louder relative to the harmonic sound.";
+
 inline constexpr const char* kDrive =
   "Effect 1/4: Saturation. Adds warmth and harmonics to the sound. Higher values lead to a more distorted tone.";
 
@@ -95,6 +98,8 @@ inline const char* GetParam(int paramIdx)
       return kPortamento;
     case kParamGlobalLevel:
       return kLevel;
+    case kParamGlobalNoiseSustain:
+      return kNoiseSustain;
     case kParamEffectsReverb:
       return kReverb;
     case kParamEffectsDrive:
@@ -120,6 +125,9 @@ inline constexpr const char* kLevel =
 
 inline constexpr const char* kEq =
   "Controls a frequency-based EQ in dB for the oscillator bank. The EQ stays fixed in frequency as notes change, which makes it useful for creating formants.";
+
+inline constexpr const char* kNoiseSustain =
+  "Controls sustain noise per fixed frequency band. The noise scales with breath level and stays fixed in Hz as notes change.";
 
 inline constexpr const char* kBreath =
   "Controls how strongly breath scales each harmonic level.";
@@ -171,6 +179,9 @@ inline constexpr const char* kAllKeyNotes =
 
 inline constexpr const char* kEditMode =
   "Selects the edit operation for this tab. Set writes values directly to the cursor position, nudge makes small gradual changes as you drag, smooth gently averages a harmonic with its neighbors, and draw line interpolates between the drag start and current harmonic in the displayed transform. The scope controls limit most edits to all harmonics, only even harmonics, or only odd harmonics. In the Level tab, normalize always rescales all harmonics.";
+
+inline constexpr const char* kNoiseBandEditMode =
+  "Selects the edit operation for this tab. Set writes values directly to the cursor position, nudge makes small gradual changes as you drag, smooth gently averages a band with its neighbors, and draw line interpolates between the drag start and current band in the displayed transform.";
 
 inline const char* Get(OscillatorParameter parameter)
 {

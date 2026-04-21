@@ -173,6 +173,12 @@ const EqCurve& GetDefaultEqCurve()
   static const EqCurve curve{};
   return curve;
 }
+
+const NoiseBandProfile& GetDefaultNoiseSustainProfile()
+{
+  static const NoiseBandProfile profile{};
+  return profile;
+}
 } // namespace
 
 const char* OscillatorSettings::GetParameterName(Parameter parameter)
@@ -351,6 +357,7 @@ CompoundPreset::CompoundPreset(std::initializer_list<KeyNotePreset> keyNotePrese
   {
     mKeyNotePresets[ClampMidiNote(midiNote)] = preset;
     mKeyNoteEqCurves[ClampMidiNote(midiNote)] = GetDefaultEqCurve();
+    mKeyNoteNoiseSustainProfiles[ClampMidiNote(midiNote)] = GetDefaultNoiseSustainProfile();
   }
 }
 
@@ -401,6 +408,28 @@ const EqCurve* CompoundPreset::GetKeyNoteEqCurve(double midiNote) const
   return &keyNoteIt->second;
 }
 
+NoiseBandProfile CompoundPreset::GetNoiseSustainProfileForMidiNote(double midiNote) const
+{
+  const ResolvedNoteSpan span = ResolveNoteSpan(midiNote);
+  if(span.t <= 0.0 || span.lowerNoiseSustainProfile == span.upperNoiseSustainProfile)
+    return *span.lowerNoiseSustainProfile;
+
+  return NoiseBandProfile::Interpolate(
+    *span.lowerNoiseSustainProfile,
+    *span.upperNoiseSustainProfile,
+    span.t);
+}
+
+const NoiseBandProfile* CompoundPreset::GetKeyNoteNoiseSustainProfile(double midiNote) const
+{
+  const int clampedNote = RoundAndClampMidiNote(midiNote);
+  const auto keyNoteIt = mKeyNoteNoiseSustainProfiles.find(clampedNote);
+  if(keyNoteIt == mKeyNoteNoiseSustainProfiles.end())
+    return nullptr;
+
+  return &keyNoteIt->second;
+}
+
 const std::map<int, SimplePreset>& CompoundPreset::GetKeyNotePresets() const
 {
   return mKeyNotePresets;
@@ -427,9 +456,21 @@ const EqCurve& CompoundPreset::GetAllKeyNotesEqCurve() const
   return mAllKeyNotesEqCurve;
 }
 
+bool CompoundPreset::IsAllKeyNotesNoiseSustainEnabled() const
+{
+  return mAllKeyNotesNoiseSustainEnabled;
+}
+
+const NoiseBandProfile& CompoundPreset::GetAllKeyNotesNoiseSustainProfile() const
+{
+  return mAllKeyNotesNoiseSustainProfile;
+}
+
 CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote) const
 {
   const EqCurve& defaultEqCurve = IsAllKeyNotesEqEnabled() ? GetAllKeyNotesEqCurve() : GetDefaultEqCurve();
+  const NoiseBandProfile& defaultNoiseSustainProfile =
+    IsAllKeyNotesNoiseSustainEnabled() ? GetAllKeyNotesNoiseSustainProfile() : GetDefaultNoiseSustainProfile();
   if(mKeyNotePresets.empty())
   {
     return ResolvedNoteSpan{
@@ -437,17 +478,22 @@ CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote
       &GetDefaultPreset(),
       &defaultEqCurve,
       &defaultEqCurve,
+      &defaultNoiseSustainProfile,
+      &defaultNoiseSustainProfile,
       0.0};
   }
 
   const double clampedMidiNote = std::clamp(midiNote, static_cast<double>(kMinMidiNote), static_cast<double>(kMaxMidiNote));
   auto makeExactSpan = [&](const std::map<int, SimplePreset>::const_iterator& it) {
     const EqCurve& eqCurve = GetKeyNoteEqCurveOrDefault(it->first);
+    const NoiseBandProfile& noiseSustainProfile = GetKeyNoteNoiseSustainProfileOrDefault(it->first);
     return ResolvedNoteSpan{
       &it->second,
       &it->second,
       &eqCurve,
       &eqCurve,
+      &noiseSustainProfile,
+      &noiseSustainProfile,
       0.0};
   };
 
@@ -468,11 +514,15 @@ CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote
 
   const EqCurve& lowerEqCurve = GetKeyNoteEqCurveOrDefault(lower->first);
   const EqCurve& upperEqCurve = GetKeyNoteEqCurveOrDefault(upper->first);
+  const NoiseBandProfile& lowerNoiseSustainProfile = GetKeyNoteNoiseSustainProfileOrDefault(lower->first);
+  const NoiseBandProfile& upperNoiseSustainProfile = GetKeyNoteNoiseSustainProfileOrDefault(upper->first);
   return ResolvedNoteSpan{
     &lower->second,
     &upper->second,
     &lowerEqCurve,
     &upperEqCurve,
+    &lowerNoiseSustainProfile,
+    &upperNoiseSustainProfile,
     (clampedMidiNote - static_cast<double>(lower->first)) / interval};
 }
 
@@ -500,6 +550,17 @@ double CompoundPreset::EvaluateEqGain(const ResolvedNoteSpan& span, double frequ
     span.t);
 }
 
+NoiseBandProfile CompoundPreset::InterpolateNoiseSustainProfile(const ResolvedNoteSpan& span) const
+{
+  if(span.t <= 0.0 || span.lowerNoiseSustainProfile == span.upperNoiseSustainProfile)
+    return *span.lowerNoiseSustainProfile;
+
+  return NoiseBandProfile::Interpolate(
+    *span.lowerNoiseSustainProfile,
+    *span.upperNoiseSustainProfile,
+    span.t);
+}
+
 bool CompoundPreset::HasKeyNotePreset(double midiNote) const
 {
   return GetKeyNotePreset(midiNote) != nullptr;
@@ -517,11 +578,18 @@ void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
   EqCurve eqCurve = keyNoteEqCurve ? *keyNoteEqCurve : GetEqCurveForMidiNote(clampedMidiNote);
   if(IsAllKeyNotesEqEnabled())
     eqCurve = GetAllKeyNotesEqCurve();
+  const NoiseBandProfile* keyNoteNoiseSustainProfile = GetKeyNoteNoiseSustainProfile(clampedMidiNote);
+  NoiseBandProfile noiseSustainProfile = keyNoteNoiseSustainProfile
+    ? *keyNoteNoiseSustainProfile
+    : GetNoiseSustainProfileForMidiNote(clampedMidiNote);
+  if(IsAllKeyNotesNoiseSustainEnabled())
+    noiseSustainProfile = GetAllKeyNotesNoiseSustainProfile();
 
   SimplePreset updatedPreset = preset;
   ApplyAllKeyNotesValues(updatedPreset);
   mKeyNotePresets[clampedMidiNote] = updatedPreset;
   mKeyNoteEqCurves[clampedMidiNote] = eqCurve;
+  mKeyNoteNoiseSustainProfiles[clampedMidiNote] = noiseSustainProfile;
 }
 
 bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
@@ -583,6 +651,23 @@ bool CompoundPreset::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   return true;
 }
 
+bool CompoundPreset::SetKeyNoteNoiseSustainProfile(double midiNote, const NoiseBandProfile& profile)
+{
+  const int clampedNote = RoundAndClampMidiNote(midiNote);
+  if(mKeyNotePresets.find(clampedNote) == mKeyNotePresets.end())
+    return false;
+
+  if(IsAllKeyNotesNoiseSustainEnabled())
+  {
+    mAllKeyNotesNoiseSustainProfile = profile;
+    SetAllKeyNoteNoiseSustainProfiles(mAllKeyNotesNoiseSustainProfile);
+  }
+  else
+    mKeyNoteNoiseSustainProfiles[clampedNote] = profile;
+
+  return true;
+}
+
 void CompoundPreset::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values)
 {
   const auto parameterIndex = ParameterIndex(parameter);
@@ -627,6 +712,24 @@ void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
   }
 }
 
+void CompoundPreset::EnableAllKeyNotesNoiseSustain(const NoiseBandProfile& profile)
+{
+  mAllKeyNotesNoiseSustainProfile = profile;
+  mAllKeyNotesNoiseSustainEnabled = true;
+  SetAllKeyNoteNoiseSustainProfiles(mAllKeyNotesNoiseSustainProfile);
+}
+
+void CompoundPreset::SetAllKeyNotesNoiseSustainEnabled(bool enabled)
+{
+  mAllKeyNotesNoiseSustainEnabled = enabled;
+  if(enabled)
+  {
+    if(!mKeyNoteNoiseSustainProfiles.empty())
+      mAllKeyNotesNoiseSustainProfile = mKeyNoteNoiseSustainProfiles.begin()->second;
+    SetAllKeyNoteNoiseSustainProfiles(mAllKeyNotesNoiseSustainProfile);
+  }
+}
+
 bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
 {
   if(mKeyNotePresets.size() <= 1)
@@ -635,6 +738,7 @@ bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
   const int clampedMidiNote = ClampMidiNote(midiNote);
   const size_t numRemoved = mKeyNotePresets.erase(clampedMidiNote);
   mKeyNoteEqCurves.erase(clampedMidiNote);
+  mKeyNoteNoiseSustainProfiles.erase(clampedMidiNote);
   return numRemoved > 0;
 }
 
@@ -642,6 +746,7 @@ void CompoundPreset::ClearKeyNotePresets()
 {
   mKeyNotePresets.clear();
   mKeyNoteEqCurves.clear();
+  mKeyNoteNoiseSustainProfiles.clear();
 }
 
 void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset) const
@@ -677,8 +782,25 @@ const EqCurve& CompoundPreset::GetKeyNoteEqCurveOrDefault(int midiNote) const
   return GetDefaultEqCurve();
 }
 
+const NoiseBandProfile& CompoundPreset::GetKeyNoteNoiseSustainProfileOrDefault(int midiNote) const
+{
+  if(IsAllKeyNotesNoiseSustainEnabled())
+    return GetAllKeyNotesNoiseSustainProfile();
+
+  if(const auto profileIt = mKeyNoteNoiseSustainProfiles.find(midiNote); profileIt != mKeyNoteNoiseSustainProfiles.end())
+    return profileIt->second;
+
+  return GetDefaultNoiseSustainProfile();
+}
+
 void CompoundPreset::SetAllKeyNoteEqCurves(const EqCurve& curve)
 {
   for(auto& [_, keyNoteCurve] : mKeyNoteEqCurves)
     keyNoteCurve = curve;
+}
+
+void CompoundPreset::SetAllKeyNoteNoiseSustainProfiles(const NoiseBandProfile& profile)
+{
+  for(auto& [_, keyNoteProfile] : mKeyNoteNoiseSustainProfiles)
+    keyNoteProfile = profile;
 }

@@ -43,13 +43,13 @@ inline const IRECT           kPanRateKnob = IRECT::MakeXYWH(351, 550,  45,  60);
 inline const IRECT       kPitchAmountKnob = IRECT::MakeXYWH(407, 480,  45,  60);
 inline const IRECT         kPitchRateKnob = IRECT::MakeXYWH(407, 550,  45,  60);
 
-inline const IRECT           kOutputLabel = IRECT::MakeXYWH(467, 480,  30, 130);
-inline const IRECT               kPanKnob = IRECT::MakeXYWH(497, 480,  45,  60);
-inline const IRECT             kLevelKnob = IRECT::MakeXYWH(497, 550,  45,  60);
+inline const IRECT            kNoiseLabel = IRECT::MakeXYWH(467, 480,  30, 130);
+inline const IRECT       kNoiseAttackKnob = IRECT::MakeXYWH(497, 480,  45,  60);
+inline const IRECT      kNoiseSustainKnob = IRECT::MakeXYWH(497, 550,  45,  60);
 
-inline const IRECT            kNoiseLabel = IRECT::MakeXYWH(557, 480,  30, 130);
-inline const IRECT       kNoiseAttackKnob = IRECT::MakeXYWH(587, 480,  45,  60);
-inline const IRECT      kNoiseSustainKnob = IRECT::MakeXYWH(587, 550,  45,  60);
+inline const IRECT           kOutputLabel = IRECT::MakeXYWH(557, 480,  30, 130);
+inline const IRECT               kPanKnob = IRECT::MakeXYWH(587, 480,  45,  60);
+inline const IRECT             kLevelKnob = IRECT::MakeXYWH(587, 550,  45,  60);
 
 inline const IRECT          kEffectsLabel = IRECT::MakeXYWH(647, 480,  30, 130);
 inline const IRECT             kDriveKnob = IRECT::MakeXYWH(677, 480,  45,  60);

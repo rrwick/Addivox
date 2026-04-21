@@ -5,6 +5,7 @@
 
 #include "IPlugConstants.h"
 #include "oscillator.h"
+#include "../dsp/shared.h"
 #include "../settings/global.h"
 #include "../settings/oscillator.h"
 
@@ -34,8 +35,10 @@ public:
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
+  bool SetKeyNoteNoiseSustainProfile(double midiNote, const NoiseBandProfile& profile);
   bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote);
   bool SetAllKeyNotesEqEnabled(bool enabled);
+  bool SetAllKeyNotesNoiseSustainEnabled(bool enabled);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);
@@ -46,6 +49,14 @@ private:
   void UpdatePitch();
   void UpdateLevels();
   void UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void UpdateNoiseSustainTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void ResetNoiseSustainState();
+  void UpdateNoiseSustainFilters();
+  void UpdateNoiseSustainGainSmoothing();
+  void UpdateNoiseSustainPanTargets();
+  void UpdateNoiseSustainPanSmoothing();
+  double ProcessNoiseSustain();
+  static double NextWhiteNoiseSample(uint32_t& state);
   void UpdatePitchRate();
   void RefreshNoteDependentState(int lookAheadSamples);
   void AdvanceRenderedPitch(int numSamples);
@@ -64,6 +75,7 @@ private:
                                double futureFundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
+  static constexpr int kNumNoiseBands = NoiseBandProfile::kNumBands;
   static constexpr int kNoteControlIntervalSamples = 16;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
@@ -84,6 +96,17 @@ private:
   double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
+  std::array<std::array<dsp::BiquadBandpass, 4>, kNumNoiseBands> mNoiseSustainBandpasses{};
+  std::array<double, kNumNoiseBands> mNoiseSustainBandGains{};
+  std::array<double, kNumNoiseBands> mTargetNoiseSustainBandGains{};
+  std::array<double, kNumNoiseBands> mNoiseSustainBandNormalizations{};
+  double mNoiseSustainGainSmoothingCoefficient{1.0};
+  double mNoiseSustainPanLeftGain{0.70710678118654752440};
+  double mNoiseSustainPanRightGain{0.70710678118654752440};
+  double mTargetNoiseSustainPanLeftGain{0.70710678118654752440};
+  double mTargetNoiseSustainPanRightGain{0.70710678118654752440};
+  double mNoiseSustainPanSmoothingCoefficient{1.0};
+  uint32_t mNoiseSustainNoiseState{0xC1A551E5u};
   CompoundPreset mCompoundPreset;
   GlobalVoiceSettings mGlobalVoiceSettings;
 };

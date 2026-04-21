@@ -44,6 +44,7 @@ void SetGlobalVoiceSettingsParams(Addivox& plugin,
 {
   const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
   plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
+  plugin.GetParam(kParamGlobalNoiseSustain)->Set(sanitizedVoiceSettings.noiseSustainScale);
   plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
   plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
   if(includeTuning)
@@ -471,6 +472,7 @@ Addivox::Addivox(const InstanceInfo& info)
   };
 
   GetParam(kParamGlobalLevel)->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
+  GetParam(kParamGlobalNoiseSustain)->InitDouble("Noise Sustain", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
   GetParam(kParamGlobalTuning)->InitDouble("Tuning", 0., -50., 50., 1.0, "", iplug::IParam::kFlagStepped, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCents, formatSignedCentsDisplay);
@@ -1166,6 +1168,17 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetKeyNoteNoiseSustainProfile
+    && dataSize == sizeof(editor_messages::SetKeyNoteNoiseSustainProfilePayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetKeyNoteNoiseSustainProfilePayload*>(pData);
+    return mDSP.mSynth.GetVoice().SetKeyNoteNoiseSustainProfile(
+      payload->midiNote,
+      NoiseBandProfile{payload->values});
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
     && msgTag == editor_messages::kMsgTagSetAllKeyNotesEnabled
     && dataSize == sizeof(editor_messages::SetAllKeyNotesEnabledPayload)
     && pData)
@@ -1185,6 +1198,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
     return mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
+  }
+
+  if(ctrlTag == kCtrlTagEditorTabs
+    && msgTag == editor_messages::kMsgTagSetAllKeyNotesNoiseSustainEnabled
+    && dataSize == sizeof(editor_messages::SetAllKeyNotesNoiseSustainEnabledPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesNoiseSustainEnabledPayload*>(pData);
+    return mDSP.mSynth.GetVoice().SetAllKeyNotesNoiseSustainEnabled(payload->enabled != 0);
   }
 
   if(ctrlTag == kCtrlTagEditorTabs

@@ -9,6 +9,7 @@
 #include "eq.h"
 
 #include <array>
+#include <cmath>
 #include <initializer_list>
 #include <map>
 #include <utility>
@@ -122,6 +123,112 @@ private:
   OscillatorArray mOscillatorSettings{};
 };
 
+class NoiseBandProfile
+{
+public:
+  static constexpr int kNumBands = 24;
+  static constexpr int kNumBandEdges = kNumBands + 1;
+  using BandValues = std::array<double, kNumBands>;
+  using BandEdgeFrequencies = std::array<double, kNumBandEdges>;
+
+  inline static constexpr BandEdgeFrequencies kBandEdgesHz{{
+    20.00, 26.67, 35.57, 47.43, 63.25, 84.34, 112.5, 150.0, 200.0, 266.7, 355.7, 474.3,
+    632.5, 843.4, 1124.7, 1500.0, 2000.0, 2667.0, 3557.0, 4743.0, 6325.0, 8434.0, 11250.0,
+    15000.0, 20000.0
+  }};
+
+  NoiseBandProfile() = default;
+
+  explicit constexpr NoiseBandProfile(const BandValues& values)
+  : mValues(values)
+  {
+  }
+
+  const BandValues& GetValues() const
+  {
+    return mValues;
+  }
+
+  double GetBandValue(int bandIndex) const
+  {
+    return mValues[ClampBandIndex(bandIndex)];
+  }
+
+  void SetBandValue(int bandIndex, double value)
+  {
+    mValues[ClampBandIndex(bandIndex)] = ClampBandValue(value);
+  }
+
+  void SetValues(BandValues values)
+  {
+    for(auto& value : values)
+      value = ClampBandValue(value);
+
+    mValues = values;
+  }
+
+  bool Empty() const
+  {
+    for(const double value : mValues)
+    {
+      if(value > 0.0)
+        return false;
+    }
+
+    return true;
+  }
+
+  static constexpr int ClampBandIndex(int bandIndex)
+  {
+    return std::clamp(bandIndex, 0, kNumBands - 1);
+  }
+
+  static double ClampBandValue(double value)
+  {
+    if(!std::isfinite(value))
+      return 0.0;
+
+    return std::clamp(value, 0.0, 1.0);
+  }
+
+  static constexpr double GetBandEdgeFrequencyHz(int edgeIndex)
+  {
+    return kBandEdgesHz[edgeIndex < 0 ? 0 : (edgeIndex >= kNumBandEdges ? kNumBandEdges - 1 : edgeIndex)];
+  }
+
+  static constexpr double GetBandLowerFrequencyHz(int bandIndex)
+  {
+    return GetBandEdgeFrequencyHz(ClampBandIndex(bandIndex));
+  }
+
+  static constexpr double GetBandUpperFrequencyHz(int bandIndex)
+  {
+    return GetBandEdgeFrequencyHz(ClampBandIndex(bandIndex) + 1);
+  }
+
+  static double GetBandCenterFrequencyHz(int bandIndex)
+  {
+    return std::sqrt(GetBandLowerFrequencyHz(bandIndex) * GetBandUpperFrequencyHz(bandIndex));
+  }
+
+  static NoiseBandProfile Interpolate(const NoiseBandProfile& lo, const NoiseBandProfile& hi, double t)
+  {
+    const double clampedT = std::clamp(t, 0.0, 1.0);
+    BandValues values{};
+    for(int bandIndex = 0; bandIndex < kNumBands; ++bandIndex)
+    {
+      const auto index = static_cast<std::size_t>(bandIndex);
+      values[index] =
+        ClampBandValue(lo.mValues[index] + ((hi.mValues[index] - lo.mValues[index]) * clampedT));
+    }
+
+    return NoiseBandProfile{values};
+  }
+
+private:
+  BandValues mValues{};
+};
+
 class CompoundPreset
 {
 public:
@@ -134,6 +241,8 @@ public:
     const SimplePreset* upperPreset{nullptr};
     const EqCurve* lowerEqCurve{nullptr};
     const EqCurve* upperEqCurve{nullptr};
+    const NoiseBandProfile* lowerNoiseSustainProfile{nullptr};
+    const NoiseBandProfile* upperNoiseSustainProfile{nullptr};
     double t{0.0};
   };
 
@@ -148,6 +257,8 @@ public:
   const SimplePreset* GetKeyNotePreset(double midiNote) const;
   EqCurve GetEqCurveForMidiNote(double midiNote) const;
   const EqCurve* GetKeyNoteEqCurve(double midiNote) const;
+  NoiseBandProfile GetNoiseSustainProfileForMidiNote(double midiNote) const;
+  const NoiseBandProfile* GetKeyNoteNoiseSustainProfile(double midiNote) const;
   const std::map<int, SimplePreset>& GetKeyNotePresets() const;
   bool HasKeyNotePreset(double midiNote) const;
   int GetNumKeyNotePresets() const;
@@ -155,9 +266,12 @@ public:
   const OscillatorParameterValues& GetAllKeyNotesValues(OscillatorSettings::Parameter parameter) const;
   bool IsAllKeyNotesEqEnabled() const;
   const EqCurve& GetAllKeyNotesEqCurve() const;
+  bool IsAllKeyNotesNoiseSustainEnabled() const;
+  const NoiseBandProfile& GetAllKeyNotesNoiseSustainProfile() const;
   ResolvedNoteSpan ResolveNoteSpan(double midiNote) const;
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
   double EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const;
+  NoiseBandProfile InterpolateNoiseSustainProfile(const ResolvedNoteSpan& span) const;
 
   void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
   bool SetKeyNoteOscillatorParameter(double midiNote,
@@ -169,12 +283,15 @@ public:
     OscillatorSettings::Parameter parameter,
     const std::array<double, SimplePreset::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
+  bool SetKeyNoteNoiseSustainProfile(double midiNote, const NoiseBandProfile& profile);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
   void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter,
                              bool enabled,
                              double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
+  void EnableAllKeyNotesNoiseSustain(const NoiseBandProfile& profile);
+  void SetAllKeyNotesNoiseSustainEnabled(bool enabled);
   bool RemoveKeyNotePreset(int midiNote);
   void ClearKeyNotePresets();
 
@@ -187,12 +304,17 @@ private:
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
   const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
+  const NoiseBandProfile& GetKeyNoteNoiseSustainProfileOrDefault(int midiNote) const;
   void SetAllKeyNoteEqCurves(const EqCurve& curve);
+  void SetAllKeyNoteNoiseSustainProfiles(const NoiseBandProfile& profile);
 
   std::map<int, SimplePreset> mKeyNotePresets{};
   std::map<int, EqCurve> mKeyNoteEqCurves{};
+  std::map<int, NoiseBandProfile> mKeyNoteNoiseSustainProfiles{};
   std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
   std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};
   bool mAllKeyNotesEqEnabled{false};
   EqCurve mAllKeyNotesEqCurve{};
+  bool mAllKeyNotesNoiseSustainEnabled{false};
+  NoiseBandProfile mAllKeyNotesNoiseSustainProfile{};
 };

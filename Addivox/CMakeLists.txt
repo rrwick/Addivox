@@ -48,10 +48,11 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/transformations.cpp
     src/ui/transformations.h
     src/ui/oscillator_slider_control.h
+    src/ui/noise_band_slider_control.h
     src/ui/number_box_control.h
-    src/ui/layered_svg_knob_control.h
     src/ui/layout.h
     src/ui/theme.h
+    src/ui/editor_tabs/noise_sustain.h
     resources/resource.h
   RESOURCES
     resources/fonts/Roboto-Regular.ttf
