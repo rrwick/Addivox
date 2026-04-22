@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <limits>
 
 #include "IPlugConstants.h"
@@ -47,23 +48,40 @@ public:
   void GetVisualizerFrame(VisualizerFrame& frame) const;
 
 private:
+  struct NoiseComponent
+  {
+    int bandIndex{0};
+    double frequencyHz{0.0};
+    double phase{0.0};
+    double phaseIncrement{0.0};
+    double lifecycleProgress{0.0};
+    double lifecycleIncrement{0.0};
+    double randomPan{0.0};
+    double panLeftGain{0.70710678118654752440};
+    double panRightGain{0.70710678118654752440};
+    double eqGain{1.0};
+  };
+
   double GetTargetMidiPitch() const;
   void UpdatePitch();
   void UpdateLevels();
   void UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan);
-  void UpdateNoiseAttackTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan);
-  void UpdateNoiseSustainTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan);
-  void ResetNoiseAttackState();
-  void ResetNoiseSustainState();
-  void UpdateNoiseSustainFilters();
+  void UpdateNoiseTargets(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void ResetNoiseState();
+  void RespawnNoiseComponent(NoiseComponent& component,
+                             const CompoundPreset::ResolvedNoteSpan& noteSpan,
+                             bool randomLifecycle);
+  void UpdateNoiseComponentRates();
+  void UpdateNoiseComponentEqGains(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void UpdateNoiseComponentPanGains();
   void UpdateNoiseSustainGainSmoothing();
   void UpdateNoiseAttackDetectorSmoothing();
-  void UpdateNoiseSustainPanTargets();
-  void UpdateNoiseSustainPanSmoothing();
-  void UpdateNoiseAttackVisualizationDecay();
-  double ProcessNoiseAttack();
-  double ProcessNoiseSustain();
-  static double NextWhiteNoiseSample(uint32_t& state);
+  void UpdateNoiseAttackTransientDecay();
+  std::array<double, 2> ProcessNoise();
+  static double NextNoiseRandomUnit(uint32_t& state);
+  static double NextNoiseRandomSignedUnit(uint32_t& state);
+  double RandomNoiseFrequencyHz(int bandIndex);
+  static double EvaluateNoiseLifecycleLevel(double lifecycleProgress);
   void UpdatePitchRate();
   void RefreshNoteDependentState(int lookAheadSamples);
   void AdvanceRenderedPitch(int numSamples);
@@ -83,6 +101,8 @@ private:
 
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
   static constexpr int kNumNoiseBands = NoiseBandProfile::kNumBands;
+  static constexpr int kNoiseComponentsPerBand = VisualizerFrame::kNoiseComponentsPerBand;
+  static constexpr int kNumNoiseComponents = VisualizerFrame::kNumNoiseComponents;
   static constexpr int kNoteControlIntervalSamples = 16;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
@@ -104,25 +124,17 @@ private:
   double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
-  std::array<std::array<dsp::BiquadBandpass, 4>, kNumNoiseBands> mNoiseAttackBandpasses{};
+  std::array<NoiseComponent, kNumNoiseComponents> mNoiseComponents{};
   std::array<double, kNumNoiseBands> mNoiseAttackBandWeights{};
-  std::array<double, kNumNoiseBands> mNoiseAttackBandVisualization{};
+  std::array<double, kNumNoiseBands> mNoiseSustainBandGains{};
+  std::array<double, kNumNoiseBands> mTargetNoiseSustainBandGains{};
   double mNoiseAttackTargetBreathLevel{0.0};
   double mNoiseAttackDetectorBreath{0.0};
   double mNoiseAttackDetectorSmoothingCoefficient{1.0};
-  double mNoiseAttackVisualizationDecayCoefficient{1.0};
-  uint32_t mNoiseAttackNoiseState{0x5D1F0A7Bu};
-  std::array<std::array<dsp::BiquadBandpass, 4>, kNumNoiseBands> mNoiseSustainBandpasses{};
-  std::array<double, kNumNoiseBands> mNoiseSustainBandGains{};
-  std::array<double, kNumNoiseBands> mTargetNoiseSustainBandGains{};
-  std::array<double, kNumNoiseBands> mNoiseSustainBandNormalizations{};
+  double mNoiseAttackTransient{0.0};
+  double mNoiseAttackTransientDecayCoefficient{1.0};
   double mNoiseSustainGainSmoothingCoefficient{1.0};
-  double mNoiseSustainPanLeftGain{0.70710678118654752440};
-  double mNoiseSustainPanRightGain{0.70710678118654752440};
-  double mTargetNoiseSustainPanLeftGain{0.70710678118654752440};
-  double mTargetNoiseSustainPanRightGain{0.70710678118654752440};
-  double mNoiseSustainPanSmoothingCoefficient{1.0};
-  uint32_t mNoiseSustainNoiseState{0xC1A551E5u};
+  uint32_t mNoiseRandomState{0xC1A551E5u};
   CompoundPreset mCompoundPreset;
   GlobalVoiceSettings mGlobalVoiceSettings;
 };

@@ -111,6 +111,56 @@ inline bool ApplyNoiseSustainAction(NoiseBandProfile& profile, const char* actio
   return true;
 }
 
+inline XRangeControls CreateNoiseXRangeControls(const std::shared_ptr<EditorContext>& context,
+                                                const EditorStyles& styles)
+{
+  auto* minControl = new IVNumberBoxControl(
+    IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
+    static_cast<double>(context->NoiseXRangeMin()), 1.0, static_cast<double>(NoiseBandProfile::kNumBands), "%0.0f", false);
+  auto* maxControl = new IVNumberBoxControl(
+    IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
+    static_cast<double>(context->NoiseXRangeMax()), 1.0, static_cast<double>(NoiseBandProfile::kNumBands), "%0.0f", false);
+  minControl->SetDrawTriangle(false);
+  maxControl->SetDrawTriangle(false);
+  minControl->SetTooltip(help_text::oscillator_tabs::kNoiseXRangeMin);
+  maxControl->SetTooltip(help_text::oscillator_tabs::kNoiseXRangeMax);
+
+  auto rangeGuard = std::make_shared<bool>(false);
+  const auto clampEditedControl = [rangeGuard, minControl, maxControl](IVNumberBoxControl* editedControl) {
+    if(*rangeGuard)
+      return;
+
+    const double minValue = minControl->GetRealValue();
+    const double maxValue = maxControl->GetRealValue();
+    if(minValue <= maxValue)
+      return;
+
+    *rangeGuard = true;
+    WDL_String textValue;
+    textValue.SetFormatted(16, "%0.0f", editedControl == minControl ? maxValue : minValue);
+    editedControl->OnTextEntryCompletion(textValue.Get(), 0);
+    *rangeGuard = false;
+  };
+  const auto updateVisibleRange = [context, minControl, maxControl]() {
+    context->SetNoiseXRange(RoundNoiseBandRangeValue(minControl->GetRealValue()),
+                            RoundNoiseBandRangeValue(maxControl->GetRealValue()));
+    context->ApplyVisibleNoiseRangeToSliders();
+    context->SyncNoiseXRangeNumberBoxes();
+  };
+
+  minControl->SetActionFunction([clampEditedControl, updateVisibleRange, minControl](IControl*) {
+    clampEditedControl(minControl);
+    updateVisibleRange();
+  });
+  maxControl->SetActionFunction([clampEditedControl, updateVisibleRange, maxControl](IControl*) {
+    clampEditedControl(maxControl);
+    updateVisibleRange();
+  });
+
+  context->SyncNoiseXRangeNumberBoxes();
+  return {minControl, maxControl};
+}
+
 inline ActionSelectionControl* CreateNoiseSustainYTransformControl(const std::shared_ptr<EditorLevelTransform>& transform,
                                                                    NoiseBandSliderControl* sliderControl,
                                                                    const EditorStyles& styles)
@@ -221,7 +271,7 @@ inline void RestoreNoiseSustainValues(const std::shared_ptr<EditorContext>& cont
 
 inline void ResizeNoiseSustainTabPage(IContainerBase* pTab, const IRECT& r)
 {
-  if(pTab->NChildren() < 14)
+  if(pTab->NChildren() < 17)
     return;
 
   constexpr float kLeftInset = 104.f;
@@ -231,6 +281,7 @@ inline void ResizeNoiseSustainTabPage(IContainerBase* pTab, const IRECT& r)
   constexpr float kBottomPad = 8.f;
   constexpr float kTightGap = 0.f;
   constexpr float kGap = 10.f;
+  constexpr float kHalfGap = 6.f;
   constexpr float kToggleLabelGap = 8.f;
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
@@ -263,22 +314,29 @@ inline void ResizeNoiseSustainTabPage(IContainerBase* pTab, const IRECT& r)
   const float yTransformTop = editModeLabelBounds.T - kGap - kControlHeight;
   auto yTransformBounds = IRECT(rowL, yTransformTop, rowR, yTransformTop + kControlHeight);
   auto yTransformLabelBounds = IRECT(rowL, yTransformBounds.T - kTightGap - kLabelHeight, rowR, yTransformBounds.T - kTightGap);
+  const float xRangeTop = yTransformLabelBounds.T - kGap - kControlHeight;
+  auto xRangeMinBounds = IRECT(rowL, xRangeTop, rowMid - kHalfGap * 0.5f, xRangeTop + kControlHeight);
+  auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
+  auto xRangeLabelBounds = IRECT(rowL, xRangeMinBounds.T - kTightGap - kLabelHeight, rowR, xRangeMinBounds.T - kTightGap);
   const auto sliderBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
 
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(yTransformLabelBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(yTransformBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(editModeLabelBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(editModeBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(setShapeLabelBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(actionsLabelBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(10)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(11)->SetTargetAndDrawRECTs(addButtonBounds);
-  pTab->GetChild(12)->SetTargetAndDrawRECTs(deleteButtonBounds);
-  pTab->GetChild(13)->SetTargetAndDrawRECTs(sliderBounds);
+  pTab->GetChild(0)->SetTargetAndDrawRECTs(xRangeLabelBounds);
+  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeMinBounds);
+  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMaxBounds);
+  pTab->GetChild(3)->SetTargetAndDrawRECTs(yTransformLabelBounds);
+  pTab->GetChild(4)->SetTargetAndDrawRECTs(yTransformBounds);
+  pTab->GetChild(5)->SetTargetAndDrawRECTs(editModeLabelBounds);
+  pTab->GetChild(6)->SetTargetAndDrawRECTs(editModeBounds);
+  pTab->GetChild(7)->SetTargetAndDrawRECTs(setShapeLabelBounds);
+  pTab->GetChild(8)->SetTargetAndDrawRECTs(setShapeBounds);
+  pTab->GetChild(9)->SetTargetAndDrawRECTs(actionsLabelBounds);
+  pTab->GetChild(10)->SetTargetAndDrawRECTs(actionsBounds);
+  pTab->GetChild(11)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
+  pTab->GetChild(12)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
+  pTab->GetChild(13)->SetTargetAndDrawRECTs(restoreButtonBounds);
+  pTab->GetChild(14)->SetTargetAndDrawRECTs(addButtonBounds);
+  pTab->GetChild(15)->SetTargetAndDrawRECTs(deleteButtonBounds);
+  pTab->GetChild(16)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline IVTabPage* CreateNoiseSustainTabPage(const std::shared_ptr<EditorContext>& context,
@@ -286,6 +344,7 @@ inline IVTabPage* CreateNoiseSustainTabPage(const std::shared_ptr<EditorContext>
 {
   return new EditorOscillatorTabPage(
     [context, styles](IVTabPage* page, const IRECT&) {
+      const auto xRangeControls = CreateNoiseXRangeControls(context, styles);
       auto* sliderControl = CreateNoiseSustainSliderControl(context, styles);
       auto* yTransformControl = CreateNoiseSustainYTransformControl(context->noiseSustainTab.transform, sliderControl, styles);
       auto* editModeControl = CreateNoiseSustainEditModeControl(context->noiseSustainTab.editMode, styles);
@@ -379,6 +438,8 @@ inline IVTabPage* CreateNoiseSustainTabPage(const std::shared_ptr<EditorContext>
 
       const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
+      *context->noiseSustainTab.xRangeMinControl = xRangeControls.minControl;
+      *context->noiseSustainTab.xRangeMaxControl = xRangeControls.maxControl;
       *context->noiseSustainTab.sliderControl = sliderControl;
       *context->noiseSustainTab.setShapeControl = setShapeControl;
       *context->noiseSustainTab.actionsControl = actionsControl;
@@ -387,6 +448,9 @@ inline IVTabPage* CreateNoiseSustainTabPage(const std::shared_ptr<EditorContext>
       *context->noiseSustainTab.addButton = keyNoteActionButtons.addButton;
       *context->noiseSustainTab.deleteButton = keyNoteActionButtons.deleteButton;
 
+      page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
+      page->AddChildControl(xRangeControls.minControl);
+      page->AddChildControl(xRangeControls.maxControl);
       page->AddChildControl(CreateUtilityLabelControl("Y transform:", styles));
       page->AddChildControl(yTransformControl);
       page->AddChildControl(CreateUtilityLabelControl("Edit mode:", styles));

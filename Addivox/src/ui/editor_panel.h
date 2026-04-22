@@ -601,6 +601,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
     std::shared_ptr<std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditScopes);
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
+  context->noiseView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->noiseXRangeMin);
+  context->noiseView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->noiseXRangeMax);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
   context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
   context->noiseAttackTab.transform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->noiseAttackTransform);
@@ -656,6 +658,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->eqTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
+  context->noiseAttackTab.xRangeMinControl = std::make_shared<IVNumberBoxControl*>(nullptr);
+  context->noiseAttackTab.xRangeMaxControl = std::make_shared<IVNumberBoxControl*>(nullptr);
   context->noiseAttackTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->noiseAttackTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->noiseAttackTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
@@ -663,6 +667,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->noiseAttackTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
   context->noiseAttackTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   context->noiseAttackTab.sliderControl = std::make_shared<NoiseBandSliderControl*>(nullptr);
+  context->noiseSustainTab.xRangeMinControl = std::make_shared<IVNumberBoxControl*>(nullptr);
+  context->noiseSustainTab.xRangeMaxControl = std::make_shared<IVNumberBoxControl*>(nullptr);
   context->noiseSustainTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->noiseSustainTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->noiseSustainTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
@@ -676,6 +682,9 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePreset::kNumOscillators);
   *context->oscillatorView.xRangeMax =
     std::clamp(*context->oscillatorView.xRangeMax, *context->oscillatorView.xRangeMin, SimplePreset::kNumOscillators);
+  *context->noiseView.xRangeMin = std::clamp(*context->noiseView.xRangeMin, 1, NoiseBandProfile::kNumBands);
+  *context->noiseView.xRangeMax =
+    std::clamp(*context->noiseView.xRangeMax, *context->noiseView.xRangeMin, NoiseBandProfile::kNumBands);
   return context;
 }
 } // namespace editor

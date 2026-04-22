@@ -176,6 +176,12 @@ inline constexpr const char* kXRangeMin =
 inline constexpr const char* kXRangeMax =
   "Controls the highest harmonic that will be shown in the editor graph to the right. Use the X range controls to limit the harmonics for easier editing.";
 
+inline constexpr const char* kNoiseXRangeMin =
+  "Controls the lowest noise band that will be shown in the editor graph to the right. Use the X range controls to limit the visible bands for easier editing.";
+
+inline constexpr const char* kNoiseXRangeMax =
+  "Controls the highest noise band that will be shown in the editor graph to the right. Use the X range controls to limit the visible bands for easier editing.";
+
 inline constexpr const char* kAddButton =
   "Creates a new key note for the currently selected note.";
 

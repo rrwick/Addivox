@@ -90,6 +90,21 @@ public:
     mGetBandEditMode = std::move(func);
   }
 
+  void SetVisibleBandRange(int minBandOneBased, int maxBandOneBased)
+  {
+    int minBand = std::clamp(minBandOneBased - 1, 0, NoiseBandProfile::kNumBands - 1);
+    int maxBand = std::clamp(maxBandOneBased - 1, 0, NoiseBandProfile::kNumBands - 1);
+    if(maxBand < minBand)
+      maxBand = minBand;
+
+    if(mVisibleBandMin == minBand && mVisibleBandMax == maxBand)
+      return;
+
+    mVisibleBandMin = minBand;
+    mVisibleBandMax = maxBand;
+    OnResize();
+  }
+
   void SetBandValue(int bandIndex, double value)
   {
     SetValue(ToControlValueFromRangeValue(value), bandIndex);
@@ -241,7 +256,7 @@ public:
 private:
   static constexpr float kReadoutMaxBandHeight = 16.f;
   static constexpr float kReadoutMinBandHeight = 8.f;
-  static constexpr float kReadoutTextWidth = 96.f;
+  static constexpr float kReadoutTextWidth = 72.f;
   static constexpr double kNudgeControlStep = 0.005;
   static constexpr double kValueComparisonTolerance = 1.0e-9;
   static constexpr std::array<double, 7> kSmoothControlKernel{{0.01, 0.05, 0.10, 0.68, 0.10, 0.05, 0.01}};
@@ -260,6 +275,22 @@ private:
   static double ClampSignedUnit(double value)
   {
     return std::clamp(value, -1.0, 1.0);
+  }
+
+  float GetBackingPixelScale() const
+  {
+    if(const IGraphics* ui = GetUI())
+      return std::max(1.f, ui->GetTotalScale());
+
+    return 1.f;
+  }
+
+  static float GetSnappedSubdivisionEdge(float origin, float length, int index, int count, float scale)
+  {
+    const double scaledOrigin = static_cast<double>(origin) * static_cast<double>(scale);
+    const double scaledLength = static_cast<double>(length) * static_cast<double>(scale);
+    const double scaledEdge = scaledOrigin + (scaledLength * static_cast<double>(index)) / static_cast<double>(count);
+    return static_cast<float>(std::round(scaledEdge) / static_cast<double>(scale));
   }
 
   EditorOscillatorEditMode GetBandEditMode() const
@@ -774,11 +805,11 @@ private:
     const IRECT topBand = MakeReadoutRect(IRECT(mRECT.L, mRECT.T, mRECT.R, mWidgetBounds.T), centerX);
     const IRECT bottomBand = MakeReadoutRect(IRECT(mRECT.L, mWidgetBounds.B, mRECT.R, mRECT.B), centerX);
 
-    const WDL_String bandRange = FormatBandRange(bandIndex);
+    const WDL_String centerFrequency = FormatCenterFrequency(bandIndex);
     const WDL_String value = FormatBandValue(bandIndex);
 
     g.DrawText(MakeReadoutText("Roboto-Black", 12.f, EAlign::Center, EVAlign::Bottom), value.Get(), topBand, &mBlend);
-    g.DrawText(MakeReadoutText("Roboto-Black", 11.f, EAlign::Center, EVAlign::Top), bandRange.Get(), bottomBand, &mBlend);
+    g.DrawText(MakeReadoutText("Roboto-Black", 11.f, EAlign::Center, EVAlign::Top), centerFrequency.Get(), bottomBand, &mBlend);
   }
 
   IRECT MakeReadoutRect(const IRECT& bandBounds, float centerX) const
@@ -814,13 +845,9 @@ private:
     return text;
   }
 
-  WDL_String FormatBandRange(int bandIndex) const
+  WDL_String FormatCenterFrequency(int bandIndex) const
   {
-    const WDL_String lower = FormatFrequency(NoiseBandProfile::GetBandLowerFrequencyHz(bandIndex));
-    const WDL_String upper = FormatFrequency(NoiseBandProfile::GetBandUpperFrequencyHz(bandIndex));
-    WDL_String text;
-    text.SetFormatted(32, "%s-%s", lower.Get(), upper.Get());
-    return text;
+    return FormatFrequency(NoiseBandProfile::GetBandCenterFrequencyHz(bandIndex));
   }
 
   WDL_String FormatBandValue(int bandIndex) const
@@ -844,11 +871,57 @@ private:
     return std::clamp(digits, 1, 5);
   }
 
+  void MakeTrackRects(const IRECT& bounds) override
+  {
+    const int nVals = NVals();
+    const int dir = static_cast<int>(mDirection);
+    const float scale = GetBackingPixelScale();
+    const float gapSize = 2.f / scale;
+
+    for(int bandIndex = 0; bandIndex < nVals; ++bandIndex)
+      mTrackBounds.Get()[bandIndex] = IRECT();
+
+    const int visibleMin = std::clamp(mVisibleBandMin, 0, nVals - 1);
+    const int visibleMax = std::clamp(mVisibleBandMax, visibleMin, nVals - 1);
+    const int visibleCount = visibleMax - visibleMin + 1;
+
+    for(int bandIndex = visibleMin; bandIndex <= visibleMax; ++bandIndex)
+    {
+      const int visibleIndex = bandIndex - visibleMin;
+      IRECT trackBounds = bounds.SubRect(EDirection(!dir), visibleCount, visibleIndex)
+                                .GetPadded(0, -mTrackPadding * static_cast<float>(dir),
+                                           -mTrackPadding * static_cast<float>(!dir), -mTrackPadding);
+
+      if(mDirection == EDirection::Horizontal)
+      {
+        trackBounds.T = GetSnappedSubdivisionEdge(bounds.T, bounds.H(), visibleIndex, visibleCount, scale);
+        trackBounds.B = GetSnappedSubdivisionEdge(bounds.T, bounds.H(), visibleIndex + 1, visibleCount, scale);
+      }
+      else
+      {
+        trackBounds.L = GetSnappedSubdivisionEdge(bounds.L, bounds.W(), visibleIndex, visibleCount, scale);
+        trackBounds.R = GetSnappedSubdivisionEdge(bounds.L, bounds.W(), visibleIndex + 1, visibleCount, scale);
+      }
+
+      if(bandIndex < visibleMax)
+      {
+        if(mDirection == EDirection::Horizontal)
+          trackBounds.B = std::max(trackBounds.T, trackBounds.B - gapSize);
+        else
+          trackBounds.R = std::max(trackBounds.L, trackBounds.R - gapSize);
+      }
+
+      mTrackBounds.Get()[bandIndex] = trackBounds;
+    }
+  }
+
   Config mConfig{};
   RestoreState mRestoreState{};
   bool mHasRestoreState{false};
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
   int mRestoreMidiNote{kNoRestoreMidiNote};
+  int mVisibleBandMin{0};
+  int mVisibleBandMax{NoiseBandProfile::kNumBands - 1};
   OnBandValueChangedFunc mOnBandValueChanged{};
   GetBandEditModeFunc mGetBandEditMode{};
   ControlState mDrawLineSourceValues{};

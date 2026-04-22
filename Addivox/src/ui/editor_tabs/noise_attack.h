@@ -127,6 +127,7 @@ inline IVTabPage* CreateNoiseAttackTabPage(const std::shared_ptr<EditorContext>&
 {
   return new EditorOscillatorTabPage(
     [context, styles](IVTabPage* page, const IRECT&) {
+      const auto xRangeControls = CreateNoiseXRangeControls(context, styles);
       auto* sliderControl = CreateNoiseAttackSliderControl(context, styles);
       auto* yTransformControl = CreateNoiseAttackYTransformControl(context->noiseAttackTab.transform, sliderControl, styles);
       auto* editModeControl = CreateNoiseAttackEditModeControl(context->noiseAttackTab.editMode, styles);
@@ -220,6 +221,8 @@ inline IVTabPage* CreateNoiseAttackTabPage(const std::shared_ptr<EditorContext>&
 
       const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
+      *context->noiseAttackTab.xRangeMinControl = xRangeControls.minControl;
+      *context->noiseAttackTab.xRangeMaxControl = xRangeControls.maxControl;
       *context->noiseAttackTab.sliderControl = sliderControl;
       *context->noiseAttackTab.setShapeControl = setShapeControl;
       *context->noiseAttackTab.actionsControl = actionsControl;
@@ -228,6 +231,9 @@ inline IVTabPage* CreateNoiseAttackTabPage(const std::shared_ptr<EditorContext>&
       *context->noiseAttackTab.addButton = keyNoteActionButtons.addButton;
       *context->noiseAttackTab.deleteButton = keyNoteActionButtons.deleteButton;
 
+      page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
+      page->AddChildControl(xRangeControls.minControl);
+      page->AddChildControl(xRangeControls.maxControl);
       page->AddChildControl(CreateUtilityLabelControl("Y transform:", styles));
       page->AddChildControl(yTransformControl);
       page->AddChildControl(CreateUtilityLabelControl("Edit mode:", styles));

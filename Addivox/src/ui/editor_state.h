@@ -40,6 +40,8 @@ struct EditorState
   int selectedTabIndex{0};
   int oscillatorXRangeMin{1};
   int oscillatorXRangeMax{SimplePreset::kNumOscillators};
+  int noiseXRangeMin{1};
+  int noiseXRangeMax{NoiseBandProfile::kNumBands};
   EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
   EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
   EditorLevelTransform attackTransform{EditorLevelTransform::Linear};

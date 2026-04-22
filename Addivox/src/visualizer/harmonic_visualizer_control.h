@@ -3,7 +3,6 @@
 #include "IControl.h"
 #include "IPlugStructs.h"
 #include "ISender.h"
-#include "../dsp/gradient_noise.h"
 #include "../ui/colour.h"
 #include "harmonic_visualizer_frame.h"
 #include "../ui/transformations.h"
@@ -11,7 +10,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdint>
 
 BEGIN_IPLUG_NAMESPACE
 BEGIN_IGRAPHICS_NAMESPACE
@@ -38,6 +36,7 @@ public:
   {
     constexpr float kCornerRadius = 7.f;
     constexpr float kLabelAreaHeight = 13.f;
+    constexpr float kYAxisBoost = 1.5f;
 
     g.FillRoundRect(plugin_ui::colour::visualizer::kBackground, mRECT, kCornerRadius, &mBlend);
     g.DrawRoundRect(plugin_ui::colour::visualizer::kFrame, mRECT, kCornerRadius, &mBlend, 1.f);
@@ -52,7 +51,7 @@ public:
     const float centerY = barPlot.MH();
     const float channelHeight = (barPlot.H() * 0.5f) - 1.f;
 
-    auto drawBarSegment = [&](float x, float y0, float y1, const IColor& harmonicColor, float height) {
+    auto drawHarmonicBar = [&](float x, float y0, float y1, const IColor& harmonicColor, float height) {
       if(height <= 0.f)
         return;
 
@@ -63,6 +62,20 @@ public:
         y1,
         harmonicColor,
         plugin_ui::colour::visualizer::kHarmonicCore,
+        baseBlendWeight,
+        VisibilityForHeightPixels(height));
+    };
+
+    auto drawNoiseBar = [&](float x, float y0, float y1, const IColor& color, float height) {
+      if(height <= 0.f)
+        return;
+
+      DrawSimpleVerticalLine(
+        g,
+        x,
+        y0,
+        y1,
+        color,
         baseBlendWeight,
         VisibilityForHeightPixels(height));
     };
@@ -81,10 +94,31 @@ public:
         major ? 1.1f : 1.f);
     }
 
-    constexpr float kYAxisBoost = 1.5f;
+    for(const auto& component : mFrame.noiseComponents)
+    {
+      if(component.frequencyHz < kMinDrawFrequencyHz || component.frequencyHz > kMaxDrawFrequencyHz || component.level <= 0.f)
+        continue;
 
-    DrawNoiseLayer(g, mFrame.noiseBands, barPlot, xMapping, centerY, channelHeight, baseBlendWeight, mNoiseContourSeed, true);
-    DrawNoiseLayer(g, mFrame.noiseBands, barPlot, xMapping, centerY, channelHeight, baseBlendWeight, mNoiseContourSeed, false);
+      const float clampedFrequencyHz = std::clamp(component.frequencyHz, kMinFrequencyHzX, kMaxFrequencyHzX);
+      const float logFrequency = std::log(clampedFrequencyHz);
+      const float xNorm = xMapping.NormalizeFromLog(logFrequency);
+      const float colorT = colorMapping.NormalizeFromLog(logFrequency);
+      const IColor noiseColor = LerpColor(
+        plugin_ui::colour::visualizer::kHarmonicGradientStart,
+        plugin_ui::colour::visualizer::kHarmonicGradientEnd,
+        colorT);
+      const float x = LerpXFromNormalized(xNorm, barPlot);
+      const float mappedLevel = harmonic_visualizer_level::MapPseudoLog(component.level);
+
+      const float leftNormHeight = std::min(1.f, mappedLevel * component.panLeftGain * kYAxisBoost);
+      const float rightNormHeight = std::min(1.f, mappedLevel * component.panRightGain * kYAxisBoost);
+      const float leftHeight = leftNormHeight * channelHeight;
+      const float rightHeight = rightNormHeight * channelHeight;
+
+      drawNoiseBar(x, centerY - leftHeight, centerY, noiseColor, leftHeight);
+      drawNoiseBar(x, centerY, centerY + rightHeight, noiseColor, rightHeight);
+    }
+
     g.DrawLine(plugin_ui::colour::visualizer::kCenterLine, barPlot.L, centerY, barPlot.R, centerY, &mBlend, 1.f);
 
     for(const auto& osc : mFrame.harmonics)
@@ -105,8 +139,8 @@ public:
       const float leftHeight = leftNormHeight * channelHeight;
       const float rightHeight = rightNormHeight * channelHeight;
 
-      drawBarSegment(x, centerY - leftHeight, centerY, harmonicColor, leftHeight);
-      drawBarSegment(x, centerY, centerY + rightHeight, harmonicColor, rightHeight);
+      drawHarmonicBar(x, centerY - leftHeight, centerY, harmonicColor, leftHeight);
+      drawHarmonicBar(x, centerY, centerY + rightHeight, harmonicColor, rightHeight);
     }
 
     for(std::size_t i = 0; i < kAxisLabelFrequenciesHz.size(); ++i)
@@ -126,17 +160,11 @@ public:
     if(pos >= 0)
     {
       mFrame = data.vals[0];
-      mNoiseContourSeed = dsp::HashUint32(mNoiseContourSeed + 1u);
       SetDirty(false);
     }
   }
 
 private:
-  static constexpr int kNumNoiseBands = HarmonicVisualizerFrame::kNumNoiseBands;
-  static constexpr int kNumNoiseEdges = kNumNoiseBands + 1;
-  static constexpr int kNoiseContourSubdivisionsPerBand = 4;
-  static constexpr int kNumNoisePoints = (kNumNoiseBands * kNoiseContourSubdivisionsPerBand) + 1;
-
   struct LogFrequencyMapping
   {
     float minHz;
@@ -225,7 +253,7 @@ private:
 
   static float VisibilityForHeightPixels(float heightPixels)
   {
-    // Very short lines fade out to reduce clutter in dense high-harmonic tails.
+    // Very short lines fade out to reduce clutter in dense high-frequency regions.
     constexpr float kFadeStartPx = 0.f;
     constexpr float kFadeEndPx = 5.f;
     const float h = std::max(0.f, heightPixels);
@@ -267,126 +295,24 @@ private:
     DrawRoundedVerticalStroke(g, x, y0, y1, coreColorScaled, kCoreThicknessPx, coreBlend);
   }
 
-  static float MapNoiseLevel(float level)
+  static void DrawSimpleVerticalLine(
+    IGraphics& g,
+    float x,
+    float y0,
+    float y1,
+    const IColor& color,
+    float baseBlendWeight,
+    float visibility)
   {
-    return harmonic_visualizer_level::MapPseudoLog(std::max(level, 0.f));
-  }
-
-  static std::array<float, kNumNoiseEdges> BuildNoiseEdgeLevels(const HarmonicVisualizerFrame::NoiseBandArray& noiseBands, bool leftChannel)
-  {
-    std::array<float, kNumNoiseEdges> edgeLevels{};
-    for(int edgeIndex = 0; edgeIndex < kNumNoiseEdges; ++edgeIndex)
-    {
-      if(edgeIndex == 0)
-      {
-        edgeLevels[0] = leftChannel ? noiseBands[0].leftLevel : noiseBands[0].rightLevel;
-        continue;
-      }
-
-      if(edgeIndex == (kNumNoiseEdges - 1))
-      {
-        const auto& band = noiseBands[static_cast<std::size_t>(kNumNoiseBands - 1)];
-        edgeLevels[static_cast<std::size_t>(edgeIndex)] = leftChannel ? band.leftLevel : band.rightLevel;
-        continue;
-      }
-
-      const auto& lowerBand = noiseBands[static_cast<std::size_t>(edgeIndex - 1)];
-      const auto& upperBand = noiseBands[static_cast<std::size_t>(edgeIndex)];
-      const float lowerLevel = leftChannel ? lowerBand.leftLevel : lowerBand.rightLevel;
-      const float upperLevel = leftChannel ? upperBand.leftLevel : upperBand.rightLevel;
-      edgeLevels[static_cast<std::size_t>(edgeIndex)] = 0.5f * (lowerLevel + upperLevel);
-    }
-
-    return edgeLevels;
-  }
-
-  static float EvaluateNoiseContourOffsetPx(uint32_t seed,
-                                            int pointIndex,
-                                            bool leftChannel,
-                                            float maxMagnitudePx)
-  {
-    if(maxMagnitudePx <= 0.f)
-      return 0.f;
-
-    const uint32_t channelSalt = leftChannel ? 0xA341316Cu : 0xC8013EA4u;
-    const uint32_t pointSalt = 0x9E3779B9u * static_cast<uint32_t>(pointIndex + 1);
-    const double unit = dsp::HashToSignedUnitFloat(dsp::HashUint32(seed ^ channelSalt ^ pointSalt));
-    return static_cast<float>(unit * static_cast<double>(maxMagnitudePx));
-  }
-
-  static void TraceNoisePath(IGraphics& g,
-                             const std::array<float, kNumNoisePoints>& xPoints,
-                             const std::array<float, kNumNoisePoints>& yPoints)
-  {
-    g.PathClear();
-    g.PathMoveTo(xPoints[0], yPoints[0]);
-    for(int pointIndex = 1; pointIndex < kNumNoisePoints; ++pointIndex)
-      g.PathLineTo(xPoints[static_cast<std::size_t>(pointIndex)], yPoints[static_cast<std::size_t>(pointIndex)]);
-  }
-
-  static void DrawNoiseLayer(IGraphics& g,
-                             const HarmonicVisualizerFrame::NoiseBandArray& noiseBands,
-                             const IRECT& plotArea,
-                             const LogFrequencyMapping& xMapping,
-                             float centerY,
-                             float channelHeight,
-                             float baseBlendWeight,
-                             uint32_t contourSeed,
-                             bool leftChannel)
-  {
-    const auto edgeLevels = BuildNoiseEdgeLevels(noiseBands, leftChannel);
-    std::array<float, kNumNoisePoints> xPoints{};
-    std::array<float, kNumNoisePoints> yPoints{};
-    float maxHeightPixels = 0.f;
-
-    for(int pointIndex = 0; pointIndex < kNumNoisePoints; ++pointIndex)
-    {
-      const int bandIndex = std::min(pointIndex / kNoiseContourSubdivisionsPerBand, kNumNoiseBands - 1);
-      const int nextBandIndex = std::min(bandIndex + 1, kNumNoiseBands);
-      const int intraBandIndex = pointIndex - (bandIndex * kNoiseContourSubdivisionsPerBand);
-      const float t = (pointIndex == (kNumNoisePoints - 1))
-        ? 1.f
-        : static_cast<float>(intraBandIndex) / static_cast<float>(kNoiseContourSubdivisionsPerBand);
-
-      const float lowerHz = static_cast<float>(NoiseBandProfile::GetBandEdgeFrequencyHz(bandIndex));
-      const float upperHz = static_cast<float>(NoiseBandProfile::GetBandEdgeFrequencyHz(nextBandIndex));
-      const float logLowerHz = std::log(std::max(lowerHz, kMinFrequencyHzX));
-      const float logUpperHz = std::log(std::max(upperHz, kMinFrequencyHzX));
-      const float frequencyHz = std::exp(logLowerHz + ((logUpperHz - logLowerHz) * t));
-      xPoints[static_cast<std::size_t>(pointIndex)] =
-        LerpXFromNormalized(xMapping.Normalize(frequencyHz), plotArea);
-
-      const float lowerLevel = edgeLevels[static_cast<std::size_t>(bandIndex)];
-      const float upperLevel = edgeLevels[static_cast<std::size_t>(nextBandIndex)];
-      const float interpolatedLevel = lowerLevel + ((upperLevel - lowerLevel) * t);
-      const float mappedLevel = MapNoiseLevel(interpolatedLevel);
-      const float baseHeight =
-        std::min(1.f, mappedLevel * kNoiseHeightBoost) * channelHeight * kNoiseChannelHeightScale;
-      const float roughnessMagnitude =
-        std::min(kNoiseRoughnessAmplitudePx, baseHeight * kNoiseRoughnessRelativeScale);
-      const float perturbedHeight = std::clamp(
-        baseHeight + EvaluateNoiseContourOffsetPx(contourSeed, pointIndex, leftChannel, roughnessMagnitude),
-        0.f,
-        channelHeight);
-      maxHeightPixels = std::max(maxHeightPixels, perturbedHeight);
-      yPoints[static_cast<std::size_t>(pointIndex)] = leftChannel ? (centerY - perturbedHeight) : (centerY + perturbedHeight);
-    }
-
-    if(maxHeightPixels <= kNoiseMinVisibleHeightPx)
+    if(std::fabs(y1 - y0) <= 0.1f)
       return;
 
-    const float visibility = VisibilityForHeightPixels(maxHeightPixels);
-    if(visibility <= 0.f)
+    const float clampedVisibility = std::clamp(visibility, 0.f, 1.f);
+    if(clampedVisibility <= 0.f)
       return;
 
-    const IColor noiseFillColor = plugin_ui::colour::visualizer::kNoiseFill;
-
-    TraceNoisePath(g, xPoints, yPoints);
-    g.PathLineTo(xPoints[static_cast<std::size_t>(kNumNoisePoints - 1)], centerY);
-    g.PathLineTo(xPoints[0], centerY);
-    g.PathClose();
-    const IBlend fillBlend{EBlend::SrcOver, baseBlendWeight * kNoiseFillBlendWeight * visibility};
-    g.PathFill(noiseFillColor.WithOpacity(kNoiseFillOpacity * visibility), IFillOptions(), &fillBlend);
+    const IBlend blend{EBlend::SrcOver, baseBlendWeight * clampedVisibility};
+    DrawRoundedVerticalStroke(g, x, y0, y1, color.WithOpacity(kNoiseLineOpacity * clampedVisibility), kNoiseLineThicknessPx, blend);
   }
 
   static bool IsMajorGridFrequency(float frequencyHz)
@@ -423,15 +349,9 @@ private:
   static constexpr float kMaxDrawFrequencyHz = kMaxFrequencyHzX * 1.05f;
   static constexpr float kMinFrequencyHzColor = 100.f;
   static constexpr float kMaxFrequencyHzColor = 10000.f;
-  static constexpr float kNoiseHeightBoost = 1.0f;
-  static constexpr float kNoiseChannelHeightScale = 0.9f;
-  // Main knob for how jagged the noise silhouette appears. Increase for rougher noise.
-  static constexpr float kNoiseRoughnessAmplitudePx = 12.0f;
-  static constexpr float kNoiseRoughnessRelativeScale = 0.75f;
-  static constexpr float kNoiseMinVisibleHeightPx = 0.35f;
-  static constexpr float kNoiseFillOpacity = 0.25f;
-  static constexpr float kNoiseFillBlendWeight = 0.85f;
   static constexpr float kCoreThicknessPx = 1.0f;
+  static constexpr float kNoiseLineThicknessPx = 1.0f;
+  static constexpr float kNoiseLineOpacity = 0.9f;
   static constexpr std::array<float, 13> kAxisLabelFrequenciesHz{20.f, 30.f, 50.f, 100.f, 200.f, 300.f, 500.f, 1000.f, 2000.f, 3000.f, 5000.f, 10000.f, 20000.f};
   static constexpr std::array<const char*, 13> kAxisLabelStrings{"20 Hz", "30 Hz", "50 Hz", "100 Hz", "200 Hz", "300 Hz", "500 Hz", "1 kHz", "2 kHz", "3 kHz", "5 kHz", "10 kHz", "20 kHz"};
   static constexpr std::array<float, 4> kGlowThicknesses{12.f, 8.f, 5.f, 3.0f};
@@ -442,7 +362,6 @@ private:
     200.f, 300.f, 400.f, 500.f, 600.f, 700.f, 800.f, 900.f, 1000.f,
     2000.f, 3000.f, 4000.f, 5000.f, 6000.f, 7000.f, 8000.f, 9000.f, 10000.f, 20000.f};
   HarmonicVisualizerFrame mFrame{};
-  uint32_t mNoiseContourSeed{0x51A37B4Du};
 };
 
 END_IGRAPHICS_NAMESPACE

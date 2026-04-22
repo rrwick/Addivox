@@ -14,17 +14,21 @@ struct HarmonicVisualizerOscillator
 
 struct HarmonicVisualizerNoiseBand
 {
-  float leftLevel{0.f};
-  float rightLevel{0.f};
+  float frequencyHz{0.f};
+  float level{0.f};
+  float panLeftGain{0.f};
+  float panRightGain{0.f};
 };
 
 struct HarmonicVisualizerFrame
 {
   static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
   static constexpr int kNumNoiseBands = NoiseBandProfile::kNumBands;
+  static constexpr int kNoiseComponentsPerBand = 20;
+  static constexpr int kNumNoiseComponents = kNumNoiseBands * kNoiseComponentsPerBand;
   using HarmonicArray = std::array<HarmonicVisualizerOscillator, kNumHarmonics>;
-  using NoiseBandArray = std::array<HarmonicVisualizerNoiseBand, kNumNoiseBands>;
+  using NoiseComponentArray = std::array<HarmonicVisualizerNoiseBand, kNumNoiseComponents>;
 
   HarmonicArray harmonics{};
-  NoiseBandArray noiseBands{};
+  NoiseComponentArray noiseComponents{};
 };

@@ -285,6 +285,11 @@ inline int RoundOscillatorRangeValue(double value)
   return std::clamp(static_cast<int>(std::lround(value)), 1, SimplePreset::kNumOscillators);
 }
 
+inline int RoundNoiseBandRangeValue(double value)
+{
+  return std::clamp(static_cast<int>(std::lround(value)), 1, NoiseBandProfile::kNumBands);
+}
+
 inline OscillatorParameterValues GetOscillatorParameterValues(const SimplePreset& preset,
                                                               OscillatorParameter parameter)
 {
@@ -796,6 +801,12 @@ struct OscillatorViewRefs
   std::shared_ptr<int> xRangeMax;
 };
 
+struct NoiseViewRefs
+{
+  std::shared_ptr<int> xRangeMin;
+  std::shared_ptr<int> xRangeMax;
+};
+
 struct LevelTabRefs
 {
   std::shared_ptr<EditorLevelTransform> levelTransform;
@@ -854,6 +865,8 @@ struct NoiseBandTabRefs
 {
   std::shared_ptr<EditorLevelTransform> transform;
   std::shared_ptr<EditorOscillatorEditMode> editMode;
+  std::shared_ptr<IVNumberBoxControl*> xRangeMinControl;
+  std::shared_ptr<IVNumberBoxControl*> xRangeMaxControl;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
   std::shared_ptr<IVToggleControl*> allKeyNotesToggle;
@@ -887,6 +900,7 @@ struct EditorContext
   int editorTabsTag = kNoTag;
   EditorModelRefs model;
   OscillatorViewRefs oscillatorView;
+  NoiseViewRefs noiseView;
   LevelTabRefs levelTab;
   BreathTabRefs breathTab;
   PitchTabRefs pitchTab;
@@ -994,6 +1008,22 @@ struct EditorContext
     *oscillatorView.xRangeMax = maxOscillator;
   }
 
+  int NoiseXRangeMin() const
+  {
+    return *noiseView.xRangeMin;
+  }
+
+  int NoiseXRangeMax() const
+  {
+    return *noiseView.xRangeMax;
+  }
+
+  void SetNoiseXRange(int minBand, int maxBand) const
+  {
+    *noiseView.xRangeMin = minBand;
+    *noiseView.xRangeMax = maxBand;
+  }
+
   bool HasValidSelectedMidiNote() const
   {
     const int midiNote = SelectedMidiNote();
@@ -1007,6 +1037,15 @@ struct EditorContext
       if(control)
         control->SetVisibleOscillatorRange(XRangeMin(), XRangeMax());
     }
+  }
+
+  void ApplyVisibleNoiseRangeToSliders() const
+  {
+    if(noiseAttackTab.sliderControl && *noiseAttackTab.sliderControl)
+      (*noiseAttackTab.sliderControl)->SetVisibleBandRange(NoiseXRangeMin(), NoiseXRangeMax());
+
+    if(noiseSustainTab.sliderControl && *noiseSustainTab.sliderControl)
+      (*noiseSustainTab.sliderControl)->SetVisibleBandRange(NoiseXRangeMin(), NoiseXRangeMax());
   }
 
   void SyncXRangeNumberBoxes() const
@@ -1030,6 +1069,36 @@ struct EditorContext
       setNumberBoxValueSilently((*oscillatorTabControls.xRangeMinControls)[i], XRangeMin());
       setNumberBoxValueSilently((*oscillatorTabControls.xRangeMaxControls)[i], XRangeMax());
     }
+  }
+
+  void SyncNoiseXRangeNumberBoxes() const
+  {
+    const auto setNumberBoxValueSilently = [](IVNumberBoxControl* control, int value) {
+      if(!control || RoundNoiseBandRangeValue(control->GetRealValue()) == value)
+        return;
+
+      const auto originalAction = control->GetActionFunction();
+      control->SetActionFunction(nullptr);
+
+      WDL_String textValue;
+      textValue.SetFormatted(16, "%d", value);
+      control->OnTextEntryCompletion(textValue.Get(), 0);
+      control->SetActionFunction(originalAction);
+      control->SetDirty(false);
+    };
+
+    setNumberBoxValueSilently(
+      noiseAttackTab.xRangeMinControl ? *noiseAttackTab.xRangeMinControl : nullptr,
+      NoiseXRangeMin());
+    setNumberBoxValueSilently(
+      noiseAttackTab.xRangeMaxControl ? *noiseAttackTab.xRangeMaxControl : nullptr,
+      NoiseXRangeMax());
+    setNumberBoxValueSilently(
+      noiseSustainTab.xRangeMinControl ? *noiseSustainTab.xRangeMinControl : nullptr,
+      NoiseXRangeMin());
+    setNumberBoxValueSilently(
+      noiseSustainTab.xRangeMaxControl ? *noiseSustainTab.xRangeMaxControl : nullptr,
+      NoiseXRangeMax());
   }
 
   void ResetOscillatorRestoreStates() const
@@ -1342,7 +1411,9 @@ struct EditorContext
   void RefreshOscillatorTabs() const
   {
     ApplyVisibleOscillatorRangeToSliders();
+    ApplyVisibleNoiseRangeToSliders();
     SyncXRangeNumberBoxes();
+    SyncNoiseXRangeNumberBoxes();
 
     if(!HasValidSelectedMidiNote())
     {
