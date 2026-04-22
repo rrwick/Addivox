@@ -75,12 +75,15 @@ private:
   void UpdateNoiseComponentEqGains(const CompoundPreset::ResolvedNoteSpan& noteSpan);
   void UpdateNoiseComponentPanGains();
   void UpdateNoiseSustainGainSmoothing();
+  void UpdateNoiseAttackTargetSmoothing();
   void UpdateNoiseAttackDetectorSmoothing();
+  void UpdateNoiseAttackTransientRise();
   void UpdateNoiseAttackTransientDecay();
   std::array<double, 2> ProcessNoise();
   static double NextNoiseRandomUnit(uint32_t& state);
   static double NextNoiseRandomSignedUnit(uint32_t& state);
   double RandomNoiseFrequencyHz(int bandIndex);
+  double GetNoiseComponentPan(double randomPan) const;
   static double EvaluateNoiseLifecycleLevel(double lifecycleProgress);
   void UpdatePitchRate();
   void RefreshNoteDependentState(int lookAheadSamples);
@@ -129,9 +132,12 @@ private:
   std::array<double, kNumNoiseBands> mNoiseSustainBandGains{};
   std::array<double, kNumNoiseBands> mTargetNoiseSustainBandGains{};
   double mNoiseAttackTargetBreathLevel{0.0};
+  double mNoiseAttackSmoothedTargetBreathLevel{0.0};
   double mNoiseAttackDetectorBreath{0.0};
+  double mNoiseAttackTargetSmoothingCoefficient{1.0};
   double mNoiseAttackDetectorSmoothingCoefficient{1.0};
   double mNoiseAttackTransient{0.0};
+  double mNoiseAttackTransientRiseCoefficient{1.0};
   double mNoiseAttackTransientDecayCoefficient{1.0};
   double mNoiseSustainGainSmoothingCoefficient{1.0};
   uint32_t mNoiseRandomState{0xC1A551E5u};

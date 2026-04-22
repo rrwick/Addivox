@@ -13,8 +13,10 @@ constexpr double kBreathCurveScale = 2.0;
 
 const double kBreathCurveLog = std::log1p(kBreathCurveScale);
 constexpr double kNoiseAttackDerivativeToExcitationScale = 0.1;
+constexpr double kNoiseAttackTargetSmoothingTimeSec = 0.02;
 constexpr double kNoiseAttackDetectorTimeSec = 0.003;
-constexpr double kNoiseAttackDerivativeDeadbandPerSecond = 0.05;
+constexpr double kNoiseAttackDerivativeDeadbandPerSecond = 0.15;
+constexpr double kNoiseAttackTransientRiseTimeSec = 0.001;
 constexpr double kNoiseAttackTransientDecayTimeSec = 0.05;
 constexpr double kNoiseActivityEpsilon = 1.0e-5;
 constexpr double kNoiseSustainGainSmoothingTimeSec = 0.01;
@@ -46,7 +48,9 @@ SynthVoice::SynthVoice()
   UpdateNoiseComponentRates();
   UpdateNoiseComponentPanGains();
   UpdateNoiseSustainGainSmoothing();
+  UpdateNoiseAttackTargetSmoothing();
   UpdateNoiseAttackDetectorSmoothing();
+  UpdateNoiseAttackTransientRise();
   UpdateNoiseAttackTransientDecay();
   ResetNoiseState();
   UpdatePitchRate();
@@ -319,6 +323,7 @@ void SynthVoice::Clear()
   mRawBreath = 0.0;
   mBreath = 0.0;
   mNoiseAttackTargetBreathLevel = 0.0;
+  mNoiseAttackSmoothedTargetBreathLevel = 0.0;
   mNoiseAttackDetectorBreath = 0.0;
   mNoiseAttackTransient = 0.0;
   mPortamentoControl = 0.0;
@@ -491,7 +496,9 @@ void SynthVoice::SetSampleRate(double sampleRate)
 
   UpdateNoiseComponentRates();
   UpdateNoiseSustainGainSmoothing();
+  UpdateNoiseAttackTargetSmoothing();
   UpdateNoiseAttackDetectorSmoothing();
+  UpdateNoiseAttackTransientRise();
   UpdateNoiseAttackTransientDecay();
   UpdatePitchRate();
   mNoteControlSamplesUntilUpdate = 0;
@@ -546,6 +553,7 @@ void SynthVoice::ResetNoiseState()
   mNoiseSustainBandGains.fill(0.0);
   mTargetNoiseSustainBandGains.fill(0.0);
   mNoiseAttackTransient = 0.0;
+  mNoiseAttackSmoothedTargetBreathLevel = mNoiseAttackTargetBreathLevel;
 
   const CompoundPreset::ResolvedNoteSpan noteSpan = mCompoundPreset.ResolveNoteSpan(mRenderedMidiPitch);
   for(int componentIndex = 0; componentIndex < kNumNoiseComponents; ++componentIndex)
@@ -570,7 +578,7 @@ void SynthVoice::RespawnNoiseComponent(NoiseComponent& component,
   component.phaseIncrement = component.frequencyHz / safeSampleRate;
   component.lifecycleIncrement = 1.0 / std::max(1.0, kNoiseComponentLifespanSec * safeSampleRate);
 
-  const double pan = std::clamp(component.randomPan + mGlobalVoiceSettings.panOffset, -1.0, 1.0);
+  const double pan = GetNoiseComponentPan(component.randomPan);
   dsp::PanToGains(pan, component.panLeftGain, component.panRightGain);
 }
 
@@ -595,7 +603,7 @@ void SynthVoice::UpdateNoiseComponentPanGains()
 {
   for(auto& component : mNoiseComponents)
   {
-    const double pan = std::clamp(component.randomPan + mGlobalVoiceSettings.panOffset, -1.0, 1.0);
+    const double pan = GetNoiseComponentPan(component.randomPan);
     dsp::PanToGains(pan, component.panLeftGain, component.panRightGain);
   }
 }
@@ -606,10 +614,22 @@ void SynthVoice::UpdateNoiseSustainGainSmoothing()
     dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseSustainGainSmoothingTimeSec);
 }
 
+void SynthVoice::UpdateNoiseAttackTargetSmoothing()
+{
+  mNoiseAttackTargetSmoothingCoefficient =
+    dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseAttackTargetSmoothingTimeSec);
+}
+
 void SynthVoice::UpdateNoiseAttackDetectorSmoothing()
 {
   mNoiseAttackDetectorSmoothingCoefficient =
     dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseAttackDetectorTimeSec);
+}
+
+void SynthVoice::UpdateNoiseAttackTransientRise()
+{
+  mNoiseAttackTransientRiseCoefficient =
+    dsp::ExponentialSmoothingCoefficient(mSampleRate, kNoiseAttackTransientRiseTimeSec);
 }
 
 void SynthVoice::UpdateNoiseAttackTransientDecay()
@@ -640,10 +660,17 @@ std::array<double, 2> SynthVoice::ProcessNoise()
     return {0.0, 0.0};
   }
 
+  mNoiseAttackSmoothedTargetBreathLevel = dsp::SmoothValue(
+    mNoiseAttackSmoothedTargetBreathLevel,
+    mNoiseAttackTargetBreathLevel,
+    mNoiseAttackTargetSmoothingCoefficient);
+  if(std::abs(mNoiseAttackSmoothedTargetBreathLevel) < dsp::kDenormalFloor)
+    mNoiseAttackSmoothedTargetBreathLevel = 0.0;
+
   const double previousDetectorBreath = mNoiseAttackDetectorBreath;
   mNoiseAttackDetectorBreath = dsp::SmoothValue(
     mNoiseAttackDetectorBreath,
-    mNoiseAttackTargetBreathLevel,
+    mNoiseAttackSmoothedTargetBreathLevel,
     mNoiseAttackDetectorSmoothingCoefficient);
   if(std::abs(mNoiseAttackDetectorBreath) < dsp::kDenormalFloor)
     mNoiseAttackDetectorBreath = 0.0;
@@ -653,10 +680,16 @@ std::array<double, 2> SynthVoice::ProcessNoise()
     0.0,
     ((mNoiseAttackDetectorBreath - previousDetectorBreath) * safeSampleRate)
       - kNoiseAttackDerivativeDeadbandPerSecond);
-  const double attackExcitation = positiveDerivativePerSecond * kNoiseAttackDerivativeToExcitationScale;
-  mNoiseAttackTransient = std::max(
+  const double attackExcitation =
+    positiveDerivativePerSecond * kNoiseAttackDerivativeToExcitationScale;
+  const double attackTransientCoefficient =
+    (attackExcitation > mNoiseAttackTransient)
+      ? mNoiseAttackTransientRiseCoefficient
+      : mNoiseAttackTransientDecayCoefficient;
+  mNoiseAttackTransient = dsp::SmoothValue(
+    mNoiseAttackTransient,
     attackExcitation,
-    dsp::SmoothValue(mNoiseAttackTransient, 0.0, mNoiseAttackTransientDecayCoefficient));
+    attackTransientCoefficient);
   if(std::abs(mNoiseAttackTransient) < dsp::kDenormalFloor)
     mNoiseAttackTransient = 0.0;
 
@@ -743,6 +776,13 @@ double SynthVoice::RandomNoiseFrequencyHz(int bandIndex)
   const double logLowerHz = std::log(lowerHz);
   const double logUpperHz = std::log(upperHz);
   return std::exp(logLowerHz + ((logUpperHz - logLowerHz) * t));
+}
+
+double SynthVoice::GetNoiseComponentPan(double randomPan) const
+{
+  const double globalPan = std::clamp(mGlobalVoiceSettings.panOffset, -1.0, 1.0);
+  const double randomPanScale = 1.0 - std::abs(globalPan);
+  return std::clamp(globalPan + (randomPan * randomPanScale), -1.0, 1.0);
 }
 
 double SynthVoice::EvaluateNoiseLifecycleLevel(double lifecycleProgress)
