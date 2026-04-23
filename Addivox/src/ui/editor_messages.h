@@ -20,6 +20,7 @@ inline constexpr int kMsgTagSetAllKeyNotesEnabled = 1007;
 inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
 inline constexpr int kMsgTagSetBreathCCSource = 1009;
 inline constexpr int kMsgTagSetHarmonicVisualizerEnabled = 1010;
+inline constexpr int kMsgTagResetStandaloneStateToDefaults = 1011;
 
 struct SetKeyNoteOscillatorParameterPayload
 {

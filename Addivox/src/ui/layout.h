@@ -280,6 +280,15 @@ public:
             &payload);
         }
       }
+      else if(selectedText && std::strcmp(selectedText, kResetToDefaultsMenuLabel) == 0)
+      {
+        if(auto* delegate = GetDelegate())
+        {
+          delegate->SendArbitraryMsgFromUI(
+            editor_messages::kMsgTagResetStandaloneStateToDefaults,
+            GetTag());
+        }
+      }
       else
       {
         BreathCCSource selectedSource = kDefaultBreathCCSource;
@@ -332,6 +341,8 @@ private:
     }
 
     mMenu.AddItem("Breath CC", breathMenu);
+    mMenu.AddSeparator();
+    mMenu.AddItem(kResetToDefaultsMenuLabel);
   }
 
   IPopupMenu mMenu{"Settings"};
@@ -340,6 +351,7 @@ private:
   std::shared_ptr<bool> mHarmonicVisualizerEnabled;
 
   static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer enabled";
+  static constexpr const char* kResetToDefaultsMenuLabel = "Reset to defaults";
 };
 
 inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<editor::EditorContext>& context, int aboutBoxTag)

@@ -4,6 +4,7 @@
 #include "IControls.h"
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -54,10 +55,12 @@ public:
   bool SerializeState(IByteChunk& chunk) const override;
   int UnserializeState(const IByteChunk& chunk, int startPos) override;
   void OnRestoreState() override;
+  void OnHostIdentified() override;
   void OnUIOpen() override;
   void OnUIClose() override;
   bool OnHostRequestingAboutBox() override;
   bool OnHostRequestingProductHelp() override;
+  void OnParamChangeUI(int paramIdx, EParamSource source) override;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
@@ -71,9 +74,12 @@ public:
 
 private:
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
-  void EnsureStandalonePitchBendRangeInitialized();
-  void EnsureStandaloneBreathCCSourceInitialized();
-  void EnsureStandaloneHarmonicVisualizerEnabledInitialized();
+  void EnsureStandaloneStateInitialized();
+  bool LoadStandaloneState();
+  bool SaveStandaloneState() const;
+  void SaveStandaloneStateIfNeeded(bool force = false);
+  void MarkStandaloneStateDirty();
+  void ResetStandaloneStateToDefaults();
   void SetPitchBendRange(int pitchBendRange);
   void SetBreathCCSource(BreathCCSource source);
   void SetHarmonicVisualizerEnabled(bool enabled);
@@ -98,12 +104,14 @@ private:
   bool mWasQwertyKeyboardInEditMode{false};
   int mLastQwertyMIDINote{-1};
   int mPitchBendRange{2};
-  bool mStandalonePitchBendRangeInitialized{false};
+  bool mStandaloneStateInitialized{false};
+  bool mSuppressStandaloneStatePersistence{false};
+  uint64_t mStandaloneStateRevision{0};
+  uint64_t mStandaloneStateSavedRevision{0};
+  int64_t mStandaloneStateLastDirtyMillis{0};
   BreathCCSource mBreathCCSource{kDefaultBreathCCSource};
-  bool mStandaloneBreathCCSourceInitialized{false};
   std::atomic<bool> mHarmonicVisualizerEnabled{true};
   std::atomic<bool> mHarmonicVisualizerBlankPending{false};
-  bool mStandaloneHarmonicVisualizerEnabledInitialized{false};
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
   using VisualizerFrame = SynthEngine::VisualizerFrame;

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -20,10 +21,18 @@ namespace
 constexpr uint32_t kPluginStateSettingsMagic = 0x42524343u; // Legacy plugin-state settings block magic.
 constexpr int kDefaultPitchBendRange = 2;
 constexpr int kMaxPitchBendRange = 96;
+constexpr bool kDefaultHarmonicVisualizerEnabled = true;
+constexpr int64_t kStandaloneStateSaveDebounceMs = 250;
 
 int SanitizePitchBendRange(int pitchBendRange)
 {
   return std::clamp(pitchBendRange, 0, kMaxPitchBendRange);
+}
+
+int64_t GetMonotonicMilliseconds()
+{
+  using namespace std::chrono;
+  return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
 
 GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const Addivox& plugin)
@@ -340,6 +349,15 @@ std::string GetStandaloneBreathCCSourcePath()
   return preset_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
 }
 
+std::string GetStandaloneStatePath()
+{
+  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
+  if(settingsDirectory.empty())
+    return {};
+
+  return preset_io::detail::JoinPath(settingsDirectory, "standalone_state.chunk");
+}
+
 std::string GetStandalonePitchBendRangePath()
 {
   const std::string settingsDirectory = GetStandaloneSettingsDirectory();
@@ -396,38 +414,48 @@ bool LoadStandalonePitchBendRange(int& pitchBendRange)
   return true;
 }
 
-void SaveStandaloneBreathCCSource(BreathCCSource source)
+bool LoadStandaloneStateChunk(IByteChunk& chunk)
 {
-  const std::string path = GetStandaloneBreathCCSourcePath();
+  const std::string path = GetStandaloneStatePath();
   if(path.empty())
-    return;
+    return false;
 
-  const std::string parentPath = preset_io::detail::ParentPath(path);
-  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
-    return;
-
-  std::ofstream stream(path, std::ios::trunc);
+  std::ifstream stream(path, std::ios::binary | std::ios::ate);
   if(!stream.is_open())
-    return;
+    return false;
 
-  stream << static_cast<int>(source) << '\n';
+  const std::streamsize size = stream.tellg();
+  if(size <= 0)
+    return false;
+
+  chunk.Clear();
+  chunk.Resize(static_cast<int>(size));
+  stream.seekg(0, std::ios::beg);
+  if(!stream.read(reinterpret_cast<char*>(chunk.GetData()), size))
+  {
+    chunk.Clear();
+    return false;
+  }
+
+  return true;
 }
 
-void SaveStandalonePitchBendRange(int pitchBendRange)
+bool SaveStandaloneStateChunk(const IByteChunk& chunk)
 {
-  const std::string path = GetStandalonePitchBendRangePath();
+  const std::string path = GetStandaloneStatePath();
   if(path.empty())
-    return;
+    return false;
 
   const std::string parentPath = preset_io::detail::ParentPath(path);
   if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
-    return;
+    return false;
 
-  std::ofstream stream(path, std::ios::trunc);
+  std::ofstream stream(path, std::ios::binary | std::ios::trunc);
   if(!stream.is_open())
-    return;
+    return false;
 
-  stream << SanitizePitchBendRange(pitchBendRange) << '\n';
+  stream.write(reinterpret_cast<const char*>(chunk.GetData()), static_cast<std::streamsize>(chunk.Size()));
+  return stream.good();
 }
 
 bool LoadStandaloneHarmonicVisualizerEnabled(bool& enabled)
@@ -449,21 +477,27 @@ bool LoadStandaloneHarmonicVisualizerEnabled(bool& enabled)
   return true;
 }
 
-void SaveStandaloneHarmonicVisualizerEnabled(bool enabled)
+void DeleteStandaloneSettingsFile(const std::string& path)
 {
-  const std::string path = GetStandaloneHarmonicVisualizerEnabledPath();
   if(path.empty())
     return;
 
-  const std::string parentPath = preset_io::detail::ParentPath(path);
-  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
+  if(!preset_io::detail::PathExists(path))
     return;
 
-  std::ofstream stream(path, std::ios::trunc);
-  if(!stream.is_open())
-    return;
+  preset_io::detail::DeleteFile(path);
+}
 
-  stream << (enabled ? 1 : 0) << '\n';
+void DeleteStandaloneStateFile()
+{
+  DeleteStandaloneSettingsFile(GetStandaloneStatePath());
+}
+
+void DeleteStandaloneLegacySettingsFiles()
+{
+  DeleteStandaloneSettingsFile(GetStandaloneBreathCCSourcePath());
+  DeleteStandaloneSettingsFile(GetStandalonePitchBendRangePath());
+  DeleteStandaloneSettingsFile(GetStandaloneHarmonicVisualizerEnabledPath());
 }
 
 std::string GetTemporaryDirectoryPath()
@@ -553,8 +587,6 @@ Addivox::Addivox(const InstanceInfo& info)
   GetParam(kParamTranspose)->InitInt("Transpose", 0, -36, 36, "st", iplug::IParam::kFlagSignDisplay);
   GetParam(kParamEffectsChorus)->InitDouble("Chorus", 0., 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
   GetParam(kParamEffectsReverb)->InitDouble("Reverb", effects_settings::kDefaultReverb, 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
-
-  EnsureStandalonePitchBendRangeInitialized();
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -689,85 +721,196 @@ Addivox::Addivox(const InstanceInfo& info)
   SetBreathCCSource(kDefaultBreathCCSource);
 }
 
+void Addivox::OnHostIdentified()
+{
+  EnsureStandaloneStateInitialized();
+}
+
+bool Addivox::LoadStandaloneState()
+{
+  IByteChunk chunk;
+  if(!LoadStandaloneStateChunk(chunk))
+    return false;
+
+  int position = 0;
+  IByteChunk::GetIPlugVerFromChunk(chunk, position);
+
+  mSuppressStandaloneStatePersistence = true;
+  const int result = UnserializeState(chunk, position);
+  if(result >= 0)
+    OnRestoreState();
+  mSuppressStandaloneStatePersistence = false;
+
+  if(result < 0)
+    return false;
+
+  DeleteStandaloneLegacySettingsFiles();
+  mStandaloneStateSavedRevision = mStandaloneStateRevision;
+  return true;
+}
+
+bool Addivox::SaveStandaloneState() const
+{
+  if(GetHost() != kHostStandalone)
+    return false;
+
+  IByteChunk chunk;
+  IByteChunk::InitChunkWithIPlugVer(chunk);
+  if(!SerializeState(chunk))
+    return false;
+
+  if(!SaveStandaloneStateChunk(chunk))
+    return false;
+
+  DeleteStandaloneLegacySettingsFiles();
+  return true;
+}
+
+void Addivox::SaveStandaloneStateIfNeeded(bool force)
+{
+  if(GetHost() != kHostStandalone || !mStandaloneStateInitialized || mSuppressStandaloneStatePersistence)
+    return;
+
+  if(mStandaloneStateRevision == mStandaloneStateSavedRevision)
+    return;
+
+  const int64_t now = GetMonotonicMilliseconds();
+  if(!force && (now - mStandaloneStateLastDirtyMillis) < kStandaloneStateSaveDebounceMs)
+    return;
+
+  const uint64_t revisionBeforeSave = mStandaloneStateRevision;
+  if(!SaveStandaloneState())
+    return;
+
+  if(mStandaloneStateRevision == revisionBeforeSave)
+    mStandaloneStateSavedRevision = revisionBeforeSave;
+}
+
+void Addivox::MarkStandaloneStateDirty()
+{
+  if(GetHost() != kHostStandalone || !mStandaloneStateInitialized || mSuppressStandaloneStatePersistence)
+    return;
+
+  mStandaloneStateLastDirtyMillis = GetMonotonicMilliseconds();
+  ++mStandaloneStateRevision;
+}
+
+void Addivox::EnsureStandaloneStateInitialized()
+{
+  if(mStandaloneStateInitialized || GetHost() != kHostStandalone)
+    return;
+
+  mStandaloneStateInitialized = true;
+
+  if(LoadStandaloneState())
+    return;
+
+  DeleteStandaloneStateFile();
+
+  bool migratedLegacyState = false;
+  mSuppressStandaloneStatePersistence = true;
+
+  int persistedPitchBendRange = kDefaultPitchBendRange;
+  if(LoadStandalonePitchBendRange(persistedPitchBendRange))
+  {
+    SetPitchBendRange(persistedPitchBendRange);
+    migratedLegacyState = true;
+  }
+
+  BreathCCSource persistedSource = kDefaultBreathCCSource;
+  if(LoadStandaloneBreathCCSource(persistedSource))
+  {
+    SetBreathCCSource(persistedSource);
+    migratedLegacyState = true;
+  }
+
+  bool persistedEnabled = kDefaultHarmonicVisualizerEnabled;
+  if(LoadStandaloneHarmonicVisualizerEnabled(persistedEnabled))
+  {
+    SetHarmonicVisualizerEnabled(persistedEnabled);
+    migratedLegacyState = true;
+  }
+
+  mSuppressStandaloneStatePersistence = false;
+
+  if(migratedLegacyState)
+    MarkStandaloneStateDirty();
+}
+
+void Addivox::ResetStandaloneStateToDefaults()
+{
+  EnsureStandaloneStateInitialized();
+
+  mSuppressStandaloneStatePersistence = true;
+  DeleteStandaloneStateFile();
+  DeleteStandaloneLegacySettingsFiles();
+  mStandaloneStateRevision = 0;
+  mStandaloneStateSavedRevision = 0;
+  mStandaloneStateLastDirtyMillis = 0;
+
+  mActiveUIMIDINotes.fill(false);
+  mNumActiveUIMIDINotes = 0;
+
+  if(NPresets() > 0)
+    RestorePreset(0);
+
+  SetPitchBendRange(kDefaultPitchBendRange);
+  SetBreathCCSource(kDefaultBreathCCSource);
+  SetHarmonicVisualizerEnabled(kDefaultHarmonicVisualizerEnabled);
+
+#if IPLUG_DSP
+  OnReset();
+#endif
+
+  mSuppressStandaloneStatePersistence = false;
+  RefreshEditorUI(true);
+}
+
 void Addivox::SetPitchBendRange(int pitchBendRange)
 {
-  mPitchBendRange = SanitizePitchBendRange(pitchBendRange);
-
-  if(GetHost() == kHostStandalone)
-    SaveStandalonePitchBendRange(mPitchBendRange);
+  const int sanitizedPitchBendRange = SanitizePitchBendRange(pitchBendRange);
+  const bool changed = sanitizedPitchBendRange != mPitchBendRange;
+  mPitchBendRange = sanitizedPitchBendRange;
 
 #if IPLUG_DSP
   mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
 #endif
 
   SyncPitchBendRangeUI();
-}
-
-void Addivox::EnsureStandalonePitchBendRangeInitialized()
-{
-  if(mStandalonePitchBendRangeInitialized || GetHost() != kHostStandalone)
-    return;
-
-  mStandalonePitchBendRangeInitialized = true;
-
-  int persistedPitchBendRange = kDefaultPitchBendRange;
-  if(LoadStandalonePitchBendRange(persistedPitchBendRange))
-    SetPitchBendRange(persistedPitchBendRange);
+  if(changed)
+    MarkStandaloneStateDirty();
 }
 
 void Addivox::SetBreathCCSource(BreathCCSource source)
 {
-  mBreathCCSource = SanitizeBreathCCSource(static_cast<int>(source));
+  const BreathCCSource sanitizedSource = SanitizeBreathCCSource(static_cast<int>(source));
+  const bool changed = sanitizedSource != mBreathCCSource;
+  mBreathCCSource = sanitizedSource;
   if(mEditorState)
     mEditorState->breathCCSource = mBreathCCSource;
-
-  if(GetHost() == kHostStandalone)
-    SaveStandaloneBreathCCSource(mBreathCCSource);
 
 #if IPLUG_DSP
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();
 #endif
-}
-
-void Addivox::EnsureStandaloneBreathCCSourceInitialized()
-{
-  if(mStandaloneBreathCCSourceInitialized || GetHost() != kHostStandalone)
-    return;
-
-  mStandaloneBreathCCSourceInitialized = true;
-
-  BreathCCSource persistedSource = kDefaultBreathCCSource;
-  if(LoadStandaloneBreathCCSource(persistedSource))
-    SetBreathCCSource(persistedSource);
+  if(changed)
+    MarkStandaloneStateDirty();
 }
 
 void Addivox::SetHarmonicVisualizerEnabled(bool enabled)
 {
+  const bool changed = enabled != mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
   mHarmonicVisualizerEnabled.store(enabled, std::memory_order_relaxed);
   mHarmonicVisualizerBlankPending.store(!enabled, std::memory_order_relaxed);
   if(mEditorState)
     mEditorState->harmonicVisualizerEnabled = enabled;
 
-  if(GetHost() == kHostStandalone)
-    SaveStandaloneHarmonicVisualizerEnabled(enabled);
-
 #if IPLUG_DSP
   mHarmonicVisualizerSender.ClearQueuedData();
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
 #endif
-}
-
-void Addivox::EnsureStandaloneHarmonicVisualizerEnabledInitialized()
-{
-  if(mStandaloneHarmonicVisualizerEnabledInitialized || GetHost() != kHostStandalone)
-    return;
-
-  mStandaloneHarmonicVisualizerEnabledInitialized = true;
-
-  bool persistedEnabled = true;
-  if(LoadStandaloneHarmonicVisualizerEnabled(persistedEnabled))
-    SetHarmonicVisualizerEnabled(persistedEnabled);
+  if(changed)
+    MarkStandaloneStateDirty();
 }
 
 void Addivox::SendBreathControlFromUI(double value, int channel, int offset)
@@ -817,6 +960,7 @@ void Addivox::ApplyPresetDocument(const preset_io::PresetDocument& document)
     mActivePresetDisplayName = "Preset";
 
   RefreshEditorUI(true);
+  MarkStandaloneStateDirty();
 }
 
 void Addivox::PromptLoadPresetFromFile()
@@ -1065,19 +1209,19 @@ void Addivox::OnRestoreState()
   }
 
   RefreshEditorUI(true);
+  MarkStandaloneStateDirty();
 }
 
 void Addivox::OnUIOpen()
 {
-  EnsureStandalonePitchBendRangeInitialized();
-  EnsureStandaloneBreathCCSourceInitialized();
-  EnsureStandaloneHarmonicVisualizerEnabledInitialized();
+  EnsureStandaloneStateInitialized();
   Plugin::OnUIOpen();
   RefreshEditorUI();
 }
 
 void Addivox::OnUIClose()
 {
+  SaveStandaloneStateIfNeeded(true);
   mEditorContext.reset();
   mQwertyMidiKeysDown.fill(false);
   mQwertyMidiBaseNote = 48;
@@ -1093,6 +1237,13 @@ bool Addivox::OnHostRequestingAboutBox()
 bool Addivox::OnHostRequestingProductHelp()
 {
   return OpenOnlineDocs();
+}
+
+void Addivox::OnParamChangeUI(int paramIdx, EParamSource source)
+{
+  (void) paramIdx;
+  (void) source;
+  MarkStandaloneStateDirty();
 }
 
 bool Addivox::ShowAboutBox()
@@ -1146,13 +1297,13 @@ void Addivox::OnIdle()
     SendControlValueFromDelegate(kCtrlTagBreathMeter, breathLevel);
     mLastSentBreathLevel = breathLevel;
   }
+
+  SaveStandaloneStateIfNeeded();
 }
 
 void Addivox::OnReset()
 {
-  EnsureStandalonePitchBendRangeInitialized();
-  EnsureStandaloneBreathCCSourceInitialized();
-  EnsureStandaloneHarmonicVisualizerEnabledInitialized();
+  EnsureStandaloneStateInitialized();
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
   mDSP.SetBreathCCSource(mBreathCCSource);
@@ -1223,6 +1374,12 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     return true;
   }
 
+  if(msgTag == editor_messages::kMsgTagResetStandaloneStateToDefaults)
+  {
+    ResetStandaloneStateToDefaults();
+    return true;
+  }
+
   if(ctrlTag == kCtrlTagEditorTabs
     && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameter
     && dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterPayload)
@@ -1233,11 +1390,14 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameter(
+    const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameter(
       payload->midiNote,
       payload->oscillatorIndex,
       parameter,
       payload->value);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -1250,7 +1410,13 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
+    const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(
+      payload->midiNote,
+      parameter,
+      payload->values);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -1263,7 +1429,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if(!editor_messages::DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve))
       return false;
 
-    return mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
+    const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -1276,7 +1445,13 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    return mDSP.mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote);
+    const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEnabled(
+      parameter,
+      payload->enabled != 0,
+      payload->midiNote);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -1285,7 +1460,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     && pData)
   {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
-    return mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
+    const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -1294,7 +1472,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     && pData)
   {
     const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
-    return mDSP.mSynth.GetVoice().AddKeyNotePreset(payload->midiNote);
+    const bool updated = mDSP.mSynth.GetVoice().AddKeyNotePreset(payload->midiNote);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
@@ -1303,7 +1484,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     && pData)
   {
     const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
-    return mDSP.mSynth.GetVoice().RemoveKeyNotePreset(payload->midiNote);
+    const bool updated = mDSP.mSynth.GetVoice().RemoveKeyNotePreset(payload->midiNote);
+    if(updated)
+      MarkStandaloneStateDirty();
+    return updated;
   }
 
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
