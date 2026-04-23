@@ -18,6 +18,13 @@
 namespace
 {
 constexpr uint32_t kPluginStateSettingsMagic = 0x42524343u; // Legacy plugin-state settings block magic.
+constexpr int kDefaultPitchBendRange = 2;
+constexpr int kMaxPitchBendRange = 96;
+
+int SanitizePitchBendRange(int pitchBendRange)
+{
+  return std::clamp(pitchBendRange, 0, kMaxPitchBendRange);
+}
 
 GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const Addivox& plugin)
 {
@@ -127,20 +134,24 @@ bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chu
 
 bool AppendPluginStateSettingsChunk(IByteChunk& chunk,
                                     BreathCCSource breathCCSource,
-                                    bool harmonicVisualizerEnabled)
+                                    bool harmonicVisualizerEnabled,
+                                    int pitchBendRange)
 {
   const uint32_t magic = kPluginStateSettingsMagic;
   const int32_t rawBreathCCSource = static_cast<int32_t>(breathCCSource);
   const int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
+  const int32_t rawPitchBendRange = static_cast<int32_t>(SanitizePitchBendRange(pitchBendRange));
   return chunk.Put(&magic) > 0
     && chunk.Put(&rawBreathCCSource) > 0
-    && chunk.Put(&rawHarmonicVisualizerEnabled) > 0;
+    && chunk.Put(&rawHarmonicVisualizerEnabled) > 0
+    && chunk.Put(&rawPitchBendRange) > 0;
 }
 
 bool ReadPluginStateSettingsChunk(const IByteChunk& chunk,
                                   int startPos,
                                   BreathCCSource& breathCCSource,
-                                  bool& harmonicVisualizerEnabled)
+                                  bool& harmonicVisualizerEnabled,
+                                  int& pitchBendRange)
 {
   uint32_t magic = 0;
   int position = chunk.Get(&magic, startPos);
@@ -155,9 +166,17 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk,
   breathCCSource = SanitizeBreathCCSource(rawBreathCCSource);
 
   int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
-  const int nextPosition = chunk.Get(&rawHarmonicVisualizerEnabled, position);
-  if(nextPosition >= 0)
+  position = chunk.Get(&rawHarmonicVisualizerEnabled, position);
+  if(position >= 0)
     harmonicVisualizerEnabled = (rawHarmonicVisualizerEnabled != 0);
+
+  int32_t rawPitchBendRange = static_cast<int32_t>(pitchBendRange);
+  if(position >= 0)
+  {
+    const int nextPosition = chunk.Get(&rawPitchBendRange, position);
+    if(nextPosition >= 0)
+      pitchBendRange = SanitizePitchBendRange(rawPitchBendRange);
+  }
 
   return true;
 }
@@ -321,6 +340,15 @@ std::string GetStandaloneBreathCCSourcePath()
   return preset_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
 }
 
+std::string GetStandalonePitchBendRangePath()
+{
+  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
+  if(settingsDirectory.empty())
+    return {};
+
+  return preset_io::detail::JoinPath(settingsDirectory, "pitch_bend_range.txt");
+}
+
 std::string GetStandaloneHarmonicVisualizerEnabledPath()
 {
   const std::string settingsDirectory = GetStandaloneSettingsDirectory();
@@ -349,6 +377,25 @@ bool LoadStandaloneBreathCCSource(BreathCCSource& source)
   return true;
 }
 
+bool LoadStandalonePitchBendRange(int& pitchBendRange)
+{
+  const std::string path = GetStandalonePitchBendRangePath();
+  if(path.empty())
+    return false;
+
+  std::ifstream stream(path);
+  if(!stream.is_open())
+    return false;
+
+  int rawValue = kDefaultPitchBendRange;
+  stream >> rawValue;
+  if(!stream)
+    return false;
+
+  pitchBendRange = SanitizePitchBendRange(rawValue);
+  return true;
+}
+
 void SaveStandaloneBreathCCSource(BreathCCSource source)
 {
   const std::string path = GetStandaloneBreathCCSourcePath();
@@ -364,6 +411,23 @@ void SaveStandaloneBreathCCSource(BreathCCSource source)
     return;
 
   stream << static_cast<int>(source) << '\n';
+}
+
+void SaveStandalonePitchBendRange(int pitchBendRange)
+{
+  const std::string path = GetStandalonePitchBendRangePath();
+  if(path.empty())
+    return;
+
+  const std::string parentPath = preset_io::detail::ParentPath(path);
+  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
+    return;
+
+  std::ofstream stream(path, std::ios::trunc);
+  if(!stream.is_open())
+    return;
+
+  stream << SanitizePitchBendRange(pitchBendRange) << '\n';
 }
 
 bool LoadStandaloneHarmonicVisualizerEnabled(bool& enabled)
@@ -489,6 +553,8 @@ Addivox::Addivox(const InstanceInfo& info)
   GetParam(kParamTranspose)->InitInt("Transpose", 0, -36, 36, "st", iplug::IParam::kFlagSignDisplay);
   GetParam(kParamEffectsChorus)->InitDouble("Chorus", 0., 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
   GetParam(kParamEffectsReverb)->InitDouble("Reverb", effects_settings::kDefaultReverb, 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatPercentDisplay);
+
+  EnsureStandalonePitchBendRangeInitialized();
     
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
   mMakeGraphicsFunc = [&]() {
@@ -518,7 +584,8 @@ Addivox::Addivox(const InstanceInfo& info)
       kCtrlTagKeyboard,
       kCtrlTagBender,
       kCtrlTagBreathMeter,
-      kCtrlTagMeter);
+      kCtrlTagMeter,
+      mPitchBendRange);
     
     pGraphics->SetKeyHandlerFunc([this, pGraphics](const IKeyPress& key, bool isUp) {
       const auto sendQwertyMidi = [this, pGraphics](const IMidiMsg& msg) {
@@ -618,7 +685,34 @@ Addivox::Addivox(const InstanceInfo& info)
   if(mActivePresetDisplayName.empty() && NPresets() > 0)
     mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
 
+  SetPitchBendRange(mPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
+}
+
+void Addivox::SetPitchBendRange(int pitchBendRange)
+{
+  mPitchBendRange = SanitizePitchBendRange(pitchBendRange);
+
+  if(GetHost() == kHostStandalone)
+    SaveStandalonePitchBendRange(mPitchBendRange);
+
+#if IPLUG_DSP
+  mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
+#endif
+
+  SyncPitchBendRangeUI();
+}
+
+void Addivox::EnsureStandalonePitchBendRangeInitialized()
+{
+  if(mStandalonePitchBendRangeInitialized || GetHost() != kHostStandalone)
+    return;
+
+  mStandalonePitchBendRangeInitialized = true;
+
+  int persistedPitchBendRange = kDefaultPitchBendRange;
+  if(LoadStandalonePitchBendRange(persistedPitchBendRange))
+    SetPitchBendRange(persistedPitchBendRange);
 }
 
 void Addivox::SetBreathCCSource(BreathCCSource source)
@@ -904,7 +998,8 @@ bool Addivox::SerializeState(IByteChunk& chunk) const
     && AppendPluginStateSettingsChunk(
       chunk,
       mBreathCCSource,
-      mHarmonicVisualizerEnabled.load(std::memory_order_relaxed));
+      mHarmonicVisualizerEnabled.load(std::memory_order_relaxed),
+      mPitchBendRange);
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
@@ -937,14 +1032,17 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
   SyncPresetOwnedParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX
 
+  int restoredPitchBendRange = mPitchBendRange;
   BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
   bool restoredHarmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
   if(ReadPluginStateSettingsChunk(
        chunk,
        pos,
        restoredBreathCCSource,
-       restoredHarmonicVisualizerEnabled))
+       restoredHarmonicVisualizerEnabled,
+       restoredPitchBendRange))
   {
+    SetPitchBendRange(restoredPitchBendRange);
     SetBreathCCSource(restoredBreathCCSource);
     SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
   }
@@ -971,6 +1069,7 @@ void Addivox::OnRestoreState()
 
 void Addivox::OnUIOpen()
 {
+  EnsureStandalonePitchBendRangeInitialized();
   EnsureStandaloneBreathCCSourceInitialized();
   EnsureStandaloneHarmonicVisualizerEnabledInitialized();
   Plugin::OnUIOpen();
@@ -1051,9 +1150,11 @@ void Addivox::OnIdle()
 
 void Addivox::OnReset()
 {
+  EnsureStandalonePitchBendRangeInitialized();
   EnsureStandaloneBreathCCSourceInitialized();
   EnsureStandaloneHarmonicVisualizerEnabledInitialized();
   mDSP.Reset(GetSampleRate(), GetBlockSize());
+  mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();
 
@@ -1208,7 +1309,8 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
   {
     const int bendRange = *static_cast<const int*>(pData);
-    mDSP.mSynth.SetPitchBendRange(bendRange);
+    SetPitchBendRange(bendRange);
+    return true;
   }
   
   return false;
@@ -1283,11 +1385,27 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates)
     keyboard->SetSelectedMidiNote(mEditorState->selectedMidiNote);
   }
 
+  SyncPitchBendRangeUI();
+
   if(resetOscillatorRestoreStates)
     mEditorContext->ResetOscillatorRestoreStates();
 
   mEditorContext->RefreshOscillatorTabs();
   mEditorContext->RefreshEditorActionButtons();
   GetUI()->SetAllControlsDirty();
+#endif
+}
+
+void Addivox::SyncPitchBendRangeUI()
+{
+#if IPLUG_EDITOR
+  if(!GetUI())
+    return;
+
+  if(auto* control = GetUI()->GetControlWithTag(kCtrlTagBender))
+  {
+    if(auto* wheelControl = control->As<IWheelControl>())
+      wheelControl->SetPitchBendRange(mPitchBendRange);
+  }
 #endif
 }

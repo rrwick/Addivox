@@ -557,7 +557,8 @@ inline VizEditControls AttachVizEditControls(IGraphics* pGraphics,
 inline void AttachKeyboardControls(IGraphics* pGraphics,
                                    const std::shared_ptr<editor::EditorContext>& context,
                                    int keyboardTag,
-                                   int benderTag)
+                                   int benderTag,
+                                   int initialPitchBendRange)
 {
   auto* keyboardControl = new KeyboardControl(positions::kKeyboard, 21, 108);
   RefreshKeyboardKeyNoteHighlights(keyboardControl, context->Preset());
@@ -570,7 +571,10 @@ inline void AttachKeyboardControls(IGraphics* pGraphics,
   keyboardControl->SetTooltip(help_text::main_ui::kKeyboard);
   *context->keyboardControl = keyboardControl;
 
-  auto* wheelControl = new IWheelControl(positions::kPitchBendWheel);
+  auto* wheelControl = new IWheelControl(
+    positions::kPitchBendWheel,
+    IMidiMsg::EControlChangeMsg::kNoCC,
+    initialPitchBendRange);
   wheelControl->SetTooltip(help_text::main_ui::kPitchBendWheel);
   pGraphics->AttachControl(wheelControl, benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);
@@ -644,7 +648,8 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
                                                                  int keyboardTag,
                                                                  int benderTag,
                                                                  int breathMeterTag,
-                                                                 int outMeterTag)
+                                                                 int outMeterTag,
+                                                                 int initialPitchBendRange)
 {
   const layout::PanelResources resources = layout::MakePanelResources(pGraphics);
   
@@ -658,7 +663,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachOutputControls(pGraphics, resources);
   layout::AttachNoiseControls(pGraphics, resources);
   layout::AttachEffectsControls(pGraphics, resources);
-  layout::AttachKeyboardControls(pGraphics, context, keyboardTag, benderTag);
+  layout::AttachKeyboardControls(pGraphics, context, keyboardTag, benderTag, initialPitchBendRange);
   layout::AttachAboutBoxControl(pGraphics, resources, kCtrlTagAboutBox);
   context->RefreshEditorActionButtons();
   vizEditPanel.setMainPanelMode(!context->IsEditMode());

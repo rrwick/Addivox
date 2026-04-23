@@ -71,8 +71,10 @@ public:
 
 private:
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
+  void EnsureStandalonePitchBendRangeInitialized();
   void EnsureStandaloneBreathCCSourceInitialized();
   void EnsureStandaloneHarmonicVisualizerEnabledInitialized();
+  void SetPitchBendRange(int pitchBendRange);
   void SetBreathCCSource(BreathCCSource source);
   void SetHarmonicVisualizerEnabled(bool enabled);
   void SendBreathControlFromUI(double value, int channel, int offset);
@@ -82,6 +84,7 @@ private:
   bool OpenOnlineDocs();
   void LoadBuiltInPresets();
   void RefreshEditorUI(bool resetOscillatorRestoreStates = false);
+  void SyncPitchBendRangeUI();
 
   std::array<bool, 128> mActiveUIMIDINotes{};
   int mNumActiveUIMIDINotes{0};
@@ -94,6 +97,8 @@ private:
   int mQwertyMidiBaseNote{48};
   bool mWasQwertyKeyboardInEditMode{false};
   int mLastQwertyMIDINote{-1};
+  int mPitchBendRange{2};
+  bool mStandalonePitchBendRangeInitialized{false};
   BreathCCSource mBreathCCSource{kDefaultBreathCCSource};
   bool mStandaloneBreathCCSourceInitialized{false};
   std::atomic<bool> mHarmonicVisualizerEnabled{true};
