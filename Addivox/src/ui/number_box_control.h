@@ -95,6 +95,13 @@ private:
   public:
     using IVNumberBoxControl::IVNumberBoxControl;
 
+    void OnAttached() override
+    {
+      IVNumberBoxControl::OnAttached();
+      SetText(mStyle.valueText);
+      ApplyValueChange(true);
+    }
+
     void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override
     {
       const double gearing = IsFineControl(mod, true) ? mSmallIncrement : mLargeIncrement;
@@ -159,7 +166,16 @@ private:
       if(displayValue == 0.0)
         displayValue = 0.0;
 
-      mTextReadout->SetStrFmt(32, mFmtStr.Get(), displayValue);
+      if(displayValue == 0.0 && mFmtStr.GetLength() >= 2 && mFmtStr.Get()[0] == '%' && mFmtStr.Get()[1] == '+')
+      {
+        WDL_String unsignedZeroFormat;
+        unsignedZeroFormat.SetFormatted(32, "%%%s", mFmtStr.Get() + 2);
+        mTextReadout->SetStrFmt(32, unsignedZeroFormat.Get(), displayValue);
+      }
+      else
+      {
+        mTextReadout->SetStrFmt(32, mFmtStr.Get(), displayValue);
+      }
 
       if(!preventAction && GetParam())
         SetValue(GetParam()->ToNormalized(mRealValue));

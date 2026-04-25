@@ -411,7 +411,7 @@ struct PanelResources
   IVStyle vizEditButtonStyle = theme::VizEditButtonStyle();
   IVStyle mainPanelModeSwitchStyle = theme::MainPanelModeSwitchStyle();
   IVStyle numberBoxStyle = theme::BaseStyle(false, false)
-    .WithValueText(IText(14.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
+    .WithValueText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
   IVStyle portamentoRangeSliderStyle = theme::PortamentoRangeSliderStyle();
   IText compactLabelText = theme::CompactLabelText();
   IText compactValueText = theme::CompactValueText();
@@ -560,7 +560,7 @@ inline VizEditControls AttachVizEditControls(IGraphics* pGraphics,
     2,
     context->IsEditMode() ? 1 : 0);
   pGraphics->AttachControl(mainPanelModeSwitch);
-  AttachPassiveSectionLabel(pGraphics, positions::kVizModeLabel, "VIZ", 0.0);
+  AttachPassiveSectionLabel(pGraphics, positions::kVizModeLabel, "VIS", 0.0);
   AttachPassiveSectionLabel(pGraphics, positions::kEditModeLabel, "EDIT", 0.0);
 
   return {mainPanelModeSwitch, setMainPanelMode};
@@ -603,7 +603,7 @@ inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& reso
 {
   AttachPassiveSectionLabel(pGraphics, positions::kPitchLabel, "PITCH");
   AttachPassiveText(pGraphics, positions::kTransposeLabel, "Transpose", resources.compactLabelText, help_text::main_ui::kTranspose);
-  auto* transposeControl = new NumberBoxControl(positions::kTransposeNumberBox, kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%0.0f");
+  auto* transposeControl = new NumberBoxControl(positions::kTransposeNumberBox, kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%+0.0f");
   pGraphics->AttachControl(transposeControl);
   transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 
@@ -636,13 +636,6 @@ inline void AttachOutputControls(IGraphics* pGraphics, const PanelResources&)
   pGraphics->AttachControl(new LabelledKnob(positions::kLevelKnob, kParamGlobalLevel, "Level"));
 }
 
-inline void AttachNoiseControls(IGraphics* pGraphics, const PanelResources&)
-{
-  AttachPassiveSectionLabel(pGraphics, positions::kNoiseLabel, "NOISE");
-  // pGraphics->AttachControl(new LabelledKnob(positions::kNoiseAttackKnob, kParamGlobalNoiseAttack, "Attack"));
-  // pGraphics->AttachControl(new LabelledKnob(positions::kNoiseSustainKnob, kParamGlobalNoiseSustain, "Sustain"));
-}
-
 inline void AttachEffectsControls(IGraphics* pGraphics, const PanelResources&)
 {
   AttachPassiveSectionLabel(pGraphics, positions::kEffectsLabel, "EFFECTS");
@@ -673,7 +666,6 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachPitchControls(pGraphics, resources);
   layout::AttachVariationControls(pGraphics, resources);
   layout::AttachOutputControls(pGraphics, resources);
-  layout::AttachNoiseControls(pGraphics, resources);
   layout::AttachEffectsControls(pGraphics, resources);
   layout::AttachKeyboardControls(pGraphics, context, keyboardTag, benderTag, initialPitchBendRange);
   layout::AttachAboutBoxControl(pGraphics, resources, kCtrlTagAboutBox);
