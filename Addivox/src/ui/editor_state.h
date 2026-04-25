@@ -32,14 +32,14 @@ enum class EditorOscillatorEditScope
 
 struct EditorState
 {
-  CompoundPreset compoundPreset{};
+  CompoundPatch compoundPatch{};
   BreathCCSource breathCCSource{kDefaultBreathCCSource};
   bool harmonicVisualizerEnabled{true};
   int selectedMidiNote{60};
   bool editMode{false};
   int selectedTabIndex{0};
   int oscillatorXRangeMin{1};
-  int oscillatorXRangeMax{SimplePreset::kNumOscillators};
+  int oscillatorXRangeMax{SimplePatch::kNumOscillators};
   EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
   EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
   EditorLevelTransform attackTransform{EditorLevelTransform::Linear};

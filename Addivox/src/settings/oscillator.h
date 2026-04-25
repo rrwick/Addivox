@@ -1,7 +1,7 @@
 // Oscillator-level settings are stored in three levels:
 // - OscillatorSettings: settings for a single oscillator.
-// - SimplePreset: settings for all 100 oscillators in a preset.
-// - CompoundPreset: a collection of SimplePresets for different MIDI notes, with interpolation
+// - SimplePatch: settings for all 100 oscillators in a patch.
+// - CompoundPatch: a collection of SimplePatches for different MIDI notes, with interpolation
 //       between them.
 
 #pragma once
@@ -93,14 +93,14 @@ public:
   static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t);
 };
 
-class SimplePreset
+class SimplePatch
 {
 public:
   static constexpr int kNumOscillators = 100;
   using OscillatorArray = std::array<OscillatorSettings, kNumOscillators>;
 
-  SimplePreset() = default;
-  explicit SimplePreset(const OscillatorArray& oscillatorSettings);
+  SimplePatch() = default;
+  explicit SimplePatch(const OscillatorArray& oscillatorSettings);
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
   const OscillatorArray& GetOscillatorSettingsArray() const;
@@ -114,7 +114,7 @@ public:
   bool ZeroOddIntensities();
   bool NormalizeIntensityWaveformRms();
 
-  static SimplePreset Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t);
+  static SimplePatch Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t);
 
 private:
   static int ClampOscillatorIndex(int oscillatorIndex);
@@ -122,16 +122,16 @@ private:
   OscillatorArray mOscillatorSettings{};
 };
 
-class CompoundPreset
+class CompoundPatch
 {
 public:
-  using KeyNotePreset = std::pair<int, SimplePreset>;
-  using OscillatorParameterValues = std::array<double, SimplePreset::kNumOscillators>;
+  using KeyNotePatch = std::pair<int, SimplePatch>;
+  using OscillatorParameterValues = std::array<double, SimplePatch::kNumOscillators>;
 
   struct ResolvedNoteSpan
   {
-    const SimplePreset* lowerPreset{nullptr};
-    const SimplePreset* upperPreset{nullptr};
+    const SimplePatch* lowerPatch{nullptr};
+    const SimplePatch* upperPatch{nullptr};
     const EqCurve* lowerEqCurve{nullptr};
     const EqCurve* upperEqCurve{nullptr};
     double t{0.0};
@@ -140,17 +140,17 @@ public:
   static constexpr int kMinMidiNote = 0;
   static constexpr int kMaxMidiNote = 127;
 
-  CompoundPreset();
-  explicit CompoundPreset(std::initializer_list<KeyNotePreset> keyNotePresets);
+  CompoundPatch();
+  explicit CompoundPatch(std::initializer_list<KeyNotePatch> keyNotePatches);
 
   OscillatorSettings GetOscillatorSettings(double midiNote, int oscillatorIndex) const;
-  SimplePreset GetPresetForMidiNote(double midiNote) const;
-  const SimplePreset* GetKeyNotePreset(double midiNote) const;
+  SimplePatch GetPatchForMidiNote(double midiNote) const;
+  const SimplePatch* GetKeyNotePatch(double midiNote) const;
   EqCurve GetEqCurveForMidiNote(double midiNote) const;
   const EqCurve* GetKeyNoteEqCurve(double midiNote) const;
-  const std::map<int, SimplePreset>& GetKeyNotePresets() const;
-  bool HasKeyNotePreset(double midiNote) const;
-  int GetNumKeyNotePresets() const;
+  const std::map<int, SimplePatch>& GetKeyNotePatches() const;
+  bool HasKeyNotePatch(double midiNote) const;
+  int GetNumKeyNotePatches() const;
   bool IsAllKeyNotesEnabled(OscillatorSettings::Parameter parameter) const;
   const OscillatorParameterValues& GetAllKeyNotesValues(OscillatorSettings::Parameter parameter) const;
   bool IsAllKeyNotesEqEnabled() const;
@@ -159,7 +159,7 @@ public:
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
   double EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const;
 
-  void SetKeyNotePreset(int midiNote, const SimplePreset& preset);
+  void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
   bool SetKeyNoteOscillatorParameter(double midiNote,
                                      int oscillatorIndex,
                                      OscillatorSettings::Parameter parameter,
@@ -167,7 +167,7 @@ public:
   bool SetKeyNoteOscillatorParameterValues(
     double midiNote,
     OscillatorSettings::Parameter parameter,
-    const std::array<double, SimplePreset::kNumOscillators>& values);
+    const std::array<double, SimplePatch::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
   void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter,
@@ -175,21 +175,21 @@ public:
                              double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
-  bool RemoveKeyNotePreset(int midiNote);
-  void ClearKeyNotePresets();
+  bool RemoveKeyNotePatch(int midiNote);
+  void ClearKeyNotePatches();
 
 private:
   static int ClampMidiNote(int midiNote);
   static int RoundAndClampMidiNote(double midiNote);
   static std::size_t ParameterIndex(OscillatorSettings::Parameter parameter);
-  void ApplyAllKeyNotesValues(SimplePreset& preset) const;
-  void ApplyAllKeyNotesValues(SimplePreset& preset,
+  void ApplyAllKeyNotesValues(SimplePatch& patch) const;
+  void ApplyAllKeyNotesValues(SimplePatch& patch,
                               OscillatorSettings::Parameter parameter,
                               const OscillatorParameterValues& values) const;
   const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
   void SetAllKeyNoteEqCurves(const EqCurve& curve);
 
-  std::map<int, SimplePreset> mKeyNotePresets{};
+  std::map<int, SimplePatch> mKeyNotePatches{};
   std::map<int, EqCurve> mKeyNoteEqCurves{};
   std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
   std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};

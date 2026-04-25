@@ -22,9 +22,9 @@ public:
   void SetPortamentoControl(double control);
   void SetTransposeSemitones(double transposeSemitones);
   void SetGlobalVoiceSettings(const GlobalVoiceSettings& settings);
-  void SetCompoundPreset(const CompoundPreset& preset);
-  bool AddKeyNotePreset(double midiNote);
-  bool RemoveKeyNotePreset(double midiNote);
+  void SetCompoundPatch(const CompoundPatch& patch);
+  bool AddKeyNotePatch(double midiNote);
+  bool RemoveKeyNotePatch(double midiNote);
   bool SetKeyNoteOscillatorParameter(double midiNote,
                                      int oscillatorIndex,
                                      OscillatorSettings::Parameter parameter,
@@ -32,7 +32,7 @@ public:
   bool SetKeyNoteOscillatorParameterValues(
     double midiNote,
     OscillatorSettings::Parameter parameter,
-    const std::array<double, SimplePreset::kNumOscillators>& values);
+    const std::array<double, SimplePatch::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
   bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote);
   bool SetAllKeyNotesEqEnabled(bool enabled);
@@ -45,7 +45,7 @@ private:
   double GetTargetMidiPitch() const;
   void UpdatePitch();
   void UpdateLevels();
-  void UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan);
+  void UpdateLevels(const CompoundPatch::ResolvedNoteSpan& noteSpan);
   void UpdatePitchRate();
   void RefreshNoteDependentState(int lookAheadSamples);
   void AdvanceRenderedPitch(int numSamples);
@@ -63,7 +63,7 @@ private:
                                const OscillatorSettings& futurePitchSettings,
                                double futureFundamentalPitchSemitones);
 
-  static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
+  static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;
   static constexpr int kNoteControlIntervalSamples = 16;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
@@ -84,6 +84,6 @@ private:
   double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
-  CompoundPreset mCompoundPreset;
+  CompoundPatch mCompoundPatch;
   GlobalVoiceSettings mGlobalVoiceSettings;
 };

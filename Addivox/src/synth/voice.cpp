@@ -140,27 +140,27 @@ void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings)
   UpdatePitch();
 }
 
-void SynthVoice::SetCompoundPreset(const CompoundPreset& preset)
+void SynthVoice::SetCompoundPatch(const CompoundPatch& patch)
 {
-  mCompoundPreset = preset;
+  mCompoundPatch = patch;
   UpdatePitch();
 }
 
-bool SynthVoice::AddKeyNotePreset(double midiNote)
+bool SynthVoice::AddKeyNotePatch(double midiNote)
 {
-  if(mCompoundPreset.HasKeyNotePreset(midiNote))
+  if(mCompoundPatch.HasKeyNotePatch(midiNote))
     return false;
 
   const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
-  mCompoundPreset.SetKeyNotePreset(roundedMidiNote, mCompoundPreset.GetPresetForMidiNote(midiNote));
+  mCompoundPatch.SetKeyNotePatch(roundedMidiNote, mCompoundPatch.GetPatchForMidiNote(midiNote));
   UpdatePitch();
   return true;
 }
 
-bool SynthVoice::RemoveKeyNotePreset(double midiNote)
+bool SynthVoice::RemoveKeyNotePatch(double midiNote)
 {
   const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
-  const bool removed = mCompoundPreset.RemoveKeyNotePreset(roundedMidiNote);
+  const bool removed = mCompoundPatch.RemoveKeyNotePatch(roundedMidiNote);
   if(!removed)
     return false;
 
@@ -173,7 +173,7 @@ bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote,
                                                OscillatorSettings::Parameter parameter,
                                                double value)
 {
-  const bool updated = mCompoundPreset.SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
+  const bool updated = mCompoundPatch.SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value);
   if(!updated)
     return false;
 
@@ -184,9 +184,9 @@ bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote,
 bool SynthVoice::SetKeyNoteOscillatorParameterValues(
   double midiNote,
   OscillatorSettings::Parameter parameter,
-  const std::array<double, SimplePreset::kNumOscillators>& values)
+  const std::array<double, SimplePatch::kNumOscillators>& values)
 {
-  const bool updated = mCompoundPreset.SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
+  const bool updated = mCompoundPatch.SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
   if(!updated)
     return false;
 
@@ -196,7 +196,7 @@ bool SynthVoice::SetKeyNoteOscillatorParameterValues(
 
 bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
 {
-  const bool updated = mCompoundPreset.SetKeyNoteEqCurve(midiNote, curve);
+  const bool updated = mCompoundPatch.SetKeyNoteEqCurve(midiNote, curve);
   if(!updated)
     return false;
 
@@ -206,14 +206,14 @@ bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
 
 bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote)
 {
-  mCompoundPreset.SetAllKeyNotesEnabled(parameter, enabled, midiNote);
+  mCompoundPatch.SetAllKeyNotesEnabled(parameter, enabled, midiNote);
   UpdatePitch();
   return true;
 }
 
 bool SynthVoice::SetAllKeyNotesEqEnabled(bool enabled)
 {
-  mCompoundPreset.SetAllKeyNotesEqEnabled(enabled);
+  mCompoundPatch.SetAllKeyNotesEqEnabled(enabled);
   UpdateLevels();
   return true;
 }
@@ -261,9 +261,9 @@ double SynthVoice::GetOscillatorBasePitchSemitones(int harmonic,
                                                    const GlobalVoiceSettings& globalSettings)
 {
   const double harmonicPitchOffsetSemitones = 12.0 * std::log2(static_cast<double>(harmonic + 1));
-  const double presetPitchOffsetSemitones =
+  const double patchPitchOffsetSemitones =
     (settings.pitch + globalSettings.tuningCents) / 100.0;
-  return fundamentalPitchSemitones + harmonicPitchOffsetSemitones + presetPitchOffsetSemitones;
+  return fundamentalPitchSemitones + harmonicPitchOffsetSemitones + patchPitchOffsetSemitones;
 }
 
 double SynthVoice::PitchSemitonesToFrequencyHz(double pitchSemitones)
@@ -317,19 +317,19 @@ void SynthVoice::UpdatePitch()
 
 void SynthVoice::UpdateLevels()
 {
-  UpdateLevels(mCompoundPreset.ResolveNoteSpan(mRenderedMidiPitch));
+  UpdateLevels(mCompoundPatch.ResolveNoteSpan(mRenderedMidiPitch));
 }
 
-void SynthVoice::UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan)
+void SynthVoice::UpdateLevels(const CompoundPatch::ResolvedNoteSpan& noteSpan)
 {
   const double breath = mBreath;
   const double levelScale = mGlobalVoiceSettings.levelScale;
 
   for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
   {
-    const OscillatorSettings settings = mCompoundPreset.InterpolateOscillatorSettings(noteSpan, harmonic);
+    const OscillatorSettings settings = mCompoundPatch.InterpolateOscillatorSettings(noteSpan, harmonic);
     const double frequencyHz = PitchSemitonesToFrequencyHz(mOscs[harmonic].GetCurrentPitchSemitones());
-    const double eqGain = mCompoundPreset.EvaluateEqGain(noteSpan, frequencyHz);
+    const double eqGain = mCompoundPatch.EvaluateEqGain(noteSpan, frequencyHz);
     const double breathLevel = EvaluateBreathLevel(std::pow(breath, settings.breath_power));
     const double level = settings.intensity
       * breathLevel
@@ -342,15 +342,15 @@ void SynthVoice::UpdateLevels(const CompoundPreset::ResolvedNoteSpan& noteSpan)
 void SynthVoice::RefreshNoteDependentState(int lookAheadSamples)
 {
   const int clampedLookAheadSamples = std::max(lookAheadSamples, 0);
-  const CompoundPreset::ResolvedNoteSpan currentSpan = mCompoundPreset.ResolveNoteSpan(mRenderedMidiPitch);
+  const CompoundPatch::ResolvedNoteSpan currentSpan = mCompoundPatch.ResolveNoteSpan(mRenderedMidiPitch);
   const double futureMidiPitch = PredictRenderedMidiPitch(clampedLookAheadSamples);
   const double futureFundamentalPitchSemitones = futureMidiPitch - 69.0;
-  const CompoundPreset::ResolvedNoteSpan futureSpan = mCompoundPreset.ResolveNoteSpan(futureMidiPitch);
+  const CompoundPatch::ResolvedNoteSpan futureSpan = mCompoundPatch.ResolveNoteSpan(futureMidiPitch);
 
   for(int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
   {
-    const OscillatorSettings currentSettings = mCompoundPreset.InterpolateOscillatorSettings(currentSpan, harmonic);
-    const OscillatorSettings futurePitchSettings = mCompoundPreset.InterpolateOscillatorSettings(futureSpan, harmonic);
+    const OscillatorSettings currentSettings = mCompoundPatch.InterpolateOscillatorSettings(currentSpan, harmonic);
+    const OscillatorSettings futurePitchSettings = mCompoundPatch.InterpolateOscillatorSettings(futureSpan, harmonic);
     ApplyOscillatorSettings(
       harmonic,
       currentSettings,

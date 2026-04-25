@@ -18,15 +18,15 @@ namespace plugin_ui
 using namespace iplug;
 using namespace igraphics;
 
-class OscillatorSliderControl final : public IVMultiSliderControl<SimplePreset::kNumOscillators>
+class OscillatorSliderControl final : public IVMultiSliderControl<SimplePatch::kNumOscillators>
 {
 public:
-  using Base = IVMultiSliderControl<SimplePreset::kNumOscillators>;
+  using Base = IVMultiSliderControl<SimplePatch::kNumOscillators>;
   using OnOscillatorValueChangedFunc = std::function<void(int oscillatorIndex, double value)>;
   using IsOscillatorEditableFunc = std::function<bool(int oscillatorIndex)>;
   using GetOscillatorEditModeFunc = std::function<EditorOscillatorEditMode()>;
-  using ControlState = std::array<double, SimplePreset::kNumOscillators>;
-  using RestoreState = std::array<double, SimplePreset::kNumOscillators>;
+  using ControlState = std::array<double, SimplePatch::kNumOscillators>;
+  using RestoreState = std::array<double, SimplePatch::kNumOscillators>;
 
   enum class ValueTransform
   {
@@ -62,7 +62,7 @@ public:
   void SetConfig(const Config& config)
   {
     RestoreState oscillatorValues{};
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       oscillatorValues[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
 
     mConfig = config;
@@ -70,7 +70,7 @@ public:
       mConfig.range = ValueRange{};
 
     ApplyBaseValue();
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       SetOscillatorValue(oscillatorIndex, oscillatorValues[static_cast<std::size_t>(oscillatorIndex)]);
 
     SetDirty(false);
@@ -116,8 +116,8 @@ public:
 
   void SetVisibleOscillatorRange(int minOscillatorOneBased, int maxOscillatorOneBased)
   {
-    int minOscillator = std::clamp(minOscillatorOneBased - 1, 0, SimplePreset::kNumOscillators - 1);
-    int maxOscillator = std::clamp(maxOscillatorOneBased - 1, 0, SimplePreset::kNumOscillators - 1);
+    int minOscillator = std::clamp(minOscillatorOneBased - 1, 0, SimplePatch::kNumOscillators - 1);
+    int maxOscillator = std::clamp(maxOscillatorOneBased - 1, 0, SimplePatch::kNumOscillators - 1);
     if(maxOscillator < minOscillator)
       maxOscillator = minOscillator;
 
@@ -136,7 +136,7 @@ public:
 
   void CaptureRestoreState(int midiNote)
   {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       mRestoreState[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
 
     mHasRestoreState = true;
@@ -738,7 +738,7 @@ private:
     if(startPoint.sliderHit < 0)
       return;
 
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       mDrawLineSourceValues[static_cast<std::size_t>(oscillatorIndex)] = GetValue(oscillatorIndex);
 
     mDrawLineStartOscillator = startPoint.sliderHit;
@@ -916,7 +916,7 @@ private:
     for(int offset = -3; offset <= 3; ++offset)
     {
       const int neighbourIndex = oscillatorIndex + offset;
-      if(neighbourIndex < 0 || neighbourIndex >= SimplePreset::kNumOscillators)
+      if(neighbourIndex < 0 || neighbourIndex >= SimplePatch::kNumOscillators)
         continue;
       if(!IsOscillatorEditable(neighbourIndex))
         continue;
@@ -985,7 +985,7 @@ private:
   {
     bool changedValue = false;
 
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       const double currentControlValue = GetValue(oscillatorIndex);
       const double desiredControlValue = Clamp01(desiredValues[static_cast<std::size_t>(oscillatorIndex)]);
@@ -1278,7 +1278,7 @@ private:
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
   int mRestoreMidiNote{kNoRestoreMidiNote};
   int mVisibleOscillatorMin{0};
-  int mVisibleOscillatorMax{SimplePreset::kNumOscillators - 1};
+  int mVisibleOscillatorMax{SimplePatch::kNumOscillators - 1};
   OnOscillatorValueChangedFunc mOnOscillatorValueChanged{};
   IsOscillatorEditableFunc mIsOscillatorEditable{};
   GetOscillatorEditModeFunc mGetOscillatorEditMode{};

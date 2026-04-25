@@ -37,23 +37,23 @@ inline bool TryGetBreathShapeValue(const char* shapeName, int oscillatorIndex, d
   return false;
 }
 
-inline bool ApplyBreathShape(SimplePreset& preset, const char* shapeName)
+inline bool ApplyBreathShape(SimplePatch& patch, const char* shapeName)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     double value = 0.0;
     if(!TryGetBreathShapeValue(shapeName, oscillatorIndex, value))
       return false;
 
-    preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::breath_power, value);
+    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::breath_power, value);
   }
 
   return true;
 }
 
-inline bool ApplyBreathAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
+inline bool ApplyBreathAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope)
 {
-  return ApplyStandardHarmonicAction(preset, OscillatorParameter::breath_power, actionName, 0.0, 100.0, editScope);
+  return ApplyStandardHarmonicAction(patch, OscillatorParameter::breath_power, actionName, 0.0, 100.0, editScope);
 }
 
 inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -94,8 +94,8 @@ inline void AttachBreathTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::breath_power,
-      [selectedText](SimplePreset& preset) {
-        return ApplyBreathShape(preset, selectedText);
+      [selectedText](SimplePatch& patch) {
+        return ApplyBreathShape(patch, selectedText);
       });
   });
 
@@ -118,9 +118,9 @@ inline void AttachBreathTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::breath_power,
-      [selectedText, context](SimplePreset& preset) {
+      [selectedText, context](SimplePatch& patch) {
         return ApplyBreathAction(
-          preset,
+          patch,
           selectedText,
           context->GetOscillatorEditScope(OscillatorParameter::breath_power));
       });

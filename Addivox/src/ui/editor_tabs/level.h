@@ -97,26 +97,26 @@ inline bool TryGetLevelShapeIntensity(const char* shapeName, int oscillatorIndex
   return false;
 }
 
-inline bool ApplyLevelShape(SimplePreset& preset, const char* shapeName)
+inline bool ApplyLevelShape(SimplePatch& patch, const char* shapeName)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     double intensity = 0.0;
     if(!TryGetLevelShapeIntensity(shapeName, oscillatorIndex, intensity))
       return false;
 
-    preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, intensity);
+    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, intensity);
   }
 
-  return preset.NormalizeIntensityWaveformRms();
+  return patch.NormalizeIntensityWaveformRms();
 }
 
-inline bool ApplyLevelAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
+inline bool ApplyLevelAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope)
 {
   if(MatchesActionLabel(actionName, kActionNormalize))
-    return preset.NormalizeIntensityWaveformRms();
+    return patch.NormalizeIntensityWaveformRms();
 
-  return ApplyStandardHarmonicAction(preset, OscillatorParameter::intensity, actionName, 0.0, 1.0, editScope);
+  return ApplyStandardHarmonicAction(patch, OscillatorParameter::intensity, actionName, 0.0, 1.0, editScope);
 }
 
 inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -153,8 +153,8 @@ inline void AttachLevelTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::intensity,
-      [selectedText](SimplePreset& preset) {
-        return ApplyLevelShape(preset, selectedText);
+      [selectedText](SimplePatch& patch) {
+        return ApplyLevelShape(patch, selectedText);
       });
   });
 
@@ -179,9 +179,9 @@ inline void AttachLevelTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::intensity,
-      [selectedText, context](SimplePreset& preset) {
+      [selectedText, context](SimplePatch& patch) {
         return ApplyLevelAction(
-          preset,
+          patch,
           selectedText,
           context->GetOscillatorEditScope(OscillatorParameter::intensity));
       },

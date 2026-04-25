@@ -6,7 +6,7 @@
 #include "midi_file_parser.h"
 #include "settings/effects.h"
 #include "settings/global.h"
-#include "settings/preset_io.h"
+#include "settings/patch_io.h"
 #include "synth/synth_engine.h"
 
 #include <algorithm>
@@ -71,8 +71,8 @@ bool ValidateFiniteRange(const char* label,
   {
     SetErrorMessage(
       errorMessage,
-      std::string{label} + " must be in the range " + preset_io::detail::FormatDouble(minimum)
-        + " to " + preset_io::detail::FormatDouble(maximum));
+      std::string{label} + " must be in the range " + patch_io::detail::FormatDouble(minimum)
+        + " to " + patch_io::detail::FormatDouble(maximum));
     return false;
   }
 
@@ -260,8 +260,8 @@ bool WriteWaveFile(std::string_view path,
   }
 
   const WaveFormatDescriptor format = DescribeWaveFileFormat(waveFileFormat);
-  const std::string parentPath = preset_io::detail::ParentPath(path);
-  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
+  const std::string parentPath = patch_io::detail::ParentPath(path);
+  if(!parentPath.empty() && !patch_io::detail::EnsureDirectoryExists(parentPath))
   {
     SetErrorMessage(errorMessage, "Could not create output directory");
     return false;
@@ -414,8 +414,8 @@ bool DetectMidiFileBreathCCSources(const midi_file::ParsedFile& parsedFile,
   return false;
 }
 
-void ApplyPresetAndOverrides(SynthEngine& engine,
-                             const preset_io::PresetDocument& document,
+void ApplyPatchAndOverrides(SynthEngine& engine,
+                             const patch_io::PatchDocument& document,
                              const HeadlessRenderOptions& options)
 {
   GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
@@ -476,14 +476,14 @@ void ApplyPresetAndOverrides(SynthEngine& engine,
   engine.mEffectsSettings = effects_settings::Sanitize(effectsSettings);
   engine.mTransposeSemitones = static_cast<double>(options.transposeSemitones.value_or(0));
   engine.Reset(static_cast<double>(options.sampleRate), kRenderBlockSize);
-  engine.SetCompoundPreset(document.compoundPreset);
+  engine.SetCompoundPatch(document.compoundPatch);
 }
 
 bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::string* errorMessage)
 {
-  if(options.presetPath.empty())
+  if(options.patchPath.empty())
   {
-    SetErrorMessage(errorMessage, "Preset path is required");
+    SetErrorMessage(errorMessage, "Patch path is required");
     return false;
   }
 
@@ -622,12 +622,12 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
                                 const DetectedBreathCCSources* breathCCSources,
                                 std::string* errorMessage)
 {
-  preset_io::PresetDocument document;
-  if(!preset_io::LoadPresetFromFile(options.presetPath, document, errorMessage))
+  patch_io::PatchDocument document;
+  if(!patch_io::LoadPatchFromFile(options.patchPath, document, errorMessage))
     return false;
 
   SynthEngine engine;
-  ApplyPresetAndOverrides(engine, document, options);
+  ApplyPatchAndOverrides(engine, document, options);
   if(breathCCSources)
   {
     for(int channel = 0; channel < 16; ++channel)
@@ -726,7 +726,7 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options,
 }
 } // namespace
 
-bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage)
+bool RenderPatchNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage)
 {
   if(!ValidateCommonRenderOptions(options, errorMessage))
     return false;

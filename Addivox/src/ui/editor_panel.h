@@ -369,23 +369,23 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
   context->ApplyOscillatorParameterActionToSelectedKeyNote(
     sliderControl,
     parameter,
-    [actionName, editScope, parameter](SimplePreset& preset) {
+    [actionName, editScope, parameter](SimplePatch& patch) {
       switch(parameter)
       {
         case OscillatorParameter::intensity:
-          return ApplyLevelAction(preset, actionName, editScope);
+          return ApplyLevelAction(patch, actionName, editScope);
         case OscillatorParameter::breath_power:
-          return ApplyBreathAction(preset, actionName, editScope);
+          return ApplyBreathAction(patch, actionName, editScope);
         case OscillatorParameter::attack:
         case OscillatorParameter::release:
-          return ApplyAttackReleaseAction(preset, parameter, actionName, editScope);
+          return ApplyAttackReleaseAction(patch, parameter, actionName, editScope);
         case OscillatorParameter::pitch:
-          return ApplyPitchAction(preset, actionName, editScope);
+          return ApplyPitchAction(patch, actionName, editScope);
         case OscillatorParameter::pan:
-          return ApplyPanAction(preset, actionName, editScope);
+          return ApplyPanAction(patch, actionName, editScope);
         default:
           if(IsVariationParameter(parameter))
-            return ApplyVariationAction(preset, parameter, actionName, editScope);
+            return ApplyVariationAction(patch, parameter, actionName, editScope);
           return false;
       }
     },
@@ -536,7 +536,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
 {
   auto context = std::make_shared<EditorContext>();
   context->editorTabsTag = editorTabsTag;
-  context->model.compoundPreset = std::shared_ptr<CompoundPreset>(editorState, &editorState->compoundPreset);
+  context->model.compoundPatch = std::shared_ptr<CompoundPatch>(editorState, &editorState->compoundPatch);
   context->model.breathCCSource = std::shared_ptr<BreathCCSource>(editorState, &editorState->breathCCSource);
   context->model.harmonicVisualizerEnabled = std::shared_ptr<bool>(editorState, &editorState->harmonicVisualizerEnabled);
   context->model.selectedMidiNote = std::shared_ptr<int>(editorState, &editorState->selectedMidiNote);
@@ -600,11 +600,11 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->eqTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
   context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
   context->keyboardControl = std::make_shared<KeyboardControl*>(nullptr);
-  context->title.presetManagerControl = std::make_shared<IControl*>(nullptr);
+  context->title.patchManagerControl = std::make_shared<IControl*>(nullptr);
 
-  *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePreset::kNumOscillators);
+  *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePatch::kNumOscillators);
   *context->oscillatorView.xRangeMax =
-    std::clamp(*context->oscillatorView.xRangeMax, *context->oscillatorView.xRangeMin, SimplePreset::kNumOscillators);
+    std::clamp(*context->oscillatorView.xRangeMax, *context->oscillatorView.xRangeMin, SimplePatch::kNumOscillators);
   return context;
 }
 } // namespace editor

@@ -8,7 +8,7 @@ namespace editor
 {
 inline double GetPanRampValue(int oscillatorIndex)
 {
-  return static_cast<double>(oscillatorIndex) / static_cast<double>(SimplePreset::kNumOscillators - 1);
+  return static_cast<double>(oscillatorIndex) / static_cast<double>(SimplePatch::kNumOscillators - 1);
 }
 
 inline bool TryGetPanShapeValue(const char* shapeName, int oscillatorIndex, double& value)
@@ -48,38 +48,38 @@ inline bool TryGetPanShapeValue(const char* shapeName, int oscillatorIndex, doub
   return false;
 }
 
-inline bool ApplyPanShape(SimplePreset& preset, const char* shapeName)
+inline bool ApplyPanShape(SimplePatch& patch, const char* shapeName)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     double value = 0.0;
     if(!TryGetPanShapeValue(shapeName, oscillatorIndex, value))
       return false;
 
-    preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, value);
+    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, value);
   }
 
   return true;
 }
 
-inline bool ApplyPanAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
+inline bool ApplyPanAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope)
 {
   constexpr double kPanMin = -1.0;
   constexpr double kPanMax = 1.0;
   constexpr double kPanShiftAmount = 0.01;
 
   if(MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
-    return ApplyStandardHarmonicAction(preset, OscillatorParameter::pan, actionName, kPanMin, kPanMax, editScope);
+    return ApplyStandardHarmonicAction(patch, OscillatorParameter::pan, actionName, kPanMin, kPanMax, editScope);
   if(MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown))
   {
     const double shiftAmount = MatchesActionLabel(actionName, kActionShiftUp) ? kPanShiftAmount : -kPanShiftAmount;
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
         continue;
 
-      const double pan = preset.GetOscillatorSettings(oscillatorIndex).pan;
-      preset.SetOscillatorParameter(
+      const double pan = patch.GetOscillatorSettings(oscillatorIndex).pan;
+      patch.SetOscillatorParameter(
         oscillatorIndex,
         OscillatorParameter::pan,
         ApplyShiftOffset(pan, shiftAmount, kPanMin, kPanMax));
@@ -88,13 +88,13 @@ inline bool ApplyPanAction(SimplePreset& preset, const char* actionName, EditorO
   }
   if(MatchesActionLabel(actionName, kActionInvert))
   {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
         continue;
 
-      const double pan = preset.GetOscillatorSettings(oscillatorIndex).pan;
-      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, -pan);
+      const double pan = patch.GetOscillatorSettings(oscillatorIndex).pan;
+      patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, -pan);
     }
     return true;
   }
@@ -138,8 +138,8 @@ inline void AttachPanTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::pan,
-      [selectedText](SimplePreset& preset) {
-        return ApplyPanShape(preset, selectedText);
+      [selectedText](SimplePatch& patch) {
+        return ApplyPanShape(patch, selectedText);
       });
   });
   auto* actionsControl = new ActionSelectionControl(
@@ -160,9 +160,9 @@ inline void AttachPanTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::pan,
-      [selectedText, context](SimplePreset& preset) {
+      [selectedText, context](SimplePatch& patch) {
         return ApplyPanAction(
-          preset,
+          patch,
           selectedText,
           context->GetOscillatorEditScope(OscillatorParameter::pan));
       });

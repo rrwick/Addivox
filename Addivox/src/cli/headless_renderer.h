@@ -15,7 +15,7 @@ enum class WaveFileFormat
 
 struct HeadlessRenderOptions
 {
-  std::string presetPath;
+  std::string patchPath;
   std::string outputPath;
   int note{60};
   double durationSeconds{1.0};
@@ -43,7 +43,7 @@ struct HeadlessRenderOptions
   std::optional<int> transposeSemitones;
 };
 
-bool RenderPresetNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage = nullptr);
+bool RenderPatchNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage = nullptr);
 bool RenderMidiFileToWav(const HeadlessRenderOptions& options,
                          std::string_view midiPath,
                          std::string* errorMessage = nullptr);

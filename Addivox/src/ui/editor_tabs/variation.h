@@ -31,26 +31,26 @@ inline bool TryGetVariationShapeValue(const char* shapeName, int oscillatorIndex
   return false;
 }
 
-inline bool ApplyVariationShape(SimplePreset& preset, OscillatorParameter parameter, const char* shapeName)
+inline bool ApplyVariationShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     double value = 0.0;
     if(!TryGetVariationShapeValue(shapeName, oscillatorIndex, value))
       return false;
 
-    preset.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, 10.0));
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, 10.0));
   }
 
   return true;
 }
 
-inline bool ApplyVariationAction(SimplePreset& preset,
+inline bool ApplyVariationAction(SimplePatch& patch,
                                  OscillatorParameter parameter,
                                  const char* actionName,
                                  EditorOscillatorEditScope editScope)
 {
-  return ApplyStandardHarmonicAction(preset, parameter, actionName, 0.0, 10.0, editScope);
+  return ApplyStandardHarmonicAction(patch, parameter, actionName, 0.0, 10.0, editScope);
 }
 
 inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -128,8 +128,8 @@ inline void AttachVariationTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       parameter,
-      [selectedText, parameter](SimplePreset& preset) {
-        return ApplyVariationShape(preset, parameter, selectedText);
+      [selectedText, parameter](SimplePatch& patch) {
+        return ApplyVariationShape(patch, parameter, selectedText);
       });
   });
   auto* actionsControl = new ActionSelectionControl(
@@ -151,9 +151,9 @@ inline void AttachVariationTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       parameter,
-      [selectedText, parameter, context](SimplePreset& preset) {
+      [selectedText, parameter, context](SimplePatch& patch) {
         return ApplyVariationAction(
-          preset,
+          patch,
           parameter,
           selectedText,
           context->GetOscillatorEditScope(parameter));

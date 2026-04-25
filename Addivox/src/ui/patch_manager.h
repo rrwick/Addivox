@@ -21,7 +21,7 @@ namespace layout
 namespace detail
 {
 template <typename Callback>
-inline IActionFunction MakeImmediatePresetButtonAction(Callback&& callback)
+inline IActionFunction MakeImmediatePatchButtonAction(Callback&& callback)
 {
   return [cb = std::forward<Callback>(callback)](IControl* caller) mutable {
     if(caller)
@@ -35,7 +35,7 @@ inline IActionFunction MakeImmediatePresetButtonAction(Callback&& callback)
 }
 } // namespace detail
 
-struct PresetMenuEntry
+struct PatchMenuEntry
 {
   int id{-1};
   std::string name;
@@ -43,68 +43,68 @@ struct PresetMenuEntry
   bool checked{false};
 };
 
-struct PresetMenuModel
+struct PatchMenuModel
 {
-  std::vector<PresetMenuEntry> entries;
-  std::string label{"Choose Preset..."};
+  std::vector<PatchMenuEntry> entries;
+  std::string label{"Choose Patch..."};
   std::string showInFileBrowserLabel{"Show in Finder"};
   bool canShowInFileBrowser{false};
 };
 
-class PresetManagerControl final : public IVBakedPresetManagerControl
+class PatchManagerControl final : public IVBakedPresetManagerControl
 {
 public:
   using IVBakedPresetManagerControl::IVBakedPresetManagerControl;
 
-  void SetPresetMenuModel(PresetMenuModel model)
+  void SetPatchMenuModel(PatchMenuModel model)
   {
     mModel = std::move(model);
-    SetPresetLabel(mModel.label.c_str());
+    SetPatchLabel(mModel.label.c_str());
   }
 
-  void SetPresetLabel(const char* label)
+  void SetPatchLabel(const char* label)
   {
-    if(!mPresetNameButton)
+    if(!mPatchNameButton)
       return;
 
-    mPresetNameButton->SetLabelStr((label && label[0] != '\0') ? label : "Choose Preset...");
+    mPatchNameButton->SetLabelStr((label && label[0] != '\0') ? label : "Choose Patch...");
   }
 
   void OnAttached() override
   {
-    const auto prevPresetFunc = [this](IControl*) {
-      SendPresetManagerAction(editor_messages::PresetManagerAction::PreviousPreset);
+    const auto prevPatchFunc = [this](IControl*) {
+      SendPatchManagerAction(editor_messages::PatchManagerAction::PreviousPatch);
     };
 
-    const auto nextPresetFunc = [this](IControl*) {
-      SendPresetManagerAction(editor_messages::PresetManagerAction::NextPreset);
+    const auto nextPatchFunc = [this](IControl*) {
+      SendPatchManagerAction(editor_messages::PatchManagerAction::NextPatch);
     };
 
-    const auto choosePresetFunc = [this](IControl* caller) {
-      BuildPresetMenu();
+    const auto choosePatchFunc = [this](IControl* caller) {
+      BuildPatchMenu();
 
-      caller->GetUI()->CreatePopupMenu(*this, mPresetMenu, caller->GetRECT());
+      caller->GetUI()->CreatePopupMenu(*this, mPatchMenu, caller->GetRECT());
     };
 
-    const IVStyle presetNameStyle = mStyle.WithLabelText(mStyle.labelText.WithSize(18.f));
-    AddChildControl(new PresetArrowButtonControl(
+    const IVStyle patchNameStyle = mStyle.WithLabelText(mStyle.labelText.WithSize(18.f));
+    AddChildControl(new PatchArrowButtonControl(
       IRECT(),
-      detail::MakeImmediatePresetButtonAction(prevPresetFunc),
-      PresetArrowButtonControl::Direction::Left,
+      detail::MakeImmediatePatchButtonAction(prevPatchFunc),
+      PatchArrowButtonControl::Direction::Left,
       mStyle));
-    AddChildControl(new PresetArrowButtonControl(
+    AddChildControl(new PatchArrowButtonControl(
       IRECT(),
-      detail::MakeImmediatePresetButtonAction(nextPresetFunc),
-      PresetArrowButtonControl::Direction::Right,
+      detail::MakeImmediatePatchButtonAction(nextPatchFunc),
+      PatchArrowButtonControl::Direction::Right,
       mStyle));
-    AddChildControl(mPresetNameButton = new IVButtonControl(
+    AddChildControl(mPatchNameButton = new IVButtonControl(
       IRECT(),
-      detail::MakeImmediatePresetButtonAction(choosePresetFunc),
-      "Choose Preset...",
-      presetNameStyle));
+      detail::MakeImmediatePatchButtonAction(choosePatchFunc),
+      "Choose Patch...",
+      patchNameStyle));
 
     OnResize();
-    SetPresetLabel(mModel.label.c_str());
+    SetPatchLabel(mModel.label.c_str());
   }
 
   void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
@@ -121,7 +121,7 @@ public:
       return;
 
     const ActionItem& actionItem = mActionItems[static_cast<std::size_t>(tag)];
-    SendPresetManagerAction(actionItem.action, actionItem.presetId);
+    SendPatchManagerAction(actionItem.action, actionItem.patchId);
   }
 
   void OnResize() override
@@ -134,7 +134,7 @@ public:
   }
 
 private:
-  class PresetArrowButtonControl final : public IVButtonControl
+  class PatchArrowButtonControl final : public IVButtonControl
   {
   public:
     enum class Direction
@@ -143,7 +143,7 @@ private:
       Right
     };
 
-    PresetArrowButtonControl(const IRECT& bounds, IActionFunction actionFunc, Direction direction, const IVStyle& style)
+    PatchArrowButtonControl(const IRECT& bounds, IActionFunction actionFunc, Direction direction, const IVStyle& style)
     : IVButtonControl(bounds, std::move(actionFunc), "", style, false, false)
     , mDirection(direction)
     {
@@ -193,29 +193,29 @@ private:
 
   struct ActionItem
   {
-    editor_messages::PresetManagerAction action{editor_messages::PresetManagerAction::SelectPreset};
-    int presetId{-1};
+    editor_messages::PatchManagerAction action{editor_messages::PatchManagerAction::SelectPatch};
+    int patchId{-1};
   };
 
-  int AddActionItem(editor_messages::PresetManagerAction action, int presetId = -1)
+  int AddActionItem(editor_messages::PatchManagerAction action, int patchId = -1)
   {
     const int tag = static_cast<int>(mActionItems.size());
-    mActionItems.push_back(ActionItem{action, presetId});
+    mActionItems.push_back(ActionItem{action, patchId});
     return tag;
   }
 
-  void SendPresetManagerAction(editor_messages::PresetManagerAction action, int presetId = -1)
+  void SendPatchManagerAction(editor_messages::PatchManagerAction action, int patchId = -1)
   {
     auto* delegate = GetDelegate();
     if(!delegate)
       return;
 
-    const editor_messages::PresetManagerActionPayload payload{
+    const editor_messages::PatchManagerActionPayload payload{
       static_cast<int>(action),
-      presetId
+      patchId
     };
     delegate->SendArbitraryMsgFromUI(
-      editor_messages::kMsgTagPresetManagerAction,
+      editor_messages::kMsgTagPatchManagerAction,
       GetTag(),
       sizeof(payload),
       &payload);
@@ -233,9 +233,9 @@ private:
     return parent.AddItem(name.c_str(), new IPopupMenu(name.c_str()))->GetSubmenu();
   }
 
-  void AddPresetEntryToMenu(const PresetMenuEntry& entry)
+  void AddPatchEntryToMenu(const PatchMenuEntry& entry)
   {
-    IPopupMenu* menu = &mPresetMenu;
+    IPopupMenu* menu = &mPatchMenu;
     for(const auto& group : entry.groupPath)
       menu = EnsureSubmenu(*menu, group);
 
@@ -244,41 +244,41 @@ private:
       new IPopupMenu::Item(
         entry.name.c_str(),
         flags,
-        AddActionItem(editor_messages::PresetManagerAction::SelectPreset, entry.id)));
+        AddActionItem(editor_messages::PatchManagerAction::SelectPatch, entry.id)));
   }
 
   void AddCommandItem(const char* label,
-                      editor_messages::PresetManagerAction action,
+                      editor_messages::PatchManagerAction action,
                       bool enabled = true)
   {
     const int flags = enabled ? IPopupMenu::Item::kNoFlags : IPopupMenu::Item::kDisabled;
-    mPresetMenu.AddItem(new IPopupMenu::Item(label, flags, AddActionItem(action)));
+    mPatchMenu.AddItem(new IPopupMenu::Item(label, flags, AddActionItem(action)));
   }
 
-  void BuildPresetMenu()
+  void BuildPatchMenu()
   {
-    mPresetMenu.Clear();
+    mPatchMenu.Clear();
     mActionItems.clear();
 
     if(mModel.entries.empty())
     {
-      mPresetMenu.AddItem("(No presets found)", -1, IPopupMenu::Item::kDisabled);
+      mPatchMenu.AddItem("(No patches found)", -1, IPopupMenu::Item::kDisabled);
     }
     else
     {
       for(const auto& entry : mModel.entries)
-        AddPresetEntryToMenu(entry);
+        AddPatchEntryToMenu(entry);
     }
 
-    mPresetMenu.AddSeparator();
-    AddCommandItem("Save...", editor_messages::PresetManagerAction::SavePreset);
-    AddCommandItem("Import Preset...", editor_messages::PresetManagerAction::ImportPreset);
-    AddCommandItem("Import Collection...", editor_messages::PresetManagerAction::ImportCollection);
+    mPatchMenu.AddSeparator();
+    AddCommandItem("Save...", editor_messages::PatchManagerAction::SavePatch);
+    AddCommandItem("Import Patch...", editor_messages::PatchManagerAction::ImportPatch);
+    AddCommandItem("Import Collection...", editor_messages::PatchManagerAction::ImportCollection);
     AddCommandItem(
       mModel.showInFileBrowserLabel.empty() ? "Show in Finder" : mModel.showInFileBrowserLabel.c_str(),
-      editor_messages::PresetManagerAction::ShowPresetInFileBrowser,
+      editor_messages::PatchManagerAction::ShowPatchInFileBrowser,
       mModel.canShowInFileBrowser);
-    AddCommandItem("Refresh", editor_messages::PresetManagerAction::RefreshPresets);
+    AddCommandItem("Refresh", editor_messages::PatchManagerAction::RefreshPatches);
   }
 
   IRECT GetSubControlBounds(ESubControl control) const
@@ -294,10 +294,10 @@ private:
     return rects[static_cast<int>(control)];
   }
 
-  IPopupMenu mPresetMenu;
-  PresetMenuModel mModel;
+  IPopupMenu mPatchMenu;
+  PatchMenuModel mModel;
   std::vector<ActionItem> mActionItems;
-  IVButtonControl* mPresetNameButton = nullptr;
+  IVButtonControl* mPatchNameButton = nullptr;
 };
 } // namespace layout
 } // namespace plugin_ui

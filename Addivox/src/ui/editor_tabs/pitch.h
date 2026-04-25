@@ -44,38 +44,38 @@ inline bool TryGetPitchShapeValue(const char* shapeName, int oscillatorIndex, do
   return false;
 }
 
-inline bool ApplyPitchShape(SimplePreset& preset, const char* shapeName)
+inline bool ApplyPitchShape(SimplePatch& patch, const char* shapeName)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     double value = 0.0;
     if(!TryGetPitchShapeValue(shapeName, oscillatorIndex, value))
       return false;
 
-    preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, value);
+    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, value);
   }
 
   return true;
 }
 
-inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName, EditorOscillatorEditScope editScope)
+inline bool ApplyPitchAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope)
 {
   constexpr double kPitchMin = -100.0;
   constexpr double kPitchMax = 100.0;
   constexpr double kPitchShiftAmount = 1.0;
 
   if(MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
-    return ApplyStandardHarmonicAction(preset, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax, editScope);
+    return ApplyStandardHarmonicAction(patch, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax, editScope);
   if(MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown))
   {
     const double shiftAmount = MatchesActionLabel(actionName, kActionShiftUp) ? kPitchShiftAmount : -kPitchShiftAmount;
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
         continue;
 
-      const double pitch = preset.GetOscillatorSettings(oscillatorIndex).pitch;
-      preset.SetOscillatorParameter(
+      const double pitch = patch.GetOscillatorSettings(oscillatorIndex).pitch;
+      patch.SetOscillatorParameter(
         oscillatorIndex,
         OscillatorParameter::pitch,
         ApplyShiftOffset(pitch, shiftAmount, kPitchMin, kPitchMax));
@@ -84,13 +84,13 @@ inline bool ApplyPitchAction(SimplePreset& preset, const char* actionName, Edito
   }
   if(MatchesActionLabel(actionName, kActionInvert))
   {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
         continue;
 
-      const double pitch = preset.GetOscillatorSettings(oscillatorIndex).pitch;
-      preset.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, -pitch);
+      const double pitch = patch.GetOscillatorSettings(oscillatorIndex).pitch;
+      patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, -pitch);
     }
     return true;
   }
@@ -134,8 +134,8 @@ inline void AttachPitchTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::pitch,
-      [selectedText](SimplePreset& preset) {
-        return ApplyPitchShape(preset, selectedText);
+      [selectedText](SimplePatch& patch) {
+        return ApplyPitchShape(patch, selectedText);
       });
   });
   auto* actionsControl = new ActionSelectionControl(
@@ -156,9 +156,9 @@ inline void AttachPitchTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       OscillatorParameter::pitch,
-      [selectedText, context](SimplePreset& preset) {
+      [selectedText, context](SimplePatch& patch) {
         return ApplyPitchAction(
-          preset,
+          patch,
           selectedText,
           context->GetOscillatorEditScope(OscillatorParameter::pitch));
       });

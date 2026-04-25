@@ -94,9 +94,9 @@ public:
     }
   }
 
-  void SetCompoundPreset(const CompoundPreset& preset)
+  void SetCompoundPatch(const CompoundPatch& patch)
   {
-    mSynth.GetVoice().SetCompoundPreset(preset);
+    mSynth.GetVoice().SetCompoundPatch(patch);
   }
 
   void GetVisualizerFrame(VisualizerFrame& frame) const

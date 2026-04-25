@@ -10,7 +10,7 @@
 #include "number_box_control.h"
 #include "pitch_bend_wheel.h"
 #include "positions.h"
-#include "preset_manager.h"
+#include "patch_manager.h"
 #include "theme.h"
 #include "../settings/params.h"
 
@@ -226,7 +226,7 @@ private:
 
 inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<editor::EditorContext>& context, int aboutBoxTag)
 {
-  auto* presetManagerControl = new PresetManagerControl(positions::kPresetManager, "", theme::PresetManagerStyle());
+  auto* patchManagerControl = new PatchManagerControl(positions::kPatchManager, "", theme::PatchManagerStyle());
 
   auto* settingsButton = new SettingsMenuButton(
     positions::kSettingsButton,
@@ -242,8 +242,8 @@ inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<edit
 
   pGraphics->AttachControl(aboutButton);
   pGraphics->AttachControl(settingsButton);
-  pGraphics->AttachControl(presetManagerControl);
-  *context->title.presetManagerControl = presetManagerControl;
+  pGraphics->AttachControl(patchManagerControl);
+  *context->title.patchManagerControl = patchManagerControl;
 }
 
 struct PanelResources
@@ -356,11 +356,11 @@ inline void SetKeyboardKeyNoteHighlight(IGraphics* pGraphics, int keyboardTag, i
     keyboard->SetHighlightedMidiNote(midiNote, highlighted);
 }
 
-inline void RefreshKeyboardKeyNoteHighlights(KeyboardControl* keyboardControl, const CompoundPreset& compoundPreset)
+inline void RefreshKeyboardKeyNoteHighlights(KeyboardControl* keyboardControl, const CompoundPatch& compoundPatch)
 {
   keyboardControl->ClearHighlightedMidiNotes();
-  for(int midiNote = CompoundPreset::kMinMidiNote; midiNote <= CompoundPreset::kMaxMidiNote; ++midiNote)
-    keyboardControl->SetHighlightedMidiNote(midiNote, compoundPreset.HasKeyNotePreset(midiNote));
+  for(int midiNote = CompoundPatch::kMinMidiNote; midiNote <= CompoundPatch::kMaxMidiNote; ++midiNote)
+    keyboardControl->SetHighlightedMidiNote(midiNote, compoundPatch.HasKeyNotePatch(midiNote));
 }
 
 struct VizEditControls
@@ -421,7 +421,7 @@ inline void AttachKeyboardControls(IGraphics* pGraphics,
                                    int initialPitchBendRange)
 {
   auto* keyboardControl = new KeyboardControl(positions::kKeyboard, 21, 108);
-  RefreshKeyboardKeyNoteHighlights(keyboardControl, context->Preset());
+  RefreshKeyboardKeyNoteHighlights(keyboardControl, context->Patch());
   keyboardControl->SetOnSelectedMidiNoteChanged([context](int midiNote) {
     context->SetSelectedMidiNote(midiNote);
     context->RefreshOscillatorTabs();

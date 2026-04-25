@@ -11,7 +11,7 @@ You may:
 - build Addivox for yourself
 - use Addivox, including your own private builds and modifications, to make
   music and other output, including commercial work
-- create, share and sell presets for Addivox
+- create, share and sell patches for Addivox
 
 You may not:
 - share the Addivox source code or builds with others
@@ -37,7 +37,7 @@ from that source code.
 "Official Build" means a compiled version of the Software that is provided
 directly by Ryan Wick.
 
-"Output" means any audio, music, sound recordings, performances, preset files,
+"Output" means any audio, music, sound recordings, performances, patch files,
 parameter settings, data or other works created by using the Software or created
 for use with the Software, but does not include the Software itself.
 
@@ -63,7 +63,7 @@ permitted by law.
 This license does not restrict your right to use, sell, publish, perform,
 license or distribute Output created with the Software.
 
-For clarity, you may create, share, license and sell presets and other files
+For clarity, you may create, share, license and sell patches and other files
 created for use with the Software, provided that such material does not include
 any part of the Software itself.
 

@@ -8,8 +8,8 @@ endif()
 include(${IPLUG2_DIR}/iPlug2.cmake)
 find_package(iPlug2 REQUIRED)
 
-file(GLOB BUILTIN_PRESET_RESOURCES CONFIGURE_DEPENDS
-  "${CMAKE_CURRENT_SOURCE_DIR}/presets/*.toml")
+file(GLOB BUILTIN_PATCH_RESOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/factory_patches/*.toml")
 
 set(ADDIVOX_COMMON_SOURCES
   src/synth/voice.cpp
@@ -37,7 +37,7 @@ set(ADDIVOX_COMMON_SOURCES
   src/effects/reverb.h
   src/synth/midi_synth.h
   src/synth/synth_engine.h
-  src/settings/preset_io.h
+  src/settings/patch_io.h
 )
 
 iplug_add_plugin(${PROJECT_NAME}
@@ -49,7 +49,7 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/transformations.h
     src/ui/oscillator_slider_control.h
     src/ui/number_box_control.h
-    src/ui/layered_svg_knob_control.h
+    src/ui/patch_manager.h
     src/ui/layout.h
     src/ui/theme.h
     resources/resource.h
@@ -57,7 +57,7 @@ iplug_add_plugin(${PROJECT_NAME}
     resources/fonts/Roboto-Regular.ttf
     resources/fonts/Roboto-Bold.ttf
     resources/fonts/Roboto-Black.ttf
-    ${BUILTIN_PRESET_RESOURCES}
+    ${BUILTIN_PATCH_RESOURCES}
     assets/knob.svg
     assets/knob-fixed.svg
     assets/knob-rotating.svg

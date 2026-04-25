@@ -35,14 +35,14 @@
 #include <direct.h>
 #endif
 
-namespace preset_io
+namespace patch_io
 {
-struct PresetDocument
+struct PatchDocument
 {
   std::string name;
   GlobalVoiceSettings voiceSettings{};
   EffectsSettings effectsSettings{};
-  CompoundPreset compoundPreset{};
+  CompoundPatch compoundPatch{};
 };
 
 inline constexpr int kFormatVersion = 1;
@@ -270,36 +270,36 @@ inline const EffectsSettingDescriptor* FindEffectsSettingDescriptor(std::string_
   return it == kEffectsSettingDescriptors.end() ? nullptr : &(*it);
 }
 
-inline SimplePreset MakeDefaultKeyNotePreset()
+inline SimplePatch MakeDefaultKeyNotePatch()
 {
-  SimplePreset::OscillatorArray oscillatorSettings{};
+  SimplePatch::OscillatorArray oscillatorSettings{};
   oscillatorSettings.fill(OscillatorSettings{0.0});
-  return SimplePreset{oscillatorSettings};
+  return SimplePatch{oscillatorSettings};
 }
 
-inline void SetOscillatorParameterValues(SimplePreset& preset,
+inline void SetOscillatorParameterValues(SimplePatch& patch,
                                          OscillatorParameter parameter,
                                          const std::vector<double>& values)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
-    preset.SetOscillatorParameter(
+    patch.SetOscillatorParameter(
       oscillatorIndex,
       parameter,
       values[static_cast<std::size_t>(oscillatorIndex)]);
   }
 }
 
-inline int ChooseDefaultSelectedMidiNote(const CompoundPreset& compoundPreset, int preferredMidiNote = 60)
+inline int ChooseDefaultSelectedMidiNote(const CompoundPatch& compoundPatch, int preferredMidiNote = 60)
 {
-  const auto& keyNotePresets = compoundPreset.GetKeyNotePresets();
-  if(keyNotePresets.empty())
+  const auto& keyNotePatches = compoundPatch.GetKeyNotePatches();
+  if(keyNotePatches.empty())
     return preferredMidiNote;
 
-  auto upper = keyNotePresets.lower_bound(preferredMidiNote);
-  if(upper == keyNotePresets.begin())
+  auto upper = keyNotePatches.lower_bound(preferredMidiNote);
+  if(upper == keyNotePatches.begin())
     return upper->first;
-  if(upper == keyNotePresets.end())
+  if(upper == keyNotePatches.end())
     return std::prev(upper)->first;
 
   const auto lower = std::prev(upper);
@@ -339,7 +339,7 @@ inline std::string MidiNoteToName(int midiNote)
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
   };
 
-  const int clampedMidiNote = std::clamp(midiNote, CompoundPreset::kMinMidiNote, CompoundPreset::kMaxMidiNote);
+  const int clampedMidiNote = std::clamp(midiNote, CompoundPatch::kMinMidiNote, CompoundPatch::kMaxMidiNote);
   const int noteClass = clampedMidiNote % 12;
   const int octave = (clampedMidiNote / 12) - 1;
 
@@ -378,17 +378,17 @@ inline std::string EscapeTomlString(std::string_view text)
 }
 
 inline void AppendOscillatorParameterArray(std::ostringstream& stream,
-                                           const SimplePreset& preset,
+                                           const SimplePatch& patch,
                                            const OscillatorParameterDescriptor& descriptor)
 {
   stream << descriptor.key << " = [";
-  const auto& oscillatorSettings = preset.GetOscillatorSettingsArray();
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  const auto& oscillatorSettings = patch.GetOscillatorSettingsArray();
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     stream << FormatDouble(
       oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter));
 
-    const bool lastValue = oscillatorIndex == (SimplePreset::kNumOscillators - 1);
+    const bool lastValue = oscillatorIndex == (SimplePatch::kNumOscillators - 1);
     if(!lastValue)
       stream << ", ";
   }
@@ -667,12 +667,12 @@ inline bool DeleteFile(std::string_view path)
 }
 } // namespace detail
 
-inline std::string SerializePresetToToml(const PresetDocument& document, bool includeName = true)
+inline std::string SerializePatchToToml(const PatchDocument& document, bool includeName = true)
 {
   std::ostringstream stream;
   stream << "format_version = " << kFormatVersion << '\n';
   if(includeName)
-    stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Preset" : document.name) << "\"\n";
+    stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Patch" : document.name) << "\"\n";
   stream << '\n';
 
   stream << "[voice_settings]\n";
@@ -694,7 +694,7 @@ inline std::string SerializePresetToToml(const PresetDocument& document, bool in
   bool wroteAllKeyNotes = false;
   for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
   {
-    if(!document.compoundPreset.IsAllKeyNotesEnabled(descriptor.parameter))
+    if(!document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter))
       continue;
 
     if(!wroteAllKeyNotes)
@@ -704,18 +704,18 @@ inline std::string SerializePresetToToml(const PresetDocument& document, bool in
     }
 
     stream << descriptor.key << " = [";
-    const auto& values = document.compoundPreset.GetAllKeyNotesValues(descriptor.parameter);
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    const auto& values = document.compoundPatch.GetAllKeyNotesValues(descriptor.parameter);
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)]);
-      if(oscillatorIndex != (SimplePreset::kNumOscillators - 1))
+      if(oscillatorIndex != (SimplePatch::kNumOscillators - 1))
         stream << ", ";
     }
 
     stream << "]\n";
   }
 
-  if(document.compoundPreset.IsAllKeyNotesEqEnabled())
+  if(document.compoundPatch.IsAllKeyNotesEqEnabled())
   {
     if(!wroteAllKeyNotes)
     {
@@ -723,25 +723,25 @@ inline std::string SerializePresetToToml(const PresetDocument& document, bool in
       wroteAllKeyNotes = true;
     }
 
-    detail::AppendEqCurveArrays(stream, document.compoundPreset.GetAllKeyNotesEqCurve());
+    detail::AppendEqCurveArrays(stream, document.compoundPatch.GetAllKeyNotesEqCurve());
   }
 
-  for(const auto& [midiNote, preset] : document.compoundPreset.GetKeyNotePresets())
+  for(const auto& [midiNote, patch] : document.compoundPatch.GetKeyNotePatches())
   {
     stream << "\n[[key_notes]]\n";
     stream << "midi_note = " << midiNote << '\n';
     stream << "note_name = \"" << detail::EscapeTomlString(detail::MidiNoteToName(midiNote)) << "\"\n";
     for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
     {
-      if(document.compoundPreset.IsAllKeyNotesEnabled(descriptor.parameter))
+      if(document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter))
         continue;
 
-      detail::AppendOscillatorParameterArray(stream, preset, descriptor);
+      detail::AppendOscillatorParameterArray(stream, patch, descriptor);
     }
 
-    if(!document.compoundPreset.IsAllKeyNotesEqEnabled())
+    if(!document.compoundPatch.IsAllKeyNotesEqEnabled())
     {
-      if(const auto* eqCurve = document.compoundPreset.GetKeyNoteEqCurve(midiNote))
+      if(const auto* eqCurve = document.compoundPatch.GetKeyNoteEqCurve(midiNote))
         detail::AppendEqCurveArrays(stream, *eqCurve);
     }
   }
@@ -749,7 +749,7 @@ inline std::string SerializePresetToToml(const PresetDocument& document, bool in
   return stream.str();
 }
 
-inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, std::string* errorMessage = nullptr)
+inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std::string* errorMessage = nullptr)
 {
   enum class Section
   {
@@ -765,7 +765,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   {
     int midiNote = 60;
     bool hasMidiNote = false;
-    SimplePreset preset = detail::MakeDefaultKeyNotePreset();
+    SimplePatch patch = detail::MakeDefaultKeyNotePatch();
     bool hasEqFreqHz = false;
     bool hasEqDb = false;
     std::vector<double> eqFreqHz;
@@ -775,7 +775,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   struct ParsedAllKeyNotesParameter
   {
     bool present = false;
-    CompoundPreset::OscillatorParameterValues values{};
+    CompoundPatch::OscillatorParameterValues values{};
   };
 
   struct ParsedEqCurve
@@ -792,7 +792,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     return false;
   };
 
-  document = PresetDocument{};
+  document = PatchDocument{};
 
   Section currentSection = Section::Root;
   std::vector<ParsedKeyNote> keyNotes;
@@ -828,7 +828,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
       else if(key == "name")
       {
         if(!detail::ParseQuotedString(value, document.name))
-          return fail("Invalid preset name on line " + std::to_string(assignmentLine));
+          return fail("Invalid patch name on line " + std::to_string(assignmentLine));
       }
 
       return true;
@@ -892,18 +892,18 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
       std::vector<double> values;
       if(!detail::ParseDoubleArray(value, values))
         return fail("Invalid all_key_notes array on line " + std::to_string(assignmentLine));
-      if(static_cast<int>(values.size()) != SimplePreset::kNumOscillators)
+      if(static_cast<int>(values.size()) != SimplePatch::kNumOscillators)
       {
         return fail(
           "All-key-notes array must contain "
-          + std::to_string(SimplePreset::kNumOscillators)
+          + std::to_string(SimplePatch::kNumOscillators)
           + " values on line "
           + std::to_string(assignmentLine));
       }
 
       auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor->parameter)];
       parsedParameter.present = true;
-      for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       {
         parsedParameter.values[static_cast<std::size_t>(oscillatorIndex)] =
           values[static_cast<std::size_t>(oscillatorIndex)];
@@ -922,7 +922,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
         int midiNote = 0;
         if(!detail::ParseInteger(value, midiNote))
           return fail("Invalid midi_note on line " + std::to_string(assignmentLine));
-        keyNote->midiNote = std::clamp(midiNote, CompoundPreset::kMinMidiNote, CompoundPreset::kMaxMidiNote);
+        keyNote->midiNote = std::clamp(midiNote, CompoundPatch::kMinMidiNote, CompoundPatch::kMaxMidiNote);
         keyNote->hasMidiNote = true;
         return true;
       }
@@ -960,16 +960,16 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
       std::vector<double> values;
       if(!detail::ParseDoubleArray(value, values))
         return fail("Invalid oscillator array on line " + std::to_string(assignmentLine));
-      if(static_cast<int>(values.size()) != SimplePreset::kNumOscillators)
+      if(static_cast<int>(values.size()) != SimplePatch::kNumOscillators)
       {
         return fail(
           "Oscillator array must contain "
-          + std::to_string(SimplePreset::kNumOscillators)
+          + std::to_string(SimplePatch::kNumOscillators)
           + " values on line "
           + std::to_string(assignmentLine));
       }
 
-      detail::SetOscillatorParameterValues(keyNote->preset, descriptor->parameter, values);
+      detail::SetOscillatorParameterValues(keyNote->patch, descriptor->parameter, values);
     }
 
     return true;
@@ -1070,8 +1070,8 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   if(!sawFormatVersion)
     return fail("Missing format_version");
 
-  CompoundPreset compoundPreset;
-  compoundPreset.ClearKeyNotePresets();
+  CompoundPatch compoundPatch;
+  compoundPatch.ClearKeyNotePatches();
   bool eqCurveBuildFailed = false;
   const auto buildEqCurve = [&](const std::vector<double>& frequenciesHz,
                                 const std::vector<double>& gainsDb,
@@ -1101,7 +1101,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     if(keyNote.hasEqFreqHz != keyNote.hasEqDb)
       return fail("Each [[key_notes]] EQ definition must include both eq_freq_hz and eq_db");
 
-    compoundPreset.SetKeyNotePreset(keyNote.midiNote, keyNote.preset);
+    compoundPatch.SetKeyNotePatch(keyNote.midiNote, keyNote.patch);
 
     if(keyNote.hasEqFreqHz)
     {
@@ -1109,7 +1109,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
       if(eqCurveBuildFailed)
         return false;
 
-      if(!compoundPreset.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
+      if(!compoundPatch.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
         return fail("Could not apply EQ curve for midi_note " + std::to_string(keyNote.midiNote));
     }
   }
@@ -1118,7 +1118,7 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
   {
     const auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor.parameter)];
     if(parsedParameter.present)
-      compoundPreset.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
+      compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
   }
 
   if(allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb)
@@ -1130,28 +1130,28 @@ inline bool ParsePresetToml(const std::string& toml, PresetDocument& document, s
     if(eqCurveBuildFailed)
       return false;
 
-    compoundPreset.EnableAllKeyNotesEq(eqCurve);
+    compoundPatch.EnableAllKeyNotesEq(eqCurve);
   }
 
   document.voiceSettings = global_settings::Sanitize(document.voiceSettings);
   document.effectsSettings = effects_settings::Sanitize(document.effectsSettings);
-  document.compoundPreset = compoundPreset;
+  document.compoundPatch = compoundPatch;
   return true;
 }
 
-inline bool LoadPresetFromFile(std::string_view path,
-                               PresetDocument& document,
+inline bool LoadPatchFromFile(std::string_view path,
+                               PatchDocument& document,
                                std::string* errorMessage = nullptr)
 {
   std::string toml;
   if(!detail::ReadTextFile(path, toml))
   {
     if(errorMessage)
-      *errorMessage = "Could not read preset file";
+      *errorMessage = "Could not read patch file";
     return false;
   }
 
-  if(!ParsePresetToml(toml, document, errorMessage))
+  if(!ParsePatchToml(toml, document, errorMessage))
     return false;
 
   if(document.name.empty())
@@ -1160,21 +1160,21 @@ inline bool LoadPresetFromFile(std::string_view path,
   return true;
 }
 
-inline bool SavePresetToFile(std::string_view path,
-                             const PresetDocument& document,
+inline bool SavePatchToFile(std::string_view path,
+                             const PatchDocument& document,
                              std::string* errorMessage = nullptr)
 {
-  if(!detail::WriteTextFile(path, SerializePresetToToml(document, false)))
+  if(!detail::WriteTextFile(path, SerializePatchToToml(document, false)))
   {
     if(errorMessage)
-      *errorMessage = "Could not write preset file";
+      *errorMessage = "Could not write patch file";
     return false;
   }
 
   return true;
 }
 
-inline void FindPresetFilesRecursive(std::string_view directory, std::vector<std::string>& paths)
+inline void FindPatchFilesRecursive(std::string_view directory, std::vector<std::string>& paths)
 {
   WDL_DirScan scan;
   if(scan.First(std::string{directory}.c_str()) != 0)
@@ -1191,7 +1191,7 @@ inline void FindPresetFilesRecursive(std::string_view directory, std::vector<std
     const int directoryState = scan.GetCurrentIsDirectory();
     if(directoryState != 0 && directoryState != 4)
     {
-      FindPresetFilesRecursive(childPath.Get(), paths);
+      FindPatchFilesRecursive(childPath.Get(), paths);
       continue;
     }
 
@@ -1201,11 +1201,11 @@ inline void FindPresetFilesRecursive(std::string_view directory, std::vector<std
   while(scan.Next() == 0);
 }
 
-inline std::vector<std::string> FindPresetFiles(std::string_view directory)
+inline std::vector<std::string> FindPatchFiles(std::string_view directory)
 {
   std::vector<std::string> paths;
-  FindPresetFilesRecursive(directory, paths);
+  FindPatchFilesRecursive(directory, paths);
   std::sort(paths.begin(), paths.end());
   return paths;
 }
-} // namespace preset_io
+} // namespace patch_io

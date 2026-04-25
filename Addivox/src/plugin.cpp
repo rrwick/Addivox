@@ -3,7 +3,7 @@
 #include "IPlugPaths.h"
 #include "settings/effects.h"
 #include "settings/params.h"
-#include "settings/preset_io.h"
+#include "settings/patch_io.h"
 #include "ui/editor_messages.h"
 #include "ui/transformations.h"
 #include "ui/layout.h"
@@ -88,10 +88,10 @@ void SetEffectsSettingsParams(Addivox& plugin,
     plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
 }
 
-bool IsPresetOwnedParam(int paramIdx)
+bool IsPatchOwnedParam(int paramIdx)
 {
-  // These controls intentionally persist across preset changes, so reset should
-  // keep their constructor defaults instead of following the last recalled preset.
+  // These controls intentionally persist across patch changes, so reset should
+  // keep their constructor defaults instead of following the last recalled patch.
   switch(paramIdx)
   {
     case kParamGlobalTuning:
@@ -104,11 +104,11 @@ bool IsPresetOwnedParam(int paramIdx)
   }
 }
 
-void SyncPresetOwnedParamDefaultsToCurrentValues(Addivox& plugin)
+void SyncPatchOwnedParamDefaultsToCurrentValues(Addivox& plugin)
 {
   for(int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
   {
-    if(!IsPresetOwnedParam(paramIdx))
+    if(!IsPatchOwnedParam(paramIdx))
       continue;
 
     IParam* const param = plugin.GetParam(paramIdx);
@@ -116,9 +116,9 @@ void SyncPresetOwnedParamDefaultsToCurrentValues(Addivox& plugin)
   }
 }
 
-bool BuildPresetChunk(const preset_io::PresetDocument& document, IByteChunk& chunk)
+bool BuildPatchChunk(const patch_io::PatchDocument& document, IByteChunk& chunk)
 {
-  const std::string toml = preset_io::SerializePresetToToml(document);
+  const std::string toml = patch_io::SerializePatchToToml(document);
   const GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
   const EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
   return chunk.PutStr(toml.c_str()) > 0
@@ -145,20 +145,20 @@ bool AppendPluginStateSettingsChunk(IByteChunk& chunk,
                                     BreathCCSource breathCCSource,
                                     bool harmonicVisualizerEnabled,
                                     int pitchBendRange,
-                                    bool presetDirty,
-                                    const std::string& presetCleanSnapshot)
+                                    bool patchDirty,
+                                    const std::string& patchCleanSnapshot)
 {
   const uint32_t magic = kPluginStateSettingsMagic;
   const int32_t rawBreathCCSource = static_cast<int32_t>(breathCCSource);
   const int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
   const int32_t rawPitchBendRange = static_cast<int32_t>(SanitizePitchBendRange(pitchBendRange));
-  const int32_t rawPresetDirty = presetDirty ? 1 : 0;
+  const int32_t rawPatchDirty = patchDirty ? 1 : 0;
   return chunk.Put(&magic) > 0
     && chunk.Put(&rawBreathCCSource) > 0
     && chunk.Put(&rawHarmonicVisualizerEnabled) > 0
     && chunk.Put(&rawPitchBendRange) > 0
-    && chunk.Put(&rawPresetDirty) > 0
-    && chunk.PutStr(presetCleanSnapshot.c_str()) > 0;
+    && chunk.Put(&rawPatchDirty) > 0
+    && chunk.PutStr(patchCleanSnapshot.c_str()) > 0;
 }
 
 bool ReadPluginStateSettingsChunk(const IByteChunk& chunk,
@@ -166,8 +166,8 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk,
                                   BreathCCSource& breathCCSource,
                                   bool& harmonicVisualizerEnabled,
                                   int& pitchBendRange,
-                                  bool& presetDirty,
-                                  std::string& presetCleanSnapshot)
+                                  bool& patchDirty,
+                                  std::string& patchCleanSnapshot)
 {
   uint32_t magic = 0;
   int position = chunk.Get(&magic, startPos);
@@ -197,23 +197,23 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk,
     }
   }
 
-  int32_t rawPresetDirty = presetDirty ? 1 : 0;
+  int32_t rawPatchDirty = patchDirty ? 1 : 0;
   if(position >= 0)
   {
-    const int nextPosition = chunk.Get(&rawPresetDirty, position);
+    const int nextPosition = chunk.Get(&rawPatchDirty, position);
     if(nextPosition >= 0)
     {
-      presetDirty = (rawPresetDirty != 0);
+      patchDirty = (rawPatchDirty != 0);
       position = nextPosition;
     }
   }
 
-  WDL_String rawPresetCleanSnapshot;
+  WDL_String rawPatchCleanSnapshot;
   if(position >= 0)
   {
-    const int nextPosition = chunk.GetStr(rawPresetCleanSnapshot, position);
+    const int nextPosition = chunk.GetStr(rawPatchCleanSnapshot, position);
     if(nextPosition >= 0)
-      presetCleanSnapshot = rawPresetCleanSnapshot.Get();
+      patchCleanSnapshot = rawPatchCleanSnapshot.Get();
   }
 
   return true;
@@ -274,10 +274,10 @@ int RestoreStateParamsFromChunk(Addivox& plugin,
     return position;
   }
 
-  constexpr int kPresetChunkParamCountWithReverb = kParamEffectsTone + 1;
-  constexpr int kPresetChunkParamCountWithoutReverb = kPresetChunkParamCountWithReverb - 1;
-  if(remainingValues == kPresetChunkParamCountWithReverb
-     || remainingValues == kPresetChunkParamCountWithoutReverb)
+  constexpr int kPatchChunkParamCountWithReverb = kParamEffectsTone + 1;
+  constexpr int kPatchChunkParamCountWithoutReverb = kPatchChunkParamCountWithReverb - 1;
+  if(remainingValues == kPatchChunkParamCountWithReverb
+     || remainingValues == kPatchChunkParamCountWithoutReverb)
   {
     for(int paramIdx = 0; paramIdx <= kParamPortamentoAtCC5Max; ++paramIdx)
     {
@@ -286,7 +286,7 @@ int RestoreStateParamsFromChunk(Addivox& plugin,
         return position;
     }
 
-    if(remainingValues == kPresetChunkParamCountWithReverb)
+    if(remainingValues == kPatchChunkParamCountWithReverb)
     {
       if(!SetParamFromChunkValue(plugin, chunk, kParamEffectsReverb, position, false))
         return position;
@@ -317,19 +317,19 @@ std::string GetFullFileDialogPath(const WDL_String& fileName)
 
 std::string EnsureTomlExtension(std::string path)
 {
-  if(preset_io::detail::HasExtension(path, ".toml"))
+  if(patch_io::detail::HasExtension(path, ".toml"))
     return path;
 
   path += ".toml";
   return path;
 }
 
-std::string SanitizePresetFileName(std::string_view presetName)
+std::string SanitizePatchFileName(std::string_view patchName)
 {
   std::string sanitized;
-  sanitized.reserve(presetName.size());
+  sanitized.reserve(patchName.size());
 
-  for(const char c : presetName)
+  for(const char c : patchName)
   {
     const unsigned char uc = static_cast<unsigned char>(c);
     if(std::isalnum(uc) || c == ' ' || c == '-' || c == '_')
@@ -342,30 +342,30 @@ std::string SanitizePresetFileName(std::string_view presetName)
     sanitized.pop_back();
 
   if(sanitized.empty())
-    sanitized = "Preset";
+    sanitized = "Patch";
 
   return EnsureTomlExtension(sanitized);
 }
 
-std::string GetDefaultUserPresetDirectory()
+std::string GetDefaultUserPatchDirectory()
 {
   WDL_String appSupportPath;
   AppSupportPath(appSupportPath, false);
   if(appSupportPath.GetLength() == 0)
     return {};
 
-  return preset_io::detail::JoinPath(
-    preset_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME),
-    "Presets");
+  return patch_io::detail::JoinPath(
+    patch_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME),
+    "Patches");
 }
 
-std::string EnsureDefaultUserPresetDirectory()
+std::string EnsureDefaultUserPatchDirectory()
 {
-  const std::string directory = GetDefaultUserPresetDirectory();
+  const std::string directory = GetDefaultUserPatchDirectory();
   if(directory.empty())
     return {};
 
-  if(!preset_io::detail::EnsureDirectoryExists(directory))
+  if(!patch_io::detail::EnsureDirectoryExists(directory))
     return {};
 
   return directory;
@@ -378,7 +378,7 @@ std::string GetStandaloneSettingsDirectory()
   if(appSupportPath.GetLength() == 0)
     return {};
 
-  return preset_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME);
+  return patch_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME);
 }
 
 std::string GetStandaloneBreathCCSourcePath()
@@ -387,7 +387,7 @@ std::string GetStandaloneBreathCCSourcePath()
   if(settingsDirectory.empty())
     return {};
 
-  return preset_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
+  return patch_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
 }
 
 std::string GetStandaloneStatePath()
@@ -396,7 +396,7 @@ std::string GetStandaloneStatePath()
   if(settingsDirectory.empty())
     return {};
 
-  return preset_io::detail::JoinPath(settingsDirectory, "standalone_state.chunk");
+  return patch_io::detail::JoinPath(settingsDirectory, "standalone_state.chunk");
 }
 
 std::string GetStandalonePitchBendRangePath()
@@ -405,7 +405,7 @@ std::string GetStandalonePitchBendRangePath()
   if(settingsDirectory.empty())
     return {};
 
-  return preset_io::detail::JoinPath(settingsDirectory, "pitch_bend_range.txt");
+  return patch_io::detail::JoinPath(settingsDirectory, "pitch_bend_range.txt");
 }
 
 std::string GetStandaloneHarmonicVisualizerEnabledPath()
@@ -414,7 +414,7 @@ std::string GetStandaloneHarmonicVisualizerEnabledPath()
   if(settingsDirectory.empty())
     return {};
 
-  return preset_io::detail::JoinPath(settingsDirectory, "harmonic_visualizer_enabled.txt");
+  return patch_io::detail::JoinPath(settingsDirectory, "harmonic_visualizer_enabled.txt");
 }
 
 bool LoadStandaloneBreathCCSource(BreathCCSource& source)
@@ -487,8 +487,8 @@ bool SaveStandaloneStateChunk(const IByteChunk& chunk)
   if(path.empty())
     return false;
 
-  const std::string parentPath = preset_io::detail::ParentPath(path);
-  if(!parentPath.empty() && !preset_io::detail::EnsureDirectoryExists(parentPath))
+  const std::string parentPath = patch_io::detail::ParentPath(path);
+  if(!parentPath.empty() && !patch_io::detail::EnsureDirectoryExists(parentPath))
     return false;
 
   std::ofstream stream(path, std::ios::binary | std::ios::trunc);
@@ -523,10 +523,10 @@ void DeleteStandaloneSettingsFile(const std::string& path)
   if(path.empty())
     return;
 
-  if(!preset_io::detail::PathExists(path))
+  if(!patch_io::detail::PathExists(path))
     return;
 
-  preset_io::detail::DeleteFile(path);
+  patch_io::detail::DeleteFile(path);
 }
 
 void DeleteStandaloneStateFile()
@@ -556,14 +556,14 @@ std::string GetTemporaryDirectoryPath()
   }
 
 #if defined(OS_WIN)
-  const std::string fallbackPath = GetDefaultUserPresetDirectory();
+  const std::string fallbackPath = GetDefaultUserPatchDirectory();
   return fallbackPath.empty() ? "." : fallbackPath;
 #else
   return "/tmp";
 #endif
 }
 
-void ShowPresetFileError(IGraphics* ui, const char* title, const std::string& message)
+void ShowPatchFileError(IGraphics* ui, const char* title, const std::string& message)
 {
   if(ui)
     ui->ShowMessageBox(message.c_str(), title, kMB_OK);
@@ -571,7 +571,7 @@ void ShowPresetFileError(IGraphics* ui, const char* title, const std::string& me
 
 std::string TrimTrailingSeparators(std::string path)
 {
-  const std::string_view trimmed = preset_io::detail::TrimTrailingPathSeparators(path);
+  const std::string_view trimmed = patch_io::detail::TrimTrailingPathSeparators(path);
   return std::string{trimmed};
 }
 
@@ -634,22 +634,22 @@ std::string RelativePathFromDirectory(std::string_view directory, std::string_vi
 std::string DirectoryRelativeToRoot(std::string_view rootDirectory, std::string_view filePath)
 {
   const std::string relativePath = RelativePathFromDirectory(rootDirectory, filePath);
-  return preset_io::detail::ParentPath(relativePath);
+  return patch_io::detail::ParentPath(relativePath);
 }
 
 std::string GetUniqueChildDirectory(std::string_view parentDirectory, std::string_view preferredName)
 {
-  std::string sanitized = SanitizePresetFileName(preferredName);
-  if(preset_io::detail::HasExtension(sanitized, ".toml"))
+  std::string sanitized = SanitizePatchFileName(preferredName);
+  if(patch_io::detail::HasExtension(sanitized, ".toml"))
     sanitized.resize(sanitized.size() - 5);
   if(sanitized.empty())
     sanitized = "Collection";
 
-  std::string candidate = preset_io::detail::JoinPath(parentDirectory, sanitized);
+  std::string candidate = patch_io::detail::JoinPath(parentDirectory, sanitized);
   int suffix = 2;
-  while(preset_io::detail::PathExists(candidate))
+  while(patch_io::detail::PathExists(candidate))
   {
-    candidate = preset_io::detail::JoinPath(
+    candidate = patch_io::detail::JoinPath(
       parentDirectory,
       sanitized + " " + std::to_string(suffix));
     ++suffix;
@@ -657,21 +657,21 @@ std::string GetUniqueChildDirectory(std::string_view parentDirectory, std::strin
   return candidate;
 }
 
-std::string GetUniquePresetFilePath(std::string_view parentDirectory, std::string_view preferredName)
+std::string GetUniquePatchFilePath(std::string_view parentDirectory, std::string_view preferredName)
 {
-  std::string sanitized = SanitizePresetFileName(preset_io::detail::FileStem(preferredName));
+  std::string sanitized = SanitizePatchFileName(patch_io::detail::FileStem(preferredName));
   if(sanitized.empty())
-    sanitized = "Preset.toml";
+    sanitized = "Patch.toml";
 
-  std::string candidate = preset_io::detail::JoinPath(parentDirectory, sanitized);
+  std::string candidate = patch_io::detail::JoinPath(parentDirectory, sanitized);
   int suffix = 2;
-  while(preset_io::detail::PathExists(candidate))
+  while(patch_io::detail::PathExists(candidate))
   {
-    std::string stem = preset_io::detail::FileStem(sanitized);
+    std::string stem = patch_io::detail::FileStem(sanitized);
     if(stem.empty())
-      stem = "Preset";
+      stem = "Patch";
 
-    candidate = preset_io::detail::JoinPath(
+    candidate = patch_io::detail::JoinPath(
       parentDirectory,
       EnsureTomlExtension(stem + " " + std::to_string(suffix)));
     ++suffix;
@@ -681,8 +681,8 @@ std::string GetUniquePresetFilePath(std::string_view parentDirectory, std::strin
 
 bool CopyFileBytes(const std::string& sourcePath, const std::string& destinationPath)
 {
-  const std::string destinationParent = preset_io::detail::ParentPath(destinationPath);
-  if(!destinationParent.empty() && !preset_io::detail::EnsureDirectoryExists(destinationParent))
+  const std::string destinationParent = patch_io::detail::ParentPath(destinationPath);
+  if(!destinationParent.empty() && !patch_io::detail::EnsureDirectoryExists(destinationParent))
     return false;
 
   std::ifstream input(sourcePath, std::ios::binary);
@@ -697,26 +697,26 @@ bool CopyFileBytes(const std::string& sourcePath, const std::string& destination
   return !input.bad() && output.good();
 }
 
-bool CopyPresetCollection(std::string_view sourceDirectory,
+bool CopyPatchCollection(std::string_view sourceDirectory,
                           std::string_view destinationDirectory,
                           std::string* errorMessage = nullptr)
 {
-  const std::vector<std::string> presetPaths = preset_io::FindPresetFiles(sourceDirectory);
-  if(presetPaths.empty())
+  const std::vector<std::string> patchPaths = patch_io::FindPatchFiles(sourceDirectory);
+  if(patchPaths.empty())
   {
     if(errorMessage)
-      *errorMessage = "No TOML presets were found in that collection.";
+      *errorMessage = "No TOML patches were found in that collection.";
     return false;
   }
 
-  for(const auto& presetPath : presetPaths)
+  for(const auto& patchPath : patchPaths)
   {
-    const std::string relativePath = RelativePathFromDirectory(sourceDirectory, presetPath);
-    const std::string destinationPath = preset_io::detail::JoinPath(destinationDirectory, relativePath);
-    if(!CopyFileBytes(presetPath, destinationPath))
+    const std::string relativePath = RelativePathFromDirectory(sourceDirectory, patchPath);
+    const std::string destinationPath = patch_io::detail::JoinPath(destinationDirectory, relativePath);
+    if(!CopyFileBytes(patchPath, destinationPath))
     {
       if(errorMessage)
-        *errorMessage = "Could not copy preset: " + presetPath;
+        *errorMessage = "Could not copy patch: " + patchPath;
       return false;
     }
   }
@@ -724,7 +724,7 @@ bool CopyPresetCollection(std::string_view sourceDirectory,
   return true;
 }
 
-bool ShouldTrackPresetDirtyForParamSource(EParamSource source)
+bool ShouldTrackPatchDirtyForParamSource(EParamSource source)
 {
   switch(source)
   {
@@ -737,18 +737,18 @@ bool ShouldTrackPresetDirtyForParamSource(EParamSource source)
   }
 }
 
-std::string CanonicalizePresetSnapshotToml(const std::string& snapshot)
+std::string CanonicalizePatchSnapshotToml(const std::string& snapshot)
 {
-  preset_io::PresetDocument document;
-  if(snapshot.empty() || !preset_io::ParsePresetToml(snapshot, document))
+  patch_io::PatchDocument document;
+  if(snapshot.empty() || !patch_io::ParsePatchToml(snapshot, document))
     return snapshot;
 
-  return preset_io::SerializePresetToToml(document);
+  return patch_io::SerializePatchToToml(document);
 }
 } // namespace
 
 Addivox::Addivox(const InstanceInfo& info)
-: iplug::Plugin(info, MakeConfig(kNumParams, kMaxFactoryPresets))
+: iplug::Plugin(info, MakeConfig(kNumParams, kMaxFactoryPatches))
 , mEditorState(std::make_shared<plugin_ui::EditorState>())
 {
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
@@ -930,11 +930,11 @@ Addivox::Addivox(const InstanceInfo& info)
   };
 #endif
 
-  LoadBuiltInPresets();
-  RebuildPresetCatalog();
-  RestoreFactoryPreset(0);
-  if(mActivePresetDisplayName.empty() && NPresets() > 0)
-    mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
+  LoadBuiltInPatches();
+  RebuildPatchCatalog();
+  RestoreFactoryPatch(0);
+  if(mActivePatchDisplayName.empty() && NPresets() > 0)
+    mActivePatchDisplayName = GetPresetName(GetCurrentPresetIdx());
 
   SetPitchBendRange(mPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
@@ -1071,7 +1071,7 @@ void Addivox::ResetStandaloneStateToDefaults()
   mNumActiveUIMIDINotes = 0;
 
   if(NPresets() > 0)
-    RestoreFactoryPreset(0);
+    RestoreFactoryPatch(0);
 
   SetPitchBendRange(kDefaultPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
@@ -1157,36 +1157,36 @@ void Addivox::SendBreathControlFromUI(double value, int channel, int offset)
     offset));
 }
 
-void Addivox::ApplyPresetDocument(const preset_io::PresetDocument& document)
+void Addivox::ApplyPatchDocument(const patch_io::PatchDocument& document)
 {
-  mSuppressPresetDirtyTracking = true;
+  mSuppressPatchDirtyTracking = true;
 
-  mEditorState->compoundPreset = document.compoundPreset;
-  mEditorState->selectedMidiNote = preset_io::detail::ChooseDefaultSelectedMidiNote(
-    document.compoundPreset,
+  mEditorState->compoundPatch = document.compoundPatch;
+  mEditorState->selectedMidiNote = patch_io::detail::ChooseDefaultSelectedMidiNote(
+    document.compoundPatch,
     mEditorState->selectedMidiNote);
 
 #if IPLUG_DSP
-  mDSP.SetCompoundPreset(document.compoundPreset);
+  mDSP.SetCompoundPatch(document.compoundPatch);
 #endif
 
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
   SetEffectsSettingsParams(*this, document.effectsSettings, false);
   OnParamReset(kPresetRecall);
-  SyncPresetOwnedParamDefaultsToCurrentValues(*this);
+  SyncPatchOwnedParamDefaultsToCurrentValues(*this);
 
   if(!document.name.empty())
-    mActivePresetDisplayName = document.name;
-  else if(mActivePresetDisplayName.empty())
-    mActivePresetDisplayName = "Preset";
+    mActivePatchDisplayName = document.name;
+  else if(mActivePatchDisplayName.empty())
+    mActivePatchDisplayName = "Patch";
 
-  mSuppressPresetDirtyTracking = false;
-  SetActivePresetCleanSnapshotFromCurrentState();
+  mSuppressPatchDirtyTracking = false;
+  SetActivePatchCleanSnapshotFromCurrentState();
   RefreshEditorUI(true);
   MarkStandaloneStateDirty();
 }
 
-void Addivox::PromptLoadPresetFromFile()
+void Addivox::PromptLoadPatchFromFile()
 {
 #if IPLUG_EDITOR
   IGraphics* ui = GetUI();
@@ -1195,9 +1195,9 @@ void Addivox::PromptLoadPresetFromFile()
 
   WDL_String fileName;
   WDL_String directory;
-  const std::string initialDirectory = mUserPresetDirectory.empty()
-    ? EnsureDefaultUserPresetDirectory()
-    : mUserPresetDirectory;
+  const std::string initialDirectory = mUserPatchDirectory.empty()
+    ? EnsureDefaultUserPatchDirectory()
+    : mUserPatchDirectory;
   if(!initialDirectory.empty())
     directory.Set(initialDirectory.c_str());
 
@@ -1211,43 +1211,43 @@ void Addivox::PromptLoadPresetFromFile()
       if(fullPath.empty())
         return;
 
-      LoadUserPresetByPath(fullPath);
+      LoadUserPatchByPath(fullPath);
     });
 #endif
 }
 
-void Addivox::PromptSavePresetToFile()
+void Addivox::PromptSavePatchToFile()
 {
 #if IPLUG_EDITOR
   IGraphics* ui = GetUI();
   if(!ui)
     return;
 
-  preset_io::PresetDocument document;
-  document.name = mActivePresetDisplayName.empty() ? "Preset" : mActivePresetDisplayName;
+  patch_io::PatchDocument document;
+  document.name = mActivePatchDisplayName.empty() ? "Patch" : mActivePatchDisplayName;
   document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
   document.effectsSettings = GetEffectsSettingsFromParams(*this);
-  document.compoundPreset = mEditorState->compoundPreset;
+  document.compoundPatch = mEditorState->compoundPatch;
 
   WDL_String fileName;
   WDL_String directory;
   const std::string defaultFileName =
-    (mActivePresetSource == PresetSource::User && !mActivePresetPath.empty())
-      ? std::string{preset_io::detail::FileNameView(mActivePresetPath)}
-      : SanitizePresetFileName(document.name);
+    (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty())
+      ? std::string{patch_io::detail::FileNameView(mActivePatchPath)}
+      : SanitizePatchFileName(document.name);
   const std::string initialDirectory =
-    (mActivePresetSource == PresetSource::User && !mActivePresetPath.empty())
-      ? preset_io::detail::ParentPath(mActivePresetPath)
-      : (mUserPresetDirectory.empty() ? EnsureDefaultUserPresetDirectory() : mUserPresetDirectory);
+    (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty())
+      ? patch_io::detail::ParentPath(mActivePatchPath)
+      : (mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory);
   if(!initialDirectory.empty())
-    preset_io::detail::EnsureDirectoryExists(initialDirectory);
+    patch_io::detail::EnsureDirectoryExists(initialDirectory);
 
 #if defined(OS_IOS)
-  const std::string exportPath = preset_io::detail::JoinPath(GetTemporaryDirectoryPath(), defaultFileName);
+  const std::string exportPath = patch_io::detail::JoinPath(GetTemporaryDirectoryPath(), defaultFileName);
   std::string errorMessage;
-  if(!preset_io::SavePresetToFile(exportPath, document, &errorMessage))
+  if(!patch_io::SavePatchToFile(exportPath, document, &errorMessage))
   {
-    ShowPresetFileError(ui, "Preset Save Failed", errorMessage);
+    ShowPatchFileError(ui, "Patch Save Failed", errorMessage);
     return;
   }
 
@@ -1259,13 +1259,13 @@ void Addivox::PromptSavePresetToFile()
     EFileAction::Save,
     "toml",
     [this, exportPath](const WDL_String& selectedFileName, const WDL_String&) {
-      preset_io::detail::DeleteFile(exportPath);
+      patch_io::detail::DeleteFile(exportPath);
 
       const std::string destinationPath = GetFullFileDialogPath(selectedFileName);
       if(destinationPath.empty())
         return;
 
-      mUserPresetDirectory = preset_io::detail::ParentPath(destinationPath);
+      mUserPatchDirectory = patch_io::detail::ParentPath(destinationPath);
     });
 #else
   fileName.Set(defaultFileName.c_str());
@@ -1285,23 +1285,23 @@ void Addivox::PromptSavePresetToFile()
       fullPath = EnsureTomlExtension(std::move(fullPath));
 
       std::string errorMessage;
-      if(!preset_io::SavePresetToFile(fullPath, document, &errorMessage))
+      if(!patch_io::SavePatchToFile(fullPath, document, &errorMessage))
       {
-        ShowPresetFileError(GetUI(), "Preset Save Failed", errorMessage);
+        ShowPatchFileError(GetUI(), "Patch Save Failed", errorMessage);
         return;
       }
 
-      mUserPresetDirectory = preset_io::detail::ParentPath(fullPath);
-      mActivePresetSource = PresetSource::User;
-      mActivePresetPath = fullPath;
-      mActivePresetDisplayName = preset_io::detail::FileStem(fullPath);
-      const std::string relativeDirectory = DirectoryRelativeToRoot(EnsureDefaultUserPresetDirectory(), fullPath);
+      mUserPatchDirectory = patch_io::detail::ParentPath(fullPath);
+      mActivePatchSource = PatchSource::User;
+      mActivePatchPath = fullPath;
+      mActivePatchDisplayName = patch_io::detail::FileStem(fullPath);
+      const std::string relativeDirectory = DirectoryRelativeToRoot(EnsureDefaultUserPatchDirectory(), fullPath);
       std::vector<std::string> menuPath{"User"};
       const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
       menuPath.insert(menuPath.end(), relativeParts.begin(), relativeParts.end());
-      mActivePresetGroupKey = MakeGroupKey(menuPath);
-      SetActivePresetCleanSnapshotFromCurrentState();
-      RebuildPresetCatalog();
+      mActivePatchGroupKey = MakeGroupKey(menuPath);
+      SetActivePatchCleanSnapshotFromCurrentState();
+      RebuildPatchCatalog();
       RefreshEditorUI();
     });
 #endif
@@ -1362,125 +1362,125 @@ void Addivox::SendMidiMsgFromUI(const IMidiMsg& msg)
 
 bool Addivox::SerializeState(IByteChunk& chunk) const
 {
-  preset_io::PresetDocument document;
-  document.name = mActivePresetDisplayName.empty() ? GetPresetName(GetCurrentPresetIdx()) : mActivePresetDisplayName;
+  patch_io::PatchDocument document;
+  document.name = mActivePatchDisplayName.empty() ? GetPresetName(GetCurrentPresetIdx()) : mActivePatchDisplayName;
   document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
   document.effectsSettings = GetEffectsSettingsFromParams(*this);
-  document.compoundPreset = mEditorState->compoundPreset;
+  document.compoundPatch = mEditorState->compoundPatch;
 
-  return chunk.PutStr(preset_io::SerializePresetToToml(document).c_str()) > 0
+  return chunk.PutStr(patch_io::SerializePatchToToml(document).c_str()) > 0
     && SerializeParams(chunk)
     && AppendPluginStateSettingsChunk(
       chunk,
       mBreathCCSource,
       mHarmonicVisualizerEnabled.load(std::memory_order_relaxed),
       mPitchBendRange,
-      mActivePresetDirty,
-      mActivePresetCleanSnapshot);
+      mActivePatchDirty,
+      mActivePatchCleanSnapshot);
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
 {
-  WDL_String presetToml;
-  int position = chunk.GetStr(presetToml, startPos);
+  WDL_String patchToml;
+  int position = chunk.GetStr(patchToml, startPos);
   if(position < 0)
     return position;
 
-  preset_io::PresetDocument document;
-  if(!preset_io::ParsePresetToml(presetToml.Get(), document))
+  patch_io::PatchDocument document;
+  if(!patch_io::ParsePatchToml(patchToml.Get(), document))
     return -1;
 
-  mSuppressPresetDirtyTracking = true;
-  mEditorState->compoundPreset = document.compoundPreset;
-  mEditorState->selectedMidiNote = preset_io::detail::ChooseDefaultSelectedMidiNote(
-    document.compoundPreset,
+  mSuppressPatchDirtyTracking = true;
+  mEditorState->compoundPatch = document.compoundPatch;
+  mEditorState->selectedMidiNote = patch_io::detail::ChooseDefaultSelectedMidiNote(
+    document.compoundPatch,
     mEditorState->selectedMidiNote);
-  mPendingRestoredStatePresetName = document.name;
+  mPendingRestoredStatePatchName = document.name;
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
   SetEffectsSettingsParams(*this, document.effectsSettings, false);
 
 #if IPLUG_DSP
-  mDSP.SetCompoundPreset(document.compoundPreset);
+  mDSP.SetCompoundPatch(document.compoundPatch);
 #endif
 
   int pos = position;
   ENTER_PARAMS_MUTEX
   pos = RestoreStateParamsFromChunk(*this, chunk, pos);
   OnParamReset(kPresetRecall);
-  SyncPresetOwnedParamDefaultsToCurrentValues(*this);
+  SyncPatchOwnedParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX
-  mSuppressPresetDirtyTracking = false;
+  mSuppressPatchDirtyTracking = false;
 
   int restoredPitchBendRange = mPitchBendRange;
   BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
   bool restoredHarmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
-  bool restoredPresetDirty = false;
-  std::string restoredPresetCleanSnapshot;
+  bool restoredPatchDirty = false;
+  std::string restoredPatchCleanSnapshot;
   if(ReadPluginStateSettingsChunk(
        chunk,
        pos,
        restoredBreathCCSource,
        restoredHarmonicVisualizerEnabled,
        restoredPitchBendRange,
-       restoredPresetDirty,
-       restoredPresetCleanSnapshot))
+       restoredPatchDirty,
+       restoredPatchCleanSnapshot))
   {
     SetPitchBendRange(restoredPitchBendRange);
     SetBreathCCSource(restoredBreathCCSource);
     SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
   }
-  (void) restoredPresetDirty;
-  mPendingRestoredPresetCleanSnapshot = std::move(restoredPresetCleanSnapshot);
-  mPendingRestoredPresetHasCleanSnapshot = !mPendingRestoredPresetCleanSnapshot.empty();
+  (void) restoredPatchDirty;
+  mPendingRestoredPatchCleanSnapshot = std::move(restoredPatchCleanSnapshot);
+  mPendingRestoredPatchHasCleanSnapshot = !mPendingRestoredPatchCleanSnapshot.empty();
 
   return pos;
 }
 
 void Addivox::OnRestoreState()
 {
-  mSuppressPresetDirtyTracking = true;
+  mSuppressPatchDirtyTracking = true;
   Plugin::OnRestoreState();
-  mSuppressPresetDirtyTracking = false;
+  mSuppressPatchDirtyTracking = false;
 
-  if(!mPendingRestoredStatePresetName.empty())
+  if(!mPendingRestoredStatePatchName.empty())
   {
-    mActivePresetDisplayName = mPendingRestoredStatePresetName;
-    mPendingRestoredStatePresetName.clear();
+    mActivePatchDisplayName = mPendingRestoredStatePatchName;
+    mPendingRestoredStatePatchName.clear();
   }
   else if(NPresets() > 0 && GetCurrentPresetIdx() >= 0 && GetCurrentPresetIdx() < NPresets())
   {
-    mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
+    mActivePatchDisplayName = GetPresetName(GetCurrentPresetIdx());
   }
 
-  if(mRestoringFactoryPresetIdx >= 0)
+  if(mRestoringFactoryPatchIdx >= 0)
   {
-    mActivePresetSource = PresetSource::Factory;
-    mActivePresetPath = (mRestoringFactoryPresetIdx < static_cast<int>(mFactoryPresetPaths.size()))
-      ? mFactoryPresetPaths[static_cast<std::size_t>(mRestoringFactoryPresetIdx)]
+    mActivePatchSource = PatchSource::Factory;
+    mActivePatchPath = (mRestoringFactoryPatchIdx < static_cast<int>(mFactoryPatchPaths.size()))
+      ? mFactoryPatchPaths[static_cast<std::size_t>(mRestoringFactoryPatchIdx)]
       : std::string{};
-    mActivePresetGroupKey = "Factory";
-    mRestoringFactoryPresetIdx = -1;
-    mPendingRestoredPresetCleanSnapshot.clear();
-    mPendingRestoredPresetHasCleanSnapshot = false;
+    mActivePatchGroupKey = "Factory";
+    mRestoringFactoryPatchIdx = -1;
+    mPendingRestoredPatchCleanSnapshot.clear();
+    mPendingRestoredPatchHasCleanSnapshot = false;
   }
   else
   {
-    mActivePresetSource = PresetSource::Unknown;
-    mActivePresetPath.clear();
-    mActivePresetGroupKey = "Factory";
+    mActivePatchSource = PatchSource::Unknown;
+    mActivePatchPath.clear();
+    mActivePatchGroupKey = "Factory";
   }
 
-  if(mPendingRestoredPresetHasCleanSnapshot)
+  if(mPendingRestoredPatchHasCleanSnapshot)
   {
-    mActivePresetCleanSnapshot = CanonicalizePresetSnapshotToml(mPendingRestoredPresetCleanSnapshot);
-    mActivePresetDirty = SerializeCurrentPresetSnapshot() != mActivePresetCleanSnapshot;
+    mActivePatchCleanSnapshot = CanonicalizePatchSnapshotToml(mPendingRestoredPatchCleanSnapshot);
+    mActivePatchDirty = SerializeCurrentPatchSnapshot() != mActivePatchCleanSnapshot;
   }
   else
   {
-    SetActivePresetCleanSnapshotFromCurrentState();
+    SetActivePatchCleanSnapshotFromCurrentState();
   }
-  mPendingRestoredPresetCleanSnapshot.clear();
-  mPendingRestoredPresetHasCleanSnapshot = false;
+  mPendingRestoredPatchCleanSnapshot.clear();
+  mPendingRestoredPatchHasCleanSnapshot = false;
   RefreshEditorUI(true);
   MarkStandaloneStateDirty();
 }
@@ -1488,10 +1488,10 @@ void Addivox::OnRestoreState()
 void Addivox::OnUIOpen()
 {
   EnsureStandaloneStateInitialized();
-  mSuppressPresetDirtyTracking = true;
+  mSuppressPatchDirtyTracking = true;
   Plugin::OnUIOpen();
-  mSuppressPresetDirtyTracking = false;
-  RebuildPresetCatalog();
+  mSuppressPatchDirtyTracking = false;
+  RebuildPatchCatalog();
   RefreshEditorUI();
 }
 
@@ -1517,8 +1517,8 @@ bool Addivox::OnHostRequestingProductHelp()
 
 void Addivox::OnParamChangeUI(int paramIdx, EParamSource source)
 {
-  if(ShouldTrackPresetDirtyForParamSource(source) && IsPresetOwnedParam(paramIdx))
-    MarkActivePresetDirty();
+  if(ShouldTrackPatchDirtyForParamSource(source) && IsPatchOwnedParam(paramIdx))
+    MarkActivePatchDirty();
 
   MarkStandaloneStateDirty();
 }
@@ -1621,24 +1621,24 @@ void Addivox::OnParamChange(int paramIdx)
 
 bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData)
 {
-  if(msgTag == editor_messages::kMsgTagPromptLoadPresetFromFile)
+  if(msgTag == editor_messages::kMsgTagPromptLoadPatchFromFile)
   {
-    PromptLoadPresetFromFile();
+    PromptLoadPatchFromFile();
     return true;
   }
 
-  if(msgTag == editor_messages::kMsgTagPromptSavePresetToFile)
+  if(msgTag == editor_messages::kMsgTagPromptSavePatchToFile)
   {
-    PromptSavePresetToFile();
+    PromptSavePatchToFile();
     return true;
   }
 
-  if(msgTag == editor_messages::kMsgTagPresetManagerAction
-    && dataSize == sizeof(editor_messages::PresetManagerActionPayload)
+  if(msgTag == editor_messages::kMsgTagPatchManagerAction
+    && dataSize == sizeof(editor_messages::PatchManagerActionPayload)
     && pData)
   {
-    const auto* payload = static_cast<const editor_messages::PresetManagerActionPayload*>(pData);
-    HandlePresetManagerAction(payload->action, payload->presetId);
+    const auto* payload = static_cast<const editor_messages::PatchManagerActionPayload*>(pData);
+    HandlePatchManagerAction(payload->action, payload->patchId);
     return true;
   }
 
@@ -1683,7 +1683,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       payload->value);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
@@ -1705,7 +1705,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       payload->values);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
@@ -1724,7 +1724,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
@@ -1746,7 +1746,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       payload->midiNote);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
@@ -1761,37 +1761,37 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
-    && msgTag == editor_messages::kMsgTagAddKeyNotePreset
-    && dataSize == sizeof(editor_messages::KeyNotePresetPayload)
+    && msgTag == editor_messages::kMsgTagAddKeyNotePatch
+    && dataSize == sizeof(editor_messages::KeyNotePatchPayload)
     && pData)
   {
-    const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
-    const bool updated = mDSP.mSynth.GetVoice().AddKeyNotePreset(payload->midiNote);
+    const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+    const bool updated = mDSP.mSynth.GetVoice().AddKeyNotePatch(payload->midiNote);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
   }
 
   if(ctrlTag == kCtrlTagEditorTabs
-    && msgTag == editor_messages::kMsgTagRemoveKeyNotePreset
-    && dataSize == sizeof(editor_messages::KeyNotePresetPayload)
+    && msgTag == editor_messages::kMsgTagRemoveKeyNotePatch
+    && dataSize == sizeof(editor_messages::KeyNotePatchPayload)
     && pData)
   {
-    const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
-    const bool updated = mDSP.mSynth.GetVoice().RemoveKeyNotePreset(payload->midiNote);
+    const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+    const bool updated = mDSP.mSynth.GetVoice().RemoveKeyNotePatch(payload->midiNote);
     if(updated)
     {
-      MarkActivePresetDirty();
+      MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
@@ -1808,96 +1808,96 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 }
 #endif
 
-void Addivox::RebuildPresetCatalog()
+void Addivox::RebuildPatchCatalog()
 {
-  mPresetCatalog.clear();
+  mPatchCatalog.clear();
   int nextId = 0;
 
-  for(int presetIdx = 0; presetIdx < NPresets(); ++presetIdx)
+  for(int patchIdx = 0; patchIdx < NPresets(); ++patchIdx)
   {
-    PresetCatalogEntry entry;
+    PatchCatalogEntry entry;
     entry.id = nextId++;
-    entry.source = PresetSource::Factory;
-    entry.factoryIndex = presetIdx;
-    entry.name = GetPresetName(presetIdx);
+    entry.source = PatchSource::Factory;
+    entry.factoryIndex = patchIdx;
+    entry.name = GetPresetName(patchIdx);
     if(entry.name.empty())
-      entry.name = "Preset " + std::to_string(presetIdx + 1);
-    if(presetIdx < static_cast<int>(mFactoryPresetPaths.size()))
-      entry.path = mFactoryPresetPaths[static_cast<std::size_t>(presetIdx)];
+      entry.name = "Patch " + std::to_string(patchIdx + 1);
+    if(patchIdx < static_cast<int>(mFactoryPatchPaths.size()))
+      entry.path = mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)];
     entry.menuPath = {"Factory"};
     entry.groupKey = "Factory";
-    mPresetCatalog.push_back(std::move(entry));
+    mPatchCatalog.push_back(std::move(entry));
   }
 
-  const std::string userPresetDirectory = EnsureDefaultUserPresetDirectory();
-  const std::vector<std::string> userPresetPaths = preset_io::FindPresetFiles(userPresetDirectory);
-  for(const auto& presetPath : userPresetPaths)
+  const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+  const std::vector<std::string> userPatchPaths = patch_io::FindPatchFiles(userPatchDirectory);
+  for(const auto& patchPath : userPatchPaths)
   {
-    preset_io::PresetDocument document;
-    const bool loaded = preset_io::LoadPresetFromFile(presetPath, document);
+    patch_io::PatchDocument document;
+    const bool loaded = patch_io::LoadPatchFromFile(patchPath, document);
 
-    PresetCatalogEntry entry;
+    PatchCatalogEntry entry;
     entry.id = nextId++;
-    entry.source = PresetSource::User;
-    entry.path = presetPath;
-    entry.name = loaded && !document.name.empty() ? document.name : preset_io::detail::FileStem(presetPath);
+    entry.source = PatchSource::User;
+    entry.path = patchPath;
+    entry.name = loaded && !document.name.empty() ? document.name : patch_io::detail::FileStem(patchPath);
 
     entry.menuPath = {"User"};
-    const std::string relativeDirectory = DirectoryRelativeToRoot(userPresetDirectory, presetPath);
+    const std::string relativeDirectory = DirectoryRelativeToRoot(userPatchDirectory, patchPath);
     const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
     entry.menuPath.insert(entry.menuPath.end(), relativeParts.begin(), relativeParts.end());
     entry.groupKey = MakeGroupKey(entry.menuPath);
-    mPresetCatalog.push_back(std::move(entry));
+    mPatchCatalog.push_back(std::move(entry));
   }
 }
 
-void Addivox::RestoreFactoryPreset(int presetIdx)
+void Addivox::RestoreFactoryPatch(int patchIdx)
 {
-  if(presetIdx < 0 || presetIdx >= NPresets())
+  if(patchIdx < 0 || patchIdx >= NPresets())
     return;
 
-  mRestoringFactoryPresetIdx = presetIdx;
-  if(!RestorePreset(presetIdx))
+  mRestoringFactoryPatchIdx = patchIdx;
+  if(!RestorePreset(patchIdx))
   {
-    mRestoringFactoryPresetIdx = -1;
+    mRestoringFactoryPatchIdx = -1;
     return;
   }
 
-  mActivePresetSource = PresetSource::Factory;
-  mActivePresetPath = (presetIdx < static_cast<int>(mFactoryPresetPaths.size()))
-    ? mFactoryPresetPaths[static_cast<std::size_t>(presetIdx)]
+  mActivePatchSource = PatchSource::Factory;
+  mActivePatchPath = (patchIdx < static_cast<int>(mFactoryPatchPaths.size()))
+    ? mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)]
     : std::string{};
-  mActivePresetGroupKey = "Factory";
-  SetActivePresetCleanSnapshotFromCurrentState();
+  mActivePatchGroupKey = "Factory";
+  SetActivePatchCleanSnapshotFromCurrentState();
   RefreshEditorUI(true);
 }
 
-void Addivox::LoadUserPresetByPath(const std::string& path)
+void Addivox::LoadUserPatchByPath(const std::string& path)
 {
-  preset_io::PresetDocument document;
+  patch_io::PatchDocument document;
   std::string errorMessage;
-  if(!preset_io::LoadPresetFromFile(path, document, &errorMessage))
+  if(!patch_io::LoadPatchFromFile(path, document, &errorMessage))
   {
-    ShowPresetFileError(GetUI(), "Preset Load Failed", errorMessage);
+    ShowPatchFileError(GetUI(), "Patch Load Failed", errorMessage);
     return;
   }
 
-  mUserPresetDirectory = preset_io::detail::ParentPath(path);
-  ApplyPresetDocument(document);
-  mActivePresetSource = PresetSource::User;
-  mActivePresetPath = path;
+  mUserPatchDirectory = patch_io::detail::ParentPath(path);
+  ApplyPatchDocument(document);
+  mActivePatchSource = PatchSource::User;
+  mActivePatchPath = path;
 
   std::vector<std::string> menuPath{"User"};
-  const std::string relativeDirectory = DirectoryRelativeToRoot(EnsureDefaultUserPresetDirectory(), path);
+  const std::string relativeDirectory = DirectoryRelativeToRoot(EnsureDefaultUserPatchDirectory(), path);
   const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
   menuPath.insert(menuPath.end(), relativeParts.begin(), relativeParts.end());
-  mActivePresetGroupKey = MakeGroupKey(menuPath);
-  SetActivePresetCleanSnapshotFromCurrentState();
-  RebuildPresetCatalog();
+  mActivePatchGroupKey = MakeGroupKey(menuPath);
+  SetActivePatchCleanSnapshotFromCurrentState();
+  RebuildPatchCatalog();
   RefreshEditorUI(true);
 }
 
-void Addivox::PromptImportPresetFromFile()
+void Addivox::PromptImportPatchFromFile()
 {
 #if IPLUG_EDITOR
   IGraphics* ui = GetUI();
@@ -1906,9 +1906,9 @@ void Addivox::PromptImportPresetFromFile()
 
   WDL_String fileName;
   WDL_String directory;
-  const std::string initialDirectory = mUserPresetDirectory.empty()
-    ? EnsureDefaultUserPresetDirectory()
-    : mUserPresetDirectory;
+  const std::string initialDirectory = mUserPatchDirectory.empty()
+    ? EnsureDefaultUserPatchDirectory()
+    : mUserPatchDirectory;
   if(!initialDirectory.empty())
     directory.Set(initialDirectory.c_str());
 
@@ -1922,67 +1922,67 @@ void Addivox::PromptImportPresetFromFile()
       if(sourcePath.empty())
         return;
 
-      preset_io::PresetDocument document;
+      patch_io::PatchDocument document;
       std::string errorMessage;
-      if(!preset_io::LoadPresetFromFile(sourcePath, document, &errorMessage))
+      if(!patch_io::LoadPatchFromFile(sourcePath, document, &errorMessage))
       {
-        ShowPresetFileError(GetUI(), "Import Failed", errorMessage);
+        ShowPatchFileError(GetUI(), "Import Failed", errorMessage);
         return;
       }
 
-      const std::string userPresetDirectory = EnsureDefaultUserPresetDirectory();
-      if(userPresetDirectory.empty())
+      const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+      if(userPatchDirectory.empty())
       {
-        ShowPresetFileError(GetUI(), "Import Failed", "Could not locate the user preset directory.");
+        ShowPatchFileError(GetUI(), "Import Failed", "Could not locate the user patch directory.");
         return;
       }
 
-      const std::string destinationPath = GetUniquePresetFilePath(
-        userPresetDirectory,
-        preset_io::detail::FileNameView(sourcePath));
+      const std::string destinationPath = GetUniquePatchFilePath(
+        userPatchDirectory,
+        patch_io::detail::FileNameView(sourcePath));
       if(!CopyFileBytes(sourcePath, destinationPath))
       {
-        ShowPresetFileError(GetUI(), "Import Failed", "Could not copy preset: " + sourcePath);
+        ShowPatchFileError(GetUI(), "Import Failed", "Could not copy patch: " + sourcePath);
         return;
       }
 
-      mUserPresetDirectory = userPresetDirectory;
-      RebuildPresetCatalog();
-      LoadUserPresetByPath(destinationPath);
+      mUserPatchDirectory = userPatchDirectory;
+      RebuildPatchCatalog();
+      LoadUserPatchByPath(destinationPath);
     });
 #endif
 }
 
-void Addivox::LoadPresetById(int presetId)
+void Addivox::LoadPatchById(int patchId)
 {
   const auto entryIt = std::find_if(
-    mPresetCatalog.begin(),
-    mPresetCatalog.end(),
-    [presetId](const PresetCatalogEntry& entry) { return entry.id == presetId; });
-  if(entryIt == mPresetCatalog.end())
+    mPatchCatalog.begin(),
+    mPatchCatalog.end(),
+    [patchId](const PatchCatalogEntry& entry) { return entry.id == patchId; });
+  if(entryIt == mPatchCatalog.end())
     return;
 
-  if(entryIt->source == PresetSource::Factory)
-    RestoreFactoryPreset(entryIt->factoryIndex);
-  else if(entryIt->source == PresetSource::User)
-    LoadUserPresetByPath(entryIt->path);
+  if(entryIt->source == PatchSource::Factory)
+    RestoreFactoryPatch(entryIt->factoryIndex);
+  else if(entryIt->source == PatchSource::User)
+    LoadUserPatchByPath(entryIt->path);
 }
 
-void Addivox::CyclePresetInCurrentGroup(int direction)
+void Addivox::CyclePatchInCurrentGroup(int direction)
 {
-  if(mPresetCatalog.empty())
-    RebuildPresetCatalog();
+  if(mPatchCatalog.empty())
+    RebuildPatchCatalog();
 
-  std::vector<const PresetCatalogEntry*> groupEntries;
-  for(const auto& entry : mPresetCatalog)
+  std::vector<const PatchCatalogEntry*> groupEntries;
+  for(const auto& entry : mPatchCatalog)
   {
-    if(entry.groupKey == mActivePresetGroupKey)
+    if(entry.groupKey == mActivePatchGroupKey)
       groupEntries.push_back(&entry);
   }
 
   if(groupEntries.empty())
   {
-    for(const auto& entry : mPresetCatalog)
+    for(const auto& entry : mPatchCatalog)
     {
       if(entry.groupKey == "Factory")
         groupEntries.push_back(&entry);
@@ -1995,10 +1995,10 @@ void Addivox::CyclePresetInCurrentGroup(int direction)
   int currentIndex = -1;
   for(int i = 0; i < static_cast<int>(groupEntries.size()); ++i)
   {
-    const PresetCatalogEntry* entry = groupEntries[static_cast<std::size_t>(i)];
+    const PatchCatalogEntry* entry = groupEntries[static_cast<std::size_t>(i)];
     const bool matches =
-      (entry->source == PresetSource::Factory && mActivePresetSource == PresetSource::Factory && entry->factoryIndex == GetCurrentPresetIdx())
-      || (entry->source == PresetSource::User && mActivePresetSource == PresetSource::User && entry->path == mActivePresetPath);
+      (entry->source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry->factoryIndex == GetCurrentPresetIdx())
+      || (entry->source == PatchSource::User && mActivePatchSource == PatchSource::User && entry->path == mActivePatchPath);
     if(matches)
     {
       currentIndex = i;
@@ -2015,10 +2015,10 @@ void Addivox::CyclePresetInCurrentGroup(int direction)
   if(nextIndex >= static_cast<int>(groupEntries.size()))
     nextIndex = 0;
 
-  LoadPresetById(groupEntries[static_cast<std::size_t>(nextIndex)]->id);
+  LoadPatchById(groupEntries[static_cast<std::size_t>(nextIndex)]->id);
 }
 
-void Addivox::PromptImportPresetCollection()
+void Addivox::PromptImportPatchCollection()
 {
 #if IPLUG_EDITOR
   IGraphics* ui = GetUI();
@@ -2026,9 +2026,9 @@ void Addivox::PromptImportPresetCollection()
     return;
 
   WDL_String directory;
-  const std::string initialDirectory = mUserPresetDirectory.empty()
-    ? EnsureDefaultUserPresetDirectory()
-    : mUserPresetDirectory;
+  const std::string initialDirectory = mUserPatchDirectory.empty()
+    ? EnsureDefaultUserPatchDirectory()
+    : mUserPatchDirectory;
   if(!initialDirectory.empty())
     directory.Set(initialDirectory.c_str());
 
@@ -2039,30 +2039,30 @@ void Addivox::PromptImportPresetCollection()
         return;
 
       const std::string sourceDirectory = TrimTrailingSeparators(selectedDirectory.Get());
-      const std::string userPresetDirectory = EnsureDefaultUserPresetDirectory();
-      if(userPresetDirectory.empty())
+      const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+      if(userPatchDirectory.empty())
       {
-        ShowPresetFileError(GetUI(), "Import Failed", "Could not locate the user preset directory.");
+        ShowPatchFileError(GetUI(), "Import Failed", "Could not locate the user patch directory.");
         return;
       }
 
-      const std::string collectionName{preset_io::detail::FileNameView(sourceDirectory)};
-      const std::string destinationDirectory = GetUniqueChildDirectory(userPresetDirectory, collectionName);
+      const std::string collectionName{patch_io::detail::FileNameView(sourceDirectory)};
+      const std::string destinationDirectory = GetUniqueChildDirectory(userPatchDirectory, collectionName);
       std::string errorMessage;
-      if(!CopyPresetCollection(sourceDirectory, destinationDirectory, &errorMessage))
+      if(!CopyPatchCollection(sourceDirectory, destinationDirectory, &errorMessage))
       {
-        ShowPresetFileError(GetUI(), "Import Failed", errorMessage);
+        ShowPatchFileError(GetUI(), "Import Failed", errorMessage);
         return;
       }
 
-      mUserPresetDirectory = destinationDirectory;
-      RebuildPresetCatalog();
+      mUserPatchDirectory = destinationDirectory;
+      RebuildPatchCatalog();
       RefreshEditorUI();
     });
 #endif
 }
 
-void Addivox::ShowActivePresetInFileBrowser()
+void Addivox::ShowActivePatchInFileBrowser()
 {
 #if IPLUG_EDITOR
   IGraphics* ui = GetUI();
@@ -2070,147 +2070,147 @@ void Addivox::ShowActivePresetInFileBrowser()
     return;
 
   WDL_String path;
-  if(mActivePresetSource == PresetSource::User
-    && !mActivePresetPath.empty()
-    && preset_io::detail::PathExists(mActivePresetPath))
+  if(mActivePatchSource == PatchSource::User
+    && !mActivePatchPath.empty()
+    && patch_io::detail::PathExists(mActivePatchPath))
   {
-    path.Set(mActivePresetPath.c_str());
+    path.Set(mActivePatchPath.c_str());
     ui->RevealPathInExplorerOrFinder(path, true);
     return;
   }
 
-  const std::string userPresetDirectory = EnsureDefaultUserPresetDirectory();
-  if(userPresetDirectory.empty())
+  const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+  if(userPatchDirectory.empty())
     return;
 
-  path.Set(userPresetDirectory.c_str());
+  path.Set(userPatchDirectory.c_str());
   ui->RevealPathInExplorerOrFinder(path, false);
 #endif
 }
 
-void Addivox::HandlePresetManagerAction(int action, int presetId)
+void Addivox::HandlePatchManagerAction(int action, int patchId)
 {
-  const auto presetAction = static_cast<editor_messages::PresetManagerAction>(action);
-  switch(presetAction)
+  const auto patchAction = static_cast<editor_messages::PatchManagerAction>(action);
+  switch(patchAction)
   {
-    case editor_messages::PresetManagerAction::SelectPreset:
-      LoadPresetById(presetId);
+    case editor_messages::PatchManagerAction::SelectPatch:
+      LoadPatchById(patchId);
       break;
-    case editor_messages::PresetManagerAction::PreviousPreset:
-      CyclePresetInCurrentGroup(-1);
+    case editor_messages::PatchManagerAction::PreviousPatch:
+      CyclePatchInCurrentGroup(-1);
       break;
-    case editor_messages::PresetManagerAction::NextPreset:
-      CyclePresetInCurrentGroup(1);
+    case editor_messages::PatchManagerAction::NextPatch:
+      CyclePatchInCurrentGroup(1);
       break;
-    case editor_messages::PresetManagerAction::SavePreset:
-      PromptSavePresetToFile();
+    case editor_messages::PatchManagerAction::SavePatch:
+      PromptSavePatchToFile();
       break;
-    case editor_messages::PresetManagerAction::ImportPreset:
-      PromptImportPresetFromFile();
+    case editor_messages::PatchManagerAction::ImportPatch:
+      PromptImportPatchFromFile();
       break;
-    case editor_messages::PresetManagerAction::ImportCollection:
-      PromptImportPresetCollection();
+    case editor_messages::PatchManagerAction::ImportCollection:
+      PromptImportPatchCollection();
       break;
-    case editor_messages::PresetManagerAction::ShowPresetInFileBrowser:
-      ShowActivePresetInFileBrowser();
+    case editor_messages::PatchManagerAction::ShowPatchInFileBrowser:
+      ShowActivePatchInFileBrowser();
       break;
-    case editor_messages::PresetManagerAction::RefreshPresets:
-      RebuildPresetCatalog();
+    case editor_messages::PatchManagerAction::RefreshPatches:
+      RebuildPatchCatalog();
       RefreshEditorUI();
       break;
   }
 }
 
-std::string Addivox::SerializeCurrentPresetSnapshot() const
+std::string Addivox::SerializeCurrentPatchSnapshot() const
 {
-  preset_io::PresetDocument document;
-  document.name = mActivePresetDisplayName.empty()
-    ? (NPresets() > 0 ? std::string{GetPresetName(GetCurrentPresetIdx())} : std::string{"Preset"})
-    : mActivePresetDisplayName;
+  patch_io::PatchDocument document;
+  document.name = mActivePatchDisplayName.empty()
+    ? (NPresets() > 0 ? std::string{GetPresetName(GetCurrentPresetIdx())} : std::string{"Patch"})
+    : mActivePatchDisplayName;
   document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
   document.effectsSettings = GetEffectsSettingsFromParams(*this);
-  document.compoundPreset = mEditorState ? mEditorState->compoundPreset : CompoundPreset{};
-  return preset_io::SerializePresetToToml(document);
+  document.compoundPatch = mEditorState ? mEditorState->compoundPatch : CompoundPatch{};
+  return patch_io::SerializePatchToToml(document);
 }
 
-void Addivox::SetActivePresetCleanSnapshotFromCurrentState()
+void Addivox::SetActivePatchCleanSnapshotFromCurrentState()
 {
-  mActivePresetCleanSnapshot = SerializeCurrentPresetSnapshot();
-  mActivePresetDirty = false;
+  mActivePatchCleanSnapshot = SerializeCurrentPatchSnapshot();
+  mActivePatchDirty = false;
 }
 
-void Addivox::MarkActivePresetDirty()
+void Addivox::MarkActivePatchDirty()
 {
-  if(mSuppressPresetDirtyTracking)
+  if(mSuppressPatchDirtyTracking)
     return;
 
-  if(mActivePresetCleanSnapshot.empty())
+  if(mActivePatchCleanSnapshot.empty())
   {
-    if(!mActivePresetDirty)
+    if(!mActivePatchDirty)
     {
-      mActivePresetDirty = true;
+      mActivePatchDirty = true;
       RefreshEditorUI();
     }
     return;
   }
 
-  const bool dirty = SerializeCurrentPresetSnapshot() != mActivePresetCleanSnapshot;
-  if(dirty == mActivePresetDirty)
+  const bool dirty = SerializeCurrentPatchSnapshot() != mActivePatchCleanSnapshot;
+  if(dirty == mActivePatchDirty)
     return;
 
-  mActivePresetDirty = dirty;
+  mActivePatchDirty = dirty;
   RefreshEditorUI();
 }
 
-void Addivox::ClearActivePresetDirty()
+void Addivox::ClearActivePatchDirty()
 {
-  SetActivePresetCleanSnapshotFromCurrentState();
+  SetActivePatchCleanSnapshotFromCurrentState();
 }
 
-void Addivox::LoadBuiltInPresets()
+void Addivox::LoadBuiltInPatches()
 {
-  mFactoryPresetPaths.clear();
+  mFactoryPatchPaths.clear();
 
   WDL_String resourcePath;
   BundleResourcePath(resourcePath, GetBundleID());
 
-  int numLoadedPresets = 0;
+  int numLoadedPatches = 0;
   if(resourcePath.GetLength() > 0)
   {
-    const auto presetPaths = preset_io::FindPresetFiles(preset_io::detail::JoinPath(resourcePath.Get(), "presets"));
-    for(const auto& presetPath : presetPaths)
+    const auto patchPaths = patch_io::FindPatchFiles(patch_io::detail::JoinPath(resourcePath.Get(), "factory_patches"));
+    for(const auto& patchPath : patchPaths)
     {
-      preset_io::PresetDocument document;
-      if(!preset_io::LoadPresetFromFile(presetPath, document))
+      patch_io::PatchDocument document;
+      if(!patch_io::LoadPatchFromFile(patchPath, document))
         continue;
 
       IByteChunk chunk;
-      if(!BuildPresetChunk(document, chunk))
+      if(!BuildPatchChunk(document, chunk))
         continue;
 
-      const std::string presetName = document.name.empty() ? preset_io::detail::FileStem(presetPath) : document.name;
-      MakePresetFromChunk(presetName.c_str(), chunk);
-      mFactoryPresetPaths.push_back(presetPath);
-      ++numLoadedPresets;
+      const std::string patchName = document.name.empty() ? patch_io::detail::FileStem(patchPath) : document.name;
+      MakePresetFromChunk(patchName.c_str(), chunk);
+      mFactoryPatchPaths.push_back(patchPath);
+      ++numLoadedPatches;
 
-      if(numLoadedPresets >= kMaxFactoryPresets)
+      if(numLoadedPatches >= kMaxFactoryPatches)
         break;
     }
   }
 
-  if(numLoadedPresets == 0)
+  if(numLoadedPatches == 0)
   {
-    preset_io::PresetDocument fallbackDocument;
+    patch_io::PatchDocument fallbackDocument;
     fallbackDocument.name = "Init";
     fallbackDocument.voiceSettings = GlobalVoiceSettings{};
     fallbackDocument.effectsSettings = EffectsSettings{};
-    fallbackDocument.compoundPreset = CompoundPreset{};
+    fallbackDocument.compoundPatch = CompoundPatch{};
 
     IByteChunk chunk;
-    if(BuildPresetChunk(fallbackDocument, chunk))
+    if(BuildPatchChunk(fallbackDocument, chunk))
     {
       MakePresetFromChunk(fallbackDocument.name.c_str(), chunk);
-      mFactoryPresetPaths.push_back({});
+      mFactoryPatchPaths.push_back({});
     }
   }
 
@@ -2223,50 +2223,50 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates)
   if(!GetUI() || !mEditorContext)
     return;
 
-  if(mEditorContext->title.presetManagerControl && *mEditorContext->title.presetManagerControl)
+  if(mEditorContext->title.patchManagerControl && *mEditorContext->title.patchManagerControl)
   {
-    if(auto* presetManager =
-         dynamic_cast<plugin_ui::layout::PresetManagerControl*>(*mEditorContext->title.presetManagerControl))
+    if(auto* patchManager =
+         dynamic_cast<plugin_ui::layout::PatchManagerControl*>(*mEditorContext->title.patchManagerControl))
     {
-      std::string label = mActivePresetDisplayName.empty()
-        ? (NPresets() > 0 ? std::string{GetPresetName(GetCurrentPresetIdx())} : std::string{"Choose Preset..."})
-        : mActivePresetDisplayName;
-      if(mActivePresetDirty)
+      std::string label = mActivePatchDisplayName.empty()
+        ? (NPresets() > 0 ? std::string{GetPresetName(GetCurrentPresetIdx())} : std::string{"Choose Patch..."})
+        : mActivePatchDisplayName;
+      if(mActivePatchDirty)
         label += "*";
 
-      plugin_ui::layout::PresetMenuModel model;
+      plugin_ui::layout::PatchMenuModel model;
       model.label = label;
 #if defined(OS_WIN)
       model.showInFileBrowserLabel = "Reveal in Explorer";
 #else
       model.showInFileBrowserLabel = "Show in Finder";
 #endif
-      const std::string userPresetDirectory = EnsureDefaultUserPresetDirectory();
+      const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
       model.canShowInFileBrowser =
-        (mActivePresetSource == PresetSource::User
-          && !mActivePresetPath.empty()
-          && preset_io::detail::PathExists(mActivePresetPath))
-        || (!userPresetDirectory.empty() && preset_io::detail::IsDirectory(userPresetDirectory));
+        (mActivePatchSource == PatchSource::User
+          && !mActivePatchPath.empty()
+          && patch_io::detail::PathExists(mActivePatchPath))
+        || (!userPatchDirectory.empty() && patch_io::detail::IsDirectory(userPatchDirectory));
 
-      for(const auto& entry : mPresetCatalog)
+      for(const auto& entry : mPatchCatalog)
       {
-        plugin_ui::layout::PresetMenuEntry menuEntry;
+        plugin_ui::layout::PatchMenuEntry menuEntry;
         menuEntry.id = entry.id;
         menuEntry.name = entry.name;
         menuEntry.groupPath = entry.menuPath;
         menuEntry.checked =
-          (entry.source == PresetSource::Factory && mActivePresetSource == PresetSource::Factory && entry.factoryIndex == GetCurrentPresetIdx())
-          || (entry.source == PresetSource::User && mActivePresetSource == PresetSource::User && entry.path == mActivePresetPath);
+          (entry.source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry.factoryIndex == GetCurrentPresetIdx())
+          || (entry.source == PatchSource::User && mActivePatchSource == PatchSource::User && entry.path == mActivePatchPath);
         model.entries.push_back(std::move(menuEntry));
       }
 
-      presetManager->SetPresetMenuModel(std::move(model));
+      patchManager->SetPatchMenuModel(std::move(model));
     }
   }
 
   if(auto* keyboard = plugin_ui::layout::GetKeyboardControl(GetUI(), kCtrlTagKeyboard))
   {
-    plugin_ui::layout::RefreshKeyboardKeyNoteHighlights(keyboard, mEditorState->compoundPreset);
+    plugin_ui::layout::RefreshKeyboardKeyNoteHighlights(keyboard, mEditorState->compoundPatch);
     keyboard->SetSelectedMidiNote(mEditorState->selectedMidiNote);
   }
 

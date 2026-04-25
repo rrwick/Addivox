@@ -14,7 +14,7 @@
 #include "ui/editor_state.h"
 #include "visualizer/harmonic_visualizer_sender.h"
 
-constexpr int kMaxFactoryPresets = 128;
+constexpr int kMaxFactoryPatches = 128;
 
 namespace plugin_ui
 {
@@ -24,10 +24,10 @@ struct EditorContext;
 } // namespace editor
 } // namespace plugin_ui
 
-namespace preset_io
+namespace patch_io
 {
-struct PresetDocument;
-} // namespace preset_io
+struct PatchDocument;
+} // namespace patch_io
 
 #if IPLUG_DSP
 #include "synth/synth_engine.h"
@@ -74,17 +74,17 @@ public:
 #endif
 
 private:
-  enum class PresetSource
+  enum class PatchSource
   {
     Unknown,
     Factory,
     User
   };
 
-  struct PresetCatalogEntry
+  struct PatchCatalogEntry
   {
     int id{-1};
-    PresetSource source{PresetSource::Unknown};
+    PatchSource source{PatchSource::Unknown};
     int factoryIndex{-1};
     std::string name;
     std::string path;
@@ -92,7 +92,7 @@ private:
     std::vector<std::string> menuPath;
   };
 
-  void ApplyPresetDocument(const preset_io::PresetDocument& document);
+  void ApplyPatchDocument(const patch_io::PatchDocument& document);
   void EnsureStandaloneStateInitialized();
   bool LoadStandaloneState();
   bool SaveStandaloneState() const;
@@ -103,24 +103,24 @@ private:
   void SetBreathCCSource(BreathCCSource source);
   void SetHarmonicVisualizerEnabled(bool enabled);
   void SendBreathControlFromUI(double value, int channel, int offset);
-  void PromptLoadPresetFromFile();
-  void PromptSavePresetToFile();
-  void PromptImportPresetFromFile();
-  void PromptImportPresetCollection();
-  void ShowActivePresetInFileBrowser();
-  void HandlePresetManagerAction(int action, int presetId);
-  void RebuildPresetCatalog();
-  void RestoreFactoryPreset(int presetIdx);
-  void LoadUserPresetByPath(const std::string& path);
-  void LoadPresetById(int presetId);
-  void CyclePresetInCurrentGroup(int direction);
-  std::string SerializeCurrentPresetSnapshot() const;
-  void SetActivePresetCleanSnapshotFromCurrentState();
-  void MarkActivePresetDirty();
-  void ClearActivePresetDirty();
+  void PromptLoadPatchFromFile();
+  void PromptSavePatchToFile();
+  void PromptImportPatchFromFile();
+  void PromptImportPatchCollection();
+  void ShowActivePatchInFileBrowser();
+  void HandlePatchManagerAction(int action, int patchId);
+  void RebuildPatchCatalog();
+  void RestoreFactoryPatch(int patchIdx);
+  void LoadUserPatchByPath(const std::string& path);
+  void LoadPatchById(int patchId);
+  void CyclePatchInCurrentGroup(int direction);
+  std::string SerializeCurrentPatchSnapshot() const;
+  void SetActivePatchCleanSnapshotFromCurrentState();
+  void MarkActivePatchDirty();
+  void ClearActivePatchDirty();
   bool ShowAboutBox();
   bool OpenOnlineDocs();
-  void LoadBuiltInPresets();
+  void LoadBuiltInPatches();
   void RefreshEditorUI(bool resetOscillatorRestoreStates = false);
   void SyncPitchBendRangeUI();
 
@@ -128,20 +128,20 @@ private:
   int mNumActiveUIMIDINotes{0};
   std::shared_ptr<plugin_ui::EditorState> mEditorState;
   std::shared_ptr<plugin_ui::editor::EditorContext> mEditorContext;
-  std::string mActivePresetDisplayName;
-  std::string mPendingRestoredStatePresetName;
-  std::string mPendingRestoredPresetCleanSnapshot;
-  bool mPendingRestoredPresetHasCleanSnapshot{false};
-  std::string mUserPresetDirectory;
-  std::string mActivePresetPath;
-  std::string mActivePresetGroupKey{"Factory"};
-  PresetSource mActivePresetSource{PresetSource::Unknown};
-  std::vector<std::string> mFactoryPresetPaths;
-  std::vector<PresetCatalogEntry> mPresetCatalog;
-  std::string mActivePresetCleanSnapshot;
-  int mRestoringFactoryPresetIdx{-1};
-  bool mActivePresetDirty{false};
-  bool mSuppressPresetDirtyTracking{false};
+  std::string mActivePatchDisplayName;
+  std::string mPendingRestoredStatePatchName;
+  std::string mPendingRestoredPatchCleanSnapshot;
+  bool mPendingRestoredPatchHasCleanSnapshot{false};
+  std::string mUserPatchDirectory;
+  std::string mActivePatchPath;
+  std::string mActivePatchGroupKey{"Factory"};
+  PatchSource mActivePatchSource{PatchSource::Unknown};
+  std::vector<std::string> mFactoryPatchPaths;
+  std::vector<PatchCatalogEntry> mPatchCatalog;
+  std::string mActivePatchCleanSnapshot;
+  int mRestoringFactoryPatchIdx{-1};
+  bool mActivePatchDirty{false};
+  bool mSuppressPatchDirtyTracking{false};
   std::array<bool, 128> mQwertyMidiKeysDown{};
   int mQwertyMidiBaseNote{48};
   bool mWasQwertyKeyboardInEditMode{false};

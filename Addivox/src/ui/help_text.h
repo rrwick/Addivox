@@ -10,7 +10,7 @@ namespace help_text
 namespace main_ui
 {
 inline constexpr const char* kKeyboard =
-  "Click the keyboard to audition notes and choose which key note preset you are editing. Computer-keyboard note triggers are active in Viz mode only.";
+  "Click the keyboard to audition notes and choose which key note patch you are editing. Computer-keyboard note triggers are active in Viz mode only.";
 
 inline constexpr const char* kPitchBendWheel =
   "Bends the pitch of held notes. The bend range follows the synth pitch-bend settings.";
@@ -22,13 +22,13 @@ inline constexpr const char* kRelease =
   "Scales the note release time for the whole synth (all oscillators). Higher values let notes ring out longer after release.";
 
 inline constexpr const char* kTranspose =
-  "Transposes every played note in semitones. This control is not tied to a preset and will hold its value as the preset changes.";
+  "Transposes every played note in semitones. This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char* kTuning =
-  "Applies a global tuning offset in cents to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
+  "Applies a global tuning offset in cents to the whole synth (all oscillators). This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char* kPanShift =
-  "Applies a global stereo pan offset to the whole synth (all oscillators). This control is not tied to a preset and will hold its value as the preset changes.";
+  "Applies a global stereo pan offset to the whole synth (all oscillators). This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char* kPortamento =
   "Sets the portamento time range, from the minimum at low CC5 values to the maximum at high CC5 values.";
@@ -64,7 +64,7 @@ inline constexpr const char* kChorus =
   "Effect 3/4: Chorus. Adds a stereo chorus effect to widen and thicken the sound.";
 
 inline constexpr const char* kReverb =
-  "Effect 4/4: Reverb. This control is not tied to a preset and will hold its value as the preset changes.";
+  "Effect 4/4: Reverb. This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline const char* GetParam(int paramIdx)
 {

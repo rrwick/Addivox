@@ -68,7 +68,7 @@ inline IVStyle VizEditButtonStyle()
     .WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
 }
 
-inline IVStyle PresetManagerStyle()
+inline IVStyle PatchManagerStyle()
 {
   return BaseStyle(true, false)
     .WithLabelText(IText(15.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))
@@ -76,7 +76,7 @@ inline IVStyle PresetManagerStyle()
     .WithColor(kHL, colour::editor::kHoverOverlay);
 }
 
-inline IVStyle PresetActionButtonStyle()
+inline IVStyle PatchActionButtonStyle()
 {
   return BaseStyle(true, false)
     .WithLabelText(IText(14.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))

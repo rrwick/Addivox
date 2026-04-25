@@ -10,35 +10,35 @@
 namespace editor_messages
 {
 inline constexpr int kMsgTagSetKeyNoteOscillatorParameter = 1000;
-inline constexpr int kMsgTagAddKeyNotePreset = 1001;
-inline constexpr int kMsgTagRemoveKeyNotePreset = 1002;
+inline constexpr int kMsgTagAddKeyNotePatch = 1001;
+inline constexpr int kMsgTagRemoveKeyNotePatch = 1002;
 inline constexpr int kMsgTagSetKeyNoteOscillatorParameterValues = 1003;
-inline constexpr int kMsgTagPromptLoadPresetFromFile = 1004;
-inline constexpr int kMsgTagPromptSavePresetToFile = 1005;
+inline constexpr int kMsgTagPromptLoadPatchFromFile = 1004;
+inline constexpr int kMsgTagPromptSavePatchToFile = 1005;
 inline constexpr int kMsgTagSetKeyNoteEqCurve = 1006;
 inline constexpr int kMsgTagSetAllKeyNotesEnabled = 1007;
 inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
 inline constexpr int kMsgTagSetBreathCCSource = 1009;
 inline constexpr int kMsgTagSetHarmonicVisualizerEnabled = 1010;
 inline constexpr int kMsgTagResetStandaloneStateToDefaults = 1011;
-inline constexpr int kMsgTagPresetManagerAction = 1012;
+inline constexpr int kMsgTagPatchManagerAction = 1012;
 
-enum class PresetManagerAction
+enum class PatchManagerAction
 {
-  SelectPreset = 0,
-  PreviousPreset,
-  NextPreset,
-  SavePreset,
-  ImportPreset,
+  SelectPatch = 0,
+  PreviousPatch,
+  NextPatch,
+  SavePatch,
+  ImportPatch,
   ImportCollection,
-  ShowPresetInFileBrowser,
-  RefreshPresets
+  ShowPatchInFileBrowser,
+  RefreshPatches
 };
 
-struct PresetManagerActionPayload
+struct PatchManagerActionPayload
 {
-  int action{static_cast<int>(PresetManagerAction::SelectPreset)};
-  int presetId{-1};
+  int action{static_cast<int>(PatchManagerAction::SelectPatch)};
+  int patchId{-1};
 };
 
 struct SetKeyNoteOscillatorParameterPayload
@@ -49,7 +49,7 @@ struct SetKeyNoteOscillatorParameterPayload
   double value{0.0};
 };
 
-struct KeyNotePresetPayload
+struct KeyNotePatchPayload
 {
   int midiNote{0};
 };
@@ -58,7 +58,7 @@ struct SetKeyNoteOscillatorParameterValuesPayload
 {
   int midiNote{0};
   int parameter{0};
-  std::array<double, SimplePreset::kNumOscillators> values{};
+  std::array<double, SimplePatch::kNumOscillators> values{};
 };
 
 struct SetAllKeyNotesEnabledPayload

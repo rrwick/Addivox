@@ -17,11 +17,11 @@ void PrintUsage(std::ostream& stream)
     << "Addivox CLI tool\n"
     << "\n"
     << "Usage examples:\n"
-    << "  addivox -p brass.toml --note 60 --seconds 5 --breath 104 -o brass_C4_ff.wav\n"
-    << "  addivox -p brass.toml --midi song.mid -o song.wav\n"
+    << "  addivox --patch brass.toml --note 60 --seconds 5 --breath 104 -o brass_C4_ff.wav\n"
+    << "  addivox --patch brass.toml --midi song.mid -o song.wav\n"
     << "\n"
     << "Required:\n"
-    << "  -p, --preset PATH        Preset TOML file to load\n"
+    << "  -p, --patch PATH        Patch TOML file to load\n"
     << "  -o, --output PATH        Output WAV file\n"
     << "\n"
     << "Single-note playback:\n"
@@ -183,9 +183,9 @@ int main(int argc, char** argv)
       PrintUsage(std::cout);
       return 0;
     }
-    if(argument == "-p" || argument == "--preset")
+    if(argument == "-p" || argument == "--patch")
     {
-      if(!ReadStringValue(argc, argv, index, options.presetPath, errorMessage))
+      if(!ReadStringValue(argc, argv, index, options.patchPath, errorMessage))
         break;
       continue;
     }
@@ -430,9 +430,9 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  if(options.presetPath.empty())
+  if(options.patchPath.empty())
   {
-    std::cerr << "Missing required option --preset\n\n";
+    std::cerr << "Missing required option --patch\n\n";
     PrintUsage(std::cerr);
     return 1;
   }
@@ -482,7 +482,7 @@ int main(int argc, char** argv)
   options.durationSeconds = *seconds;
   options.breathMidiValue = *breath;
 
-  if(!RenderPresetNoteToWav(options, &errorMessage))
+  if(!RenderPatchNoteToWav(options, &errorMessage))
   {
     std::cerr << errorMessage << '\n';
     return 1;

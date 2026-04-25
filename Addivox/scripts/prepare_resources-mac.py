@@ -34,14 +34,14 @@ def copy_resources_to_destination(projectpath, dst, label=""):
       print("copying " + font + " to " + display_dst)
       shutil.copy(projectpath + "/resources/fonts/" + font, dst)
 
-  if os.path.exists(projectpath + "/presets/"):
-    presets_dst = os.path.join(dst, "presets")
-    print("copying presets to " + display_dst)
-    if os.path.isdir(presets_dst):
-      shutil.rmtree(presets_dst)
-    elif os.path.exists(presets_dst):
-      os.remove(presets_dst)
-    shutil.copytree(projectpath + "/presets/", presets_dst)
+  if os.path.exists(projectpath + "/factory_patches/"):
+    factory_patches_dst = os.path.join(dst, "factory_patches")
+    print("copying factory patches to " + display_dst)
+    if os.path.isdir(factory_patches_dst):
+      shutil.rmtree(factory_patches_dst)
+    elif os.path.exists(factory_patches_dst):
+      os.remove(factory_patches_dst)
+    shutil.copytree(projectpath + "/factory_patches/", factory_patches_dst)
 
   if os.path.exists(projectpath + "/assets/"):
     for asset in os.listdir(projectpath + "/assets/"):

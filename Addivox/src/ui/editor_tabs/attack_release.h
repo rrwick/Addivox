@@ -125,15 +125,15 @@ inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter,
   return false;
 }
 
-inline bool ApplyAttackReleaseShape(SimplePreset& preset, OscillatorParameter parameter, const char* shapeName)
+inline bool ApplyAttackReleaseShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName)
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     double value = 0.0;
     if(!TryGetAttackReleaseShapeValue(parameter, shapeName, oscillatorIndex, value))
       return false;
 
-    preset.SetOscillatorParameter(
+    patch.SetOscillatorParameter(
       oscillatorIndex,
       parameter,
       std::clamp(value, 0.0, GetAttackReleaseMaxValue(parameter)));
@@ -142,13 +142,13 @@ inline bool ApplyAttackReleaseShape(SimplePreset& preset, OscillatorParameter pa
   return true;
 }
 
-inline bool ApplyAttackReleaseAction(SimplePreset& preset,
+inline bool ApplyAttackReleaseAction(SimplePatch& patch,
                                      OscillatorParameter parameter,
                                      const char* actionName,
                                      EditorOscillatorEditScope editScope)
 {
   return ApplyStandardHarmonicAction(
-    preset,
+    patch,
     parameter,
     actionName,
     0.0,
@@ -219,8 +219,8 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       parameter,
-      [selectedText, parameter](SimplePreset& preset) {
-        return ApplyAttackReleaseShape(preset, parameter, selectedText);
+      [selectedText, parameter](SimplePatch& patch) {
+        return ApplyAttackReleaseShape(patch, parameter, selectedText);
       });
   });
 
@@ -243,9 +243,9 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page,
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
       parameter,
-      [selectedText, parameter, context](SimplePreset& preset) {
+      [selectedText, parameter, context](SimplePatch& patch) {
         return ApplyAttackReleaseAction(
-          preset,
+          patch,
           parameter,
           selectedText,
           context->GetOscillatorEditScope(parameter));

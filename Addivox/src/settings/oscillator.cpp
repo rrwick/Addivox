@@ -45,21 +45,21 @@ double Lerp(double lo, double hi, double t)
   return lo + (hi - lo) * t;
 }
 
-using OscillatorParameterValues = CompoundPreset::OscillatorParameterValues;
+using OscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 
-OscillatorParameterValues GetParameterValues(const SimplePreset& preset, Parameter parameter)
+OscillatorParameterValues GetParameterValues(const SimplePatch& patch, Parameter parameter)
 {
   OscillatorParameterValues values{};
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     values[static_cast<std::size_t>(oscillatorIndex)] =
-      preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+      patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
   }
 
   return values;
 }
 
-// Existing presets are normalized so the sum of squared harmonic levels is 1.
+// Existing patches are normalized so the sum of squared harmonic levels is 1.
 // For a harmonic sine sum at full breath, that corresponds to a waveform RMS of 1/sqrt(2).
 constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
 constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
@@ -137,14 +137,14 @@ double ScaleParameterValue(double value, double scale, double minValue, double m
   return std::clamp(value * scale, minValue, maxValue);
 }
 
-bool ScaleParameters(SimplePreset::OscillatorArray& oscillatorSettings,
+bool ScaleParameters(SimplePatch::OscillatorArray& oscillatorSettings,
                      MemberPtr member,
                      double scale,
                      HarmonicParity parity,
                      double minValue = -std::numeric_limits<double>::infinity(),
                      double maxValue = std::numeric_limits<double>::infinity())
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     if(MatchesParity(oscillatorIndex, parity))
     {
@@ -156,16 +156,16 @@ bool ScaleParameters(SimplePreset::OscillatorArray& oscillatorSettings,
   return true;
 }
 
-const SimplePreset& GetDefaultPreset()
+const SimplePatch& GetDefaultPatch()
 {
-  static const SimplePreset preset = [] {
-    SimplePreset::OscillatorArray oscillatorSettings{};
+  static const SimplePatch patch = [] {
+    SimplePatch::OscillatorArray oscillatorSettings{};
     oscillatorSettings.fill(OscillatorSettings{0.0});
     oscillatorSettings[0] = OscillatorSettings{1.0};
-    return SimplePreset{oscillatorSettings};
+    return SimplePatch{oscillatorSettings};
   }();
 
-  return preset;
+  return patch;
 }
 
 const EqCurve& GetDefaultEqCurve()
@@ -211,37 +211,37 @@ OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo,
   return out;
 }
 
-SimplePreset::SimplePreset(const OscillatorArray& oscillatorSettings)
+SimplePatch::SimplePatch(const OscillatorArray& oscillatorSettings)
 : mOscillatorSettings(oscillatorSettings)
 {
 }
 
-int SimplePreset::ClampOscillatorIndex(int oscillatorIndex)
+int SimplePatch::ClampOscillatorIndex(int oscillatorIndex)
 {
   return std::clamp(oscillatorIndex, 0, kNumOscillators - 1);
 }
 
-const OscillatorSettings& SimplePreset::GetOscillatorSettings(int oscillatorIndex) const
+const OscillatorSettings& SimplePatch::GetOscillatorSettings(int oscillatorIndex) const
 {
   return mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)];
 }
 
-const SimplePreset::OscillatorArray& SimplePreset::GetOscillatorSettingsArray() const
+const SimplePatch::OscillatorArray& SimplePatch::GetOscillatorSettingsArray() const
 {
   return mOscillatorSettings;
 }
 
-void SimplePreset::SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings)
+void SimplePatch::SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings)
 {
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)] = settings;
 }
 
-void SimplePreset::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value)
+void SimplePatch::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value)
 {
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)].SetParameter(parameter, value);
 }
 
-double SimplePreset::GetIntensityWaveformRms() const
+double SimplePatch::GetIntensityWaveformRms() const
 {
   double sumSquares = 0.0;
   for(const auto& settings : mOscillatorSettings)
@@ -250,7 +250,7 @@ double SimplePreset::GetIntensityWaveformRms() const
   return std::sqrt(sumSquares * 0.5);
 }
 
-bool SimplePreset::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter,
+bool SimplePatch::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter,
                                                double scale,
                                                double minValue,
                                                double maxValue)
@@ -261,7 +261,7 @@ bool SimplePreset::ScaleOscillatorParameterAll(OscillatorSettings::Parameter par
     : false;
 }
 
-bool SimplePreset::ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter,
+bool SimplePatch::ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter,
                                                 double scale,
                                                 double minValue,
                                                 double maxValue)
@@ -272,7 +272,7 @@ bool SimplePreset::ScaleOscillatorParameterEven(OscillatorSettings::Parameter pa
     : false;
 }
 
-bool SimplePreset::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter,
+bool SimplePatch::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter,
                                                double scale,
                                                double minValue,
                                                double maxValue)
@@ -283,7 +283,7 @@ bool SimplePreset::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter par
     : false;
 }
 
-bool SimplePreset::ZeroEvenIntensities()
+bool SimplePatch::ZeroEvenIntensities()
 {
   for(int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
     mOscillatorSettings[oscillatorIndex].intensity = 0.0;
@@ -291,7 +291,7 @@ bool SimplePreset::ZeroEvenIntensities()
   return true;
 }
 
-bool SimplePreset::ZeroOddIntensities()
+bool SimplePatch::ZeroOddIntensities()
 {
   for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
     mOscillatorSettings[oscillatorIndex].intensity = 0.0;
@@ -299,7 +299,7 @@ bool SimplePreset::ZeroOddIntensities()
   return true;
 }
 
-bool SimplePreset::NormalizeIntensityWaveformRms()
+bool SimplePatch::NormalizeIntensityWaveformRms()
 {
   const double currentRms = GetIntensityWaveformRms();
   if(currentRms <= kIntensityWaveformRmsEpsilon)
@@ -312,7 +312,7 @@ bool SimplePreset::NormalizeIntensityWaveformRms()
   return true;
 }
 
-SimplePreset SimplePreset::Interpolate(const SimplePreset& lo, const SimplePreset& hi, double t)
+SimplePatch SimplePatch::Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t)
 {
   OscillatorArray out{};
   for(int oscillator = 0; oscillator < kNumOscillators; ++oscillator)
@@ -322,63 +322,63 @@ SimplePreset SimplePreset::Interpolate(const SimplePreset& lo, const SimplePrese
       hi.mOscillatorSettings[oscillator],
       t);
   }
-  return SimplePreset{out};
+  return SimplePatch{out};
 }
 
-int CompoundPreset::ClampMidiNote(int midiNote)
+int CompoundPatch::ClampMidiNote(int midiNote)
 {
   return std::clamp(midiNote, kMinMidiNote, kMaxMidiNote);
 }
 
-int CompoundPreset::RoundAndClampMidiNote(double midiNote)
+int CompoundPatch::RoundAndClampMidiNote(double midiNote)
 {
   return ClampMidiNote(static_cast<int>(std::lround(midiNote)));
 }
 
-std::size_t CompoundPreset::ParameterIndex(OscillatorSettings::Parameter parameter)
+std::size_t CompoundPatch::ParameterIndex(OscillatorSettings::Parameter parameter)
 {
   return static_cast<std::size_t>(parameter);
 }
 
-CompoundPreset::CompoundPreset()
-: CompoundPreset({})
+CompoundPatch::CompoundPatch()
+: CompoundPatch({})
 {
 }
 
-CompoundPreset::CompoundPreset(std::initializer_list<KeyNotePreset> keyNotePresets)
+CompoundPatch::CompoundPatch(std::initializer_list<KeyNotePatch> keyNotePatches)
 {
-  for(const auto& [midiNote, preset] : keyNotePresets)
+  for(const auto& [midiNote, patch] : keyNotePatches)
   {
-    mKeyNotePresets[ClampMidiNote(midiNote)] = preset;
+    mKeyNotePatches[ClampMidiNote(midiNote)] = patch;
     mKeyNoteEqCurves[ClampMidiNote(midiNote)] = GetDefaultEqCurve();
   }
 }
 
-OscillatorSettings CompoundPreset::GetOscillatorSettings(double midiNote, int oscillatorIndex) const
+OscillatorSettings CompoundPatch::GetOscillatorSettings(double midiNote, int oscillatorIndex) const
 {
   return InterpolateOscillatorSettings(ResolveNoteSpan(midiNote), oscillatorIndex);
 }
 
-SimplePreset CompoundPreset::GetPresetForMidiNote(double midiNote) const
+SimplePatch CompoundPatch::GetPatchForMidiNote(double midiNote) const
 {
   const ResolvedNoteSpan span = ResolveNoteSpan(midiNote);
-  if(span.t <= 0.0 || span.lowerPreset == span.upperPreset)
-    return *span.lowerPreset;
+  if(span.t <= 0.0 || span.lowerPatch == span.upperPatch)
+    return *span.lowerPatch;
 
-  return SimplePreset::Interpolate(*span.lowerPreset, *span.upperPreset, span.t);
+  return SimplePatch::Interpolate(*span.lowerPatch, *span.upperPatch, span.t);
 }
 
-const SimplePreset* CompoundPreset::GetKeyNotePreset(double midiNote) const
+const SimplePatch* CompoundPatch::GetKeyNotePatch(double midiNote) const
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
-  const auto keyNoteIt = mKeyNotePresets.find(clampedNote);
-  if(keyNoteIt == mKeyNotePresets.end())
+  const auto keyNoteIt = mKeyNotePatches.find(clampedNote);
+  if(keyNoteIt == mKeyNotePatches.end())
     return nullptr;
 
   return &keyNoteIt->second;
 }
 
-EqCurve CompoundPreset::GetEqCurveForMidiNote(double midiNote) const
+EqCurve CompoundPatch::GetEqCurveForMidiNote(double midiNote) const
 {
   const ResolvedNoteSpan span = ResolveNoteSpan(midiNote);
   if(span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve)
@@ -391,7 +391,7 @@ EqCurve CompoundPreset::GetEqCurveForMidiNote(double midiNote) const
       span.t));
 }
 
-const EqCurve* CompoundPreset::GetKeyNoteEqCurve(double midiNote) const
+const EqCurve* CompoundPatch::GetKeyNoteEqCurve(double midiNote) const
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
   const auto keyNoteIt = mKeyNoteEqCurves.find(clampedNote);
@@ -401,47 +401,47 @@ const EqCurve* CompoundPreset::GetKeyNoteEqCurve(double midiNote) const
   return &keyNoteIt->second;
 }
 
-const std::map<int, SimplePreset>& CompoundPreset::GetKeyNotePresets() const
+const std::map<int, SimplePatch>& CompoundPatch::GetKeyNotePatches() const
 {
-  return mKeyNotePresets;
+  return mKeyNotePatches;
 }
 
-bool CompoundPreset::IsAllKeyNotesEnabled(OscillatorSettings::Parameter parameter) const
+bool CompoundPatch::IsAllKeyNotesEnabled(OscillatorSettings::Parameter parameter) const
 {
   return mAllKeyNotesEnabled[ParameterIndex(parameter)];
 }
 
-const CompoundPreset::OscillatorParameterValues& CompoundPreset::GetAllKeyNotesValues(
+const CompoundPatch::OscillatorParameterValues& CompoundPatch::GetAllKeyNotesValues(
   OscillatorSettings::Parameter parameter) const
 {
   return mAllKeyNotesValues[ParameterIndex(parameter)];
 }
 
-bool CompoundPreset::IsAllKeyNotesEqEnabled() const
+bool CompoundPatch::IsAllKeyNotesEqEnabled() const
 {
   return mAllKeyNotesEqEnabled;
 }
 
-const EqCurve& CompoundPreset::GetAllKeyNotesEqCurve() const
+const EqCurve& CompoundPatch::GetAllKeyNotesEqCurve() const
 {
   return mAllKeyNotesEqCurve;
 }
 
-CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote) const
+CompoundPatch::ResolvedNoteSpan CompoundPatch::ResolveNoteSpan(double midiNote) const
 {
   const EqCurve& defaultEqCurve = IsAllKeyNotesEqEnabled() ? GetAllKeyNotesEqCurve() : GetDefaultEqCurve();
-  if(mKeyNotePresets.empty())
+  if(mKeyNotePatches.empty())
   {
     return ResolvedNoteSpan{
-      &GetDefaultPreset(),
-      &GetDefaultPreset(),
+      &GetDefaultPatch(),
+      &GetDefaultPatch(),
       &defaultEqCurve,
       &defaultEqCurve,
       0.0};
   }
 
   const double clampedMidiNote = std::clamp(midiNote, static_cast<double>(kMinMidiNote), static_cast<double>(kMaxMidiNote));
-  auto makeExactSpan = [&](const std::map<int, SimplePreset>::const_iterator& it) {
+  auto makeExactSpan = [&](const std::map<int, SimplePatch>::const_iterator& it) {
     const EqCurve& eqCurve = GetKeyNoteEqCurveOrDefault(it->first);
     return ResolvedNoteSpan{
       &it->second,
@@ -451,12 +451,12 @@ CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote
       0.0};
   };
 
-  auto upper = mKeyNotePresets.lower_bound(static_cast<int>(std::ceil(clampedMidiNote)));
-  if(upper == mKeyNotePresets.begin())
+  auto upper = mKeyNotePatches.lower_bound(static_cast<int>(std::ceil(clampedMidiNote)));
+  if(upper == mKeyNotePatches.begin())
     return makeExactSpan(upper);
 
-  if(upper == mKeyNotePresets.end())
-    return makeExactSpan(std::prev(mKeyNotePresets.end()));
+  if(upper == mKeyNotePatches.end())
+    return makeExactSpan(std::prev(mKeyNotePatches.end()));
 
   if(static_cast<double>(upper->first) == clampedMidiNote)
     return makeExactSpan(upper);
@@ -476,19 +476,19 @@ CompoundPreset::ResolvedNoteSpan CompoundPreset::ResolveNoteSpan(double midiNote
     (clampedMidiNote - static_cast<double>(lower->first)) / interval};
 }
 
-OscillatorSettings CompoundPreset::InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const
+OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const
 {
-  const OscillatorSettings& lowerSettings = span.lowerPreset->GetOscillatorSettings(oscillatorIndex);
-  if(span.t <= 0.0 || span.lowerPreset == span.upperPreset)
+  const OscillatorSettings& lowerSettings = span.lowerPatch->GetOscillatorSettings(oscillatorIndex);
+  if(span.t <= 0.0 || span.lowerPatch == span.upperPatch)
     return lowerSettings;
 
   return OscillatorSettings::Interpolate(
     lowerSettings,
-    span.upperPreset->GetOscillatorSettings(oscillatorIndex),
+    span.upperPatch->GetOscillatorSettings(oscillatorIndex),
     span.t);
 }
 
-double CompoundPreset::EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const
+double CompoundPatch::EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const
 {
   const double lowerGain = EqCurve::DbToGain(span.lowerEqCurve->EvaluateDb(frequencyHz));
   if(span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve)
@@ -500,17 +500,17 @@ double CompoundPreset::EvaluateEqGain(const ResolvedNoteSpan& span, double frequ
     span.t);
 }
 
-bool CompoundPreset::HasKeyNotePreset(double midiNote) const
+bool CompoundPatch::HasKeyNotePatch(double midiNote) const
 {
-  return GetKeyNotePreset(midiNote) != nullptr;
+  return GetKeyNotePatch(midiNote) != nullptr;
 }
 
-int CompoundPreset::GetNumKeyNotePresets() const
+int CompoundPatch::GetNumKeyNotePatches() const
 {
-  return static_cast<int>(mKeyNotePresets.size());
+  return static_cast<int>(mKeyNotePatches.size());
 }
 
-void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
+void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch)
 {
   const int clampedMidiNote = ClampMidiNote(midiNote);
   const EqCurve* keyNoteEqCurve = GetKeyNoteEqCurve(clampedMidiNote);
@@ -518,59 +518,59 @@ void CompoundPreset::SetKeyNotePreset(int midiNote, const SimplePreset& preset)
   if(IsAllKeyNotesEqEnabled())
     eqCurve = GetAllKeyNotesEqCurve();
 
-  SimplePreset updatedPreset = preset;
-  ApplyAllKeyNotesValues(updatedPreset);
-  mKeyNotePresets[clampedMidiNote] = updatedPreset;
+  SimplePatch updatedPatch = patch;
+  ApplyAllKeyNotesValues(updatedPatch);
+  mKeyNotePatches[clampedMidiNote] = updatedPatch;
   mKeyNoteEqCurves[clampedMidiNote] = eqCurve;
 }
 
-bool CompoundPreset::SetKeyNoteOscillatorParameter(double midiNote,
+bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote,
                                                    int oscillatorIndex,
                                                    OscillatorSettings::Parameter parameter,
                                                    double value)
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
-  if(mKeyNotePresets.find(clampedNote) == mKeyNotePresets.end())
+  if(mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end())
     return false;
 
   if(IsAllKeyNotesEnabled(parameter))
   {
     auto& sharedValues = mAllKeyNotesValues[ParameterIndex(parameter)];
     sharedValues[static_cast<std::size_t>(oscillatorIndex)] = value;
-    for(auto& [_, preset] : mKeyNotePresets)
-      preset.SetOscillatorParameter(oscillatorIndex, parameter, value);
+    for(auto& [_, patch] : mKeyNotePatches)
+      patch.SetOscillatorParameter(oscillatorIndex, parameter, value);
   }
   else
-    mKeyNotePresets[clampedNote].SetOscillatorParameter(oscillatorIndex, parameter, value);
+    mKeyNotePatches[clampedNote].SetOscillatorParameter(oscillatorIndex, parameter, value);
 
   return true;
 }
 
-bool CompoundPreset::SetKeyNoteOscillatorParameterValues(
+bool CompoundPatch::SetKeyNoteOscillatorParameterValues(
   double midiNote,
   OscillatorSettings::Parameter parameter,
-  const std::array<double, SimplePreset::kNumOscillators>& values)
+  const std::array<double, SimplePatch::kNumOscillators>& values)
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
-  if(mKeyNotePresets.find(clampedNote) == mKeyNotePresets.end())
+  if(mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end())
     return false;
 
   if(IsAllKeyNotesEnabled(parameter))
   {
     mAllKeyNotesValues[ParameterIndex(parameter)] = values;
-    for(auto& [_, preset] : mKeyNotePresets)
-      ApplyAllKeyNotesValues(preset, parameter, values);
+    for(auto& [_, patch] : mKeyNotePatches)
+      ApplyAllKeyNotesValues(patch, parameter, values);
   }
   else
-    ApplyAllKeyNotesValues(mKeyNotePresets[clampedNote], parameter, values);
+    ApplyAllKeyNotesValues(mKeyNotePatches[clampedNote], parameter, values);
 
   return true;
 }
 
-bool CompoundPreset::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
+bool CompoundPatch::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
 {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
-  if(mKeyNotePresets.find(clampedNote) == mKeyNotePresets.end())
+  if(mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end())
     return false;
 
   if(IsAllKeyNotesEqEnabled())
@@ -583,40 +583,40 @@ bool CompoundPreset::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve)
   return true;
 }
 
-void CompoundPreset::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values)
+void CompoundPatch::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values)
 {
   const auto parameterIndex = ParameterIndex(parameter);
   mAllKeyNotesValues[parameterIndex] = values;
   mAllKeyNotesEnabled[parameterIndex] = true;
 
-  for(auto& [_, preset] : mKeyNotePresets)
-    ApplyAllKeyNotesValues(preset, parameter, values);
+  for(auto& [_, patch] : mKeyNotePatches)
+    ApplyAllKeyNotesValues(patch, parameter, values);
 }
 
-void CompoundPreset::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote)
+void CompoundPatch::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote)
 {
   mAllKeyNotesEnabled[ParameterIndex(parameter)] = enabled;
 
   if(enabled)
   {
-    if(const SimplePreset* sourcePreset = GetKeyNotePreset(sourceMidiNote))
-      mAllKeyNotesValues[ParameterIndex(parameter)] = GetParameterValues(*sourcePreset, parameter);
-    else if(!mKeyNotePresets.empty())
-      mAllKeyNotesValues[ParameterIndex(parameter)] = GetParameterValues(mKeyNotePresets.begin()->second, parameter);
+    if(const SimplePatch* sourcePatch = GetKeyNotePatch(sourceMidiNote))
+      mAllKeyNotesValues[ParameterIndex(parameter)] = GetParameterValues(*sourcePatch, parameter);
+    else if(!mKeyNotePatches.empty())
+      mAllKeyNotesValues[ParameterIndex(parameter)] = GetParameterValues(mKeyNotePatches.begin()->second, parameter);
 
-    for(auto& [_, preset] : mKeyNotePresets)
-      ApplyAllKeyNotesValues(preset, parameter, GetAllKeyNotesValues(parameter));
+    for(auto& [_, patch] : mKeyNotePatches)
+      ApplyAllKeyNotesValues(patch, parameter, GetAllKeyNotesValues(parameter));
   }
 }
 
-void CompoundPreset::EnableAllKeyNotesEq(const EqCurve& curve)
+void CompoundPatch::EnableAllKeyNotesEq(const EqCurve& curve)
 {
   mAllKeyNotesEqCurve = curve;
   mAllKeyNotesEqEnabled = true;
   SetAllKeyNoteEqCurves(mAllKeyNotesEqCurve);
 }
 
-void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
+void CompoundPatch::SetAllKeyNotesEqEnabled(bool enabled)
 {
   mAllKeyNotesEqEnabled = enabled;
   if(enabled)
@@ -627,46 +627,46 @@ void CompoundPreset::SetAllKeyNotesEqEnabled(bool enabled)
   }
 }
 
-bool CompoundPreset::RemoveKeyNotePreset(int midiNote)
+bool CompoundPatch::RemoveKeyNotePatch(int midiNote)
 {
-  if(mKeyNotePresets.size() <= 1)
+  if(mKeyNotePatches.size() <= 1)
     return false;
 
   const int clampedMidiNote = ClampMidiNote(midiNote);
-  const size_t numRemoved = mKeyNotePresets.erase(clampedMidiNote);
+  const size_t numRemoved = mKeyNotePatches.erase(clampedMidiNote);
   mKeyNoteEqCurves.erase(clampedMidiNote);
   return numRemoved > 0;
 }
 
-void CompoundPreset::ClearKeyNotePresets()
+void CompoundPatch::ClearKeyNotePatches()
 {
-  mKeyNotePresets.clear();
+  mKeyNotePatches.clear();
   mKeyNoteEqCurves.clear();
 }
 
-void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset) const
+void CompoundPatch::ApplyAllKeyNotesValues(SimplePatch& patch) const
 {
   for(auto parameter : OscillatorSettings::AllParameters())
   {
     if(IsAllKeyNotesEnabled(parameter))
-      ApplyAllKeyNotesValues(preset, parameter, GetAllKeyNotesValues(parameter));
+      ApplyAllKeyNotesValues(patch, parameter, GetAllKeyNotesValues(parameter));
   }
 }
 
-void CompoundPreset::ApplyAllKeyNotesValues(SimplePreset& preset,
+void CompoundPatch::ApplyAllKeyNotesValues(SimplePatch& patch,
                                             OscillatorSettings::Parameter parameter,
                                             const OscillatorParameterValues& values) const
 {
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
-    preset.SetOscillatorParameter(
+    patch.SetOscillatorParameter(
       oscillatorIndex,
       parameter,
       values[static_cast<std::size_t>(oscillatorIndex)]);
   }
 }
 
-const EqCurve& CompoundPreset::GetKeyNoteEqCurveOrDefault(int midiNote) const
+const EqCurve& CompoundPatch::GetKeyNoteEqCurveOrDefault(int midiNote) const
 {
   if(IsAllKeyNotesEqEnabled())
     return GetAllKeyNotesEqCurve();
@@ -677,7 +677,7 @@ const EqCurve& CompoundPreset::GetKeyNoteEqCurveOrDefault(int midiNote) const
   return GetDefaultEqCurve();
 }
 
-void CompoundPreset::SetAllKeyNoteEqCurves(const EqCurve& curve)
+void CompoundPatch::SetAllKeyNoteEqCurves(const EqCurve& curve)
 {
   for(auto& [_, keyNoteCurve] : mKeyNoteEqCurves)
     keyNoteCurve = curve;

@@ -14,7 +14,7 @@ struct HarmonicVisualizerOscillator
 
 struct HarmonicVisualizerFrame
 {
-  static constexpr int kNumHarmonics = SimplePreset::kNumOscillators;
+  static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;
   using HarmonicArray = std::array<HarmonicVisualizerOscillator, kNumHarmonics>;
 
   HarmonicArray harmonics{};

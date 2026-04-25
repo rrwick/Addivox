@@ -186,7 +186,7 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
     return;
 
   const int midiNote = context->SelectedMidiNote();
-  if(!context->Preset().SetKeyNoteEqCurve(midiNote, curve))
+  if(!context->Patch().SetKeyNoteEqCurve(midiNote, curve))
     return;
 
   context->SendEqCurveToDSP(caller, midiNote, curve);
@@ -269,7 +269,7 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
         return;
 
       const int midiNote = context->SelectedMidiNote();
-      const EqCurve* keyNoteEqCurve = context->Preset().GetKeyNoteEqCurve(midiNote);
+      const EqCurve* keyNoteEqCurve = context->Patch().GetKeyNoteEqCurve(midiNote);
       if(!keyNoteEqCurve)
       {
         toggle->SetValue(context->IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
@@ -279,13 +279,13 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
 
       if(toggle->GetValue() > 0.5)
       {
-        context->Preset().EnableAllKeyNotesEq(*keyNoteEqCurve);
+        context->Patch().EnableAllKeyNotesEq(*keyNoteEqCurve);
         context->SendAllKeyNotesEqEnabledToDSP(toggle, true);
         context->SendEqCurveToDSP(toggle, midiNote, *keyNoteEqCurve);
       }
       else
       {
-        context->Preset().SetAllKeyNotesEqEnabled(false);
+        context->Patch().SetAllKeyNotesEqEnabled(false);
         context->SendAllKeyNotesEqEnabledToDSP(toggle, false);
       }
 
@@ -313,7 +313,7 @@ inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IC
     return;
 
   const int midiNote = context->SelectedMidiNote();
-  if(!context->Preset().HasKeyNotePreset(midiNote))
+  if(!context->Patch().HasKeyNotePatch(midiNote))
     return;
 
   auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;

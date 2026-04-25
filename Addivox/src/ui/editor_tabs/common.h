@@ -29,7 +29,7 @@ using namespace igraphics;
 namespace editor
 {
 using OscillatorParameter = OscillatorSettings::Parameter;
-using OscillatorParameterValues = CompoundPreset::OscillatorParameterValues;
+using OscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 using SliderRange = OscillatorSliderControl::ValueRange;
 using EditorStyles = theme::EditorStyles;
 
@@ -273,17 +273,17 @@ inline void SetControlValueSilently(IControl* control, double value, int valIdx 
 
 inline int RoundOscillatorRangeValue(double value)
 {
-  return std::clamp(static_cast<int>(std::lround(value)), 1, SimplePreset::kNumOscillators);
+  return std::clamp(static_cast<int>(std::lround(value)), 1, SimplePatch::kNumOscillators);
 }
 
-inline OscillatorParameterValues GetOscillatorParameterValues(const SimplePreset& preset,
+inline OscillatorParameterValues GetOscillatorParameterValues(const SimplePatch& patch,
                                                               OscillatorParameter parameter)
 {
   OscillatorParameterValues values{};
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     values[static_cast<std::size_t>(oscillatorIndex)] =
-      preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+      patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
   }
 
   return values;
@@ -688,7 +688,7 @@ inline double ApplyCurveWarp(double value, double exponent, double minValue, dou
   return minValue + ((maxValue - minValue) * warpedValue);
 }
 
-inline bool ApplyStandardHarmonicAction(SimplePreset& preset,
+inline bool ApplyStandardHarmonicAction(SimplePatch& patch,
                                         OscillatorParameter parameter,
                                         const char* actionName,
                                         double minValue,
@@ -715,23 +715,23 @@ inline bool ApplyStandardHarmonicAction(SimplePreset& preset,
   double currentMaxValue = minValue;
   if(isBendUp || isBendDown)
   {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
         continue;
 
-      const double value = preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+      const double value = patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
       currentMinValue = std::min(currentMinValue, value);
       currentMaxValue = std::max(currentMaxValue, value);
     }
   }
 
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     if(!MatchesOscillatorEditScope(editScope, oscillatorIndex))
       continue;
 
-    const double value = preset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+    const double value = patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
     double updatedValue = value;
 
     if(isScaleUp)
@@ -747,20 +747,20 @@ inline bool ApplyStandardHarmonicAction(SimplePreset& preset,
     else if(isBendDown)
       updatedValue = ApplyCurveWarp(value, kBendExponent, currentMinValue, currentMaxValue);
 
-    preset.SetOscillatorParameter(oscillatorIndex, parameter, updatedValue);
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, updatedValue);
   }
 
   return true;
 }
 
-inline bool ApplyScaleAction(SimplePreset& preset,
+inline bool ApplyScaleAction(SimplePatch& patch,
                              OscillatorParameter parameter,
                              const char* actionName,
                              double minValue,
                              double maxValue,
                              EditorOscillatorEditScope editScope = EditorOscillatorEditScope::All)
 {
-  return ApplyStandardHarmonicAction(preset, parameter, actionName, minValue, maxValue, editScope);
+  return ApplyStandardHarmonicAction(patch, parameter, actionName, minValue, maxValue, editScope);
 }
 
 inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
@@ -771,7 +771,7 @@ inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
 
 struct EditorModelRefs
 {
-  std::shared_ptr<CompoundPreset> compoundPreset;
+  std::shared_ptr<CompoundPatch> compoundPatch;
   std::shared_ptr<BreathCCSource> breathCCSource;
   std::shared_ptr<bool> harmonicVisualizerEnabled;
   std::shared_ptr<int> selectedMidiNote;
@@ -854,7 +854,7 @@ struct OscillatorTabControlRefs
 
 struct TitleControlRefs
 {
-  std::shared_ptr<IControl*> presetManagerControl;
+  std::shared_ptr<IControl*> patchManagerControl;
 };
 
 struct EditorContext
@@ -873,9 +873,9 @@ struct EditorContext
   std::shared_ptr<KeyboardControl*> keyboardControl;
   TitleControlRefs title;
 
-  CompoundPreset& Preset() const
+  CompoundPatch& Patch() const
   {
-    return *model.compoundPreset;
+    return *model.compoundPatch;
   }
 
   int SelectedMidiNote() const
@@ -941,7 +941,7 @@ struct EditorContext
                                         const OscillatorParameterValues& sourceValues,
                                         OscillatorParameterValues& targetValues) const
   {
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       if(!IsOscillatorEditable(parameter, oscillatorIndex))
       {
@@ -970,7 +970,7 @@ struct EditorContext
   bool HasValidSelectedMidiNote() const
   {
     const int midiNote = SelectedMidiNote();
-    return midiNote >= CompoundPreset::kMinMidiNote && midiNote <= CompoundPreset::kMaxMidiNote;
+    return midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
   }
 
   void ApplyVisibleOscillatorRangeToSliders() const
@@ -1019,12 +1019,12 @@ struct EditorContext
 
   bool IsAllKeyNotesEnabled(OscillatorParameter parameter) const
   {
-    return Preset().IsAllKeyNotesEnabled(parameter);
+    return Patch().IsAllKeyNotesEnabled(parameter);
   }
 
   bool IsAllKeyNotesEqEnabled() const
   {
-    return Preset().IsAllKeyNotesEqEnabled();
+    return Patch().IsAllKeyNotesEqEnabled();
   }
 
   template <typename Action>
@@ -1032,7 +1032,7 @@ struct EditorContext
   {
     if(IsAllKeyNotesEnabled(parameter))
     {
-      for(const auto& [keyNoteMidi, _] : Preset().GetKeyNotePresets())
+      for(const auto& [keyNoteMidi, _] : Patch().GetKeyNotePatches())
         std::forward<Action>(action)(keyNoteMidi);
       return;
     }
@@ -1067,7 +1067,7 @@ struct EditorContext
   void SendOscillatorParameterValuesToDSP(IControl* sourceControl,
                                           int midiNote,
                                           OscillatorParameter parameter,
-                                          const std::array<double, SimplePreset::kNumOscillators>& values) const
+                                          const std::array<double, SimplePatch::kNumOscillators>& values) const
   {
     if(!sourceControl)
       return;
@@ -1142,14 +1142,14 @@ struct EditorContext
     }
   }
 
-  void SendKeyNotePresetEditToDSP(IControl* sourceControl, int msgTag, int midiNote) const
+  void SendKeyNotePatchEditToDSP(IControl* sourceControl, int msgTag, int midiNote) const
   {
     if(!sourceControl)
       return;
 
     if(auto* delegate = sourceControl->GetDelegate())
     {
-      editor_messages::KeyNotePresetPayload payload;
+      editor_messages::KeyNotePatchPayload payload;
       payload.midiNote = midiNote;
       delegate->SendArbitraryMsgFromUI(msgTag, editorTabsTag, sizeof(payload), &payload);
     }
@@ -1164,15 +1164,15 @@ struct EditorContext
   bool CanAddSelectedKeyNote() const
   {
     const int midiNote = SelectedMidiNote();
-    const bool midiNoteValid = midiNote >= CompoundPreset::kMinMidiNote && midiNote <= CompoundPreset::kMaxMidiNote;
-    return IsEditMode() && midiNoteValid && !Preset().HasKeyNotePreset(midiNote);
+    const bool midiNoteValid = midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
+    return IsEditMode() && midiNoteValid && !Patch().HasKeyNotePatch(midiNote);
   }
 
   bool CanDeleteSelectedKeyNote() const
   {
     const int midiNote = SelectedMidiNote();
-    const bool midiNoteValid = midiNote >= CompoundPreset::kMinMidiNote && midiNote <= CompoundPreset::kMaxMidiNote;
-    return IsEditMode() && midiNoteValid && Preset().HasKeyNotePreset(midiNote) && Preset().GetNumKeyNotePresets() > 1;
+    const bool midiNoteValid = midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
+    return IsEditMode() && midiNoteValid && Patch().HasKeyNotePatch(midiNote) && Patch().GetNumKeyNotePatches() > 1;
   }
 
   void AddSelectedKeyNote(IControl* caller) const
@@ -1181,8 +1181,8 @@ struct EditorContext
       return;
 
     const int midiNote = SelectedMidiNote();
-    Preset().SetKeyNotePreset(midiNote, Preset().GetPresetForMidiNote(midiNote));
-    SendKeyNotePresetEditToDSP(caller, editor_messages::kMsgTagAddKeyNotePreset, midiNote);
+    Patch().SetKeyNotePatch(midiNote, Patch().GetPatchForMidiNote(midiNote));
+    SendKeyNotePatchEditToDSP(caller, editor_messages::kMsgTagAddKeyNotePatch, midiNote);
     SetKeyboardKeyNoteHighlight(midiNote, true);
     RefreshOscillatorTabs();
     RefreshEditorActionButtons();
@@ -1194,10 +1194,10 @@ struct EditorContext
       return;
 
     const int midiNote = SelectedMidiNote();
-    if(!Preset().RemoveKeyNotePreset(midiNote))
+    if(!Patch().RemoveKeyNotePatch(midiNote))
       return;
 
-    SendKeyNotePresetEditToDSP(caller, editor_messages::kMsgTagRemoveKeyNotePreset, midiNote);
+    SendKeyNotePatchEditToDSP(caller, editor_messages::kMsgTagRemoveKeyNotePatch, midiNote);
     SetKeyboardKeyNoteHighlight(midiNote, false);
     RefreshOscillatorTabs();
     RefreshEditorActionButtons();
@@ -1275,9 +1275,9 @@ struct EditorContext
     }
 
     const int midiNote = SelectedMidiNote();
-    const SimplePreset* keyNotePreset = Preset().GetKeyNotePreset(midiNote);
-    const SimplePreset& selectedPreset = keyNotePreset ? *keyNotePreset : Preset().GetPresetForMidiNote(midiNote);
-    const bool editable = keyNotePreset != nullptr;
+    const SimplePatch* keyNotePatch = Patch().GetKeyNotePatch(midiNote);
+    const SimplePatch& selectedPatch = keyNotePatch ? *keyNotePatch : Patch().GetPatchForMidiNote(midiNote);
+    const bool editable = keyNotePatch != nullptr;
 
     SetDisabledState(*levelTab.setShapeControl, !editable);
     SetDisabledState(*levelTab.actionsControl, !editable);
@@ -1305,9 +1305,9 @@ struct EditorContext
         continue;
 
       bool sliderChanged = false;
-      for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+      for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       {
-        const double value = selectedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(descriptor.parameter);
+        const double value = selectedPatch.GetOscillatorSettings(oscillatorIndex).GetParameter(descriptor.parameter);
         if(AreNearlyEqual(control->GetOscillatorValue(oscillatorIndex), value))
           continue;
 
@@ -1334,8 +1334,8 @@ struct EditorContext
 
     if(eqTab.editorControl && *eqTab.editorControl)
     {
-      const EqCurve* keyNoteEqCurve = Preset().GetKeyNoteEqCurve(midiNote);
-      (*eqTab.editorControl)->SetCurve(keyNoteEqCurve ? *keyNoteEqCurve : Preset().GetEqCurveForMidiNote(midiNote));
+      const EqCurve* keyNoteEqCurve = Patch().GetKeyNoteEqCurve(midiNote);
+      (*eqTab.editorControl)->SetCurve(keyNoteEqCurve ? *keyNoteEqCurve : Patch().GetEqCurveForMidiNote(midiNote));
       if(!(*eqTab.editorControl)->IsHidden() && !(*eqTab.editorControl)->HasRestoreStateForMidiNote(midiNote))
         (*eqTab.editorControl)->CaptureRestoreState(midiNote);
       (*eqTab.editorControl)->SetEditable(editable);
@@ -1360,25 +1360,25 @@ struct EditorContext
                                                        bool applyEditScope = true) const
   {
     const int midiNote = SelectedMidiNote();
-    const SimplePreset* keyNotePreset = Preset().GetKeyNotePreset(midiNote);
-    if(!keyNotePreset)
+    const SimplePatch* keyNotePatch = Patch().GetKeyNotePatch(midiNote);
+    if(!keyNotePatch)
       return;
 
-    SimplePreset updatedPreset = *keyNotePreset;
-    if(!std::forward<Action>(action)(updatedPreset))
+    SimplePatch updatedPatch = *keyNotePatch;
+    if(!std::forward<Action>(action)(updatedPatch))
       return;
 
-    const auto originalValues = GetOscillatorParameterValues(*keyNotePreset, parameter);
+    const auto originalValues = GetOscillatorParameterValues(*keyNotePatch, parameter);
     OscillatorParameterValues values{};
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
     {
       values[static_cast<std::size_t>(oscillatorIndex)] =
-        updatedPreset.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+        updatedPatch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
     }
     if(applyEditScope)
       ApplyOscillatorEditScopeToValues(parameter, originalValues, values);
 
-    if(!Preset().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values))
+    if(!Patch().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values))
       return;
 
     SendOscillatorParameterValuesToDSP(control, midiNote, parameter, values);
@@ -1389,7 +1389,7 @@ struct EditorContext
   void ApplyEqCurveActionToSelectedKeyNote(EqEditorControl* control, Action&& action) const
   {
     const int midiNote = SelectedMidiNote();
-    const EqCurve* keyNoteEqCurve = Preset().GetKeyNoteEqCurve(midiNote);
+    const EqCurve* keyNoteEqCurve = Patch().GetKeyNoteEqCurve(midiNote);
     if(!keyNoteEqCurve)
       return;
 
@@ -1397,7 +1397,7 @@ struct EditorContext
     if(!std::forward<Action>(action)(updatedCurve))
       return;
 
-    if(!Preset().SetKeyNoteEqCurve(midiNote, updatedCurve))
+    if(!Patch().SetKeyNoteEqCurve(midiNote, updatedCurve))
       return;
 
     SendEqCurveToDSP(control, midiNote, updatedCurve);
@@ -1453,8 +1453,8 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
         return;
 
       const int midiNote = context->SelectedMidiNote();
-      const SimplePreset* keyNotePreset = context->Preset().GetKeyNotePreset(midiNote);
-      if(!keyNotePreset)
+      const SimplePatch* keyNotePatch = context->Patch().GetKeyNotePatch(midiNote);
+      if(!keyNotePatch)
       {
         SetControlValueSilently(toggle, context->IsAllKeyNotesEnabled(parameter) ? 1.0 : 0.0);
         return;
@@ -1462,13 +1462,13 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
 
       if(toggle->GetValue() > 0.5)
       {
-        const auto values = GetOscillatorParameterValues(*keyNotePreset, parameter);
-        context->Preset().EnableAllKeyNotes(parameter, values);
+        const auto values = GetOscillatorParameterValues(*keyNotePatch, parameter);
+        context->Patch().EnableAllKeyNotes(parameter, values);
         context->SendAllKeyNotesEnabledToDSP(toggle, parameter, true, midiNote);
       }
       else
       {
-        context->Preset().SetAllKeyNotesEnabled(parameter, false);
+        context->Patch().SetAllKeyNotesEnabled(parameter, false);
         context->SendAllKeyNotesEnabledToDSP(toggle, parameter, false, midiNote);
       }
 
@@ -1713,8 +1713,8 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
     return;
 
   const int midiNote = context->SelectedMidiNote();
-  const SimplePreset* keyNotePreset = context->Preset().GetKeyNotePreset(midiNote);
-  if(!keyNotePreset)
+  const SimplePatch* keyNotePatch = context->Patch().GetKeyNotePatch(midiNote);
+  if(!keyNotePatch)
     return;
 
   auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
@@ -1723,7 +1723,7 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
 
   const auto& restoreState = control->GetRestoreState();
   OscillatorParameterValues values{};
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePreset::kNumOscillators; ++oscillatorIndex)
+  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
     values[static_cast<std::size_t>(oscillatorIndex)] = std::clamp(
       restoreState[static_cast<std::size_t>(oscillatorIndex)],
@@ -1731,7 +1731,7 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
       descriptor.range.max);
   }
 
-  if(!context->Preset().SetKeyNoteOscillatorParameterValues(midiNote, descriptor.parameter, values))
+  if(!context->Patch().SetKeyNoteOscillatorParameterValues(midiNote, descriptor.parameter, values))
     return;
 
   context->SendOscillatorParameterValuesToDSP(caller, midiNote, descriptor.parameter, values);
@@ -1772,7 +1772,7 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   control->SetVisibleOscillatorRange(context->XRangeMin(), context->XRangeMax());
   control->SetOnOscillatorValueChanged(
     [context, control, descriptor](int oscillatorIndex, double value) {
-      if(oscillatorIndex < 0 || oscillatorIndex >= SimplePreset::kNumOscillators)
+      if(oscillatorIndex < 0 || oscillatorIndex >= SimplePatch::kNumOscillators)
         return;
 
       const int midiNote = context->SelectedMidiNote();
@@ -1780,7 +1780,7 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
         return;
 
       const double clampedValue = std::clamp(value, descriptor.range.min, descriptor.range.max);
-      const bool updated = context->Preset().SetKeyNoteOscillatorParameter(
+      const bool updated = context->Patch().SetKeyNoteOscillatorParameter(
         midiNote,
         oscillatorIndex,
         descriptor.parameter,
@@ -1799,10 +1799,10 @@ inline XRangeControls CreateXRangeControls(const std::shared_ptr<EditorContext>&
 {
   auto* minControl = new IVNumberBoxControl(
     IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
-    static_cast<double>(context->XRangeMin()), 1.0, static_cast<double>(SimplePreset::kNumOscillators), "%0.0f", false);
+    static_cast<double>(context->XRangeMin()), 1.0, static_cast<double>(SimplePatch::kNumOscillators), "%0.0f", false);
   auto* maxControl = new IVNumberBoxControl(
     IRECT(), kNoParameter, nullptr, "", styles.utilityNumberBoxStyle, false,
-    static_cast<double>(context->XRangeMax()), 1.0, static_cast<double>(SimplePreset::kNumOscillators), "%0.0f", false);
+    static_cast<double>(context->XRangeMax()), 1.0, static_cast<double>(SimplePatch::kNumOscillators), "%0.0f", false);
   minControl->SetDrawTriangle(false);
   maxControl->SetDrawTriangle(false);
   minControl->SetTooltip(help_text::oscillator_tabs::kXRangeMin);
