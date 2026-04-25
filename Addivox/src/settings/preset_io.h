@@ -667,11 +667,13 @@ inline bool DeleteFile(std::string_view path)
 }
 } // namespace detail
 
-inline std::string SerializePresetToToml(const PresetDocument& document)
+inline std::string SerializePresetToToml(const PresetDocument& document, bool includeName = true)
 {
   std::ostringstream stream;
   stream << "format_version = " << kFormatVersion << '\n';
-  stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Preset" : document.name) << "\"\n\n";
+  if(includeName)
+    stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Preset" : document.name) << "\"\n";
+  stream << '\n';
 
   stream << "[voice_settings]\n";
   for(const auto& descriptor : detail::kGlobalVoiceSettingDescriptors)
@@ -1162,7 +1164,7 @@ inline bool SavePresetToFile(std::string_view path,
                              const PresetDocument& document,
                              std::string* errorMessage = nullptr)
 {
-  if(!detail::WriteTextFile(path, SerializePresetToToml(document)))
+  if(!detail::WriteTextFile(path, SerializePresetToToml(document, false)))
   {
     if(errorMessage)
       *errorMessage = "Could not write preset file";

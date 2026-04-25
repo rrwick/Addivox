@@ -1272,6 +1272,7 @@ void Addivox::PromptSavePresetToFile()
       mUserPresetDirectory = preset_io::detail::ParentPath(fullPath);
       mActivePresetSource = PresetSource::User;
       mActivePresetPath = fullPath;
+      mActivePresetDisplayName = preset_io::detail::FileStem(fullPath);
       const std::string relativeDirectory = DirectoryRelativeToRoot(EnsureDefaultUserPresetDirectory(), fullPath);
       std::vector<std::string> menuPath{"User"};
       const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
