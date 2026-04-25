@@ -113,6 +113,8 @@ private:
   void LoadUserPresetByPath(const std::string& path);
   void LoadPresetById(int presetId);
   void CyclePresetInCurrentGroup(int direction);
+  std::string SerializeCurrentPresetSnapshot() const;
+  void SetActivePresetCleanSnapshotFromCurrentState();
   void MarkActivePresetDirty();
   void ClearActivePresetDirty();
   bool ShowAboutBox();
@@ -127,12 +129,15 @@ private:
   std::shared_ptr<plugin_ui::editor::EditorContext> mEditorContext;
   std::string mActivePresetDisplayName;
   std::string mPendingRestoredStatePresetName;
+  std::string mPendingRestoredPresetCleanSnapshot;
+  bool mPendingRestoredPresetHasCleanSnapshot{false};
   std::string mUserPresetDirectory;
   std::string mActivePresetPath;
   std::string mActivePresetGroupKey{"Factory"};
   PresetSource mActivePresetSource{PresetSource::Unknown};
   std::vector<std::string> mFactoryPresetPaths;
   std::vector<PresetCatalogEntry> mPresetCatalog;
+  std::string mActivePresetCleanSnapshot;
   int mRestoringFactoryPresetIdx{-1};
   bool mActivePresetDirty{false};
   bool mSuppressPresetDirtyTracking{false};
