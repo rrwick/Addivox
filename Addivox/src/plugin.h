@@ -105,6 +105,7 @@ private:
   void SendBreathControlFromUI(double value, int channel, int offset);
   void PromptLoadPresetFromFile();
   void PromptSavePresetToFile();
+  void PromptImportPresetFromFile();
   void PromptImportPresetCollection();
   void ShowActivePresetInFileBrowser();
   void HandlePresetManagerAction(int action, int presetId);

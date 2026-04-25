@@ -29,6 +29,7 @@ enum class PresetManagerAction
   PreviousPreset,
   NextPreset,
   SavePreset,
+  ImportPreset,
   ImportCollection,
   ShowPresetInFileBrowser,
   RefreshPresets

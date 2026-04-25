@@ -269,6 +269,7 @@ private:
 
     mPresetMenu.AddSeparator();
     AddCommandItem("Save...", editor_messages::PresetManagerAction::SavePreset);
+    AddCommandItem("Import Preset...", editor_messages::PresetManagerAction::ImportPreset);
     AddCommandItem("Import Collection...", editor_messages::PresetManagerAction::ImportCollection);
     AddCommandItem(
       mModel.showInFileBrowserLabel.empty() ? "Show in Finder" : mModel.showInFileBrowserLabel.c_str(),

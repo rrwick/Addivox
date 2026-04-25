@@ -657,6 +657,28 @@ std::string GetUniqueChildDirectory(std::string_view parentDirectory, std::strin
   return candidate;
 }
 
+std::string GetUniquePresetFilePath(std::string_view parentDirectory, std::string_view preferredName)
+{
+  std::string sanitized = SanitizePresetFileName(preset_io::detail::FileStem(preferredName));
+  if(sanitized.empty())
+    sanitized = "Preset.toml";
+
+  std::string candidate = preset_io::detail::JoinPath(parentDirectory, sanitized);
+  int suffix = 2;
+  while(preset_io::detail::PathExists(candidate))
+  {
+    std::string stem = preset_io::detail::FileStem(sanitized);
+    if(stem.empty())
+      stem = "Preset";
+
+    candidate = preset_io::detail::JoinPath(
+      parentDirectory,
+      EnsureTomlExtension(stem + " " + std::to_string(suffix)));
+    ++suffix;
+  }
+  return candidate;
+}
+
 bool CopyFileBytes(const std::string& sourcePath, const std::string& destinationPath)
 {
   const std::string destinationParent = preset_io::detail::ParentPath(destinationPath);
@@ -1875,6 +1897,62 @@ void Addivox::LoadUserPresetByPath(const std::string& path)
   RefreshEditorUI(true);
 }
 
+void Addivox::PromptImportPresetFromFile()
+{
+#if IPLUG_EDITOR
+  IGraphics* ui = GetUI();
+  if(!ui)
+    return;
+
+  WDL_String fileName;
+  WDL_String directory;
+  const std::string initialDirectory = mUserPresetDirectory.empty()
+    ? EnsureDefaultUserPresetDirectory()
+    : mUserPresetDirectory;
+  if(!initialDirectory.empty())
+    directory.Set(initialDirectory.c_str());
+
+  ui->PromptForFile(
+    fileName,
+    directory,
+    EFileAction::Open,
+    "toml",
+    [this](const WDL_String& selectedFileName, const WDL_String&) {
+      const std::string sourcePath = GetFullFileDialogPath(selectedFileName);
+      if(sourcePath.empty())
+        return;
+
+      preset_io::PresetDocument document;
+      std::string errorMessage;
+      if(!preset_io::LoadPresetFromFile(sourcePath, document, &errorMessage))
+      {
+        ShowPresetFileError(GetUI(), "Import Failed", errorMessage);
+        return;
+      }
+
+      const std::string userPresetDirectory = EnsureDefaultUserPresetDirectory();
+      if(userPresetDirectory.empty())
+      {
+        ShowPresetFileError(GetUI(), "Import Failed", "Could not locate the user preset directory.");
+        return;
+      }
+
+      const std::string destinationPath = GetUniquePresetFilePath(
+        userPresetDirectory,
+        preset_io::detail::FileNameView(sourcePath));
+      if(!CopyFileBytes(sourcePath, destinationPath))
+      {
+        ShowPresetFileError(GetUI(), "Import Failed", "Could not copy preset: " + sourcePath);
+        return;
+      }
+
+      mUserPresetDirectory = userPresetDirectory;
+      RebuildPresetCatalog();
+      LoadUserPresetByPath(destinationPath);
+    });
+#endif
+}
+
 void Addivox::LoadPresetById(int presetId)
 {
   const auto entryIt = std::find_if(
@@ -2026,6 +2104,9 @@ void Addivox::HandlePresetManagerAction(int action, int presetId)
       break;
     case editor_messages::PresetManagerAction::SavePreset:
       PromptSavePresetToFile();
+      break;
+    case editor_messages::PresetManagerAction::ImportPreset:
+      PromptImportPresetFromFile();
       break;
     case editor_messages::PresetManagerAction::ImportCollection:
       PromptImportPresetCollection();
