@@ -1685,7 +1685,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     return updated;
   }
 
-  if(ctrlTag == kCtrlTagBender && msgTag == IWheelControl::kMessageTagSetPitchBendRange)
+  if(ctrlTag == kCtrlTagBender && msgTag == plugin_ui::layout::PitchBendWheelControl::kMessageTagSetPitchBendRange)
   {
     const int bendRange = *static_cast<const int*>(pData);
     SetPitchBendRange(bendRange);
@@ -2068,7 +2068,7 @@ void Addivox::SyncPitchBendRangeUI()
 
   if(auto* control = GetUI()->GetControlWithTag(kCtrlTagBender))
   {
-    if(auto* wheelControl = control->As<IWheelControl>())
+    if(auto* wheelControl = control->As<plugin_ui::layout::PitchBendWheelControl>())
       wheelControl->SetPitchBendRange(mPitchBendRange);
   }
 #endif

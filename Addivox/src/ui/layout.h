@@ -9,6 +9,7 @@
 #include "help_text.h"
 #include "knob.h"
 #include "number_box_control.h"
+#include "pitch_bend_wheel.h"
 #include "positions.h"
 #include "theme.h"
 #include "../settings/params.h"
@@ -626,10 +627,7 @@ inline void AttachKeyboardControls(IGraphics* pGraphics,
   keyboardControl->SetTooltip(help_text::main_ui::kKeyboard);
   *context->keyboardControl = keyboardControl;
 
-  auto* wheelControl = new IWheelControl(
-    positions::kPitchBendWheel,
-    IMidiMsg::EControlChangeMsg::kNoCC,
-    initialPitchBendRange);
+  auto* wheelControl = new PitchBendWheelControl(positions::kPitchBendWheel, initialPitchBendRange);
   wheelControl->SetTooltip(help_text::main_ui::kPitchBendWheel);
   pGraphics->AttachControl(wheelControl, benderTag);
   pGraphics->AttachControl(keyboardControl, keyboardTag);
