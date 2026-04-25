@@ -21,6 +21,24 @@ inline constexpr int kMsgTagSetAllKeyNotesEqEnabled = 1008;
 inline constexpr int kMsgTagSetBreathCCSource = 1009;
 inline constexpr int kMsgTagSetHarmonicVisualizerEnabled = 1010;
 inline constexpr int kMsgTagResetStandaloneStateToDefaults = 1011;
+inline constexpr int kMsgTagPresetManagerAction = 1012;
+
+enum class PresetManagerAction
+{
+  SelectPreset = 0,
+  PreviousPreset,
+  NextPreset,
+  SavePreset,
+  ImportCollection,
+  ShowPresetInFileBrowser,
+  RefreshPresets
+};
+
+struct PresetManagerActionPayload
+{
+  int action{static_cast<int>(PresetManagerAction::SelectPreset)};
+  int presetId{-1};
+};
 
 struct SetKeyNoteOscillatorParameterPayload
 {

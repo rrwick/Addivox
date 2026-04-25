@@ -17,6 +17,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -100,10 +101,32 @@ inline std::vector<OutMeterLEDRange> MakeOutputMeterLEDRanges()
   return ranges;
 }
 
-class BakedPresetManagerControl final : public IVBakedPresetManagerControl
+struct PresetMenuEntry
+{
+  int id{-1};
+  std::string name;
+  std::vector<std::string> groupPath;
+  bool checked{false};
+};
+
+struct PresetMenuModel
+{
+  std::vector<PresetMenuEntry> entries;
+  std::string label{"Choose Preset..."};
+  std::string showInFileBrowserLabel{"Show in Finder"};
+  bool canShowInFileBrowser{false};
+};
+
+class PresetManagerControl final : public IVBakedPresetManagerControl
 {
 public:
   using IVBakedPresetManagerControl::IVBakedPresetManagerControl;
+
+  void SetPresetMenuModel(PresetMenuModel model)
+  {
+    mModel = std::move(model);
+    SetPresetLabel(mModel.label.c_str());
+  }
 
   void SetPresetLabel(const char* label)
   {
@@ -115,54 +138,16 @@ public:
 
   void OnAttached() override
   {
-    const auto restorePreset = [this](iplug::IPluginBase* pluginBase, int presetIdx) {
-      if(!pluginBase || pluginBase->NPresets() == 0)
-        return;
-
-      pluginBase->RestorePreset(presetIdx);
-      UpdatePresetLabel(pluginBase);
+    const auto prevPresetFunc = [this](IControl*) {
+      SendPresetManagerAction(editor_messages::PresetManagerAction::PreviousPreset);
     };
 
-    const auto prevPresetFunc = [restorePreset](IControl* caller) {
-      auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(caller->GetDelegate());
-      if(!pluginBase || pluginBase->NPresets() == 0)
-        return;
-
-      int presetIdx = pluginBase->GetCurrentPresetIdx() - 1;
-      if(presetIdx < 0)
-        presetIdx = pluginBase->NPresets() - 1;
-
-      restorePreset(pluginBase, presetIdx);
-    };
-
-    const auto nextPresetFunc = [restorePreset](IControl* caller) {
-      auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(caller->GetDelegate());
-      if(!pluginBase || pluginBase->NPresets() == 0)
-        return;
-
-      int presetIdx = pluginBase->GetCurrentPresetIdx() + 1;
-      if(presetIdx >= pluginBase->NPresets())
-        presetIdx = 0;
-
-      restorePreset(pluginBase, presetIdx);
+    const auto nextPresetFunc = [this](IControl*) {
+      SendPresetManagerAction(editor_messages::PresetManagerAction::NextPreset);
     };
 
     const auto choosePresetFunc = [this](IControl* caller) {
-      mPresetMenu.Clear();
-
-      auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(caller->GetDelegate());
-      if(!pluginBase)
-        return;
-
-      const int currentPresetIdx = pluginBase->GetCurrentPresetIdx();
-      for(int i = 0; i < pluginBase->NPresets(); ++i)
-      {
-        const char* presetName = pluginBase->GetPresetName(i);
-        if(i == currentPresetIdx)
-          mPresetMenu.AddItem(presetName, -1, IPopupMenu::Item::kChecked);
-        else
-          mPresetMenu.AddItem(presetName);
-      }
+      BuildPresetMenu();
 
       caller->GetUI()->CreatePopupMenu(*this, mPresetMenu, caller->GetRECT());
     };
@@ -172,7 +157,7 @@ public:
     AddChildControl(mPresetNameButton = new IVButtonControl(IRECT(), MakeImmediateButtonAction(choosePresetFunc), "Choose Preset...", mStyle));
 
     OnResize();
-    UpdatePresetLabel(dynamic_cast<iplug::IPluginBase*>(GetDelegate()));
+    SetPresetLabel(mModel.label.c_str());
   }
 
   void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override
@@ -184,12 +169,12 @@ public:
     if(!selectedItem)
       return;
 
-    auto* pluginBase = dynamic_cast<iplug::IPluginBase*>(GetDelegate());
-    if(!pluginBase)
+    const int tag = selectedItem->GetTag();
+    if(tag < 0 || tag >= static_cast<int>(mActionItems.size()))
       return;
 
-    pluginBase->RestorePreset(selectedMenu->GetChosenItemIdx());
-    UpdatePresetLabel(pluginBase);
+    const ActionItem& actionItem = mActionItems[static_cast<std::size_t>(tag)];
+    SendPresetManagerAction(actionItem.action, actionItem.presetId);
   }
 
   void OnResize() override
@@ -202,15 +187,93 @@ public:
   }
 
 private:
-  void UpdatePresetLabel(iplug::IPluginBase* pluginBase)
+  struct ActionItem
   {
-    if(!pluginBase || !mPresetNameButton || pluginBase->NPresets() == 0)
+    editor_messages::PresetManagerAction action{editor_messages::PresetManagerAction::SelectPreset};
+    int presetId{-1};
+  };
+
+  int AddActionItem(editor_messages::PresetManagerAction action, int presetId = -1)
+  {
+    const int tag = static_cast<int>(mActionItems.size());
+    mActionItems.push_back(ActionItem{action, presetId});
+    return tag;
+  }
+
+  void SendPresetManagerAction(editor_messages::PresetManagerAction action, int presetId = -1)
+  {
+    auto* delegate = GetDelegate();
+    if(!delegate)
       return;
 
-    WDL_String label;
-    const int presetIdx = pluginBase->GetCurrentPresetIdx();
-    label.SetFormatted(32, "%s", pluginBase->GetPresetName(presetIdx));
-    SetPresetLabel(label.Get());
+    const editor_messages::PresetManagerActionPayload payload{
+      static_cast<int>(action),
+      presetId
+    };
+    delegate->SendArbitraryMsgFromUI(
+      editor_messages::kMsgTagPresetManagerAction,
+      GetTag(),
+      sizeof(payload),
+      &payload);
+  }
+
+  IPopupMenu* EnsureSubmenu(IPopupMenu& parent, const std::string& name)
+  {
+    for(int i = 0; i < parent.NItems(); ++i)
+    {
+      IPopupMenu::Item* item = parent.GetItem(i);
+      if(item && item->GetSubmenu() && std::strcmp(item->GetText(), name.c_str()) == 0)
+        return item->GetSubmenu();
+    }
+
+    return parent.AddItem(name.c_str(), new IPopupMenu(name.c_str()))->GetSubmenu();
+  }
+
+  void AddPresetEntryToMenu(const PresetMenuEntry& entry)
+  {
+    IPopupMenu* menu = &mPresetMenu;
+    for(const auto& group : entry.groupPath)
+      menu = EnsureSubmenu(*menu, group);
+
+    const int flags = entry.checked ? IPopupMenu::Item::kChecked : IPopupMenu::Item::kNoFlags;
+    menu->AddItem(
+      new IPopupMenu::Item(
+        entry.name.c_str(),
+        flags,
+        AddActionItem(editor_messages::PresetManagerAction::SelectPreset, entry.id)));
+  }
+
+  void AddCommandItem(const char* label,
+                      editor_messages::PresetManagerAction action,
+                      bool enabled = true)
+  {
+    const int flags = enabled ? IPopupMenu::Item::kNoFlags : IPopupMenu::Item::kDisabled;
+    mPresetMenu.AddItem(new IPopupMenu::Item(label, flags, AddActionItem(action)));
+  }
+
+  void BuildPresetMenu()
+  {
+    mPresetMenu.Clear();
+    mActionItems.clear();
+
+    if(mModel.entries.empty())
+    {
+      mPresetMenu.AddItem("(No presets found)", -1, IPopupMenu::Item::kDisabled);
+    }
+    else
+    {
+      for(const auto& entry : mModel.entries)
+        AddPresetEntryToMenu(entry);
+    }
+
+    mPresetMenu.AddSeparator();
+    AddCommandItem("Save...", editor_messages::PresetManagerAction::SavePreset);
+    AddCommandItem("Import Collection...", editor_messages::PresetManagerAction::ImportCollection);
+    AddCommandItem(
+      mModel.showInFileBrowserLabel.empty() ? "Show in Finder" : mModel.showInFileBrowserLabel.c_str(),
+      editor_messages::PresetManagerAction::ShowPresetInFileBrowser,
+      mModel.canShowInFileBrowser);
+    AddCommandItem("Refresh", editor_messages::PresetManagerAction::RefreshPresets);
   }
 
   IRECT GetSubControlBounds(ESubControl control) const
@@ -227,6 +290,8 @@ private:
   }
 
   IPopupMenu mPresetMenu;
+  PresetMenuModel mModel;
+  std::vector<ActionItem> mActionItems;
   IVButtonControl* mPresetNameButton = nullptr;
 };
 
@@ -356,27 +421,7 @@ private:
 
 inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<editor::EditorContext>& context, int aboutBoxTag)
 {
-  const auto sendPresetFileMessage = [](IControl* caller, int msgTag) {
-    if(!caller)
-      return;
-
-    if(auto* delegate = caller->GetDelegate())
-      delegate->SendArbitraryMsgFromUI(msgTag, caller->GetTag());
-  };
-
-  auto* presetManagerControl = new BakedPresetManagerControl(positions::kPresetManager, "", theme::PresetManagerStyle());
-
-  auto* loadPresetButton = new IVButtonControl(
-    positions::kLoadPresetButton,
-    MakeImmediateButtonAction([sendPresetFileMessage](IControl* caller) {
-      sendPresetFileMessage(caller, editor_messages::kMsgTagPromptLoadPresetFromFile);
-    }), "Load", theme::PresetActionButtonStyle(), true, false);
-
-  auto* savePresetButton = new IVButtonControl(
-    positions::kSavePresetButton,
-    MakeImmediateButtonAction([sendPresetFileMessage](IControl* caller) {
-      sendPresetFileMessage(caller, editor_messages::kMsgTagPromptSavePresetToFile);
-    }), "Save", theme::PresetActionButtonStyle(), true, false);
+  auto* presetManagerControl = new PresetManagerControl(positions::kPresetManager, "", theme::PresetManagerStyle());
 
   auto* settingsButton = new SettingsMenuButton(
     positions::kSettingsButton,
@@ -392,8 +437,6 @@ inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<edit
 
   pGraphics->AttachControl(aboutButton);
   pGraphics->AttachControl(settingsButton);
-  pGraphics->AttachControl(loadPresetButton);
-  pGraphics->AttachControl(savePresetButton);
   pGraphics->AttachControl(presetManagerControl);
   *context->title.presetManagerControl = presetManagerControl;
 }

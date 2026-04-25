@@ -527,6 +527,139 @@ void ShowPresetFileError(IGraphics* ui, const char* title, const std::string& me
   if(ui)
     ui->ShowMessageBox(message.c_str(), title, kMB_OK);
 }
+
+std::string TrimTrailingSeparators(std::string path)
+{
+  const std::string_view trimmed = preset_io::detail::TrimTrailingPathSeparators(path);
+  return std::string{trimmed};
+}
+
+std::string NormalizeMenuPath(std::string path)
+{
+  for(char& c : path)
+  {
+    if(c == '\\')
+      c = '/';
+  }
+  return path;
+}
+
+std::vector<std::string> SplitMenuPath(std::string_view path)
+{
+  std::vector<std::string> parts;
+  std::string normalized = NormalizeMenuPath(std::string{path});
+  std::size_t start = 0;
+  while(start < normalized.size())
+  {
+    const std::size_t slash = normalized.find('/', start);
+    const std::size_t end = slash == std::string::npos ? normalized.size() : slash;
+    if(end > start)
+      parts.push_back(normalized.substr(start, end - start));
+    if(slash == std::string::npos)
+      break;
+    start = slash + 1;
+  }
+  return parts;
+}
+
+std::string MakeGroupKey(const std::vector<std::string>& menuPath)
+{
+  std::string key;
+  for(const auto& part : menuPath)
+  {
+    if(!key.empty())
+      key.push_back('/');
+    key += part;
+  }
+  return key.empty() ? "Factory" : key;
+}
+
+std::string RelativePathFromDirectory(std::string_view directory, std::string_view path)
+{
+  const std::string base = TrimTrailingSeparators(std::string{directory});
+  const std::string full{path};
+  if(base.empty() || full.size() <= base.size())
+    return full;
+
+  if(full.compare(0, base.size(), base) != 0)
+    return full;
+
+  std::size_t offset = base.size();
+  while(offset < full.size() && (full[offset] == '/' || full[offset] == '\\'))
+    ++offset;
+  return full.substr(offset);
+}
+
+std::string DirectoryRelativeToRoot(std::string_view rootDirectory, std::string_view filePath)
+{
+  const std::string relativePath = RelativePathFromDirectory(rootDirectory, filePath);
+  return preset_io::detail::ParentPath(relativePath);
+}
+
+std::string GetUniqueChildDirectory(std::string_view parentDirectory, std::string_view preferredName)
+{
+  std::string sanitized = SanitizePresetFileName(preferredName);
+  if(preset_io::detail::HasExtension(sanitized, ".toml"))
+    sanitized.resize(sanitized.size() - 5);
+  if(sanitized.empty())
+    sanitized = "Collection";
+
+  std::string candidate = preset_io::detail::JoinPath(parentDirectory, sanitized);
+  int suffix = 2;
+  while(preset_io::detail::PathExists(candidate))
+  {
+    candidate = preset_io::detail::JoinPath(
+      parentDirectory,
+      sanitized + " " + std::to_string(suffix));
+    ++suffix;
+  }
+  return candidate;
+}
+
+bool CopyFileBytes(const std::string& sourcePath, const std::string& destinationPath)
+{
+  const std::string destinationParent = preset_io::detail::ParentPath(destinationPath);
+  if(!destinationParent.empty() && !preset_io::detail::EnsureDirectoryExists(destinationParent))
+    return false;
+
+  std::ifstream input(sourcePath, std::ios::binary);
+  if(!input.is_open())
+    return false;
+
+  std::ofstream output(destinationPath, std::ios::binary);
+  if(!output.is_open())
+    return false;
+
+  output << input.rdbuf();
+  return !input.bad() && output.good();
+}
+
+bool CopyPresetCollection(std::string_view sourceDirectory,
+                          std::string_view destinationDirectory,
+                          std::string* errorMessage = nullptr)
+{
+  const std::vector<std::string> presetPaths = preset_io::FindPresetFiles(sourceDirectory);
+  if(presetPaths.empty())
+  {
+    if(errorMessage)
+      *errorMessage = "No TOML presets were found in that collection.";
+    return false;
+  }
+
+  for(const auto& presetPath : presetPaths)
+  {
+    const std::string relativePath = RelativePathFromDirectory(sourceDirectory, presetPath);
+    const std::string destinationPath = preset_io::detail::JoinPath(destinationDirectory, relativePath);
+    if(!CopyFileBytes(presetPath, destinationPath))
+    {
+      if(errorMessage)
+        *errorMessage = "Could not copy preset: " + presetPath;
+      return false;
+    }
+  }
+
+  return true;
+}
 } // namespace
 
 Addivox::Addivox(const InstanceInfo& info)
@@ -713,7 +846,8 @@ Addivox::Addivox(const InstanceInfo& info)
 #endif
 
   LoadBuiltInPresets();
-  RestorePreset(0);
+  RebuildPresetCatalog();
+  RestoreFactoryPreset(0);
   if(mActivePresetDisplayName.empty() && NPresets() > 0)
     mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
 
@@ -852,7 +986,7 @@ void Addivox::ResetStandaloneStateToDefaults()
   mNumActiveUIMIDINotes = 0;
 
   if(NPresets() > 0)
-    RestorePreset(0);
+    RestoreFactoryPreset(0);
 
   SetPitchBendRange(kDefaultPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
@@ -940,6 +1074,8 @@ void Addivox::SendBreathControlFromUI(double value, int channel, int offset)
 
 void Addivox::ApplyPresetDocument(const preset_io::PresetDocument& document)
 {
+  mSuppressPresetDirtyTracking = true;
+
   mEditorState->compoundPreset = document.compoundPreset;
   mEditorState->selectedMidiNote = preset_io::detail::ChooseDefaultSelectedMidiNote(
     document.compoundPreset,
@@ -959,6 +1095,8 @@ void Addivox::ApplyPresetDocument(const preset_io::PresetDocument& document)
   else if(mActivePresetDisplayName.empty())
     mActivePresetDisplayName = "Preset";
 
+  mSuppressPresetDirtyTracking = false;
+  ClearActivePresetDirty();
   RefreshEditorUI(true);
   MarkStandaloneStateDirty();
 }
@@ -988,16 +1126,7 @@ void Addivox::PromptLoadPresetFromFile()
       if(fullPath.empty())
         return;
 
-      preset_io::PresetDocument document;
-      std::string errorMessage;
-      if(!preset_io::LoadPresetFromFile(fullPath, document, &errorMessage))
-      {
-        ShowPresetFileError(GetUI(), "Preset Load Failed", errorMessage);
-        return;
-      }
-
-      mUserPresetDirectory = preset_io::detail::ParentPath(fullPath);
-      ApplyPresetDocument(document);
+      LoadUserPresetByPath(fullPath);
     });
 #endif
 }
@@ -1017,10 +1146,14 @@ void Addivox::PromptSavePresetToFile()
 
   WDL_String fileName;
   WDL_String directory;
-  const std::string defaultFileName = SanitizePresetFileName(document.name);
-  const std::string initialDirectory = mUserPresetDirectory.empty()
-    ? GetDefaultUserPresetDirectory()
-    : mUserPresetDirectory;
+  const std::string defaultFileName =
+    (mActivePresetSource == PresetSource::User && !mActivePresetPath.empty())
+      ? std::string{preset_io::detail::FileNameView(mActivePresetPath)}
+      : SanitizePresetFileName(document.name);
+  const std::string initialDirectory =
+    (mActivePresetSource == PresetSource::User && !mActivePresetPath.empty())
+      ? preset_io::detail::ParentPath(mActivePresetPath)
+      : (mUserPresetDirectory.empty() ? GetDefaultUserPresetDirectory() : mUserPresetDirectory);
 
 #if defined(OS_IOS)
   const std::string exportPath = preset_io::detail::JoinPath(GetTemporaryDirectoryPath(), defaultFileName);
@@ -1072,6 +1205,16 @@ void Addivox::PromptSavePresetToFile()
       }
 
       mUserPresetDirectory = preset_io::detail::ParentPath(fullPath);
+      mActivePresetSource = PresetSource::User;
+      mActivePresetPath = fullPath;
+      const std::string relativeDirectory = DirectoryRelativeToRoot(GetDefaultUserPresetDirectory(), fullPath);
+      std::vector<std::string> menuPath{"User"};
+      const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
+      menuPath.insert(menuPath.end(), relativeParts.begin(), relativeParts.end());
+      mActivePresetGroupKey = MakeGroupKey(menuPath);
+      ClearActivePresetDirty();
+      RebuildPresetCatalog();
+      RefreshEditorUI();
     });
 #endif
 #endif
@@ -1157,6 +1300,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
   if(!preset_io::ParsePresetToml(presetToml.Get(), document))
     return -1;
 
+  mSuppressPresetDirtyTracking = true;
   mEditorState->compoundPreset = document.compoundPreset;
   mEditorState->selectedMidiNote = preset_io::detail::ChooseDefaultSelectedMidiNote(
     document.compoundPreset,
@@ -1175,6 +1319,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos)
   OnParamReset(kPresetRecall);
   SyncPresetOwnedParamDefaultsToCurrentValues(*this);
   LEAVE_PARAMS_MUTEX
+  mSuppressPresetDirtyTracking = false;
 
   int restoredPitchBendRange = mPitchBendRange;
   BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
@@ -1208,6 +1353,23 @@ void Addivox::OnRestoreState()
     mActivePresetDisplayName = GetPresetName(GetCurrentPresetIdx());
   }
 
+  if(mRestoringFactoryPresetIdx >= 0)
+  {
+    mActivePresetSource = PresetSource::Factory;
+    mActivePresetPath = (mRestoringFactoryPresetIdx < static_cast<int>(mFactoryPresetPaths.size()))
+      ? mFactoryPresetPaths[static_cast<std::size_t>(mRestoringFactoryPresetIdx)]
+      : std::string{};
+    mActivePresetGroupKey = "Factory";
+    mRestoringFactoryPresetIdx = -1;
+  }
+  else
+  {
+    mActivePresetSource = PresetSource::Unknown;
+    mActivePresetPath.clear();
+    mActivePresetGroupKey = "Factory";
+  }
+
+  ClearActivePresetDirty();
   RefreshEditorUI(true);
   MarkStandaloneStateDirty();
 }
@@ -1216,6 +1378,7 @@ void Addivox::OnUIOpen()
 {
   EnsureStandaloneStateInitialized();
   Plugin::OnUIOpen();
+  RebuildPresetCatalog();
   RefreshEditorUI();
 }
 
@@ -1241,8 +1404,10 @@ bool Addivox::OnHostRequestingProductHelp()
 
 void Addivox::OnParamChangeUI(int paramIdx, EParamSource source)
 {
-  (void) paramIdx;
   (void) source;
+  if(IsPresetOwnedParam(paramIdx))
+    MarkActivePresetDirty();
+
   MarkStandaloneStateDirty();
 }
 
@@ -1356,6 +1521,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     return true;
   }
 
+  if(msgTag == editor_messages::kMsgTagPresetManagerAction
+    && dataSize == sizeof(editor_messages::PresetManagerActionPayload)
+    && pData)
+  {
+    const auto* payload = static_cast<const editor_messages::PresetManagerActionPayload*>(pData);
+    HandlePresetManagerAction(payload->action, payload->presetId);
+    return true;
+  }
+
   if(msgTag == editor_messages::kMsgTagSetBreathCCSource
     && dataSize == sizeof(editor_messages::SetBreathCCSourcePayload)
     && pData)
@@ -1396,7 +1570,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       parameter,
       payload->value);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1415,7 +1592,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       parameter,
       payload->values);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1431,7 +1611,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 
     const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1450,7 +1633,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
       payload->enabled != 0,
       payload->midiNote);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1462,7 +1648,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
     const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1474,7 +1663,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
     const bool updated = mDSP.mSynth.GetVoice().AddKeyNotePreset(payload->midiNote);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1486,7 +1678,10 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     const auto* payload = static_cast<const editor_messages::KeyNotePresetPayload*>(pData);
     const bool updated = mDSP.mSynth.GetVoice().RemoveKeyNotePreset(payload->midiNote);
     if(updated)
+    {
+      MarkActivePresetDirty();
       MarkStandaloneStateDirty();
+    }
     return updated;
   }
 
@@ -1501,8 +1696,265 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 }
 #endif
 
+void Addivox::RebuildPresetCatalog()
+{
+  mPresetCatalog.clear();
+  int nextId = 0;
+
+  for(int presetIdx = 0; presetIdx < NPresets(); ++presetIdx)
+  {
+    PresetCatalogEntry entry;
+    entry.id = nextId++;
+    entry.source = PresetSource::Factory;
+    entry.factoryIndex = presetIdx;
+    entry.name = GetPresetName(presetIdx);
+    if(entry.name.empty())
+      entry.name = "Preset " + std::to_string(presetIdx + 1);
+    if(presetIdx < static_cast<int>(mFactoryPresetPaths.size()))
+      entry.path = mFactoryPresetPaths[static_cast<std::size_t>(presetIdx)];
+    entry.menuPath = {"Factory"};
+    entry.groupKey = "Factory";
+    mPresetCatalog.push_back(std::move(entry));
+  }
+
+  const std::string userPresetDirectory = GetDefaultUserPresetDirectory();
+  const std::vector<std::string> userPresetPaths = preset_io::FindPresetFiles(userPresetDirectory);
+  for(const auto& presetPath : userPresetPaths)
+  {
+    preset_io::PresetDocument document;
+    const bool loaded = preset_io::LoadPresetFromFile(presetPath, document);
+
+    PresetCatalogEntry entry;
+    entry.id = nextId++;
+    entry.source = PresetSource::User;
+    entry.path = presetPath;
+    entry.name = loaded && !document.name.empty() ? document.name : preset_io::detail::FileStem(presetPath);
+
+    entry.menuPath = {"User"};
+    const std::string relativeDirectory = DirectoryRelativeToRoot(userPresetDirectory, presetPath);
+    const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
+    entry.menuPath.insert(entry.menuPath.end(), relativeParts.begin(), relativeParts.end());
+    entry.groupKey = MakeGroupKey(entry.menuPath);
+    mPresetCatalog.push_back(std::move(entry));
+  }
+}
+
+void Addivox::RestoreFactoryPreset(int presetIdx)
+{
+  if(presetIdx < 0 || presetIdx >= NPresets())
+    return;
+
+  mRestoringFactoryPresetIdx = presetIdx;
+  if(!RestorePreset(presetIdx))
+  {
+    mRestoringFactoryPresetIdx = -1;
+    return;
+  }
+
+  mActivePresetSource = PresetSource::Factory;
+  mActivePresetPath = (presetIdx < static_cast<int>(mFactoryPresetPaths.size()))
+    ? mFactoryPresetPaths[static_cast<std::size_t>(presetIdx)]
+    : std::string{};
+  mActivePresetGroupKey = "Factory";
+  ClearActivePresetDirty();
+  RefreshEditorUI(true);
+}
+
+void Addivox::LoadUserPresetByPath(const std::string& path)
+{
+  preset_io::PresetDocument document;
+  std::string errorMessage;
+  if(!preset_io::LoadPresetFromFile(path, document, &errorMessage))
+  {
+    ShowPresetFileError(GetUI(), "Preset Load Failed", errorMessage);
+    return;
+  }
+
+  mUserPresetDirectory = preset_io::detail::ParentPath(path);
+  ApplyPresetDocument(document);
+  mActivePresetSource = PresetSource::User;
+  mActivePresetPath = path;
+
+  std::vector<std::string> menuPath{"User"};
+  const std::string relativeDirectory = DirectoryRelativeToRoot(GetDefaultUserPresetDirectory(), path);
+  const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
+  menuPath.insert(menuPath.end(), relativeParts.begin(), relativeParts.end());
+  mActivePresetGroupKey = MakeGroupKey(menuPath);
+  ClearActivePresetDirty();
+  RebuildPresetCatalog();
+  RefreshEditorUI(true);
+}
+
+void Addivox::LoadPresetById(int presetId)
+{
+  const auto entryIt = std::find_if(
+    mPresetCatalog.begin(),
+    mPresetCatalog.end(),
+    [presetId](const PresetCatalogEntry& entry) { return entry.id == presetId; });
+  if(entryIt == mPresetCatalog.end())
+    return;
+
+  if(entryIt->source == PresetSource::Factory)
+    RestoreFactoryPreset(entryIt->factoryIndex);
+  else if(entryIt->source == PresetSource::User)
+    LoadUserPresetByPath(entryIt->path);
+}
+
+void Addivox::CyclePresetInCurrentGroup(int direction)
+{
+  if(mPresetCatalog.empty())
+    RebuildPresetCatalog();
+
+  std::vector<const PresetCatalogEntry*> groupEntries;
+  for(const auto& entry : mPresetCatalog)
+  {
+    if(entry.groupKey == mActivePresetGroupKey)
+      groupEntries.push_back(&entry);
+  }
+
+  if(groupEntries.empty())
+  {
+    for(const auto& entry : mPresetCatalog)
+    {
+      if(entry.groupKey == "Factory")
+        groupEntries.push_back(&entry);
+    }
+  }
+
+  if(groupEntries.empty())
+    return;
+
+  int currentIndex = -1;
+  for(int i = 0; i < static_cast<int>(groupEntries.size()); ++i)
+  {
+    const PresetCatalogEntry* entry = groupEntries[static_cast<std::size_t>(i)];
+    const bool matches =
+      (entry->source == PresetSource::Factory && mActivePresetSource == PresetSource::Factory && entry->factoryIndex == GetCurrentPresetIdx())
+      || (entry->source == PresetSource::User && mActivePresetSource == PresetSource::User && entry->path == mActivePresetPath);
+    if(matches)
+    {
+      currentIndex = i;
+      break;
+    }
+  }
+
+  if(currentIndex < 0)
+    currentIndex = direction >= 0 ? -1 : 0;
+
+  int nextIndex = currentIndex + (direction >= 0 ? 1 : -1);
+  if(nextIndex < 0)
+    nextIndex = static_cast<int>(groupEntries.size()) - 1;
+  if(nextIndex >= static_cast<int>(groupEntries.size()))
+    nextIndex = 0;
+
+  LoadPresetById(groupEntries[static_cast<std::size_t>(nextIndex)]->id);
+}
+
+void Addivox::PromptImportPresetCollection()
+{
+#if IPLUG_EDITOR
+  IGraphics* ui = GetUI();
+  if(!ui)
+    return;
+
+  WDL_String directory;
+  const std::string initialDirectory = mUserPresetDirectory.empty()
+    ? GetDefaultUserPresetDirectory()
+    : mUserPresetDirectory;
+  if(!initialDirectory.empty())
+    directory.Set(initialDirectory.c_str());
+
+  ui->PromptForDirectory(
+    directory,
+    [this](const WDL_String&, const WDL_String& selectedDirectory) {
+      if(selectedDirectory.GetLength() == 0)
+        return;
+
+      const std::string sourceDirectory = TrimTrailingSeparators(selectedDirectory.Get());
+      const std::string userPresetDirectory = GetDefaultUserPresetDirectory();
+      if(userPresetDirectory.empty())
+      {
+        ShowPresetFileError(GetUI(), "Import Failed", "Could not locate the user preset directory.");
+        return;
+      }
+
+      const std::string collectionName{preset_io::detail::FileNameView(sourceDirectory)};
+      const std::string destinationDirectory = GetUniqueChildDirectory(userPresetDirectory, collectionName);
+      std::string errorMessage;
+      if(!CopyPresetCollection(sourceDirectory, destinationDirectory, &errorMessage))
+      {
+        ShowPresetFileError(GetUI(), "Import Failed", errorMessage);
+        return;
+      }
+
+      mUserPresetDirectory = destinationDirectory;
+      RebuildPresetCatalog();
+      RefreshEditorUI();
+    });
+#endif
+}
+
+void Addivox::ShowActivePresetInFileBrowser()
+{
+#if IPLUG_EDITOR
+  IGraphics* ui = GetUI();
+  if(!ui || mActivePresetPath.empty())
+    return;
+
+  WDL_String path;
+  path.Set(mActivePresetPath.c_str());
+  ui->RevealPathInExplorerOrFinder(path, true);
+#endif
+}
+
+void Addivox::HandlePresetManagerAction(int action, int presetId)
+{
+  const auto presetAction = static_cast<editor_messages::PresetManagerAction>(action);
+  switch(presetAction)
+  {
+    case editor_messages::PresetManagerAction::SelectPreset:
+      LoadPresetById(presetId);
+      break;
+    case editor_messages::PresetManagerAction::PreviousPreset:
+      CyclePresetInCurrentGroup(-1);
+      break;
+    case editor_messages::PresetManagerAction::NextPreset:
+      CyclePresetInCurrentGroup(1);
+      break;
+    case editor_messages::PresetManagerAction::SavePreset:
+      PromptSavePresetToFile();
+      break;
+    case editor_messages::PresetManagerAction::ImportCollection:
+      PromptImportPresetCollection();
+      break;
+    case editor_messages::PresetManagerAction::ShowPresetInFileBrowser:
+      ShowActivePresetInFileBrowser();
+      break;
+    case editor_messages::PresetManagerAction::RefreshPresets:
+      RebuildPresetCatalog();
+      RefreshEditorUI();
+      break;
+  }
+}
+
+void Addivox::MarkActivePresetDirty()
+{
+  if(mSuppressPresetDirtyTracking || mActivePresetDirty)
+    return;
+
+  mActivePresetDirty = true;
+  RefreshEditorUI();
+}
+
+void Addivox::ClearActivePresetDirty()
+{
+  mActivePresetDirty = false;
+}
+
 void Addivox::LoadBuiltInPresets()
 {
+  mFactoryPresetPaths.clear();
+
   WDL_String resourcePath;
   BundleResourcePath(resourcePath, GetBundleID());
 
@@ -1522,6 +1974,7 @@ void Addivox::LoadBuiltInPresets()
 
       const std::string presetName = document.name.empty() ? preset_io::detail::FileStem(presetPath) : document.name;
       MakePresetFromChunk(presetName.c_str(), chunk);
+      mFactoryPresetPaths.push_back(presetPath);
       ++numLoadedPresets;
 
       if(numLoadedPresets >= kMaxFactoryPresets)
@@ -1539,7 +1992,10 @@ void Addivox::LoadBuiltInPresets()
 
     IByteChunk chunk;
     if(BuildPresetChunk(fallbackDocument, chunk))
+    {
       MakePresetFromChunk(fallbackDocument.name.c_str(), chunk);
+      mFactoryPresetPaths.push_back({});
+    }
   }
 
   PruneUninitializedPresets();
@@ -1554,12 +2010,36 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates)
   if(mEditorContext->title.presetManagerControl && *mEditorContext->title.presetManagerControl)
   {
     if(auto* presetManager =
-         dynamic_cast<plugin_ui::layout::BakedPresetManagerControl*>(*mEditorContext->title.presetManagerControl))
+         dynamic_cast<plugin_ui::layout::PresetManagerControl*>(*mEditorContext->title.presetManagerControl))
     {
-      const std::string label = mActivePresetDisplayName.empty()
+      std::string label = mActivePresetDisplayName.empty()
         ? (NPresets() > 0 ? std::string{GetPresetName(GetCurrentPresetIdx())} : std::string{"Choose Preset..."})
         : mActivePresetDisplayName;
-      presetManager->SetPresetLabel(label.c_str());
+      if(mActivePresetDirty)
+        label += "*";
+
+      plugin_ui::layout::PresetMenuModel model;
+      model.label = label;
+#if defined(OS_WIN)
+      model.showInFileBrowserLabel = "Reveal in Explorer";
+#else
+      model.showInFileBrowserLabel = "Show in Finder";
+#endif
+      model.canShowInFileBrowser = !mActivePresetPath.empty() && preset_io::detail::PathExists(mActivePresetPath);
+
+      for(const auto& entry : mPresetCatalog)
+      {
+        plugin_ui::layout::PresetMenuEntry menuEntry;
+        menuEntry.id = entry.id;
+        menuEntry.name = entry.name;
+        menuEntry.groupPath = entry.menuPath;
+        menuEntry.checked =
+          (entry.source == PresetSource::Factory && mActivePresetSource == PresetSource::Factory && entry.factoryIndex == GetCurrentPresetIdx())
+          || (entry.source == PresetSource::User && mActivePresetSource == PresetSource::User && entry.path == mActivePresetPath);
+        model.entries.push_back(std::move(menuEntry));
+      }
+
+      presetManager->SetPresetMenuModel(std::move(model));
     }
   }
 

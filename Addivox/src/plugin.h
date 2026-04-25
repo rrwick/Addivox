@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "midi/breath_control.h"
 #include "settings/oscillator.h"
@@ -73,6 +74,24 @@ public:
 #endif
 
 private:
+  enum class PresetSource
+  {
+    Unknown,
+    Factory,
+    User
+  };
+
+  struct PresetCatalogEntry
+  {
+    int id{-1};
+    PresetSource source{PresetSource::Unknown};
+    int factoryIndex{-1};
+    std::string name;
+    std::string path;
+    std::string groupKey;
+    std::vector<std::string> menuPath;
+  };
+
   void ApplyPresetDocument(const preset_io::PresetDocument& document);
   void EnsureStandaloneStateInitialized();
   bool LoadStandaloneState();
@@ -86,6 +105,16 @@ private:
   void SendBreathControlFromUI(double value, int channel, int offset);
   void PromptLoadPresetFromFile();
   void PromptSavePresetToFile();
+  void PromptImportPresetCollection();
+  void ShowActivePresetInFileBrowser();
+  void HandlePresetManagerAction(int action, int presetId);
+  void RebuildPresetCatalog();
+  void RestoreFactoryPreset(int presetIdx);
+  void LoadUserPresetByPath(const std::string& path);
+  void LoadPresetById(int presetId);
+  void CyclePresetInCurrentGroup(int direction);
+  void MarkActivePresetDirty();
+  void ClearActivePresetDirty();
   bool ShowAboutBox();
   bool OpenOnlineDocs();
   void LoadBuiltInPresets();
@@ -99,6 +128,14 @@ private:
   std::string mActivePresetDisplayName;
   std::string mPendingRestoredStatePresetName;
   std::string mUserPresetDirectory;
+  std::string mActivePresetPath;
+  std::string mActivePresetGroupKey{"Factory"};
+  PresetSource mActivePresetSource{PresetSource::Unknown};
+  std::vector<std::string> mFactoryPresetPaths;
+  std::vector<PresetCatalogEntry> mPresetCatalog;
+  int mRestoringFactoryPresetIdx{-1};
+  bool mActivePresetDirty{false};
+  bool mSuppressPresetDirtyTracking{false};
   std::array<bool, 128> mQwertyMidiKeysDown{};
   int mQwertyMidiBaseNote{48};
   bool mWasQwertyKeyboardInEditMode{false};

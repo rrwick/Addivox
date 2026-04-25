@@ -9,7 +9,7 @@ using namespace igraphics;
 
 namespace positions
 {
-inline const IRECT         kPresetManager = IRECT::MakeXYWH(525,  14, 270,  42);
+inline const IRECT         kPresetManager = IRECT::MakeXYWH(525,  14, 370,  42);
 inline const IRECT      kLoadPresetButton = IRECT::MakeXYWH(795,  14,  50,  42);
 inline const IRECT      kSavePresetButton = IRECT::MakeXYWH(845,  14,  50,  42);
 inline const IRECT        kSettingsButton = IRECT::MakeXYWH(907,  19,  32,  32);
