@@ -110,6 +110,7 @@ private:
   void ShowActivePatchInFileBrowser();
   void HandlePatchManagerAction(int action, int patchId);
   void RebuildPatchCatalog();
+  void ReconcileActivePatchIdentity();
   void RestoreFactoryPatch(int patchIdx);
   void LoadUserPatchByPath(const std::string& path);
   void LoadPatchById(int patchId);
@@ -132,10 +133,16 @@ private:
   std::string mPendingRestoredStatePatchName;
   std::string mPendingRestoredPatchCleanSnapshot;
   bool mPendingRestoredPatchHasCleanSnapshot{false};
+  PatchSource mPendingRestoredPatchSource{PatchSource::Unknown};
+  int mPendingRestoredFactoryPatchIdx{-1};
+  std::string mPendingRestoredPatchPath;
+  std::string mPendingRestoredPatchGroupKey;
+  bool mPendingRestoredPatchHasIdentity{false};
   std::string mUserPatchDirectory;
   std::string mActivePatchPath;
   std::string mActivePatchGroupKey{"Factory"};
   PatchSource mActivePatchSource{PatchSource::Unknown};
+  int mActiveFactoryPatchIdx{-1};
   std::vector<std::string> mFactoryPatchPaths;
   std::vector<PatchCatalogEntry> mPatchCatalog;
   std::string mActivePatchCleanSnapshot;
