@@ -936,13 +936,27 @@ Addivox::Addivox(const InstanceInfo& info)
         releaseHeldQwertyMidiNotes();
       mWasQwertyKeyboardInEditMode = editMode;
 
+      const bool popupExpanded = pGraphics->GetPopupMenuControl() && pGraphics->GetPopupMenuControl()->GetExpanded();
+      const bool textEntryActive = pGraphics->IsInPlatformTextEntry()
+        || (pGraphics->GetControlInTextEntry() != nullptr);
+      const bool modifiersActive = key.S || key.C || key.A;
+
+      if(!isUp && !popupExpanded && !textEntryActive && !modifiersActive)
+      {
+        if(key.VK == kVK_LEFT)
+        {
+          CyclePatchInCurrentGroup(-1);
+          return true;
+        }
+        if(key.VK == kVK_RIGHT)
+        {
+          CyclePatchInCurrentGroup(1);
+          return true;
+        }
+      }
+
       if(editMode)
       {
-        const bool popupExpanded = pGraphics->GetPopupMenuControl() && pGraphics->GetPopupMenuControl()->GetExpanded();
-        const bool textEntryActive = pGraphics->IsInPlatformTextEntry()
-          || (pGraphics->GetControlInTextEntry() != nullptr);
-        const bool modifiersActive = key.S || key.C || key.A;
-
         if(!isUp && !popupExpanded && !textEntryActive && !modifiersActive)
           plugin_ui::editor::ApplyKeyboardActionToSelectedTab(mEditorContext, key.VK);
 
