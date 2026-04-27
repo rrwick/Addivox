@@ -349,6 +349,30 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
   if(!context || !context->IsEditMode())
     return;
 
+  const auto& tabTitles = GetEditorTabTitlesInDisplayOrder();
+  const int selectedTabIndex = context->SelectedTabIndex();
+  if(selectedTabIndex < 0 || selectedTabIndex >= static_cast<int>(tabTitles.size()))
+    return;
+
+  const char* selectedTitle = tabTitles[static_cast<std::size_t>(selectedTabIndex)];
+  if(selectedTitle && std::strcmp(selectedTitle, kEqTabTitle) == 0)
+  {
+    const char* actionName = GetEqActionShortcutActionName(keyVK);
+    if(!actionName)
+      return;
+
+    auto* editorControl = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
+    if(!editorControl)
+      return;
+
+    context->ApplyEqCurveActionToSelectedKeyNote(
+      editorControl,
+      [actionName](EqCurve& curve) {
+        return ApplyEqAction(curve, actionName);
+      });
+    return;
+  }
+
   const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
   if(!descriptor)
     return;

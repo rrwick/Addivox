@@ -108,7 +108,7 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
     return false;
 
   auto points = curve.GetPoints();
-  if(action == "normalise")
+  if(MatchesActionLabel(actionName, kActionNormalise))
   {
     double meanDb = 0.0;
     std::size_t activePointCount = 0;
@@ -131,7 +131,7 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
       point.gainDb = EqCurve::ClampGainDb(point.gainDb - meanDb);
     }
   }
-  else if(action == "invert")
+  else if(MatchesActionLabel(actionName, kActionInvert))
   {
     for(auto& point : points)
     {
@@ -140,9 +140,9 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
       point.gainDb = EqCurve::ClampGainDb(-point.gainDb);
     }
   }
-  else if(action == "scale up" || action == "scale down")
+  else if(MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
   {
-    const double scale = (action == "scale up") ? 1.111111111111111 : 0.9;
+    const double scale = MatchesActionLabel(actionName, kActionScaleUp) ? 1.111111111111111 : 0.9;
     for(auto& point : points)
     {
       if(EqCurve::IsMutedGainDb(point.gainDb))
@@ -150,9 +150,9 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
       point.gainDb = EqCurve::ClampGainDb(point.gainDb * scale);
     }
   }
-  else if(action == "shift up" || action == "shift down")
+  else if(MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown))
   {
-    const double gainOffsetDb = (action == "shift up") ? 1.0 : -1.0;
+    const double gainOffsetDb = MatchesActionLabel(actionName, kActionShiftUp) ? 1.0 : -1.0;
     for(auto& point : points)
     {
       if(EqCurve::IsMutedGainDb(point.gainDb))
@@ -160,10 +160,10 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
       point.gainDb = EqCurve::ClampGainDb(point.gainDb + gainOffsetDb);
     }
   }
-  else if(action == "shift right" || action == "shift left")
+  else if(MatchesActionLabel(actionName, kActionShiftRight) || MatchesActionLabel(actionName, kActionShiftLeft))
   {
     constexpr double kShiftRatio = 1.189207115002721; // Quarter-octave in log-frequency space.
-    const double frequencyScale = (action == "shift right")
+    const double frequencyScale = MatchesActionLabel(actionName, kActionShiftRight)
       ? kShiftRatio
       : (1.0 / kShiftRatio);
 
@@ -175,6 +175,31 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
 
   curve.SetPoints(std::move(points));
   return true;
+}
+
+inline const char* GetEqActionShortcutActionName(int keyVK)
+{
+  switch(keyVK)
+  {
+    case kVK_Q:
+      return kActionScaleUp;
+    case kVK_A:
+      return kActionScaleDown;
+    case kVK_W:
+      return kActionShiftUp;
+    case kVK_S:
+      return kActionShiftDown;
+    case kVK_E:
+      return kActionShiftRight;
+    case kVK_D:
+      return kActionShiftLeft;
+    case kVK_N:
+      return kActionNormalise;
+    case kVK_I:
+      return kActionInvert;
+    default:
+      return nullptr;
+  }
 }
 
 inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& context,
@@ -349,7 +374,15 @@ inline void AttachEqTabChildren(IVTabPage* page,
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
-    {"normalise", "invert", "scale up", "scale down", "shift up", "shift down", "shift right", "shift left"},
+    {
+      kActionScaleUpMenuLabel,
+      kActionScaleDownMenuLabel,
+      kActionShiftUpMenuLabel,
+      kActionShiftDownMenuLabel,
+      kActionShiftRightMenuLabel,
+      kActionShiftLeftMenuLabel,
+      kActionNormaliseMenuLabel,
+      kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
   auto* editorControl = CreateEqEditorControl(context);
