@@ -11,7 +11,7 @@ pitchVariationAmplitudeScale = 1.0
 pitchVariationRateScale = 1.0
 panVariationAmplitudeScale = 1.0
 panVariationRateScale = 1.0
-portamentoTimeAtCC5MinSec = 0.001
+portamentoTimeAtCC5MinSec = 0.0
 portamentoTimeAtCC5MaxSec = 0.025
 
 [effects_settings]
