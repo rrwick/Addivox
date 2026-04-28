@@ -162,7 +162,7 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
   }
   else if(MatchesActionLabel(actionName, kActionShiftRight) || MatchesActionLabel(actionName, kActionShiftLeft))
   {
-    constexpr double kShiftRatio = 1.189207115002721; // Quarter-octave in log-frequency space.
+    constexpr double kShiftRatio = 1.044273782427414; // Sixteenth-octave in log-frequency space.
     const double frequencyScale = MatchesActionLabel(actionName, kActionShiftRight)
       ? kShiftRatio
       : (1.0 / kShiftRatio);
