@@ -525,13 +525,13 @@ inline std::size_t GetAttackReleaseTabIndex(OscillatorParameter parameter)
 inline bool IsVariationParameter(OscillatorParameter parameter)
 {
   const int index = static_cast<int>(parameter);
-  return index >= static_cast<int>(OscillatorParameter::intensity_variation_amplitude)
+  return index >= static_cast<int>(OscillatorParameter::level_variation_amplitude)
     && index <= static_cast<int>(OscillatorParameter::pan_variation_rate);
 }
 
 inline bool UsesHarmonicOscillatorTabLayout(OscillatorParameter parameter)
 {
-  return parameter == OscillatorParameter::intensity
+  return parameter == OscillatorParameter::level
       || parameter == OscillatorParameter::breath_power
       || parameter == OscillatorParameter::attack
       || parameter == OscillatorParameter::release
@@ -578,7 +578,7 @@ inline const char* GetEditorActionShortcutActionName(OscillatorParameter paramet
         ? nullptr
         : kActionBendDown;
     case kVK_N:
-      return parameter == OscillatorParameter::intensity ? kActionNormalize : nullptr;
+      return parameter == OscillatorParameter::level ? kActionNormalize : nullptr;
     case kVK_I:
       return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan)
         ? kActionInvert
@@ -772,7 +772,7 @@ inline bool ApplyScaleAction(SimplePatch& patch,
 inline std::size_t GetVariationTabIndex(OscillatorParameter parameter)
 {
   return static_cast<std::size_t>(
-    static_cast<int>(parameter) - static_cast<int>(OscillatorParameter::intensity_variation_amplitude));
+    static_cast<int>(parameter) - static_cast<int>(OscillatorParameter::level_variation_amplitude));
 }
 
 struct EditorModelRefs
@@ -1752,7 +1752,7 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   auto* control = new OscillatorSliderControl(IRECT(), "", styles.sliderStyle, EDirection::Vertical);
   OscillatorSliderControl::Config config;
   config.range = descriptor.range;
-  if(descriptor.parameter == OscillatorParameter::intensity)
+  if(descriptor.parameter == OscillatorParameter::level)
     config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
   else if(descriptor.parameter == OscillatorParameter::breath_power)
     config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);

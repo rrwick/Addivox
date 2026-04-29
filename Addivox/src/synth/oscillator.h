@@ -35,8 +35,8 @@ public:
   void SetAttackTime(double attackTimeSec);
   void SetReleaseTime(double releaseTimeSec);
 
-  // Set amplitude modulation depth (unitless multiplier domain) and speed (Hz).
-  void SetIntensityVariation(double amplitude, double rateHz);
+  // Set level variation depth (unitless multiplier domain) and speed (Hz).
+  void SetLevelVariation(double amplitude, double rateHz);
 
   // Set base pan in [-1, 1], where -1 is left and +1 is right.
   void SetPan(double pan);
@@ -78,14 +78,14 @@ private:
   static constexpr double kMinFrequencyHz = 0.01;  // minimum frequency to avoid maths issues
   void UpdatePitchRate();  // called when sample rate or portamento time changes
 
-  // Amplitude envelope is just for attack and release shaping (decay and sustain are controlled by
+  // Level envelope is just for attack and release shaping (decay and sustain are controlled by
   // the player's breath). Not strictly for the start/end of notes but more generally for
   // controlling how quickly the oscillator level can increase or decrease. Smoothing is done with
   // a simple one-pole approach, so attack is exponential rise toward the target level and release
   // is exponential decay toward the target level.
   double mLevel = 0.0;  // the actual level that the oscillator is currently producing
-  double mBaseLevel = 0.0;  // target level before intensity variation modulation
-  double mTargetLevel = 0.0;  // target level after intensity variation modulation
+  double mBaseLevel = 0.0;  // target level before level variation modulation
+  double mTargetLevel = 0.0;  // target level after level variation modulation
   double mAttackTimeSec = 0.0;  // attack time in seconds, 0=immediate attack
   double mAttackRate = 1.0;  // one-pole per-sample attack coefficient
   double mReleaseTimeSec = 0.0;  // release time in seconds, 0=immediate release
@@ -159,10 +159,10 @@ private:
   };
 
   // Variation controls and state.
-  VariationState mIntensityVariation{};
+  VariationState mLevelVariation{};
   VariationState mPitchVariation{};
   VariationState mPanVariation{};
-  bool mHasIntensityVariation = false;
+  bool mHasLevelVariation = false;
   bool mHasPitchVariation = false;
   bool mHasPanVariation = false;
   static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
@@ -170,7 +170,7 @@ private:
   void UpdateVariationParameterSmoothingRate();
   void RefreshVariationTargets();
   void UpdatePitchTarget(double pitchNoise = 0.0);
-  void UpdateLevelTarget(double intensityNoise = 0.0);
+  void UpdateLevelTarget(double levelNoise = 0.0);
   void UpdatePanTargetGains(double panNoise = 0.0);
   void SmoothVariationParameters(VariationState& variation);
   static bool IsVariationActiveNow(const VariationState& variation);
@@ -179,7 +179,7 @@ private:
   double mVariationParameterSmoothingCoefficient = 1.0;
   int mVariationTargetRefreshCountdown = 0;
 
-  // The shape of variation (intensity, pitch, pan) over time is determined by gradient noise, which
+  // The shape of variation (level, pitch, pan) over time is determined by gradient noise, which
   // is a smooth random function that is similar to Perlin noise.
   uint32_t mVariationSeed = kDefaultVariationSeed;
 };

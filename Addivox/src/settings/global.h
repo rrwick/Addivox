@@ -8,8 +8,8 @@ struct GlobalVoiceSettings
   double releaseScale{1.0};
   double tuningCents{0.0};
   double panOffset{0.0};
-  double intensityVariationAmplitudeScale{0.0};
-  double intensityVariationRateScale{1.0};
+  double levelVariationAmplitudeScale{0.0};
+  double levelVariationRateScale{1.0};
   double pitchVariationAmplitudeScale{0.0};
   double pitchVariationRateScale{1.0};
   double panVariationAmplitudeScale{0.0};

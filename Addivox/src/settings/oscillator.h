@@ -18,14 +18,14 @@ class OscillatorSettings
 public:
   enum class Parameter : int
   {
-    intensity = 0,
+    level = 0,
     breath_power,
     attack,
     release,
     pitch,
     pan,
-    intensity_variation_amplitude,
-    intensity_variation_rate,
+    level_variation_amplitude,
+    level_variation_rate,
     pitch_variation_amplitude,
     pitch_variation_rate,
     pan_variation_amplitude,
@@ -36,26 +36,26 @@ public:
   static constexpr int kNumParameters = static_cast<int>(Parameter::count);
 
   OscillatorSettings() = default;
-  constexpr OscillatorSettings(double intensityIn,
+  constexpr OscillatorSettings(double levelIn,
                                double breathPowerIn = 1.0,
                                double attackIn = 0.005,
                                double releaseIn = 0.01,
                                double pitchIn = 0.0,
                                double panIn = 0.0,
-                               double intensityVariationAmplitudeIn = 0.25,
-                               double intensityVariationRateIn = 1.0,
+                               double levelVariationAmplitudeIn = 0.25,
+                               double levelVariationRateIn = 1.0,
                                double pitchVariationAmplitudeIn = 5.0,
                                double pitchVariationRateIn = 1.0,
                                double panVariationAmplitudeIn = 0.25,
                                double panVariationRateIn = 1.0)
-  : intensity(intensityIn)
+  : level(levelIn)
   , breath_power(breathPowerIn)
   , attack(attackIn)
   , release(releaseIn)
   , pitch(pitchIn)
   , pan(panIn)
-  , intensity_variation_amplitude(intensityVariationAmplitudeIn)
-  , intensity_variation_rate(intensityVariationRateIn)
+  , level_variation_amplitude(levelVariationAmplitudeIn)
+  , level_variation_rate(levelVariationRateIn)
   , pitch_variation_amplitude(pitchVariationAmplitudeIn)
   , pitch_variation_rate(pitchVariationRateIn)
   , pan_variation_amplitude(panVariationAmplitudeIn)
@@ -63,14 +63,14 @@ public:
   {
   }
 
-  double intensity{0.0};
+  double level{0.0};
   double breath_power{1.0};
   double attack{0.0};
   double release{0.0};
   double pitch{0.0};
   double pan{0.0};
-  double intensity_variation_amplitude{0.0};
-  double intensity_variation_rate{0.0};
+  double level_variation_amplitude{0.0};
+  double level_variation_rate{0.0};
   double pitch_variation_amplitude{0.0};
   double pitch_variation_rate{0.0};
   double pan_variation_amplitude{0.0};
@@ -106,13 +106,13 @@ public:
   const OscillatorArray& GetOscillatorSettingsArray() const;
   void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
-  double GetIntensityWaveformRms() const;
+  double GetLevelWaveformRms() const;
   bool ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
   bool ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
   bool ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
-  bool ZeroEvenIntensities();
-  bool ZeroOddIntensities();
-  bool NormalizeIntensityWaveformRms();
+  bool ZeroEvenLevels();
+  bool ZeroOddLevels();
+  bool NormalizeLevelWaveformRms();
 
   static SimplePatch Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t);
 

@@ -25,8 +25,8 @@ GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings)
   sanitized.releaseScale = std::max(0.0, sanitized.releaseScale);
   sanitized.tuningCents = SanitizeTuningCents(sanitized.tuningCents);
   sanitized.panOffset = std::clamp(sanitized.panOffset, -1.0, 1.0);
-  sanitized.intensityVariationAmplitudeScale = std::max(0.0, sanitized.intensityVariationAmplitudeScale);
-  sanitized.intensityVariationRateScale = std::max(0.0, sanitized.intensityVariationRateScale);
+  sanitized.levelVariationAmplitudeScale = std::max(0.0, sanitized.levelVariationAmplitudeScale);
+  sanitized.levelVariationRateScale = std::max(0.0, sanitized.levelVariationRateScale);
   sanitized.pitchVariationAmplitudeScale = std::max(0.0, sanitized.pitchVariationAmplitudeScale);
   sanitized.pitchVariationRateScale = std::max(0.0, sanitized.pitchVariationRateScale);
   sanitized.panVariationAmplitudeScale = std::max(0.0, sanitized.panVariationAmplitudeScale);
@@ -55,11 +55,11 @@ bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings)
     case kParamGlobalPanShift:
       settings.panOffset = std::clamp(value, -1.0, 1.0);
       return true;
-    case kParamGlobalIntensityVariationAmplitudeScale:
-      settings.intensityVariationAmplitudeScale = std::max(0.0, value);
+    case kParamGlobalLevelVariationAmplitudeScale:
+      settings.levelVariationAmplitudeScale = std::max(0.0, value);
       return true;
-    case kParamGlobalIntensityVariationRateScale:
-      settings.intensityVariationRateScale = std::max(0.0, value);
+    case kParamGlobalLevelVariationRateScale:
+      settings.levelVariationRateScale = std::max(0.0, value);
       return true;
     case kParamGlobalPitchVariationAmplitudeScale:
       settings.pitchVariationAmplitudeScale = std::max(0.0, value);

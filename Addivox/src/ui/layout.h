@@ -466,8 +466,8 @@ inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& reso
 inline void AttachVariationControls(IGraphics* pGraphics, const PanelResources&)
 {
   AttachPassiveSectionLabel(pGraphics, positions::kVariationLabel, "VARIATION");
-  pGraphics->AttachControl(new LabelledKnob(positions::kLevelAmountKnob, kParamGlobalIntensityVariationAmplitudeScale, "LvlAmt"));
-  pGraphics->AttachControl(new LabelledKnob(positions::kLevelRateKnob, kParamGlobalIntensityVariationRateScale, "LvlRate"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kLevelAmountKnob, kParamGlobalLevelVariationAmplitudeScale, "LvlAmt"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kLevelRateKnob, kParamGlobalLevelVariationRateScale, "LvlRate"));
   pGraphics->AttachControl(new LabelledKnob(positions::kPanAmountKnob, kParamGlobalPanVariationAmplitudeScale, "PanAmt"));
   pGraphics->AttachControl(new LabelledKnob(positions::kPanRateKnob, kParamGlobalPanVariationRateScale, "PanRate"));
   pGraphics->AttachControl(new LabelledKnob(positions::kPitchAmountKnob, kParamGlobalPitchVariationAmplitudeScale, "PchAmt"));

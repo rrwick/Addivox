@@ -32,8 +32,8 @@ struct HeadlessRenderOptions
   std::optional<double> chorus;
   std::optional<double> tuningCents;
   std::optional<double> panOffset;
-  std::optional<double> intensityVariationAmplitudeScale;
-  std::optional<double> intensityVariationRateScale;
+  std::optional<double> levelVariationAmplitudeScale;
+  std::optional<double> levelVariationRateScale;
   std::optional<double> pitchVariationAmplitudeScale;
   std::optional<double> pitchVariationRateScale;
   std::optional<double> panVariationAmplitudeScale;

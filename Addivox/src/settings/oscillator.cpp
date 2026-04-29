@@ -17,14 +17,14 @@ struct ParameterDescriptor
 };
 
 constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{{
-  {"Intensity", "", &OscillatorSettings::intensity},
+  {"Level", "", &OscillatorSettings::level},
   {"Breath power", "", &OscillatorSettings::breath_power},
   {"Attack", "s", &OscillatorSettings::attack},
   {"Release", "s", &OscillatorSettings::release},
   {"Pitch", "cents", &OscillatorSettings::pitch},
   {"Pan", "", &OscillatorSettings::pan},
-  {"Intensity variation amount", "", &OscillatorSettings::intensity_variation_amplitude},
-  {"Intensity variation rate", "Hz", &OscillatorSettings::intensity_variation_rate},
+  {"Level variation amount", "", &OscillatorSettings::level_variation_amplitude},
+  {"Level variation rate", "Hz", &OscillatorSettings::level_variation_rate},
   {"Pitch variation amount", "cents", &OscillatorSettings::pitch_variation_amplitude},
   {"Pitch variation rate", "Hz", &OscillatorSettings::pitch_variation_rate},
   {"Pan variation amount", "", &OscillatorSettings::pan_variation_amplitude},
@@ -61,8 +61,8 @@ OscillatorParameterValues GetParameterValues(const SimplePatch& patch, Parameter
 
 // Existing patches are normalized so the sum of squared harmonic levels is 1.
 // For a harmonic sine sum at full breath, that corresponds to a waveform RMS of 1/sqrt(2).
-constexpr double kReferenceIntensityWaveformRms = 0.70710678118654752440;
-constexpr double kIntensityWaveformRmsEpsilon = 1.0e-12;
+constexpr double kReferenceLevelWaveformRms = 0.70710678118654752440;
+constexpr double kLevelWaveformRmsEpsilon = 1.0e-12;
 
 enum class HarmonicParity
 {
@@ -241,11 +241,11 @@ void SimplePatch::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings
   mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)].SetParameter(parameter, value);
 }
 
-double SimplePatch::GetIntensityWaveformRms() const
+double SimplePatch::GetLevelWaveformRms() const
 {
   double sumSquares = 0.0;
   for(const auto& settings : mOscillatorSettings)
-    sumSquares += settings.intensity * settings.intensity;
+    sumSquares += settings.level * settings.level;
 
   return std::sqrt(sumSquares * 0.5);
 }
@@ -283,31 +283,31 @@ bool SimplePatch::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter para
     : false;
 }
 
-bool SimplePatch::ZeroEvenIntensities()
+bool SimplePatch::ZeroEvenLevels()
 {
   for(int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
-    mOscillatorSettings[oscillatorIndex].intensity = 0.0;
+    mOscillatorSettings[oscillatorIndex].level = 0.0;
 
   return true;
 }
 
-bool SimplePatch::ZeroOddIntensities()
+bool SimplePatch::ZeroOddLevels()
 {
   for(int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
-    mOscillatorSettings[oscillatorIndex].intensity = 0.0;
+    mOscillatorSettings[oscillatorIndex].level = 0.0;
 
   return true;
 }
 
-bool SimplePatch::NormalizeIntensityWaveformRms()
+bool SimplePatch::NormalizeLevelWaveformRms()
 {
-  const double currentRms = GetIntensityWaveformRms();
-  if(currentRms <= kIntensityWaveformRmsEpsilon)
+  const double currentRms = GetLevelWaveformRms();
+  if(currentRms <= kLevelWaveformRmsEpsilon)
     return false;
 
-  const double scale = kReferenceIntensityWaveformRms / currentRms;
+  const double scale = kReferenceLevelWaveformRms / currentRms;
   for(auto& settings : mOscillatorSettings)
-    settings.intensity *= scale;
+    settings.level *= scale;
 
   return true;
 }

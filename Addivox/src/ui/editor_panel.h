@@ -389,14 +389,14 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
   const auto parameter = descriptor->parameter;
   const auto editScope = context->GetOscillatorEditScope(parameter);
   const bool applyEditScope =
-    !(parameter == OscillatorParameter::intensity && MatchesActionLabel(actionName, kActionNormalize));
+    !(parameter == OscillatorParameter::level && MatchesActionLabel(actionName, kActionNormalize));
   context->ApplyOscillatorParameterActionToSelectedKeyNote(
     sliderControl,
     parameter,
     [actionName, editScope, parameter](SimplePatch& patch) {
       switch(parameter)
       {
-        case OscillatorParameter::intensity:
+        case OscillatorParameter::level:
           return ApplyLevelAction(patch, actionName, editScope);
         case OscillatorParameter::breath_power:
           return ApplyBreathAction(patch, actionName, editScope);
@@ -461,7 +461,7 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
   (*context->oscillatorTabControls.addButtons)[parameterIndex] = keyNoteActionButtons.addButton;
   (*context->oscillatorTabControls.deleteButtons)[parameterIndex] = keyNoteActionButtons.deleteButton;
 
-  if(descriptor.parameter == OscillatorParameter::intensity)
+  if(descriptor.parameter == OscillatorParameter::level)
     AttachLevelTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if(descriptor.parameter == OscillatorParameter::breath_power)
     AttachBreathTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
@@ -519,7 +519,7 @@ inline PageMap CreateOscillatorTabPages(const std::shared_ptr<EditorContext>& co
   for(const auto& descriptor : GetOscillatorTabDescriptors())
   {
     pages.insert({descriptor.title, CreateOscillatorTabPage(context, styles, descriptor)});
-    if(descriptor.parameter == OscillatorParameter::intensity)
+    if(descriptor.parameter == OscillatorParameter::level)
       pages.insert({kEqTabTitle, CreateEqTabPage(context, styles)});
   }
   return pages;

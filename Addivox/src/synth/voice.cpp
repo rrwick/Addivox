@@ -96,9 +96,9 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic,
   mOscs[harmonic].SetPanVariation(
     currentSettings.pan_variation_amplitude * mGlobalVoiceSettings.panVariationAmplitudeScale,
     currentSettings.pan_variation_rate * mGlobalVoiceSettings.panVariationRateScale);
-  mOscs[harmonic].SetIntensityVariation(
-    currentSettings.intensity_variation_amplitude * mGlobalVoiceSettings.intensityVariationAmplitudeScale,
-    currentSettings.intensity_variation_rate * mGlobalVoiceSettings.intensityVariationRateScale);
+  mOscs[harmonic].SetLevelVariation(
+    currentSettings.level_variation_amplitude * mGlobalVoiceSettings.levelVariationAmplitudeScale,
+    currentSettings.level_variation_rate * mGlobalVoiceSettings.levelVariationRateScale);
 }
 
 void SynthVoice::SetBreath(double breath)
@@ -331,7 +331,7 @@ void SynthVoice::UpdateLevels(const CompoundPatch::ResolvedNoteSpan& noteSpan)
     const double frequencyHz = PitchSemitonesToFrequencyHz(mOscs[harmonic].GetCurrentPitchSemitones());
     const double eqGain = mCompoundPatch.EvaluateEqGain(noteSpan, frequencyHz);
     const double breathLevel = EvaluateBreathLevel(std::pow(breath, settings.breath_power));
-    const double level = settings.intensity
+    const double level = settings.level
       * breathLevel
       * eqGain
       * levelScale;

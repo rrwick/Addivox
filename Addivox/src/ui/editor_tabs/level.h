@@ -29,68 +29,68 @@ inline bool IsOctavesFifthsAndThirdsHarmonic(int harmonicIndex)
   return IsListedHarmonic(harmonicIndex, kHarmonics);
 }
 
-inline bool TryGetLevelShapeIntensity(const char* shapeName, int oscillatorIndex, double& intensity)
+inline bool TryGetLevelShapeValue(const char* shapeName, int oscillatorIndex, double& level)
 {
   const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
   const int harmonicIndex = oscillatorIndex + 1;
 
   if(std::strcmp(shapeName, "sine") == 0)
   {
-    intensity = (oscillatorIndex == 0) ? 1.0 : 0.0;
+    level = (oscillatorIndex == 0) ? 1.0 : 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "saw") == 0)
   {
-    intensity = 1.0 / harmonicNumber;
+    level = 1.0 / harmonicNumber;
     return true;
   }
 
   if(std::strcmp(shapeName, "square") == 0)
   {
-    intensity = (oscillatorIndex % 2 == 0) ? (1.0 / harmonicNumber) : 0.0;
+    level = (oscillatorIndex % 2 == 0) ? (1.0 / harmonicNumber) : 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "triangle") == 0)
   {
-    intensity = (oscillatorIndex % 2 == 0) ? (1.0 / (harmonicNumber * harmonicNumber)) : 0.0;
+    level = (oscillatorIndex % 2 == 0) ? (1.0 / (harmonicNumber * harmonicNumber)) : 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "flat") == 0)
   {
-    intensity = 1.0;
+    level = 1.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "octaves") == 0)
   {
-    intensity = IsOctavesHarmonic(harmonicIndex) ? 1.0 : 0.0;
+    level = IsOctavesHarmonic(harmonicIndex) ? 1.0 : 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "octaves+fifths") == 0)
   {
     if (IsOctavesHarmonic(harmonicIndex))
-      intensity = 1.0;
+      level = 1.0;
     else if (IsOctavesAndFifthsHarmonic(harmonicIndex))
-      intensity = 0.5;
+      level = 0.5;
     else
-      intensity = 0.0;
+      level = 0.0;
     return true;
   }
 
   if(std::strcmp(shapeName, "octaves+fifths+thirds") == 0)
   {
     if (IsOctavesHarmonic(harmonicIndex))
-      intensity = 1.0;
+      level = 1.0;
     else if (IsOctavesAndFifthsHarmonic(harmonicIndex))
-      intensity = 0.5;
+      level = 0.5;
     else if (IsOctavesFifthsAndThirdsHarmonic(harmonicIndex))
-      intensity = 0.25;
+      level = 0.25;
     else
-      intensity = 0.0;
+      level = 0.0;
     return true;
   }
 
@@ -101,22 +101,22 @@ inline bool ApplyLevelShape(SimplePatch& patch, const char* shapeName)
 {
   for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
   {
-    double intensity = 0.0;
-    if(!TryGetLevelShapeIntensity(shapeName, oscillatorIndex, intensity))
+    double level = 0.0;
+    if(!TryGetLevelShapeValue(shapeName, oscillatorIndex, level))
       return false;
 
-    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::intensity, intensity);
+    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::level, level);
   }
 
-  return patch.NormalizeIntensityWaveformRms();
+  return patch.NormalizeLevelWaveformRms();
 }
 
 inline bool ApplyLevelAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope)
 {
   if(MatchesActionLabel(actionName, kActionNormalize))
-    return patch.NormalizeIntensityWaveformRms();
+    return patch.NormalizeLevelWaveformRms();
 
-  return ApplyStandardHarmonicAction(patch, OscillatorParameter::intensity, actionName, 0.0, 1.0, editScope);
+  return ApplyStandardHarmonicAction(patch, OscillatorParameter::level, actionName, 0.0, 1.0, editScope);
 }
 
 inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors)
@@ -124,9 +124,9 @@ inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& desc
   descriptors.push_back({
     kOscillatorTabTitles[0],
     "Level",
-    OscillatorParameter::intensity,
+    OscillatorParameter::level,
     {0.0, 1.0},
-    help_text::oscillator_tabs::Get(OscillatorParameter::intensity)
+    help_text::oscillator_tabs::Get(OscillatorParameter::level)
   });
 }
 
@@ -152,7 +152,7 @@ inline void AttachLevelTabChildren(IVTabPage* page,
 
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
-      OscillatorParameter::intensity,
+      OscillatorParameter::level,
       [selectedText](SimplePatch& patch) {
         return ApplyLevelShape(patch, selectedText);
       });
@@ -178,12 +178,12 @@ inline void AttachLevelTabChildren(IVTabPage* page,
     const bool applyEditScope = !MatchesActionLabel(selectedText, kActionNormalize);
     context->ApplyOscillatorParameterActionToSelectedKeyNote(
       sliderControl,
-      OscillatorParameter::intensity,
+      OscillatorParameter::level,
       [selectedText, context](SimplePatch& patch) {
         return ApplyLevelAction(
           patch,
           selectedText,
-          context->GetOscillatorEditScope(OscillatorParameter::intensity));
+          context->GetOscillatorEditScope(OscillatorParameter::level));
       },
       applyEditScope);
   });

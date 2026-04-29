@@ -436,11 +436,11 @@ void ApplyPatchAndOverrides(SynthEngine& engine,
   if(options.panOffset)
     voiceSettings.panOffset = *options.panOffset;
 
-  if(options.intensityVariationAmplitudeScale)
-    voiceSettings.intensityVariationAmplitudeScale = *options.intensityVariationAmplitudeScale;
+  if(options.levelVariationAmplitudeScale)
+    voiceSettings.levelVariationAmplitudeScale = *options.levelVariationAmplitudeScale;
 
-  if(options.intensityVariationRateScale)
-    voiceSettings.intensityVariationRateScale = *options.intensityVariationRateScale;
+  if(options.levelVariationRateScale)
+    voiceSettings.levelVariationRateScale = *options.levelVariationRateScale;
 
   if(options.pitchVariationAmplitudeScale)
     voiceSettings.pitchVariationAmplitudeScale = *options.pitchVariationAmplitudeScale;
@@ -529,10 +529,10 @@ bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::stri
   if(options.panOffset && !ValidateFiniteRange("Pan offset", *options.panOffset, -1.0, 1.0, errorMessage))
     return false;
 
-  if(options.intensityVariationAmplitudeScale
+  if(options.levelVariationAmplitudeScale
      && !ValidateFiniteRange(
        "Level variation amount",
-       *options.intensityVariationAmplitudeScale,
+       *options.levelVariationAmplitudeScale,
        0.0,
        100.0,
        errorMessage))
@@ -540,10 +540,10 @@ bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::stri
     return false;
   }
 
-  if(options.intensityVariationRateScale
+  if(options.levelVariationRateScale
      && !ValidateFiniteRange(
        "Level variation rate",
-       *options.intensityVariationRateScale,
+       *options.levelVariationRateScale,
        0.0,
        100.0,
        errorMessage))

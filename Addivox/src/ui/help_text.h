@@ -33,10 +33,10 @@ inline constexpr const char* kPanShift =
 inline constexpr const char* kPortamento =
   "Sets the portamento time range, from the minimum at CC5=0 to the maximum at CC5=127.";
 
-inline constexpr const char* kIntensityVariationAmplitude =
+inline constexpr const char* kLevelVariationAmplitude =
   "Scales the depth of level variation for all oscillators.";
 
-inline constexpr const char* kIntensityVariationRate =
+inline constexpr const char* kLevelVariationRate =
   "Scales the speed of level variation for all oscillators.";
 
 inline constexpr const char* kPanVariationAmplitude =
@@ -78,10 +78,10 @@ inline const char* GetParam(int paramIdx)
       return kTuning;
     case kParamGlobalPanShift:
       return kPanShift;
-    case kParamGlobalIntensityVariationAmplitudeScale:
-      return kIntensityVariationAmplitude;
-    case kParamGlobalIntensityVariationRateScale:
-      return kIntensityVariationRate;
+    case kParamGlobalLevelVariationAmplitudeScale:
+      return kLevelVariationAmplitude;
+    case kParamGlobalLevelVariationRateScale:
+      return kLevelVariationRate;
     case kParamGlobalPitchVariationAmplitudeScale:
       return kPitchVariationAmplitude;
     case kParamGlobalPitchVariationRateScale:
@@ -116,7 +116,7 @@ namespace oscillator_tabs
 using OscillatorParameter = OscillatorSettings::Parameter;
 
 inline constexpr const char* kLevel =
-  "Controls the amplitude of each harmonic at full breath.";
+  "Controls the level of each harmonic at full breath.";
 
 inline constexpr const char* kEq =
   "Controls a frequency-based EQ. The EQ stays fixed in frequency as notes change, which makes it useful for creating formants.";
@@ -125,10 +125,10 @@ inline constexpr const char* kBreath =
   "Controls per-harmonic breath sensitivity. Higher values make the harmonic require more breath before it becomes prominent.";
 
 inline constexpr const char* kAttack =
-  "Controls how quickly each harmonic can increase in intensity.";
+  "Controls how quickly each harmonic can increase in level.";
 
 inline constexpr const char* kRelease =
-  "Controls how quickly each harmonic can decrease in intensity.";
+  "Controls how quickly each harmonic can decrease in level.";
 
 inline constexpr const char* kPitch =
   "Controls static pitch offset per harmonic in cents.";
@@ -136,11 +136,11 @@ inline constexpr const char* kPitch =
 inline constexpr const char* kPan =
   "Controls stereo position of each harmonic from left to right.";
 
-inline constexpr const char* kIntensityVariationAmplitude =
-  "Controls depth of intensity variation for each harmonic.";
+inline constexpr const char* kLevelVariationAmplitude =
+  "Controls depth of level variation for each harmonic.";
 
-inline constexpr const char* kIntensityVariationRate =
-  "Controls speed of intensity variation for each harmonic.";
+inline constexpr const char* kLevelVariationRate =
+  "Controls speed of level variation for each harmonic.";
 
 inline constexpr const char* kPitchVariationAmplitude =
   "Controls depth of pitch variation for each harmonic.";
@@ -176,7 +176,7 @@ inline const char* Get(OscillatorParameter parameter)
 {
   switch(parameter)
   {
-    case OscillatorParameter::intensity:
+    case OscillatorParameter::level:
       return kLevel;
     case OscillatorParameter::breath_power:
       return kBreath;
@@ -188,10 +188,10 @@ inline const char* Get(OscillatorParameter parameter)
       return kPitch;
     case OscillatorParameter::pan:
       return kPan;
-    case OscillatorParameter::intensity_variation_amplitude:
-      return kIntensityVariationAmplitude;
-    case OscillatorParameter::intensity_variation_rate:
-      return kIntensityVariationRate;
+    case OscillatorParameter::level_variation_amplitude:
+      return kLevelVariationAmplitude;
+    case OscillatorParameter::level_variation_rate:
+      return kLevelVariationRate;
     case OscillatorParameter::pitch_variation_amplitude:
       return kPitchVariationAmplitude;
     case OscillatorParameter::pitch_variation_rate:

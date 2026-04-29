@@ -58,16 +58,16 @@ inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& 
   descriptors.push_back({
     kOscillatorTabTitles[6],
     "Level variation amount",
-    OscillatorParameter::intensity_variation_amplitude,
+    OscillatorParameter::level_variation_amplitude,
     {0.0, 10.0},
-    help_text::oscillator_tabs::Get(OscillatorParameter::intensity_variation_amplitude)
+    help_text::oscillator_tabs::Get(OscillatorParameter::level_variation_amplitude)
   });
   descriptors.push_back({
     kOscillatorTabTitles[7],
     "Level variation rate",
-    OscillatorParameter::intensity_variation_rate,
+    OscillatorParameter::level_variation_rate,
     {0.0, 10.0},
-    help_text::oscillator_tabs::Get(OscillatorParameter::intensity_variation_rate)
+    help_text::oscillator_tabs::Get(OscillatorParameter::level_variation_rate)
   });
   descriptors.push_back({
     kOscillatorTabTitles[8],

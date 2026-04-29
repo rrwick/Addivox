@@ -66,8 +66,8 @@ void SetGlobalVoiceSettingsParams(Addivox& plugin,
     plugin.GetParam(kParamGlobalTuning)->Set(sanitizedVoiceSettings.tuningCents);
   if(includePanShift)
     plugin.GetParam(kParamGlobalPanShift)->Set(sanitizedVoiceSettings.panOffset);
-  plugin.GetParam(kParamGlobalIntensityVariationAmplitudeScale)->Set(sanitizedVoiceSettings.intensityVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalIntensityVariationRateScale)->Set(sanitizedVoiceSettings.intensityVariationRateScale);
+  plugin.GetParam(kParamGlobalLevelVariationAmplitudeScale)->Set(sanitizedVoiceSettings.levelVariationAmplitudeScale);
+  plugin.GetParam(kParamGlobalLevelVariationRateScale)->Set(sanitizedVoiceSettings.levelVariationRateScale);
   plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitizedVoiceSettings.pitchVariationAmplitudeScale);
   plugin.GetParam(kParamGlobalPitchVariationRateScale)->Set(sanitizedVoiceSettings.pitchVariationRateScale);
   plugin.GetParam(kParamGlobalPanVariationAmplitudeScale)->Set(sanitizedVoiceSettings.panVariationAmplitudeScale);
@@ -127,8 +127,8 @@ bool BuildPatchChunk(const patch_io::PatchDocument& document, IByteChunk& chunk)
     && chunk.Put(&voiceSettings.releaseScale) > 0
     && chunk.Put(&voiceSettings.tuningCents) > 0
     && chunk.Put(&voiceSettings.panOffset) > 0
-    && chunk.Put(&voiceSettings.intensityVariationAmplitudeScale) > 0
-    && chunk.Put(&voiceSettings.intensityVariationRateScale) > 0
+    && chunk.Put(&voiceSettings.levelVariationAmplitudeScale) > 0
+    && chunk.Put(&voiceSettings.levelVariationRateScale) > 0
     && chunk.Put(&voiceSettings.pitchVariationAmplitudeScale) > 0
     && chunk.Put(&voiceSettings.pitchVariationRateScale) > 0
     && chunk.Put(&voiceSettings.panVariationAmplitudeScale) > 0
@@ -866,8 +866,8 @@ Addivox::Addivox(const InstanceInfo& info)
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
   GetParam(kParamGlobalTuning)->InitDouble("Tuning", 0., -50., 50., 1.0, "", iplug::IParam::kFlagStepped, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCents, formatSignedCentsDisplay);
   GetParam(kParamGlobalPanShift)->InitDouble("Pan Shift", 0., -1., 1., 0.01, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom, formatSignedUnitDisplay);
-  initPseudoLogScale(kParamGlobalIntensityVariationAmplitudeScale, "Level Variation Amount", 0.0);
-  initPseudoLogScale(kParamGlobalIntensityVariationRateScale, "Level Variation Rate");
+  initPseudoLogScale(kParamGlobalLevelVariationAmplitudeScale, "Level Variation Amount", 0.0);
+  initPseudoLogScale(kParamGlobalLevelVariationRateScale, "Level Variation Rate");
   initPseudoLogScale(kParamGlobalPitchVariationAmplitudeScale, "Pitch Variation Amount", 0.0);
   initPseudoLogScale(kParamGlobalPitchVariationRateScale, "Pitch Variation Rate");
   initPseudoLogScale(kParamGlobalPanVariationAmplitudeScale, "Pan Variation Amount", 0.0);

@@ -375,7 +375,7 @@ int main(int argc, char** argv)
       double value = 0.0;
       if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--lvl_var_amt", errorMessage))
         break;
-      options.intensityVariationAmplitudeScale = value;
+      options.levelVariationAmplitudeScale = value;
       continue;
     }
     if(argument == "--lvl_var_rate")
@@ -383,7 +383,7 @@ int main(int argc, char** argv)
       double value = 0.0;
       if(!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--lvl_var_rate", errorMessage))
         break;
-      options.intensityVariationRateScale = value;
+      options.levelVariationRateScale = value;
       continue;
     }
     if(argument == "--pan_var_amt")

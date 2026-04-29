@@ -73,8 +73,8 @@ inline constexpr std::array<GlobalVoiceSettingDescriptor, 11> kGlobalVoiceSettin
   {"levelScale", &GlobalVoiceSettings::levelScale},
   {"attackScale", &GlobalVoiceSettings::attackScale},
   {"releaseScale", &GlobalVoiceSettings::releaseScale},
-  {"intensityVariationAmplitudeScale", &GlobalVoiceSettings::intensityVariationAmplitudeScale},
-  {"intensityVariationRateScale", &GlobalVoiceSettings::intensityVariationRateScale},
+  {"levelVariationAmplitudeScale", &GlobalVoiceSettings::levelVariationAmplitudeScale},
+  {"levelVariationRateScale", &GlobalVoiceSettings::levelVariationRateScale},
   {"pitchVariationAmplitudeScale", &GlobalVoiceSettings::pitchVariationAmplitudeScale},
   {"pitchVariationRateScale", &GlobalVoiceSettings::pitchVariationRateScale},
   {"panVariationAmplitudeScale", &GlobalVoiceSettings::panVariationAmplitudeScale},
@@ -91,14 +91,14 @@ inline constexpr std::array<EffectsSettingDescriptor, 3> kEffectsSettingDescript
 
 inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::kNumParameters>
   kOscillatorParameterDescriptors{{
-    {"intensity", OscillatorParameter::intensity},
+    {"level", OscillatorParameter::level},
     {"breath_power", OscillatorParameter::breath_power},
     {"attack", OscillatorParameter::attack},
     {"release", OscillatorParameter::release},
     {"pitch", OscillatorParameter::pitch},
     {"pan", OscillatorParameter::pan},
-    {"intensity_variation_amplitude", OscillatorParameter::intensity_variation_amplitude},
-    {"intensity_variation_rate", OscillatorParameter::intensity_variation_rate},
+    {"level_variation_amplitude", OscillatorParameter::level_variation_amplitude},
+    {"level_variation_rate", OscillatorParameter::level_variation_rate},
     {"pitch_variation_amplitude", OscillatorParameter::pitch_variation_amplitude},
     {"pitch_variation_rate", OscillatorParameter::pitch_variation_rate},
     {"pan_variation_amplitude", OscillatorParameter::pan_variation_amplitude},
