@@ -10,61 +10,61 @@ namespace help_text
 namespace main_ui
 {
 inline constexpr const char* kKeyboard =
-  "Click the keyboard to audition notes and choose which key note patch you are editing. Computer-keyboard note triggers are active in Viz mode only.";
+  "Click the keyboard to play notes in VIS mode and choose which note patch you are editing in EDIT mode. Computer-keyboard note triggers are active in VIS mode only.";
 
 inline constexpr const char* kPitchBendWheel =
-  "Bends the pitch of held notes. The bend range follows the synth pitch-bend settings.";
+  "Bends the pitch of held notes. Right click to set the pitch bend range.";
 
 inline constexpr const char* kAttack =
-  "Scales the note attack time for the whole synth (all oscillators). Higher values make notes bloom more slowly.";
+  "Scales the attack time for all oscillators. Higher values make notes bloom more slowly.";
 
 inline constexpr const char* kRelease =
-  "Scales the note release time for the whole synth (all oscillators). Higher values let notes ring out longer after release.";
+  "Scales the release time for all oscillators. Higher values let notes ring out longer after release.";
 
 inline constexpr const char* kTranspose =
   "Transposes every played note in semitones. This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char* kTuning =
-  "Applies a global tuning offset in cents to the whole synth (all oscillators). This control is not tied to a patch and will hold its value as the patch changes.";
+  "Applies a global tuning offset to all oscillators. This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char* kPanShift =
-  "Applies a global stereo pan offset to the whole synth (all oscillators). This control is not tied to a patch and will hold its value as the patch changes.";
+  "Applies a global stereo pan offset to all oscillators. This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char* kPortamento =
-  "Sets the portamento time range, from the minimum at low CC5 values to the maximum at high CC5 values.";
+  "Sets the portamento time range, from the minimum at CC5=0 to the maximum at CC5=127.";
 
 inline constexpr const char* kIntensityVariationAmplitude =
-  "Scales the depth of level variation across the whole synth (all oscillators).";
+  "Scales the depth of level variation for all oscillators.";
 
 inline constexpr const char* kIntensityVariationRate =
-  "Scales the speed of level variation across the whole synth (all oscillators).";
+  "Scales the speed of level variation for all oscillators.";
 
 inline constexpr const char* kPanVariationAmplitude =
-  "Scales the depth of pan variation across the whole synth (all oscillators).";
+  "Scales the depth of pan variation for all oscillators.";
 
 inline constexpr const char* kPanVariationRate =
-  "Scales the speed of pan variation across the whole synth (all oscillators).";
+  "Scales the speed of pan variation for all oscillators.";
 
 inline constexpr const char* kPitchVariationAmplitude =
-  "Scales the depth of pitch variation across the whole synth (all oscillators).";
+  "Scales the depth of pitch variation for all oscillators.";
 
 inline constexpr const char* kPitchVariationRate =
-  "Scales the speed of pitch variation across the whole synth (all oscillators).";
+  "Scales the speed of pitch variation for all oscillators.";
 
 inline constexpr const char* kLevel =
   "Sets the overall output level of the synth (all oscillators).";
 
 inline constexpr const char* kDrive =
-  "Effect 1/4: Saturation. Adds warmth and harmonics to the sound. Higher values lead to a more distorted tone.";
+  "Adds warmth and harmonics to the sound. Higher values lead to a more distorted tone.";
 
 inline constexpr const char* kTone =
-  "Effect 2/4: Tilt EQ. Negative values darken the sound, positive values brighten it.";
+  "Negative values darken the sound (boost low frequencies, suppress high frequencies), positive values brighten it (suppress low frequencies, boost high frequencies).";
 
 inline constexpr const char* kChorus =
-  "Effect 3/4: Chorus. Adds a stereo chorus effect to widen and thicken the sound.";
+  "Adds a stereo chorus effect to widen and thicken the sound.";
 
 inline constexpr const char* kReverb =
-  "Effect 4/4: Reverb. This control is not tied to a patch and will hold its value as the patch changes.";
+  "Adds a reverb effect to create a sense of space. Higher values make the reverb louder and longer-lasting. This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline const char* GetParam(int paramIdx)
 {
@@ -116,19 +116,19 @@ namespace oscillator_tabs
 using OscillatorParameter = OscillatorSettings::Parameter;
 
 inline constexpr const char* kLevel =
-  "Controls the intensity of each harmonic at full breath.";
+  "Controls the amplitude of each harmonic at full breath.";
 
 inline constexpr const char* kEq =
-  "Controls a frequency-based EQ in dB for the oscillator bank. The EQ stays fixed in frequency as notes change, which makes it useful for creating formants.";
+  "Controls a frequency-based EQ. The EQ stays fixed in frequency as notes change, which makes it useful for creating formants.";
 
 inline constexpr const char* kBreath =
-  "Controls how strongly breath scales each harmonic level.";
+  "Controls per-harmonic breath sensitivity. Higher values make the harmonic require more breath before it becomes prominent.";
 
 inline constexpr const char* kAttack =
-  "Controls how quickly each harmonic ramps up at note start.";
+  "Controls how quickly each harmonic can increase in intensity.";
 
 inline constexpr const char* kRelease =
-  "Controls how quickly each harmonic fades after note release.";
+  "Controls how quickly each harmonic can decrease in intensity.";
 
 inline constexpr const char* kPitch =
   "Controls static pitch offset per harmonic in cents.";
