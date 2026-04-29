@@ -321,11 +321,11 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
     "",
     "X",
     context->IsAllKeyNotesEqEnabled());
-  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllKeyNotes);
+  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
 
   auto* labelControl = new ITextControl(IRECT(), "All notes", styles.utilityLabelText, COLOR_TRANSPARENT);
   labelControl->SetIgnoreMouse(false);
-  labelControl->SetTooltip(help_text::oscillator_tabs::kAllKeyNotes);
+  labelControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
   labelControl->DisablePrompt(true);
 
   *context->eqTab.allKeyNotesToggle = toggleControl;
@@ -371,6 +371,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
     {"flat", "low-pass", "high-pass", "5 waves", "10 waves", "15 waves", "20 waves", "5 peaks", "10 peaks", "ä vowel", "o vowel"},
     styles.utilityDropdownText,
     styles.darkTab);
+  setShapeControl->SetTooltip(help_text::oscillator_tabs::kEqSetShape);
   auto* actionsControl = new ActionSelectionControl(
     IRECT(),
     "run action",
@@ -385,6 +386,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
       kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);
+  actionsControl->SetTooltip(help_text::oscillator_tabs::kEqActions);
   auto* editorControl = CreateEqEditorControl(context);
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
@@ -423,9 +425,9 @@ inline void AttachEqTabChildren(IVTabPage* page,
   *context->eqTab.deleteButton = keyNoteActionButtons.deleteButton;
   *context->eqTab.editorControl = editorControl;
 
-  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Set shape:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kEqSetShape));
   page->AddChildControl(setShapeControl);
-  page->AddChildControl(MakePassiveControl(new ITextControl(IRECT(), "Actions:", styles.utilityLabelText, COLOR_TRANSPARENT)));
+  page->AddChildControl(CreateUtilityLabelControl("Actions:", styles, help_text::oscillator_tabs::kEqActions));
   page->AddChildControl(actionsControl);
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);

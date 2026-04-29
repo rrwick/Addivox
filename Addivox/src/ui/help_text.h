@@ -155,22 +155,82 @@ inline constexpr const char* kPanVariationRate =
   "Controls speed of pan variation for each harmonic.";
 
 inline constexpr const char* kXRangeMin =
-  "Controls the lowest harmonic that will be shown in the editor graph to the right. Use the X range controls to limit the harmonics for easier editing.";
+  "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
 
 inline constexpr const char* kXRangeMax =
-  "Controls the highest harmonic that will be shown in the editor graph to the right. Use the X range controls to limit the harmonics for easier editing.";
+  "Controls the highest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
+
+inline constexpr const char* kYTransform =
+  "Changes the vertical response of the editor graph. This only affects how values are displayed, not the actual patch values.\n\n"
+  "linear: bar height directly represents value. Twice the height = twice the value.\n\n"
+  "square root: expands smaller values on screen, making them easier to edit.\n\n"
+  "pseudo-log: strongly expands values near zero, giving the smallest values the most editing room.";
+
+inline constexpr const char* kEditMode =
+  "Selects the edit operation for this tab:\n\n"
+  "set: writes values directly to the cursor position.\n\n"
+  "nudge: makes small gradual changes as you drag.\n\n"
+  "smooth: gently averages a harmonic with its neighbors.\n\n"
+  "draw line: interpolates between the drag start and current harmonic in the displayed transform.";
+
+inline constexpr const char* kEditScope =
+  "Controls which harmonics can be edited:\n\n"
+  "all: all harmonics are editable\n\n"
+  "even: only even harmonics are editable (odd harmonics are locked)\n\n"
+  "odd: only odd harmonics are editable (even harmonics are locked)";
+
+inline constexpr const char* kHarmonicSetShape =
+  "Applies a preset shape to this parameter. The edit scope limits which harmonics are changed.";
+
+inline constexpr const char* kHarmonicActions =
+  "Runs the selected operation. Shortcut keys are shown in brackets. The edit scope limits which harmonics are changed.\n\n"
+  "scale up: increases values.\n\n"
+  "scale down: decreases values.\n\n"
+  "toward max: moves values closer to the top of the range.\n\n"
+  "away from max: moves values away from the top of the range.\n\n"
+  "bend up: bends the shape upward while keeping its low and high points.\n\n"
+  "bend down: bends the shape downward while keeping its low and high points.";
+
+inline constexpr const char* kHarmonicLevelActions =
+  "Runs the selected operation. Shortcut keys are shown in brackets. Except normalize, the edit scope limits which harmonics are changed.\n\n"
+  "scale up: increases values.\n\n"
+  "scale down: decreases values.\n\n"
+  "toward max: moves values closer to the top of the range.\n\n"
+  "away from max: moves values away from the top of the range.\n\n"
+  "bend up: bends the shape upward while keeping its low and high points.\n\n"
+  "bend down: bends the shape downward while keeping its low and high points.\n\n"
+  "normalize: adjusts all harmonic levels to keep overall loudness consistent.";
+
+inline constexpr const char* kHarmonicSignedActions =
+  "Runs the selected operation. Shortcut keys are shown in brackets. The edit scope limits which harmonics are changed.\n\n"
+  "scale up: increases distance from zero.\n\n"
+  "scale down: decreases distance from zero.\n\n"
+  "shift up: adds a small positive offset.\n\n"
+  "shift down: adds a small negative offset.\n\n"
+  "invert: flips values around zero.";
+
+inline constexpr const char* kEqSetShape =
+  "Applies a preset EQ curve.";
+
+inline constexpr const char* kEqActions =
+  "Runs the selected operation. Shortcut keys are shown in brackets.\n\n"
+  "scale up: makes boosts and cuts stronger.\n\n"
+  "scale down: makes boosts and cuts gentler.\n\n"
+  "shift up: raises the curve by 1 dB.\n\n"
+  "shift down: lowers the curve by 1 dB.\n\n"
+  "shift right: moves the curve to higher frequencies.\n\n"
+  "shift left: moves the curve to lower frequencies.\n\n"
+  "normalise: centers the curve around 0 dB.\n\n"
+  "invert: turns boosts into cuts, and cuts into boosts.";
+
+inline constexpr const char* kAllNotes =
+  "When enabled, this parameter stays synchronized across every key note. Turning it on copies the current values to all key notes immediately.";
 
 inline constexpr const char* kAddButton =
-  "Creates a new key note for the currently selected note.";
+  "Creates a new key note at the currently selected note.";
 
 inline constexpr const char* kDeleteButton =
   "Removes the selected key note.";
-
-inline constexpr const char* kAllKeyNotes =
-  "When enabled, this parameter stays synchronized across every key note. Turning it on copies the currently selected key note values to all key notes immediately.";
-
-inline constexpr const char* kEditMode =
-  "Selects the edit operation for this tab. Set writes values directly to the cursor position, nudge makes small gradual changes as you drag, smooth gently averages a harmonic with its neighbors, and draw line interpolates between the drag start and current harmonic in the displayed transform. The scope controls limit most edits to all harmonics, only even harmonics, or only odd harmonics. In the Level tab, normalize always rescales all harmonics.";
 
 inline const char* Get(OscillatorParameter parameter)
 {
@@ -200,6 +260,30 @@ inline const char* Get(OscillatorParameter parameter)
       return kPanVariationAmplitude;
     case OscillatorParameter::pan_variation_rate:
       return kPanVariationRate;
+    default:
+      return "";
+  }
+}
+
+inline const char* GetHarmonicActions(OscillatorParameter parameter)
+{
+  switch(parameter)
+  {
+    case OscillatorParameter::level:
+      return kHarmonicLevelActions;
+    case OscillatorParameter::pitch:
+    case OscillatorParameter::pan:
+      return kHarmonicSignedActions;
+    case OscillatorParameter::breath_power:
+    case OscillatorParameter::attack:
+    case OscillatorParameter::release:
+    case OscillatorParameter::level_variation_amplitude:
+    case OscillatorParameter::level_variation_rate:
+    case OscillatorParameter::pitch_variation_amplitude:
+    case OscillatorParameter::pitch_variation_rate:
+    case OscillatorParameter::pan_variation_amplitude:
+    case OscillatorParameter::pan_variation_rate:
+      return kHarmonicActions;
     default:
       return "";
   }

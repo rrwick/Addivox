@@ -306,6 +306,7 @@ inline ActionSelectionControl* CreateYTransformControl(const std::shared_ptr<Edi
     styles.utilityDropdownText,
     styles.darkTab,
     true);
+  control->SetTooltip(help_text::oscillator_tabs::kYTransform);
   control->SetOnSelection([transform, sliderControl](const char* selectedText) {
     if(!selectedText)
       return;
@@ -385,7 +386,7 @@ public:
       7.0f)
   {
     mButtonAreaWidth = 9.0f;
-    SetTooltip(help_text::oscillator_tabs::kEditMode);
+    SetTooltip(help_text::oscillator_tabs::kEditScope);
     SetControlValueSilently(this, GetOscillatorEditScopeControlValue((*editScopes)[static_cast<std::size_t>(descriptor.parameter)]));
   }
 
@@ -505,9 +506,12 @@ inline EditorOscillatorEditScopeControl* CreateEditModeScopeControl(
   return new EditorOscillatorEditScopeControl(IRECT(), editScopes, descriptor, styles);
 }
 
-inline ITextControl* CreateUtilityLabelControl(const char* text, const EditorStyles& styles)
+inline ITextControl* CreateUtilityLabelControl(const char* text, const EditorStyles& styles, const char* tooltip = nullptr)
 {
-  return MakePassiveControl(new ITextControl(IRECT(), text, styles.utilityLabelText, COLOR_TRANSPARENT));
+  auto* control = MakePassiveControl(new ITextControl(IRECT(), text, styles.utilityLabelText, COLOR_TRANSPARENT));
+  if(tooltip && tooltip[0] != '\0')
+    control->SetTooltip(tooltip);
+  return control;
 }
 
 inline ITextControl* CreateEditModeLabelControl(const EditorStyles& styles)
@@ -1485,11 +1489,11 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
     "",
     "X",
     context->IsAllKeyNotesEnabled(descriptor.parameter));
-  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllKeyNotes);
+  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
 
   auto* labelControl = new ITextControl(IRECT(), "All notes", styles.utilityLabelText, COLOR_TRANSPARENT);
   labelControl->SetIgnoreMouse(false);
-  labelControl->SetTooltip(help_text::oscillator_tabs::kAllKeyNotes);
+  labelControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
   labelControl->DisablePrompt(true);
 
   (*context->oscillatorTabControls.allKeyNotesToggles)[static_cast<std::size_t>(descriptor.parameter)] = toggleControl;
@@ -1510,17 +1514,21 @@ inline void AttachHarmonicTabChildren(IVTabPage* page,
                                       IVButtonControl* deleteButton,
                                       OscillatorSliderControl* sliderControl)
 {
+  const char* const actionsTooltip = help_text::oscillator_tabs::GetHarmonicActions(descriptor.parameter);
+
   page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
   page->AddChildControl(xRangeControls.minControl);
   page->AddChildControl(xRangeControls.maxControl);
-  page->AddChildControl(CreateUtilityLabelControl("Y transform:", styles));
+  page->AddChildControl(CreateUtilityLabelControl("Y transform:", styles, help_text::oscillator_tabs::kYTransform));
   page->AddChildControl(yTransformControl);
   page->AddChildControl(CreateEditModeLabelControl(styles));
   page->AddChildControl(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
   page->AddChildControl(CreateEditModeScopeControl(context->model.oscillatorEditScopes, descriptor, styles));
-  page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles));
+  page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kHarmonicSetShape));
+  setShapeControl->SetTooltip(help_text::oscillator_tabs::kHarmonicSetShape);
   page->AddChildControl(setShapeControl);
-  page->AddChildControl(CreateUtilityLabelControl("Actions:", styles));
+  page->AddChildControl(CreateUtilityLabelControl("Actions:", styles, actionsTooltip));
+  actionsControl->SetTooltip(actionsTooltip);
   page->AddChildControl(actionsControl);
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
