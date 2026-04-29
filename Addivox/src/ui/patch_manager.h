@@ -20,6 +20,15 @@ namespace layout
 {
 namespace detail
 {
+inline const char* DefaultShowInFileBrowserLabel()
+{
+#if defined(OS_WIN)
+  return "Show User Patches in Explorer";
+#else
+  return "Show User Patches in Finder";
+#endif
+}
+
 template <typename Callback>
 inline IActionFunction MakeImmediatePatchButtonAction(Callback&& callback)
 {
@@ -47,7 +56,7 @@ struct PatchMenuModel
 {
   std::vector<PatchMenuEntry> entries;
   std::string label{"Choose Patch..."};
-  std::string showInFileBrowserLabel{"Show in Finder"};
+  std::string showInFileBrowserLabel{detail::DefaultShowInFileBrowserLabel()};
   bool canShowInFileBrowser{false};
 };
 
@@ -233,11 +242,20 @@ private:
     return parent.AddItem(name.c_str(), new IPopupMenu(name.c_str()))->GetSubmenu();
   }
 
+  static std::string GetDisplayGroupName(const std::string& group)
+  {
+    if(group == "Factory")
+      return "Factory Patches";
+    if(group == "User")
+      return "User Patches";
+    return group;
+  }
+
   void AddPatchEntryToMenu(const PatchMenuEntry& entry)
   {
     IPopupMenu* menu = &mPatchMenu;
     for(const auto& group : entry.groupPath)
-      menu = EnsureSubmenu(*menu, group);
+      menu = EnsureSubmenu(*menu, GetDisplayGroupName(group));
 
     const int flags = entry.checked ? IPopupMenu::Item::kChecked : IPopupMenu::Item::kNoFlags;
     menu->AddItem(
@@ -275,7 +293,7 @@ private:
     AddCommandItem("Import Patch...", editor_messages::PatchManagerAction::ImportPatch);
     AddCommandItem("Import Collection...", editor_messages::PatchManagerAction::ImportCollection);
     AddCommandItem(
-      mModel.showInFileBrowserLabel.empty() ? "Show in Finder" : mModel.showInFileBrowserLabel.c_str(),
+      mModel.showInFileBrowserLabel.empty() ? detail::DefaultShowInFileBrowserLabel() : mModel.showInFileBrowserLabel.c_str(),
       editor_messages::PatchManagerAction::ShowPatchInFileBrowser,
       mModel.canShowInFileBrowser);
     AddCommandItem("Refresh", editor_messages::PatchManagerAction::RefreshPatches);

@@ -2441,11 +2441,6 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates)
 
       plugin_ui::layout::PatchMenuModel model;
       model.label = label;
-#if defined(OS_WIN)
-      model.showInFileBrowserLabel = "Reveal in Explorer";
-#else
-      model.showInFileBrowserLabel = "Show in Finder";
-#endif
       const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
       model.canShowInFileBrowser =
         (mActivePatchSource == PatchSource::User
