@@ -108,7 +108,7 @@ inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
     return false;
 
   auto points = curve.GetPoints();
-  if(MatchesActionLabel(actionName, kActionNormalise))
+  if(MatchesActionLabel(actionName, kActionNormalize))
   {
     double meanDb = 0.0;
     std::size_t activePointCount = 0;
@@ -194,7 +194,7 @@ inline const char* GetEqActionShortcutActionName(int keyVK)
     case kVK_D:
       return kActionShiftLeft;
     case kVK_N:
-      return kActionNormalise;
+      return kActionNormalize;
     case kVK_I:
       return kActionInvert;
     default:
@@ -382,7 +382,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
       kActionShiftDownMenuLabel,
       kActionShiftRightMenuLabel,
       kActionShiftLeftMenuLabel,
-      kActionNormaliseMenuLabel,
+      kActionNormalizeMenuLabel,
       kActionInvertMenuLabel},
     styles.utilityDropdownText,
     styles.darkTab);

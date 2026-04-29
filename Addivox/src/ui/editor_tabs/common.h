@@ -125,7 +125,6 @@ inline constexpr const char* kActionShiftDown = "shift down";
 inline constexpr const char* kActionShiftRight = "shift right";
 inline constexpr const char* kActionShiftLeft = "shift left";
 inline constexpr const char* kActionNormalize = "normalize";
-inline constexpr const char* kActionNormalise = "normalise";
 inline constexpr const char* kActionInvert = "invert";
 
 inline constexpr const char* kActionScaleUpMenuLabel = "scale up [Q]";
@@ -139,7 +138,6 @@ inline constexpr const char* kActionShiftDownMenuLabel = "shift down [S]";
 inline constexpr const char* kActionShiftRightMenuLabel = "shift right [E]";
 inline constexpr const char* kActionShiftLeftMenuLabel = "shift left [D]";
 inline constexpr const char* kActionNormalizeMenuLabel = "normalize [N]";
-inline constexpr const char* kActionNormaliseMenuLabel = "normalise [N]";
 inline constexpr const char* kActionInvertMenuLabel = "invert [I]";
 
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();

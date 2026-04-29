@@ -220,7 +220,7 @@ inline constexpr const char* kEqActions =
   "shift down: lowers the curve by 1 dB.\n\n"
   "shift right: moves the curve to higher frequencies.\n\n"
   "shift left: moves the curve to lower frequencies.\n\n"
-  "normalise: centers the curve around 0 dB.\n\n"
+  "normalize: centers the curve around 0 dB.\n\n"
   "invert: turns boosts into cuts, and cuts into boosts.";
 
 inline constexpr const char* kAllNotes =
