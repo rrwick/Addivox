@@ -2359,24 +2359,13 @@ void Addivox::SetActivePatchCleanSnapshotFromCurrentState()
 
 void Addivox::MarkActivePatchDirty()
 {
-  if(mSuppressPatchDirtyTracking)
+  if(mSuppressPatchDirtyTracking || mActivePatchDirty)
     return;
 
-  if(mActivePatchCleanSnapshot.empty())
-  {
-    if(!mActivePatchDirty)
-    {
-      mActivePatchDirty = true;
-      RefreshEditorUI();
-    }
-    return;
-  }
-
-  const bool dirty = SerializeCurrentPatchSnapshot() != mActivePatchCleanSnapshot;
-  if(dirty == mActivePatchDirty)
+  if(!mActivePatchCleanSnapshot.empty() && SerializeCurrentPatchSnapshot() == mActivePatchCleanSnapshot)
     return;
 
-  mActivePatchDirty = dirty;
+  mActivePatchDirty = true;
   RefreshEditorUI();
 }
 
