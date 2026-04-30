@@ -15,6 +15,24 @@ inline constexpr const char* kKeyboard =
 inline constexpr const char* kPitchBendWheel =
   "Bends the pitch of held notes. Right click to set the pitch bend range.";
 
+inline constexpr const char* kVisEditSwitch =
+  "Switches the main panel between VIS mode and EDIT mode. VIS shows the live harmonic display. EDIT shows the per-note editor.";
+
+inline constexpr const char* kPreviousPatch =
+  "Loads the previous patch in the current patch group.";
+
+inline constexpr const char* kNextPatch =
+  "Loads the next patch in the current patch group.";
+
+inline constexpr const char* kPatchManager =
+  "Opens the patch menu for choosing, saving and importing patches.";
+
+inline constexpr const char* kBreathMeter =
+  "Shows the current breath input level.";
+
+inline constexpr const char* kMainOutputMeter =
+  "Shows the main stereo output level. Red bars at the top indicate the signal is above 0 dB and may clip when rendered or passed to later processing.";
+
 inline constexpr const char* kAttack =
   "Scales the attack time for all oscillators. Higher values make notes bloom more slowly.";
 
@@ -221,7 +239,7 @@ inline constexpr const char* kEqActions =
   "shift right: moves the curve to higher frequencies.\n\n"
   "shift left: moves the curve to lower frequencies.\n\n"
   "normalize: centers the curve around 0 dB.\n\n"
-  "invert: turns boosts into cuts, and cuts into boosts.";
+  "invert: turns boosts into cuts and cuts into boosts.";
 
 inline constexpr const char* kAllNotes =
   "When enabled, this parameter stays synchronized across every key note. Turning it on copies the current values to all key notes immediately.";
@@ -231,6 +249,9 @@ inline constexpr const char* kAddButton =
 
 inline constexpr const char* kDeleteButton =
   "Removes the selected key note.";
+
+inline constexpr const char* kRestoreButton =
+  "Restores this tab to the values it had when the selected key note was opened.";
 
 inline const char* Get(OscillatorParameter parameter)
 {

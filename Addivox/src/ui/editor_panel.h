@@ -449,6 +449,7 @@ inline void AttachOscillatorTabChildren(IVTabPage* page,
                                         const OscillatorTabDescriptor& descriptor)
 {
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
+  restoreButton->SetTooltip(help_text::oscillator_tabs::kRestoreButton);
   restoreButton->SetAnimationEndActionFunction([context, descriptor](IControl* caller) {
     RestoreOscillatorTabValues(context, caller, descriptor);
   });

@@ -389,6 +389,7 @@ inline void AttachEqTabChildren(IVTabPage* page,
   actionsControl->SetTooltip(help_text::oscillator_tabs::kEqActions);
   auto* editorControl = CreateEqEditorControl(context);
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
+  restoreButton->SetTooltip(help_text::oscillator_tabs::kRestoreButton);
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   setShapeControl->SetOnSelection([context, editorControl](const char* selectedText) {

@@ -278,13 +278,16 @@ inline void AttachOutputMeterControls(IGraphics* pGraphics,
                                       int breathMeterTag,
                                       int outMeterTag)
 {
-  AttachPassiveText(pGraphics, positions::kBreathLabel, "Breath", resources.compactLabelText);
-  AttachPassiveText(pGraphics, positions::kMainOutLabel, "Main Out", resources.compactLabelText);
+  AttachPassiveText(pGraphics, positions::kBreathLabel, "Breath", resources.compactLabelText, help_text::main_ui::kBreathMeter);
+  AttachPassiveText(pGraphics, positions::kMainOutLabel, "Main Out", resources.compactLabelText, help_text::main_ui::kMainOutputMeter);
 
   const IVStyle breathMeterStyle = resources.meterStyle.WithColor(kHL, COLOR_TRANSPARENT);
-  pGraphics->AttachControl(new IVMeterControl<1>(positions::kBreathMeter, "", breathMeterStyle, EDirection::Horizontal), breathMeterTag);
+  auto* breathMeter = new IVMeterControl<1>(positions::kBreathMeter, "", breathMeterStyle, EDirection::Horizontal);
+  breathMeter->SetTooltip(help_text::main_ui::kBreathMeter);
+  pGraphics->AttachControl(breathMeter, breathMeterTag);
   auto* outMeter = new IVLEDMeterControl<2>(positions::kOutputMeter, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
   outMeter->SetResponse(IVMeterControl<2>::EResponse::Linear);
+  outMeter->SetTooltip(help_text::main_ui::kMainOutputMeter);
   pGraphics->AttachControl(outMeter, outMeterTag);
 }
 
@@ -407,9 +410,10 @@ inline VizEditControls AttachVizEditControls(IGraphics* pGraphics,
     EDirection::Horizontal,
     2,
     context->IsEditMode() ? 1 : 0);
+  mainPanelModeSwitch->SetTooltip(help_text::main_ui::kVisEditSwitch);
   pGraphics->AttachControl(mainPanelModeSwitch);
-  AttachPassiveSectionLabel(pGraphics, positions::kVizModeLabel, "VIS", 0.0);
-  AttachPassiveSectionLabel(pGraphics, positions::kEditModeLabel, "EDIT", 0.0);
+  AttachPassiveSectionLabel(pGraphics, positions::kVizModeLabel, "VIS", 0.0, help_text::main_ui::kVisEditSwitch);
+  AttachPassiveSectionLabel(pGraphics, positions::kEditModeLabel, "EDIT", 0.0, help_text::main_ui::kVisEditSwitch);
 
   return {mainPanelModeSwitch, setMainPanelMode};
 }

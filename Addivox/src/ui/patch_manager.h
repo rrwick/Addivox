@@ -4,6 +4,7 @@
 #include "IVPresetManagerControls.h"
 #include "colour.h"
 #include "editor_messages.h"
+#include "help_text.h"
 
 #include <array>
 #include <cstring>
@@ -96,21 +97,30 @@ public:
     };
 
     const IVStyle patchNameStyle = mStyle.WithLabelText(mStyle.labelText.WithSize(18.f));
-    AddChildControl(new PatchArrowButtonControl(
+    SetTooltip(help_text::main_ui::kPatchManager);
+
+    auto* previousPatchButton = new PatchArrowButtonControl(
       IRECT(),
       detail::MakeImmediatePatchButtonAction(prevPatchFunc),
       PatchArrowButtonControl::Direction::Left,
-      mStyle));
-    AddChildControl(new PatchArrowButtonControl(
+      mStyle);
+    previousPatchButton->SetTooltip(help_text::main_ui::kPreviousPatch);
+    AddChildControl(previousPatchButton);
+
+    auto* nextPatchButton = new PatchArrowButtonControl(
       IRECT(),
       detail::MakeImmediatePatchButtonAction(nextPatchFunc),
       PatchArrowButtonControl::Direction::Right,
-      mStyle));
+      mStyle);
+    nextPatchButton->SetTooltip(help_text::main_ui::kNextPatch);
+    AddChildControl(nextPatchButton);
+
     AddChildControl(mPatchNameButton = new IVButtonControl(
       IRECT(),
       detail::MakeImmediatePatchButtonAction(choosePatchFunc),
       "Choose Patch...",
       patchNameStyle));
+    mPatchNameButton->SetTooltip(help_text::main_ui::kPatchManager);
 
     OnResize();
     SetPatchLabel(mModel.label.c_str());
