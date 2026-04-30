@@ -8,6 +8,10 @@
 #include "ui/transformations.h"
 #include "ui/layout.h"
 
+#if defined APP_API
+#include "standalone/audio_midi_settings.h"
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -1810,6 +1814,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   {
     ResetStandaloneStateToDefaults();
     return true;
+  }
+
+  if(msgTag == editor_messages::kMsgTagOpenAudioMidiSettings)
+  {
+#if defined APP_API
+    return addivox_standalone::OpenAudioMidiSettingsDialog();
+#else
+    return false;
+#endif
   }
 
   if(ctrlTag == kCtrlTagEditorTabs

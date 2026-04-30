@@ -22,6 +22,7 @@ inline constexpr int kMsgTagSetBreathCCSource = 1009;
 inline constexpr int kMsgTagSetHarmonicVisualizerEnabled = 1010;
 inline constexpr int kMsgTagResetStandaloneStateToDefaults = 1011;
 inline constexpr int kMsgTagPatchManagerAction = 1012;
+inline constexpr int kMsgTagOpenAudioMidiSettings = 1013;
 
 enum class PatchManagerAction
 {

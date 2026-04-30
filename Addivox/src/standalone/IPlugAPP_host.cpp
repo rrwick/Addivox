@@ -9,6 +9,8 @@
 */
 
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
+#include "audio_midi_settings.h"
+#include "resource.h"
 
 #ifdef OS_WIN
 #include <sys/stat.h>
@@ -27,6 +29,35 @@ using namespace iplug;
 
 std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
+
+namespace addivox_standalone
+{
+bool OpenAudioMidiSettingsDialog()
+{
+  auto* appHost = IPlugAPPHost::sInstance.get();
+  if(!appHost || !gHWND)
+    return false;
+
+#if defined OS_MAC
+  const INT_PTR result = DialogBox(
+    nullptr,
+    MAKEINTRESOURCE(IDD_DIALOG_PREF),
+    gHWND,
+    IPlugAPPHost::PreferencesDlgProc);
+#else
+  const INT_PTR result = DialogBox(
+    gHINSTANCE,
+    MAKEINTRESOURCE(IDD_DIALOG_PREF),
+    gHWND,
+    IPlugAPPHost::PreferencesDlgProc);
+#endif
+
+  if(result == IDOK)
+    appHost->UpdateINI();
+
+  return result != -1;
+}
+} // namespace addivox_standalone
 
 IPlugAPPHost::IPlugAPPHost()
 : mIPlug(MakePlug(InstanceInfo{this}))

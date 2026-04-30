@@ -159,6 +159,17 @@ public:
             GetTag());
         }
       }
+#if defined APP_API
+      else if(selectedText && std::strcmp(selectedText, kAudioMidiSettingsMenuLabel) == 0)
+      {
+        if(auto* delegate = GetDelegate())
+        {
+          delegate->SendArbitraryMsgFromUI(
+            editor_messages::kMsgTagOpenAudioMidiSettings,
+            GetTag());
+        }
+      }
+#endif
       else
       {
         BreathCCSource selectedSource = kDefaultBreathCCSource;
@@ -212,6 +223,9 @@ private:
 
     mMenu.AddItem("Breath CC", breathMenu);
     mMenu.AddSeparator();
+#if defined APP_API
+    mMenu.AddItem(kAudioMidiSettingsMenuLabel);
+#endif
     mMenu.AddItem(kResetToDefaultsMenuLabel);
   }
 
@@ -220,8 +234,9 @@ private:
   std::shared_ptr<BreathCCSource> mBreathCCSource;
   std::shared_ptr<bool> mHarmonicVisualizerEnabled;
 
-  static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer enabled";
-  static constexpr const char* kResetToDefaultsMenuLabel = "Reset to defaults";
+  static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer Enabled";
+  static constexpr const char* kAudioMidiSettingsMenuLabel = "Audio & MIDI Settings...";
+  static constexpr const char* kResetToDefaultsMenuLabel = "Reset Synth Settings to Defaults...";
 };
 
 inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<editor::EditorContext>& context, int aboutBoxTag)
