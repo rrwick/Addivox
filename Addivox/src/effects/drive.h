@@ -67,6 +67,7 @@ private:
   static double StableLogCosh(double value);
 
   Parameters ComputeParameters(double amount) const;
+  void AdvanceSilentBlock(int nFrames);
   static double EvaluateShaper(double input, const Parameters& parameters);
   static double EvaluateShaperAntiderivative(double input, const Parameters& parameters);
   static double EvaluateShaperAdaa(ChannelState& channel, double input, const Parameters& parameters);
@@ -80,6 +81,7 @@ private:
   double mTargetActiveMix{0.0};
   double mCurrentActiveMix{0.0};
   bool mActive{false};
+  bool mHasStoredSignal{false};
   std::array<ChannelState, kNumChannels> mChannels{};
 };
 } // namespace effects

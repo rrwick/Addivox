@@ -139,6 +139,7 @@ void effects::Chorus::Reset(double sampleRate, int blockSize)
 
 void effects::Chorus::Clear()
 {
+  mHasStoredSignal = false;
   mInputHighpass.Clear();
   InitializeVoiceStates();
 
@@ -161,10 +162,67 @@ void effects::Chorus::SetAmount(double amount)
   }
 }
 
+void effects::Chorus::AdvanceSilentBlock(int nFrames)
+{
+  for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
+  {
+    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    const ChorusParameters parameters = ComputeParameters(mCurrentAmount, mSampleRate);
+
+    for(int voiceIndex = 0; voiceIndex < kNumVoices; ++voiceIndex)
+    {
+      VoiceState& voice = mVoices[static_cast<std::size_t>(voiceIndex)];
+      const VoiceSetup& setup = kVoiceSetups[static_cast<std::size_t>(voiceIndex)];
+      voice.modPosition += (setup.baseRateHz * parameters.rateScale) / mSampleRate;
+      voice.toneFilter.coefficient =
+        dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
+    }
+  }
+}
+
+bool effects::Chorus::HasStoredSignal() const
+{
+  if(mInputHighpass.lowState != 0.0)
+    return true;
+
+  for(const auto& voice : mVoices)
+  {
+    if(voice.delay.HasSignal() || voice.toneFilter.state != 0.0)
+      return true;
+  }
+
+  return false;
+}
+
 void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames)
 {
   if(!mActive || nFrames <= 0)
     return;
+
+  bool inputBlockSilent = true;
+  for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
+  {
+    if(outputs[0][sampleIndex] != 0.0 || outputs[1][sampleIndex] != 0.0)
+    {
+      inputBlockSilent = false;
+      mHasStoredSignal = true;
+      break;
+    }
+  }
+
+  if(inputBlockSilent && !mHasStoredSignal)
+  {
+    AdvanceSilentBlock(nFrames);
+
+    if(mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold)
+    {
+      mCurrentAmount = 0.0;
+      mActive = false;
+      Clear();
+    }
+
+    return;
+  }
 
   for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
   {
@@ -211,4 +269,7 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames)
     mActive = false;
     Clear();
   }
+
+  if(inputBlockSilent && !HasStoredSignal())
+    mHasStoredSignal = false;
 }

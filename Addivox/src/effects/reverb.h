@@ -50,6 +50,8 @@ private:
   void UpdateTargetParameters();
   void SnapCurrentParametersToTargets(bool startWetAtZero);
   void SmoothParameters();
+  void AdvanceSilentBlock(int nFrames);
+  bool HasStoredSignal() const;
   StereoPair ProcessEarlyReflections(double conditioned, double side);
   StereoPair ProcessLateReverb(double diffused, double side);
   void ClearLateDiffusers();
@@ -77,6 +79,7 @@ private:
   double mTargetInputLowpassCoefficient{1.0};
   double mTargetInputHighpassCoefficient{1.0};
   double mTargetOutputLowpassCoefficient{1.0};
+  bool mHasStoredSignal{false};
   OnePoleLowpass mInputLowpass;
   OnePoleHighpass mInputHighpass;
   DelayLine mEarlyDelay;

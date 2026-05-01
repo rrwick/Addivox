@@ -42,6 +42,8 @@ private:
   static BandGains ComputeBandGains(double amount);
 
   Parameters ComputeParameters(double amount) const;
+  void AdvanceSilentBlock(int nFrames);
+  bool HasStoredSignal() const;
   double ComputeTrimForAmount(double amount) const;
   std::complex<double> EvaluateTiltResponse(const BandGains& bandGains, double angularFrequency) const;
   double LookupTrim(double amount) const;
@@ -57,6 +59,7 @@ private:
   double mAmountSmoothingCoefficient{1.0};
   double mActivationSmoothingCoefficient{1.0};
   bool mActive{false};
+  bool mHasStoredSignal{false};
   std::array<double, kNumCrossovers> mCrossoverCoefficients{};
   std::array<double, kTrimTableSize> mTrimTable{};
   std::array<ChannelState, kNumChannels> mChannels{};

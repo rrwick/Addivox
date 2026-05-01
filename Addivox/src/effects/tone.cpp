@@ -81,6 +81,7 @@ void effects::Tone::Reset(double sampleRate, int blockSize)
 
 void effects::Tone::Clear()
 {
+  mHasStoredSignal = false;
   for(auto& channel : mChannels)
   {
     for(std::size_t index = 0; index < channel.crossovers.size(); ++index)
@@ -203,10 +204,62 @@ double effects::Tone::ProcessTiltedSample(ChannelState& channel, double input, c
   return dsp::FlushDenormal(parameters.trim * tilted);
 }
 
+void effects::Tone::AdvanceSilentBlock(int nFrames)
+{
+  for(int frame = 0; frame < nFrames; ++frame)
+  {
+    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    mCurrentActiveMix = dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
+  }
+}
+
+bool effects::Tone::HasStoredSignal() const
+{
+  for(const auto& channel : mChannels)
+  {
+    for(const auto& crossover : channel.crossovers)
+    {
+      if(crossover.state != 0.0)
+        return true;
+    }
+  }
+
+  return false;
+}
+
 void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
 {
   if(!mActive || nFrames <= 0)
     return;
+
+  bool inputBlockSilent = true;
+  for(int frame = 0; frame < nFrames; ++frame)
+  {
+    if(outputs[0][frame] != 0.0 || outputs[1][frame] != 0.0)
+    {
+      inputBlockSilent = false;
+      mHasStoredSignal = true;
+      break;
+    }
+  }
+
+  if(inputBlockSilent && !mHasStoredSignal)
+  {
+    AdvanceSilentBlock(nFrames);
+
+    if(std::abs(mTargetAmount) <= kBypassThreshold
+       && std::abs(mCurrentAmount) <= kBypassThreshold
+       && mCurrentActiveMix <= kBypassThreshold)
+    {
+      mCurrentAmount = 0.0;
+      mCurrentActiveMix = 0.0;
+      mTargetActiveMix = 0.0;
+      mActive = false;
+      Clear();
+    }
+
+    return;
+  }
 
   for(int frame = 0; frame < nFrames; ++frame)
   {
@@ -235,4 +288,7 @@ void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames)
     mActive = false;
     Clear();
   }
+
+  if(inputBlockSilent && !HasStoredSignal())
+    mHasStoredSignal = false;
 }

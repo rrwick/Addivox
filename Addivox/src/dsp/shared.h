@@ -106,6 +106,17 @@ struct DelayLine
     writeIndex = 0;
   }
 
+  bool HasSignal() const
+  {
+    for(const double sample : buffer)
+    {
+      if(sample != 0.0)
+        return true;
+    }
+
+    return false;
+  }
+
   void Write(double input)
   {
     if(buffer.empty())

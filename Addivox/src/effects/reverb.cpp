@@ -205,6 +205,7 @@ void effects::Reverb::Reset(double sampleRate, int blockSize)
 
 void effects::Reverb::Clear()
 {
+  mHasStoredSignal = false;
   mInputLowpass.Clear();
   mInputHighpass.Clear();
   mOutputLowpassLeft.Clear();
@@ -368,6 +369,63 @@ void effects::Reverb::SmoothParameters()
   }
 }
 
+void effects::Reverb::AdvanceSilentBlock(int nFrames)
+{
+  for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
+  {
+    SmoothParameters();
+
+    for(int i = 0; i < kNumDelayLines; ++i)
+      AdvanceWrappedPhase(mModPhase[static_cast<std::size_t>(i)], mModPhaseIncrement[static_cast<std::size_t>(i)]);
+  }
+}
+
+bool effects::Reverb::HasStoredSignal() const
+{
+  if(mInputLowpass.state != 0.0
+     || mInputHighpass.lowState != 0.0
+     || mOutputLowpassLeft.state != 0.0
+     || mOutputLowpassRight.state != 0.0
+     || mEarlyDelay.HasSignal()
+     || mPreDelay.HasSignal())
+    return true;
+
+  for(const auto& diffuser : mDiffusers)
+  {
+    if(diffuser.delay.HasSignal())
+      return true;
+  }
+
+  for(const auto& diffuser : mTailDiffusers)
+  {
+    if(diffuser.delay.HasSignal())
+      return true;
+  }
+
+  for(const auto& lateDiffuserStages : mLateDiffusers)
+  {
+    for(const auto& lateDiffuser : lateDiffuserStages)
+    {
+      if(lateDiffuser.delay.HasSignal())
+        return true;
+    }
+  }
+
+  for(const auto& delayLine : mDelayLines)
+  {
+    if(delayLine.HasSignal())
+      return true;
+  }
+
+  for(const auto& filter : mLoopDampingFilters)
+  {
+    if(filter.state != 0.0)
+      return true;
+  }
+
+  return false;
+}
+
 effects::Reverb::StereoPair effects::Reverb::ProcessEarlyReflections(double conditioned, double side)
 {
   StereoPair early{mEarlySideScale * side, -mEarlySideScale * side};
@@ -445,6 +503,31 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
   if(!mActive || nFrames <= 0)
     return;
 
+  bool inputBlockSilent = true;
+  for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
+  {
+    if(outputs[0][sampleIndex] != 0.0 || outputs[1][sampleIndex] != 0.0)
+    {
+      inputBlockSilent = false;
+      mHasStoredSignal = true;
+      break;
+    }
+  }
+
+  if(inputBlockSilent && !mHasStoredSignal)
+  {
+    AdvanceSilentBlock(nFrames);
+
+    if(mTargetWetMix <= kBypassThreshold && mWetMix <= 1.0e-4)
+    {
+      Clear();
+      mActive = false;
+    }
+
+    return;
+  }
+
+  bool wetBlockSilent = true;
   for(int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex)
   {
     SmoothParameters();
@@ -465,6 +548,8 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
 
     const double wetLeft = mOutputLowpassLeft.Process((mEarlyMix * early[0]) + late[0]);
     const double wetRight = mOutputLowpassRight.Process((mEarlyMix * early[1]) + late[1]);
+    if(wetLeft != 0.0 || wetRight != 0.0)
+      wetBlockSilent = false;
 
     outputs[0][sampleIndex] = static_cast<iplug::sample>(dryLeft + wetLeft);
     outputs[1][sampleIndex] = static_cast<iplug::sample>(dryRight + wetRight);
@@ -478,4 +563,7 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames)
 
   if(mTargetAmbientBloom <= kBypassThreshold && mAmbientBloom <= kAmbientClearThreshold)
     ClearLateDiffusers();
+
+  if(inputBlockSilent && wetBlockSilent && !HasStoredSignal())
+    mHasStoredSignal = false;
 }

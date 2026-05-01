@@ -92,6 +92,7 @@ void effects::Drive::Reset(double sampleRate, int blockSize)
 
 void effects::Drive::Clear()
 {
+  mHasStoredSignal = false;
   for(auto& channel : mChannels)
   {
     channel.inputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, kInputDcCutoffHz);
@@ -194,10 +195,55 @@ double effects::Drive::ProcessOversampledSample(ChannelState& channel, double in
   return dsp::FlushDenormal(input + (parameters.blend * (processed - input)));
 }
 
+void effects::Drive::AdvanceSilentBlock(int nFrames)
+{
+  for(int frame = 0; frame < nFrames; ++frame)
+  {
+    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    mCurrentActiveMix = dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
+    const Parameters parameters = ComputeParameters(mCurrentAmount);
+    for(auto& channel : mChannels)
+    {
+      channel.toneFilter.coefficient = parameters.toneCoefficient;
+      channel.previousShaperInput = 0.0;
+      channel.shaperStateInitialized = true;
+    }
+  }
+}
+
 void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames)
 {
   if(!mActive || nFrames <= 0)
     return;
+
+  bool inputBlockSilent = true;
+  for(int frame = 0; frame < nFrames; ++frame)
+  {
+    if(outputs[0][frame] != 0.0 || outputs[1][frame] != 0.0)
+    {
+      inputBlockSilent = false;
+      mHasStoredSignal = true;
+      break;
+    }
+  }
+
+  if(inputBlockSilent && !mHasStoredSignal)
+  {
+    AdvanceSilentBlock(nFrames);
+
+    if(mTargetAmount <= kBypassThreshold
+       && mCurrentAmount <= kBypassThreshold
+       && mCurrentActiveMix <= kBypassThreshold)
+    {
+      mCurrentAmount = 0.0;
+      mCurrentActiveMix = 0.0;
+      mTargetActiveMix = 0.0;
+      mActive = false;
+      Clear();
+    }
+
+    return;
+  }
 
   for(int frame = 0; frame < nFrames; ++frame)
   {

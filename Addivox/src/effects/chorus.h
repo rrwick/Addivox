@@ -32,11 +32,14 @@ private:
   };
 
   void InitializeVoiceStates();
+  void AdvanceSilentBlock(int nFrames);
+  bool HasStoredSignal() const;
 
   double mSampleRate{dsp::kDefaultSampleRate};
   double mTargetAmount{0.0};
   double mCurrentAmount{0.0};
   bool mActive{false};
+  bool mHasStoredSignal{false};
   double mAmountSmoothingCoefficient{1.0};
   double mToneSmoothingCoefficient{1.0};
   OnePoleHighpass mInputHighpass;
