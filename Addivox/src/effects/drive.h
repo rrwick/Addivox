@@ -1,7 +1,7 @@
 #pragma once
 
-#include "IPlugConstants.h"
 #include "../dsp/shared.h"
+#include "IPlugConstants.h"
 
 #include <array>
 #include <cassert>
@@ -10,10 +10,8 @@
 #include "HIIR/FPUDownsampler2x.h"
 #include "HIIR/FPUUpsampler2x.h"
 
-namespace effects
-{
-class Drive
-{
+namespace effects {
+class Drive {
 public:
   void Reset(double sampleRate, int blockSize);
   void Clear();
@@ -29,8 +27,7 @@ private:
   static constexpr int kSecondStageNumCoefs = 4;
   using OnePoleLowpass = dsp::OnePoleLowpass;
 
-  struct DCBlocker
-  {
+  struct DCBlocker {
     void Clear();
     double Process(double input);
 
@@ -39,8 +36,7 @@ private:
     double previousOutput{0.0};
   };
 
-  struct ChannelState
-  {
+  struct ChannelState {
     DCBlocker inputDcBlocker;
     DCBlocker outputDcBlocker;
     OnePoleLowpass toneFilter;
@@ -52,8 +48,7 @@ private:
     bool shaperStateInitialized{false};
   };
 
-  struct Parameters
-  {
+  struct Parameters {
     double blend{0.0};
     double drive{1.0};
     double bias{0.0};

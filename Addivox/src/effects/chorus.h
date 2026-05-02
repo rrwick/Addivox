@@ -1,15 +1,13 @@
 #pragma once
 
-#include "IPlugConstants.h"
 #include "../dsp/shared.h"
+#include "IPlugConstants.h"
 
 #include <array>
 #include <cstdint>
 
-namespace effects
-{
-class Chorus
-{
+namespace effects {
+class Chorus {
 public:
   void Reset(double sampleRate, int blockSize);
   void Clear();
@@ -23,8 +21,7 @@ private:
   using OnePoleLowpass = dsp::OnePoleLowpass;
   using OnePoleHighpass = dsp::OnePoleHighpass;
 
-  struct VoiceState
-  {
+  struct VoiceState {
     DelayLine delay;
     OnePoleLowpass toneFilter;
     double modPosition{0.0};

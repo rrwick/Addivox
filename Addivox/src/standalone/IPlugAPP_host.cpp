@@ -1,10 +1,10 @@
 /*
  ==============================================================================
- 
- This file is part of the iPlug 2 library. Copyright (C) the iPlug 2 developers. 
- 
+
+ This file is part of the iPlug 2 library. Copyright (C) the iPlug 2 developers.
+
  See LICENSE.txt for  more info.
- 
+
  ==============================================================================
 */
 
@@ -13,8 +13,8 @@
 #include "resource.h"
 
 #ifdef OS_WIN
-#include <sys/stat.h>
 #include "win32_utf8.h"
+#include <sys/stat.h>
 #endif
 
 #include "IPlugLogger.h"
@@ -30,92 +30,67 @@ using namespace iplug;
 std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
-namespace addivox_standalone
-{
-bool OpenAudioMidiSettingsDialog()
-{
+namespace addivox_standalone {
+bool OpenAudioMidiSettingsDialog() {
   auto* appHost = IPlugAPPHost::sInstance.get();
-  if(!appHost || !gHWND)
-    return false;
+  if (!appHost || !gHWND) return false;
 
 #if defined OS_MAC
-  const INT_PTR result = DialogBox(
-    nullptr,
-    MAKEINTRESOURCE(IDD_DIALOG_PREF),
-    gHWND,
-    IPlugAPPHost::PreferencesDlgProc);
+  const INT_PTR result = DialogBox(nullptr, MAKEINTRESOURCE(IDD_DIALOG_PREF), gHWND, IPlugAPPHost::PreferencesDlgProc);
 #else
-  const INT_PTR result = DialogBox(
-    gHINSTANCE,
-    MAKEINTRESOURCE(IDD_DIALOG_PREF),
-    gHWND,
-    IPlugAPPHost::PreferencesDlgProc);
+  const INT_PTR result = DialogBox(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_PREF), gHWND, IPlugAPPHost::PreferencesDlgProc);
 #endif
 
-  if(result == IDOK)
-    appHost->UpdateINI();
+  if (result == IDOK) appHost->UpdateINI();
 
   return result != -1;
 }
 } // namespace addivox_standalone
 
-IPlugAPPHost::IPlugAPPHost()
-: mIPlug(MakePlug(InstanceInfo{this}))
-{
-}
+IPlugAPPHost::IPlugAPPHost() : mIPlug(MakePlug(InstanceInfo{this})) {}
 
-IPlugAPPHost::~IPlugAPPHost()
-{
+IPlugAPPHost::~IPlugAPPHost() {
   mExiting = true;
-  
-  CloseAudio();
-  
-  if (mMidiIn)
-    mMidiIn->cancelCallback();
 
-  if (mMidiOut)
-    mMidiOut->closePort();
+  CloseAudio();
+
+  if (mMidiIn) mMidiIn->cancelCallback();
+
+  if (mMidiOut) mMidiOut->closePort();
 }
 
-//static
-IPlugAPPHost* IPlugAPPHost::Create()
-{
+// static
+IPlugAPPHost* IPlugAPPHost::Create() {
   sInstance = std::make_unique<IPlugAPPHost>();
   return sInstance.get();
 }
 
-bool IPlugAPPHost::Init()
-{
+bool IPlugAPPHost::Init() {
   mIPlug->SetHost("standalone", mIPlug->GetPluginVersion(false));
-    
-  if (!InitState())
-    return false;
-  
-  TryToChangeAudioDriverType(); // will init RTAudio with an API type based on gState->mAudioDriverType
-  ProbeAudioIO(); // find out what audio IO devs are available and put their IDs in the global variables gAudioInputDevs / gAudioOutputDevs
-  InitMidi(); // creates RTMidiIn and RTMidiOut objects
-  ProbeMidiIO(); // find out what midi IO devs are available and put their names in the global variables gMidiInputDevs / gMidiOutputDevs
+
+  if (!InitState()) return false;
+
+  TryToChangeAudioDriverType(); // will init RTAudio with an API type based on
+                                // gState->mAudioDriverType
+  ProbeAudioIO();               // find out what audio IO devs are available and put their IDs
+                                // in the global variables gAudioInputDevs / gAudioOutputDevs
+  InitMidi();                   // creates RTMidiIn and RTMidiOut objects
+  ProbeMidiIO();                // find out what midi IO devs are available and put their names
+                                // in the global variables gMidiInputDevs / gMidiOutputDevs
   SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
   SelectMIDIDevice(ERoute::kOutput, mState.mMidiOutDev.Get());
-  
+
   mIPlug->OnParamReset(kReset);
   mIPlug->OnActivate(true);
-  
+
   return true;
 }
 
-bool IPlugAPPHost::OpenWindow(HWND pParent)
-{
-  return mIPlug->OpenWindow(pParent) != nullptr;
-}
+bool IPlugAPPHost::OpenWindow(HWND pParent) { return mIPlug->OpenWindow(pParent) != nullptr; }
 
-void IPlugAPPHost::CloseWindow()
-{
-  mIPlug->CloseWindow();
-}
+void IPlugAPPHost::CloseWindow() { mIPlug->CloseWindow(); }
 
-bool IPlugAPPHost::InitState()
-{
+bool IPlugAPPHost::InitState() {
 #if defined OS_WIN
   char strPath[MAX_PATH_LEN];
   SHGetSpecialFolderPathUTF8(NULL, strPath, MAX_PATH_LEN, CSIDL_LOCAL_APPDATA, FALSE);
@@ -123,7 +98,7 @@ bool IPlugAPPHost::InitState()
 #elif defined OS_MAC
   mINIPath.SetFormatted(MAX_PATH_LEN, "%s/Library/Application Support/%s/", getenv("HOME"), BUNDLE_NAME);
 #else
-  #error NOT IMPLEMENTED
+#error NOT IMPLEMENTED
 #endif
 
   struct stat st;
@@ -133,38 +108,43 @@ bool IPlugAPPHost::InitState()
     mINIPath.Append("settings.ini"); // add file name to path
 
     char buf[STRBUFSZ];
-    
+
     if (stat(mINIPath.Get(), &st) == 0) // if settings file exists read values into state
     {
       DBGMSG("Reading ini file from %s\n", mINIPath.Get());
-      
+
       mState.mAudioDriverType = GetPrivateProfileInt("audio", "driver", 0, mINIPath.Get());
 
-      GetPrivateProfileString("audio", "indev", "Built-in Input", buf, STRBUFSZ, mINIPath.Get()); mState.mAudioInDev.Set(buf);
-      GetPrivateProfileString("audio", "outdev", "Built-in Output", buf, STRBUFSZ, mINIPath.Get()); mState.mAudioOutDev.Set(buf);
+      GetPrivateProfileString("audio", "indev", "Built-in Input", buf, STRBUFSZ, mINIPath.Get());
+      mState.mAudioInDev.Set(buf);
+      GetPrivateProfileString("audio", "outdev", "Built-in Output", buf, STRBUFSZ, mINIPath.Get());
+      mState.mAudioOutDev.Set(buf);
 
-      //audio
+      // audio
       mState.mAudioInChanL = GetPrivateProfileInt("audio", "in1", 1, mINIPath.Get()); // 1 is first audio input
       mState.mAudioInChanR = GetPrivateProfileInt("audio", "in2", 2, mINIPath.Get());
       mState.mAudioOutChanL = GetPrivateProfileInt("audio", "out1", 1, mINIPath.Get()); // 1 is first audio output
       mState.mAudioOutChanR = GetPrivateProfileInt("audio", "out2", 2, mINIPath.Get());
-      //mState.mAudioInIsMono = GetPrivateProfileInt("audio", "monoinput", 0, mINIPath.Get());
+      // mState.mAudioInIsMono = GetPrivateProfileInt("audio", "monoinput", 0,
+      // mINIPath.Get());
 
       mState.mBufferSize = GetPrivateProfileInt("audio", "buffer", 512, mINIPath.Get());
       mState.mAudioSR = GetPrivateProfileInt("audio", "sr", 44100, mINIPath.Get());
 
-      //midi
-      GetPrivateProfileString("midi", "indev", "no input", buf, STRBUFSZ, mINIPath.Get()); mState.mMidiInDev.Set(buf);
-      GetPrivateProfileString("midi", "outdev", "no output", buf, STRBUFSZ, mINIPath.Get()); mState.mMidiOutDev.Set(buf);
+      // midi
+      GetPrivateProfileString("midi", "indev", "no input", buf, STRBUFSZ, mINIPath.Get());
+      mState.mMidiInDev.Set(buf);
+      GetPrivateProfileString("midi", "outdev", "no output", buf, STRBUFSZ, mINIPath.Get());
+      mState.mMidiOutDev.Set(buf);
 
-      mState.mMidiInChan = GetPrivateProfileInt("midi", "inchan", 0, mINIPath.Get()); // 0 is any
+      mState.mMidiInChan = GetPrivateProfileInt("midi", "inchan", 0, mINIPath.Get());   // 0 is any
       mState.mMidiOutChan = GetPrivateProfileInt("midi", "outchan", 0, mINIPath.Get()); // 1 is first chan
     }
 
-    // if settings file doesn't exist, populate with default values, otherwise overwrite
+    // if settings file doesn't exist, populate with default values, otherwise
+    // overwrite
     UpdateINI();
-  }
-  else // folder doesn't exist - make folder and make file
+  } else // folder doesn't exist - make folder and make file
   {
 #if defined OS_WIN
     // folder doesn't exist - make folder and make file
@@ -176,25 +156,21 @@ bool IPlugAPPHost::InitState()
     int result_code = mkdir(mINIPath.Get(), S_IRWXU | S_IRWXG | S_IRWXO);
     umask(process_mask);
 
-    if (!result_code)
-    {
+    if (!result_code) {
       mINIPath.Append("settings.ini");
       UpdateINI(); // will write file if doesn't exist
-    }
-    else
-    {
+    } else {
       return false;
     }
 #else
-  #error NOT IMPLEMENTED
+#error NOT IMPLEMENTED
 #endif
   }
 
   return true;
 }
 
-void IPlugAPPHost::UpdateINI()
-{
+void IPlugAPPHost::UpdateINI() {
   char buf[STRBUFSZ]; // temp buffer for writing integers to profile strings
   const char* ini = mINIPath.Get();
 
@@ -212,8 +188,8 @@ void IPlugAPPHost::UpdateINI()
   WritePrivateProfileString("audio", "out1", buf, ini);
   sprintf(buf, "%u", mState.mAudioOutChanR);
   WritePrivateProfileString("audio", "out2", buf, ini);
-  //sprintf(buf, "%u", mState.mAudioInIsMono);
-  //WritePrivateProfileString("audio", "monoinput", buf, ini);
+  // sprintf(buf, "%u", mState.mAudioInIsMono);
+  // WritePrivateProfileString("audio", "monoinput", buf, ini);
 
   WDL_String str;
   str.SetFormatted(32, "%i", mState.mBufferSize);
@@ -231,86 +207,69 @@ void IPlugAPPHost::UpdateINI()
   WritePrivateProfileString("midi", "outchan", buf, ini);
 }
 
-std::string IPlugAPPHost::GetAudioDeviceName(uint32_t deviceID) const
-{
+std::string IPlugAPPHost::GetAudioDeviceName(uint32_t deviceID) const {
   auto str = mDAC->getDeviceInfo(deviceID).name;
   std::size_t pos = str.find(':');
 
-  if (pos != std::string::npos)
-  {
+  if (pos != std::string::npos) {
     std::string subStr = str.substr(pos + 1);
     return subStr;
-  }
-  else
-  {
+  } else {
     return str;
   }
 }
 
-std::optional<uint32_t> IPlugAPPHost::GetAudioDeviceID(const char* deviceNameToTest) const
-{
+std::optional<uint32_t> IPlugAPPHost::GetAudioDeviceID(const char* deviceNameToTest) const {
   auto deviceIDs = mDAC->getDeviceIds();
 
-  for (auto deviceID : deviceIDs)
-  {
+  for (auto deviceID : deviceIDs) {
     auto name = GetAudioDeviceName(deviceID);
 
-    if (std::string_view(deviceNameToTest) == name)
-    {
+    if (std::string_view(deviceNameToTest) == name) {
       return deviceID;
     }
   }
-  
+
   return std::nullopt;
 }
 
-int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) const
-{
+int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) const {
   int start = 1;
-  
+
   auto nameStrView = std::string_view(nameToTest);
-  
-  if (direction == ERoute::kInput)
-  {
+
+  if (direction == ERoute::kInput) {
     if (nameStrView == OFF_TEXT) return 0;
-    
-  #ifdef OS_MAC
+
+#ifdef OS_MAC
     start = 2;
     if (nameStrView == "virtual input") return 1;
-  #endif
-    
-    for (int i = 0; i < mMidiIn->getPortCount(); i++)
-    {
-      if (nameStrView == mMidiIn->getPortName(i).c_str())
-        return (i + start);
+#endif
+
+    for (int i = 0; i < mMidiIn->getPortCount(); i++) {
+      if (nameStrView == mMidiIn->getPortName(i).c_str()) return (i + start);
     }
-  }
-  else
-  {
+  } else {
     if (nameStrView == OFF_TEXT) return 0;
-  
-  #ifdef OS_MAC
+
+#ifdef OS_MAC
     start = 2;
     if (nameStrView == "virtual output") return 1;
-  #endif
-  
-    for (int i = 0; i < mMidiOut->getPortCount(); i++)
-    {
-      if (nameStrView == mMidiOut->getPortName(i).c_str())
-        return (i + start);
+#endif
+
+    for (int i = 0; i < mMidiOut->getPortCount(); i++) {
+      if (nameStrView == mMidiOut->getPortName(i).c_str()) return (i + start);
     }
   }
-  
+
   return -1;
 }
 
-void IPlugAPPHost::ProbeAudioIO()
-{
+void IPlugAPPHost::ProbeAudioIO() {
   mAudioInputDevIDs.clear();
   mAudioOutputDevIDs.clear();
 
-  if (!mDAC)
-    return;
+  if (!mDAC) return;
 
   DBGMSG("\nRtAudio Version %s", RtAudio::getVersion().c_str());
 
@@ -318,38 +277,30 @@ void IPlugAPPHost::ProbeAudioIO()
 
   auto deviceIDs = mDAC->getDeviceIds();
 
-  for (auto deviceID : deviceIDs)
-  {
+  for (auto deviceID : deviceIDs) {
     info = mDAC->getDeviceInfo(deviceID);
 
-    if (info.inputChannels > 0)
-    {
+    if (info.inputChannels > 0) {
       mAudioInputDevIDs.push_back(deviceID);
     }
-    
-    if (info.outputChannels > 0)
-    {
+
+    if (info.outputChannels > 0) {
       mAudioOutputDevIDs.push_back(deviceID);
     }
-    
-    if (info.isDefaultInput)
-    {
+
+    if (info.isDefaultInput) {
       mDefaultInputDev = deviceID;
     }
-    
-    if (info.isDefaultOutput)
-    {
+
+    if (info.isDefaultOutput) {
       mDefaultOutputDev = deviceID;
     }
   }
 }
 
-void IPlugAPPHost::ProbeMidiIO()
-{
-  if (!mMidiIn || !mMidiOut)
-    return;
-  else
-  {
+void IPlugAPPHost::ProbeMidiIO() {
+  if (!mMidiIn || !mMidiOut) return;
+  else {
     int nInputPorts = mMidiIn->getPortCount();
 
     mMidiInputDevNames.push_back(OFF_TEXT);
@@ -358,8 +309,7 @@ void IPlugAPPHost::ProbeMidiIO()
     mMidiInputDevNames.push_back("virtual input");
 #endif
 
-    for (int i=0; i<nInputPorts; i++)
-    {
+    for (int i = 0; i < nInputPorts; i++) {
       mMidiInputDevNames.push_back(mMidiIn->getPortName(i));
     }
 
@@ -371,16 +321,14 @@ void IPlugAPPHost::ProbeMidiIO()
     mMidiOutputDevNames.push_back("virtual output");
 #endif
 
-    for (int i=0; i<nOutputPorts; i++)
-    {
+    for (int i = 0; i < nOutputPorts; i++) {
       mMidiOutputDevNames.push_back(mMidiOut->getPortName(i));
-      //This means the virtual output port wont be added as an input
+      // This means the virtual output port wont be added as an input
     }
   }
 }
 
-bool IPlugAPPHost::AudioSettingsInStateAreEqual(AppState& os, AppState& ns)
-{
+bool IPlugAPPHost::AudioSettingsInStateAreEqual(AppState& os, AppState& ns) {
   if (os.mAudioDriverType != ns.mAudioDriverType) return false;
   if (std::string_view(os.mAudioInDev.Get()) != ns.mAudioInDev.Get()) return false;
   if (std::string_view(os.mAudioOutDev.Get()) != ns.mAudioOutDev.Get()) return false;
@@ -390,13 +338,12 @@ bool IPlugAPPHost::AudioSettingsInStateAreEqual(AppState& os, AppState& ns)
   if (os.mAudioInChanR != ns.mAudioInChanR) return false;
   if (os.mAudioOutChanL != ns.mAudioOutChanL) return false;
   if (os.mAudioOutChanR != ns.mAudioOutChanR) return false;
-//  if (os.mAudioInIsMono != ns.mAudioInIsMono) return false;
+  //  if (os.mAudioInIsMono != ns.mAudioInIsMono) return false;
 
   return true;
 }
 
-bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns)
-{
+bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns) {
   if (std::string_view(os.mMidiInDev.Get()) != ns.mMidiInDev.Get()) return false;
   if (std::string_view(os.mMidiOutDev.Get()) != ns.mMidiOutDev.Get()) return false;
   if (os.mMidiInChan != ns.mMidiInChan) return false;
@@ -405,35 +352,29 @@ bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns)
   return true;
 }
 
-bool IPlugAPPHost::TryToChangeAudioDriverType()
-{
+bool IPlugAPPHost::TryToChangeAudioDriverType() {
   CloseAudio();
 
-  if (mDAC)
-  {
+  if (mDAC) {
     mDAC = nullptr;
   }
 
   // Skip RtAudio initialization in no-I/O mode or screenshot mode
-  if (mNoIO || IsScreenshotMode())
-    return true;
+  if (mNoIO || IsScreenshotMode()) return true;
 
 #if defined OS_WIN
-  if (mState.mAudioDriverType == kDeviceASIO)
-    mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO);
+  if (mState.mAudioDriverType == kDeviceASIO) mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO);
   else if (mState.mAudioDriverType == kDeviceDS)
     mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS);
 #elif defined OS_MAC
-  if (mState.mAudioDriverType == kDeviceCoreAudio)
-    mDAC = std::make_unique<RtAudio>(RtAudio::MACOSX_CORE);
-  //else
-  //mDAC = std::make_unique<RtAudio>(RtAudio::UNIX_JACK);
+  if (mState.mAudioDriverType == kDeviceCoreAudio) mDAC = std::make_unique<RtAudio>(RtAudio::MACOSX_CORE);
+  // else
+  // mDAC = std::make_unique<RtAudio>(RtAudio::UNIX_JACK);
 #else
-  #error NOT IMPLEMENTED
+#error NOT IMPLEMENTED
 #endif
 
-  if (mDAC)
-  {
+  if (mDAC) {
     mDAC->setErrorCallback(ErrorCallback);
     return true;
   }
@@ -441,11 +382,9 @@ bool IPlugAPPHost::TryToChangeAudioDriverType()
   return false;
 }
 
-bool IPlugAPPHost::TryToChangeAudio()
-{
+bool IPlugAPPHost::TryToChangeAudio() {
   // Skip audio initialization in no-I/O mode or screenshot mode
-  if (mNoIO || IsScreenshotMode())
-    return true;
+  if (mNoIO || IsScreenshotMode()) return true;
 
 #if defined OS_WIN
   // ASIO has one device, use the output for the input ID
@@ -453,187 +392,155 @@ bool IPlugAPPHost::TryToChangeAudio()
 #elif defined OS_MAC
   auto inputID = GetAudioDeviceID(mState.mAudioInDev.Get());
 #else
-  #error NOT IMPLEMENTED
+#error NOT IMPLEMENTED
 #endif
   auto outputID = GetAudioDeviceID(mState.mAudioOutDev.Get());
 
   bool failedToFindDevice = false;
   bool resetToDefault = false;
 
-  if (!inputID)
-  {
-    if (mDefaultInputDev)
-    {
+  if (!inputID) {
+    if (mDefaultInputDev) {
       resetToDefault = true;
       inputID = mDefaultInputDev;
 
-      if (mAudioInputDevIDs.size())
-        mState.mAudioInDev.Set(GetAudioDeviceName(inputID.value()).c_str());
-    }
-    else
+      if (mAudioInputDevIDs.size()) mState.mAudioInDev.Set(GetAudioDeviceName(inputID.value()).c_str());
+    } else
       failedToFindDevice = true;
   }
 
-  if (!outputID)
-  {
-    if (mDefaultOutputDev)
-    {
+  if (!outputID) {
+    if (mDefaultOutputDev) {
       resetToDefault = true;
       outputID = mDefaultOutputDev;
 
-      if (mAudioOutputDevIDs.size())
-        mState.mAudioOutDev.Set(GetAudioDeviceName(outputID.value()).c_str());
-    }
-    else
+      if (mAudioOutputDevIDs.size()) mState.mAudioOutDev.Set(GetAudioDeviceName(outputID.value()).c_str());
+    } else
       failedToFindDevice = true;
   }
 
-  if (resetToDefault)
-  {
+  if (resetToDefault) {
     DBGMSG("Couldn't find previous audio device, reseting to default\n");
     UpdateINI();
   }
 
-  if (failedToFindDevice)
-    MessageBox(gHWND, "Please check the audio settings", "Error", MB_OK);
+  if (failedToFindDevice) MessageBox(gHWND, "Please check the audio settings", "Error", MB_OK);
 
-  if (inputID && outputID)
-  {
+  if (inputID && outputID) {
     return InitAudio(inputID.value(), outputID.value(), mState.mAudioSR, mState.mBufferSize);
   }
 
   return false;
 }
 
-bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName)
-{
+bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName) {
   int port = GetMIDIPortNumber(direction, pPortName);
 
-  if (direction == ERoute::kInput)
-  {
-    if (port == -1)
-    {
+  if (direction == ERoute::kInput) {
+    if (port == -1) {
       mState.mMidiInDev.Set(OFF_TEXT);
       UpdateINI();
       port = 0;
     }
 
-    //TODO: send all notes off?
-    if (mMidiIn)
-    {
+    // TODO: send all notes off?
+    if (mMidiIn) {
       mMidiIn->closePort();
 
-      if (port == 0)
-      {
+      if (port == 0) {
         return true;
       }
-  #if defined OS_WIN
-      else
-      {
-        mMidiIn->openPort(port-1);
+#if defined OS_WIN
+      else {
+        mMidiIn->openPort(port - 1);
         return true;
       }
-  #elif defined OS_MAC
-      else if (port == 1)
-      {
+#elif defined OS_MAC
+      else if (port == 1) {
         std::string virtualMidiInputName = "To ";
         virtualMidiInputName += BUNDLE_NAME;
         mMidiIn->openVirtualPort(virtualMidiInputName);
         return true;
-      }
-      else
-      {
-        mMidiIn->openPort(port-2);
+      } else {
+        mMidiIn->openPort(port - 2);
         return true;
       }
-  #else
-   #error NOT IMPLEMENTED
-  #endif
+#else
+#error NOT IMPLEMENTED
+#endif
     }
-  }
-  else
-  {
-    if (port == -1)
-    {
+  } else {
+    if (port == -1) {
       mState.mMidiOutDev.Set(OFF_TEXT);
       UpdateINI();
       port = 0;
     }
-    
-    if (mMidiOut)
-    {
-      //TODO: send all notes off?
+
+    if (mMidiOut) {
+      // TODO: send all notes off?
       mMidiOut->closePort();
-      
-      if (port == 0)
-        return true;
+
+      if (port == 0) return true;
 #if defined OS_WIN
-      else
-      {
-        mMidiOut->openPort(port-1);
+      else {
+        mMidiOut->openPort(port - 1);
         return true;
       }
 #elif defined OS_MAC
-      else if (port == 1)
-      {
+      else if (port == 1) {
         std::string virtualMidiOutputName = "From ";
         virtualMidiOutputName += BUNDLE_NAME;
         mMidiOut->openVirtualPort(virtualMidiOutputName);
         return true;
-      }
-      else
-      {
-        mMidiOut->openPort(port-2);
+      } else {
+        mMidiOut->openPort(port - 2);
         return true;
       }
 #else
-  #error NOT IMPLEMENTED
+#error NOT IMPLEMENTED
 #endif
     }
   }
-  
+
   return false;
 }
 
-void IPlugAPPHost::CloseAudio()
-{
-  if (mDAC && mDAC->isStreamOpen())
-  {
-    if (mDAC->isStreamRunning())
-    {
+void IPlugAPPHost::CloseAudio() {
+  if (mDAC && mDAC->isStreamOpen()) {
+    if (mDAC->isStreamRunning()) {
       mAudioEnding = true;
-    
-      while (!mAudioDone)
-        Sleep(10);
-      
+
+      while (!mAudioDone) Sleep(10);
+
       mDAC->abortStream();
     }
-    
+
     mDAC->closeStream();
   }
 }
 
-bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_t iovs)
-{
+bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_t iovs) {
   CloseAudio();
 
   RtAudio::StreamParameters iParams, oParams;
   iParams.deviceId = inID;
   iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput); // TODO: flexible channel count
-  iParams.firstChannel = 0; // TODO: flexible channel count
+  iParams.firstChannel = 0;                                    // TODO: flexible channel count
 
   oParams.deviceId = outID;
   oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput); // TODO: flexible channel count
-  oParams.firstChannel = 0; // TODO: flexible channel count
+  oParams.firstChannel = 0;                                     // TODO: flexible channel count
 
   mBufferSize = iovs; // mBufferSize may get changed by stream
 
-  DBGMSG("trying to start audio stream @ %i sr, buffer size %i\nindev = %s\noutdev = %s\ninputs = %i\noutputs = %i\n",
-    sr, mBufferSize, GetAudioDeviceName(inID).c_str(), GetAudioDeviceName(outID).c_str(), iParams.nChannels, oParams.nChannels);
+  DBGMSG("trying to start audio stream @ %i sr, buffer size %i\nindev = "
+         "%s\noutdev = %s\ninputs = %i\noutputs = %i\n",
+         sr, mBufferSize, GetAudioDeviceName(inID).c_str(), GetAudioDeviceName(outID).c_str(), iParams.nChannels, oParams.nChannels);
 
   RtAudio::StreamOptions options;
   options.flags = RTAUDIO_NONINTERLEAVED;
-  // options.streamName = BUNDLE_NAME; // JACK stream name, not used on other streams
+  // options.streamName = BUNDLE_NAME; // JACK stream name, not used on other
+  // streams
 
   mSamplesElapsed = 0;
   mSampleRate = static_cast<double>(sr);
@@ -643,31 +550,28 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
 
   auto status = mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options);
 
-  if (status != RtAudioErrorType::RTAUDIO_NO_ERROR)
-  {
+  if (status != RtAudioErrorType::RTAUDIO_NO_ERROR) {
     DBGMSG("%s", mDAC->getErrorText().c_str());
     return false;
   }
 
-  // RtAudio/CoreAudio may honor buffer sizes that are smaller than, or not a multiple of,
-  // APP_SIGNAL_VECTOR_SIZE. The standalone host must therefore run the plugin at the actual
-  // stream buffer size instead of slicing callbacks into fixed 64-sample sub-blocks.
+  // RtAudio/CoreAudio may honor buffer sizes that are smaller than, or not a
+  // multiple of, APP_SIGNAL_VECTOR_SIZE. The standalone host must therefore run
+  // the plugin at the actual stream buffer size instead of slicing callbacks
+  // into fixed 64-sample sub-blocks.
   mIPlug->SetBlockSize(static_cast<int>(mBufferSize));
   mIPlug->SetSampleRate(mSampleRate);
   mIPlug->OnReset();
 
-  for (int i = 0; i < iParams.nChannels; i++)
-  {
-    mInputBufPtrs.Add(nullptr); //will be set in callback
+  for (int i = 0; i < iParams.nChannels; i++) {
+    mInputBufPtrs.Add(nullptr); // will be set in callback
   }
-    
-  for (int i = 0; i < oParams.nChannels; i++)
-  {
-    mOutputBufPtrs.Add(nullptr); //will be set in callback
+
+  for (int i = 0; i < oParams.nChannels; i++) {
+    mOutputBufPtrs.Add(nullptr); // will be set in callback
   }
-    
-  if (mDAC->startStream() != RTAUDIO_NO_ERROR)
-  {
+
+  if (mDAC->startStream() != RTAUDIO_NO_ERROR) {
     DBGMSG("Error starting stream: %s\n", mDAC->getErrorText().c_str());
     return false;
   }
@@ -677,137 +581,106 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
   return true;
 }
 
-bool IPlugAPPHost::InitMidi()
-{
+bool IPlugAPPHost::InitMidi() {
   // Skip MIDI initialization in no-I/O mode or screenshot mode
-  if (mNoIO || IsScreenshotMode())
-    return true;
+  if (mNoIO || IsScreenshotMode()) return true;
 
-  try
-  {
+  try {
     mMidiIn = std::make_unique<RtMidiIn>();
-  }
-  catch (RtMidiError &error)
-  {
+  } catch (RtMidiError& error) {
     mMidiIn = nullptr;
     error.printMessage();
     return false;
   }
 
-  try
-  {
+  try {
     mMidiOut = std::make_unique<RtMidiOut>();
-  }
-  catch (RtMidiError &error)
-  {
+  } catch (RtMidiError& error) {
     mMidiOut = nullptr;
     error.printMessage();
     return false;
   }
 
   mMidiIn->setCallback(&MIDICallback, this);
-  mMidiIn->ignoreTypes(false, true, false );
+  mMidiIn->ignoreTypes(false, true, false);
 
   return true;
 }
 
-void ApplyFades(double *pBuffer, int nChans, int nFrames, bool down)
-{
-  for (int i = 0; i < nChans; i++)
-  {
-    double *pIO = pBuffer + (i * nFrames);
-    
-    if (down)
-    {
-      for (int j = 0; j < nFrames; j++)
-        pIO[j] *= ((double) (nFrames - (j + 1)) / (double) nFrames);
-    }
-    else
-    {
-      for (int j = 0; j < nFrames; j++)
-        pIO[j] *= ((double) j / (double) nFrames);
+void ApplyFades(double* pBuffer, int nChans, int nFrames, bool down) {
+  for (int i = 0; i < nChans; i++) {
+    double* pIO = pBuffer + (i * nFrames);
+
+    if (down) {
+      for (int j = 0; j < nFrames; j++) pIO[j] *= ((double)(nFrames - (j + 1)) / (double)nFrames);
+    } else {
+      for (int j = 0; j < nFrames; j++) pIO[j] *= ((double)j / (double)nFrames);
     }
   }
 }
 
 // static
-int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_t nFrames, double streamTime, RtAudioStreamStatus status, void* pUserData)
-{
-  IPlugAPPHost* _this = (IPlugAPPHost*) pUserData;
+int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_t nFrames, double streamTime, RtAudioStreamStatus status, void* pUserData) {
+  IPlugAPPHost* _this = (IPlugAPPHost*)pUserData;
 
   int nins = _this->GetPlug()->MaxNChannels(ERoute::kInput);
   int nouts = _this->GetPlug()->MaxNChannels(ERoute::kOutput);
-  
+
   double* pInputBufferD = static_cast<double*>(pInputBuffer);
   double* pOutputBufferD = static_cast<double*>(pOutputBuffer);
 
-  bool startWait = _this->mVecWait >= APP_N_VECTOR_WAIT; // wait APP_N_VECTOR_WAIT * iovs before processing audio, to avoid clicks
+  bool startWait = _this->mVecWait >= APP_N_VECTOR_WAIT; // wait APP_N_VECTOR_WAIT * iovs before
+                                                         // processing audio, to avoid clicks
   bool doFade = _this->mVecWait == APP_N_VECTOR_WAIT || _this->mAudioEnding;
-  
-  if (startWait && !_this->mAudioDone)
-  {
-    if (doFade && pInputBufferD)
-      ApplyFades(pInputBufferD, nins, nFrames, _this->mAudioEnding);
 
-    for (int c = 0; c < nins; c++)
-    {
+  if (startWait && !_this->mAudioDone) {
+    if (doFade && pInputBufferD) ApplyFades(pInputBufferD, nins, nFrames, _this->mAudioEnding);
+
+    for (int c = 0; c < nins; c++) {
       _this->mInputBufPtrs.Set(c, pInputBufferD ? (pInputBufferD + (c * nFrames)) : nullptr);
     }
 
-    for (int c = 0; c < nouts; c++)
-    {
+    for (int c = 0; c < nouts; c++) {
       _this->mOutputBufPtrs.Set(c, pOutputBufferD + (c * nFrames));
     }
 
     _this->mIPlug->AppProcess(_this->mInputBufPtrs.GetList(), _this->mOutputBufPtrs.GetList(), static_cast<int>(nFrames));
     _this->mSamplesElapsed += nFrames;
 
-    for (int c = 0; c < nouts; c++)
-    {
+    for (int c = 0; c < nouts; c++) {
       double* pOutput = pOutputBufferD + (c * nFrames);
-      for (uint32_t i = 0; i < nFrames; i++)
-        pOutput[i] *= APP_MULT;
+      for (uint32_t i = 0; i < nFrames; i++) pOutput[i] *= APP_MULT;
     }
-    
-    if (doFade)
-      ApplyFades(pOutputBufferD, nouts, nFrames, _this->mAudioEnding);
-    
-    if (_this->mAudioEnding)
-      _this->mAudioDone = true;
-  }
-  else
-  {
+
+    if (doFade) ApplyFades(pOutputBufferD, nouts, nFrames, _this->mAudioEnding);
+
+    if (_this->mAudioEnding) _this->mAudioDone = true;
+  } else {
     memset(pOutputBufferD, 0, nFrames * nouts * sizeof(double));
   }
-  
+
   _this->mVecWait = std::min(_this->mVecWait + 1, uint32_t(APP_N_VECTOR_WAIT + 1));
 
   return 0;
 }
 
 // static
-void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData)
-{
-  IPlugAPPHost* _this = (IPlugAPPHost*) pUserData;
-  
-  if (pMsg->size() == 0 || _this->mExiting)
-    return;
-  
-  if (pMsg->size() > 3)
-  {
-    if (pMsg->size() > MAX_SYSEX_SIZE)
-    {
+void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, void* pUserData) {
+  IPlugAPPHost* _this = (IPlugAPPHost*)pUserData;
+
+  if (pMsg->size() == 0 || _this->mExiting) return;
+
+  if (pMsg->size() > 3) {
+    if (pMsg->size() > MAX_SYSEX_SIZE) {
       DBGMSG("SysEx message exceeds MAX_SYSEX_SIZE\n");
       return;
     }
-    
-    SysExData data { 0, static_cast<int>(pMsg->size()), pMsg->data() };
-    
+
+    SysExData data{0, static_cast<int>(pMsg->size()), pMsg->data()};
+
     _this->mIPlug->mSysExMsgsFromCallback.Push(data);
     return;
-  }
-  else if (pMsg->size())
-  {
+  } else if (pMsg->size()) {
     IMidiMsg msg;
     msg.mStatus = pMsg->at(0);
     pMsg->size() > 1 ? msg.mData1 = pMsg->at(1) : msg.mData1 = 0;
@@ -818,7 +691,4 @@ void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, vo
 }
 
 // static
-void IPlugAPPHost::ErrorCallback(RtAudioErrorType type, const std::string &errorText)
-{
-  std::cerr << "\nerrorCallback: " << errorText << "\n\n";
-}
+void IPlugAPPHost::ErrorCallback(RtAudioErrorType type, const std::string& errorText) { std::cerr << "\nerrorCallback: " << errorText << "\n\n"; }

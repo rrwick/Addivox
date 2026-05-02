@@ -5,20 +5,16 @@
 #include <algorithm>
 #include <cmath>
 
-namespace
-{
-double SanitizeTuningCents(double value)
-{
+namespace {
+double SanitizeTuningCents(double value) {
   const double roundedValue = std::round(value);
   const double clampedValue = std::clamp(roundedValue, -50.0, 50.0);
   return (clampedValue == 0.0) ? 0.0 : clampedValue;
 }
 } // namespace
 
-namespace global_settings
-{
-GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings)
-{
+namespace global_settings {
+GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings) {
   GlobalVoiceSettings sanitized = settings;
   sanitized.levelScale = std::max(0.0, sanitized.levelScale);
   sanitized.attackScale = std::max(0.0, sanitized.attackScale);
@@ -36,51 +32,22 @@ GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings)
   return sanitized;
 }
 
-bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings)
-{
-  switch(paramIdx)
-  {
-    case kParamGlobalLevel:
-      settings.levelScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalAttackScale:
-      settings.attackScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalReleaseScale:
-      settings.releaseScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalTuning:
-      settings.tuningCents = SanitizeTuningCents(value);
-      return true;
-    case kParamGlobalPanShift:
-      settings.panOffset = std::clamp(value, -1.0, 1.0);
-      return true;
-    case kParamGlobalLevelVariationAmplitudeScale:
-      settings.levelVariationAmplitudeScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalLevelVariationRateScale:
-      settings.levelVariationRateScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalPitchVariationAmplitudeScale:
-      settings.pitchVariationAmplitudeScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalPitchVariationRateScale:
-      settings.pitchVariationRateScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalPanVariationAmplitudeScale:
-      settings.panVariationAmplitudeScale = std::max(0.0, value);
-      return true;
-    case kParamGlobalPanVariationRateScale:
-      settings.panVariationRateScale = std::max(0.0, value);
-      return true;
-    case kParamPortamentoAtCC5Min:
-      settings.portamentoTimeAtCC5MinSec = std::max(0.0, value);
-      return true;
-    case kParamPortamentoAtCC5Max:
-      settings.portamentoTimeAtCC5MaxSec = std::max(0.0, value);
-      return true;
-    default:
-      return false;
+bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings) {
+  switch (paramIdx) {
+  case kParamGlobalLevel:                        settings.levelScale = std::max(0.0, value); return true;
+  case kParamGlobalAttackScale:                  settings.attackScale = std::max(0.0, value); return true;
+  case kParamGlobalReleaseScale:                 settings.releaseScale = std::max(0.0, value); return true;
+  case kParamGlobalTuning:                       settings.tuningCents = SanitizeTuningCents(value); return true;
+  case kParamGlobalPanShift:                     settings.panOffset = std::clamp(value, -1.0, 1.0); return true;
+  case kParamGlobalLevelVariationAmplitudeScale: settings.levelVariationAmplitudeScale = std::max(0.0, value); return true;
+  case kParamGlobalLevelVariationRateScale:      settings.levelVariationRateScale = std::max(0.0, value); return true;
+  case kParamGlobalPitchVariationAmplitudeScale: settings.pitchVariationAmplitudeScale = std::max(0.0, value); return true;
+  case kParamGlobalPitchVariationRateScale:      settings.pitchVariationRateScale = std::max(0.0, value); return true;
+  case kParamGlobalPanVariationAmplitudeScale:   settings.panVariationAmplitudeScale = std::max(0.0, value); return true;
+  case kParamGlobalPanVariationRateScale:        settings.panVariationRateScale = std::max(0.0, value); return true;
+  case kParamPortamentoAtCC5Min:                 settings.portamentoTimeAtCC5MinSec = std::max(0.0, value); return true;
+  case kParamPortamentoAtCC5Max:                 settings.portamentoTimeAtCC5MaxSec = std::max(0.0, value); return true;
+  default:                                       return false;
   }
 }
 } // namespace global_settings

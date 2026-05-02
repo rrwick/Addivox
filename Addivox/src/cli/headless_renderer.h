@@ -4,8 +4,7 @@
 #include <string>
 #include <string_view>
 
-enum class WaveFileFormat
-{
+enum class WaveFileFormat {
   Pcm16,
   Pcm24,
   Pcm32,
@@ -13,8 +12,7 @@ enum class WaveFileFormat
   Float64,
 };
 
-struct HeadlessRenderOptions
-{
+struct HeadlessRenderOptions {
   std::string patchPath;
   std::string outputPath;
   int note{60};
@@ -44,6 +42,4 @@ struct HeadlessRenderOptions
 };
 
 bool RenderPatchNoteToWav(const HeadlessRenderOptions& options, std::string* errorMessage = nullptr);
-bool RenderMidiFileToWav(const HeadlessRenderOptions& options,
-                         std::string_view midiPath,
-                         std::string* errorMessage = nullptr);
+bool RenderMidiFileToWav(const HeadlessRenderOptions& options, std::string_view midiPath, std::string* errorMessage = nullptr);

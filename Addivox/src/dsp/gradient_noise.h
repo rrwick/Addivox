@@ -4,16 +4,13 @@
 #include <cmath>
 #include <cstdint>
 
-namespace dsp
-{
-inline double Quintic(double t)
-{
+namespace dsp {
+inline double Quintic(double t) {
   // Perlin fade curve for smooth interpolation.
   return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 }
 
-inline uint32_t HashUint32(uint32_t x)
-{
+inline uint32_t HashUint32(uint32_t x) {
   x ^= x >> 16;
   x *= 0x7FEB352Du;
   x ^= x >> 15;
@@ -22,13 +19,9 @@ inline uint32_t HashUint32(uint32_t x)
   return x;
 }
 
-inline double HashToSignedUnitFloat(uint32_t x)
-{
-  return (static_cast<double>(x) / 4294967295.0) * 2.0 - 1.0;
-}
+inline double HashToSignedUnitFloat(uint32_t x) { return (static_cast<double>(x) / 4294967295.0) * 2.0 - 1.0; }
 
-inline double GradientNoise1D(double position, uint32_t seed)
-{
+inline double GradientNoise1D(double position, uint32_t seed) {
   const int lattice0 = static_cast<int>(std::floor(position));
   const double t = position - static_cast<double>(lattice0);
   const double fade = Quintic(t);

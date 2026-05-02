@@ -1,14 +1,12 @@
 #pragma once
 
-#include "IPlugConstants.h"
 #include "../dsp/shared.h"
+#include "IPlugConstants.h"
 
 #include <array>
 
-namespace effects
-{
-class Reverb
-{
+namespace effects {
+class Reverb {
 public:
   void Reset(double sampleRate, int blockSize);
   void Clear();
@@ -26,8 +24,7 @@ private:
   using OnePoleLowpass = dsp::OnePoleLowpass;
   using OnePoleHighpass = dsp::OnePoleHighpass;
 
-  struct AllpassDiffuser
-  {
+  struct AllpassDiffuser {
     void Reset(double sampleRate, double delayMs, double feedback);
     void Clear();
     double Process(double input);

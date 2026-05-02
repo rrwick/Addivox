@@ -1,7 +1,6 @@
 #pragma once
 
-enum EParams
-{
+enum EParams {
   kParamGlobalLevel = 0,
   kParamGlobalAttackScale,
   kParamGlobalReleaseScale,

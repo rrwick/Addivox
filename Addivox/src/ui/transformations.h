@@ -2,8 +2,7 @@
 
 #include "IPlugParameter.h"
 
-namespace transformations
-{
+namespace transformations {
 double NormalizedSquareRoot(double normalized);
 double NormalizedSquareRootInverse(double scaledValue);
 double SignedNormalizedSquareRoot(double normalized);
@@ -14,8 +13,7 @@ double SignedNormalizedExp(double normalized, double shape);
 double SignedNormalizedExpInverse(double scaledValue, double shape);
 double GetGlobalPseudoLogShapeValue();
 
-class PseudoLogExpShape final : public iplug::IParam::Shape
-{
+class PseudoLogExpShape final : public iplug::IParam::Shape {
 public:
   explicit PseudoLogExpShape(double shape);
 

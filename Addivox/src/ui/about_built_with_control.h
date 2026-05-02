@@ -3,25 +3,16 @@
 #include "IControls.h"
 #include "theme.h"
 
-namespace plugin_ui
-{
+namespace plugin_ui {
 using namespace iplug;
 using namespace igraphics;
 
-namespace layout
-{
-class AboutBuiltWithControl final : public IControl
-{
+namespace layout {
+class AboutBuiltWithControl final : public IControl {
 public:
-  explicit AboutBuiltWithControl(const IRECT& bounds, const char* url)
-  : IControl(bounds)
-  , mURL(url ? url : "")
-  {
-    mIgnoreMouse = false;
-  }
+  explicit AboutBuiltWithControl(const IRECT& bounds, const char* url) : IControl(bounds), mURL(url ? url : "") { mIgnoreMouse = false; }
 
-  void Draw(IGraphics& g) override
-  {
+  void Draw(IGraphics& g) override {
     UpdateLayout();
 
     const IText labelText = theme::AboutMetaText().WithAlign(EAlign::Near);
@@ -37,43 +28,33 @@ public:
     g.DrawLine(linkText.mFGColor, mLinkRECT.L, underlineY, mLinkRECT.L + linkTextBounds.W(), underlineY, &mBlend);
   }
 
-  bool IsHit(float x, float y) const override
-  {
+  bool IsHit(float x, float y) const override {
     UpdateLayout();
     return mLinkHitRECT.Contains(x, y);
   }
 
-  void OnMouseDown(float x, float y, const IMouseMod& mod) override
-  {
-    if(!IsHit(x, y) || !GetUI())
-      return;
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override {
+    if (!IsHit(x, y) || !GetUI()) return;
 
     GetUI()->OpenURL(mURL);
     GetUI()->ReleaseMouseCapture();
   }
 
-  void OnMouseOver(float x, float y, const IMouseMod& mod) override
-  {
+  void OnMouseOver(float x, float y, const IMouseMod& mod) override {
     GetUI()->SetMouseCursor(ECursor::HAND);
     IControl::OnMouseOver(x, y, mod);
   }
 
-  void OnMouseOut() override
-  {
+  void OnMouseOut() override {
     GetUI()->SetMouseCursor();
     IControl::OnMouseOut();
   }
 
-  void OnResize() override
-  {
-    mLayoutValid = false;
-  }
+  void OnResize() override { mLayoutValid = false; }
 
 private:
-  void UpdateLayout() const
-  {
-    if(mLayoutValid || !GetUI())
-      return;
+  void UpdateLayout() const {
+    if (mLayoutValid || !GetUI()) return;
 
     const IText rowText = theme::AboutMetaText().WithAlign(EAlign::Near);
     const IText labelText = theme::AboutMetaText().WithAlign(EAlign::Near);
@@ -89,8 +70,7 @@ private:
     GetUI()->MeasureText(linkText, kLinkText, linkBounds);
 
     float spaceWidth = rowBounds.W() - labelBounds.W() - linkBoundsInRow.W();
-    if(spaceWidth < 0.f)
-      spaceWidth = 0.f;
+    if (spaceWidth < 0.f) spaceWidth = 0.f;
 
     const float rowWidth = labelBounds.W() + spaceWidth + linkBounds.W();
     const float left = mRECT.MW() - (rowWidth * 0.5f);

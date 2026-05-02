@@ -1,15 +1,13 @@
 #pragma once
 
-#include "IPlugConstants.h"
 #include "../dsp/shared.h"
+#include "IPlugConstants.h"
 
 #include <array>
 #include <complex>
 
-namespace effects
-{
-class Tone
-{
+namespace effects {
+class Tone {
 public:
   void Reset(double sampleRate, int blockSize);
   void Clear();
@@ -25,13 +23,11 @@ private:
   using BandGains = std::array<double, kNumBands>;
   using OnePoleLowpass = dsp::OnePoleLowpass;
 
-  struct ChannelState
-  {
+  struct ChannelState {
     std::array<OnePoleLowpass, kNumCrossovers> crossovers;
   };
 
-  struct Parameters
-  {
+  struct Parameters {
     BandGains bandGains{};
     double trim{1.0};
   };

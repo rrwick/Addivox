@@ -6,223 +6,159 @@
 #include <string_view>
 #include <utility>
 
-namespace editor
-{
-template <std::size_t N>
-inline EqCurve MakeEqCurveFromPointArrays(const std::array<double, N>& frequenciesHz,
-                                          const std::array<double, N>& gainsDb)
-{
+namespace editor {
+template <std::size_t N> inline EqCurve MakeEqCurveFromPointArrays(const std::array<double, N>& frequenciesHz, const std::array<double, N>& gainsDb) {
   EqCurve::PointList points;
   points.reserve(N);
-  for(std::size_t i = 0; i < N; ++i)
-    points.push_back({frequenciesHz[i], gainsDb[i]});
+  for (std::size_t i = 0; i < N; ++i) points.push_back({frequenciesHz[i], gainsDb[i]});
 
   return EqCurve{std::move(points)};
 }
 
-inline EqCurve MakeEqShapeCurve(const char* shapeName)
-{
+inline EqCurve MakeEqShapeCurve(const char* shapeName) {
   const std::string_view shape = shapeName ? shapeName : "";
 
-  if(shape.empty() || shape == "flat")
-    return {};
+  if (shape.empty() || shape == "flat") return {};
 
-  if(shape == "low-pass")
-  {
+  if (shape == "low-pass") {
     static constexpr std::array<double, 3> kFrequenciesHz{{1000.0, 2000.0, 3000.0}};
-    static constexpr std::array<double, 3> kGainsDb{{         0.0,  -24.0, -160.0}};
+    static constexpr std::array<double, 3>       kGainsDb{{   0.0,  -24.0, -160.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "high-pass")
-  {
-    static constexpr std::array<double, 3> kFrequenciesHz{{250.0, 500.0, 1000.0}};
-    static constexpr std::array<double, 3> kGainsDb{{     -160.0, -24.0,    0.0}};
+  if (shape == "high-pass") {
+    static constexpr std::array<double, 3> kFrequenciesHz{{ 250.0, 500.0, 1000.0}};
+    static constexpr std::array<double, 3>       kGainsDb{{-160.0, -24.0,    0.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "5 waves")
-  {
+  if (shape == "5 waves") {
     static constexpr std::array<double, 11> kFrequenciesHz{{20.0000, 40.2874, 81.1537, 163.474, 329.296, 663.325, 1336.18, 2691.57, 5421.81, 10921.5, 22000.0}};
-    static constexpr std::array<double, 11> kGainsDb{{         10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0}};
+    static constexpr std::array<double, 11>       kGainsDb{{10.0,   -10.0,    10.0,    -10.0,    10.0,   -10.0,     10.0,   -10.0,    10.0,    -10.0,    10.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "10 waves")
-  {
+  if (shape == "10 waves") {
     static constexpr std::array<double, 21> kFrequenciesHz{{20.0000, 28.3857, 40.2874, 57.1793, 81.1537, 115.180, 163.474, 232.016, 329.296, 467.366, 663.325, 941.447, 1336.18, 1896.42, 2691.57, 3820.10, 5421.81, 7695.09, 10921.5, 15500.8, 22000.0}};
-    static constexpr std::array<double, 21> kGainsDb{{         10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0}};
+    static constexpr std::array<double, 21>       kGainsDb{{10.0,   -10.0,    10.0,   -10.0,    10.0,    -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,     10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,     10.0,   -10.0,    10.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "15 waves")
-  {
+  if (shape == "15 waves") {
     static constexpr std::array<double, 31> kFrequenciesHz{{20.0000, 25.2586, 31.8999, 40.2874, 50.8802, 64.2582, 81.1537, 102.492, 129.440, 163.474, 206.456, 260.740, 329.296, 415.879, 525.226, 663.325, 837.734, 1058.00, 1336.18, 1687.51, 2131.20, 2691.57, 3399.26, 4293.03, 5421.81, 6847.37, 8647.76, 10921.5, 13793.1, 17419.8, 22000.0}};
-    static constexpr std::array<double, 31> kGainsDb{{         10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0}};
+    static constexpr std::array<double, 31>       kGainsDb{{10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,    -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,    -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,    -10.0,    10.0,   -10.0,    10.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "20 waves")
-  {
+  if (shape == "20 waves") {
     static constexpr std::array<double, 41> kFrequenciesHz{{20.0000, 23.8268, 28.3857, 33.8170, 40.2874, 47.9959, 57.1793, 68.1199, 81.1537, 96.6815, 115.180, 137.219, 163.474, 194.752, 232.016, 276.409, 329.296, 392.303, 467.366, 556.790, 663.325, 790.244, 941.447, 1121.58, 1336.18, 1591.84, 1896.42, 2259.28, 2691.57, 3206.56, 3820.10, 4551.03, 5421.81, 6459.20, 7695.09, 9167.45, 10921.5, 13011.2, 15500.8, 18466.6, 22000.0}};
-    static constexpr std::array<double, 41> kGainsDb{{         10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0}};
+    static constexpr std::array<double, 41>       kGainsDb{{10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,     10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,    -10.0 ,   10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,    10.0,   -10.0,     10.0,   -10.0,    10.0,   -10.0,    10.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "5 peaks")
-  {
+  if (shape == "5 peaks") {
     static constexpr std::array<double, 15> kFrequenciesHz{{31.8999, 40.2874, 50.8802, 129.440, 163.474, 206.456, 525.226, 663.325, 837.734, 2131.20, 2691.57, 3399.26, 8647.76, 10921.5, 13793.1}};
-    static constexpr std::array<double, 15> kGainsDb{{        -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0}};
+    static constexpr std::array<double, 15>       kGainsDb{{  -10.0, 10.0,   -10.0,    -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,    -10.0,    10.0,   -10.0,   -10.0,     10.0,   -10.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "10 peaks")
-  {
+  if (shape == "10 peaks") {
     static constexpr std::array<double, 30> kFrequenciesHz{{25.0691, 31.4231, 39.3875, 49.3705, 61.8838, 77.5687, 97.2291, 121.872, 152.762, 191.480, 240.012, 300.845, 377.097, 472.675, 592.477, 742.645, 930.873, 1166.81, 1462.55, 1833.24, 2297.88, 2880.30, 3610.33, 4525.40, 5672.39, 7110.10, 8912.20, 11171.1, 14002.4, 17551.5}};
-    static constexpr std::array<double, 30> kGainsDb{{        -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0}};
+    static constexpr std::array<double, 30>       kGainsDb{{-10.0,   10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,     10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,   -10.0,    10.0,    -10.0,   -10.0,    10.0,   -10.0 ,  -10.0,    10.0,   -10.0,   -10.0,    10.0,   -10.0,    -10.0,    10.0,   -10.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "ä vowel")
-  {
-    static constexpr std::array<double, 9> kFrequenciesHz{{           20.0, 526.609023693897,           730.0, 901.797456323916,          1090.0,           1650.0,         2440.0, 3566.545601742707,         22000.0}};
-    static constexpr std::array<double, 9> kGainsDb{{      -4.962230274005,   0.013576984406, 19.357417626702,  10.525862216949, 21.477278533181, -16.259403431515, 5.157596762298,    -3.43771648407, -6.834614978987}};
+  if (shape == "ä vowel") {
+    static constexpr std::array<double, 9> kFrequenciesHz{{20.0,  526.609, 730.0,   901.797, 1090.0,    1650.0, 2440.0,  3566.55, 22000.0}};
+    static constexpr std::array<double, 9>       kGainsDb{{-4.9622, 0.0136, 19.3574, 10.5259,   21.4773, -16.2594, 5.1576, -3.4377,  -6.8346}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
-  if(shape == "o vowel")
-  {
-    static constexpr std::array<double, 11> kFrequenciesHz{{           20.0, 206.310017585657, 353.625193058002, 485.098808195888, 611.179486996529, 866.427649737949,           1450.0, 1986.169938908097,         2400.0, 3151.319868426438,         22000.0}};
-    static constexpr std::array<double, 11> kGainsDb{{      -1.298474949376,    1.80323266983,           22.125,  10.261422157288,  18.763577699661,  -1.441809654236, -19.191716375988,   -9.171335220337, 3.958136847606,   -6.173274993896, -8.153263701091}};
+  if (shape == "o vowel") {
+    static constexpr std::array<double, 11> kFrequenciesHz{{20.0,  206.310, 353.625, 485.099, 611.1795, 866.428, 1450.0,  1986.17, 2400.0,  3151.32, 22000.0}};
+    static constexpr std::array<double, 11>       kGainsDb{{-1.2985, 1.8032, 22.125,  10.2614, 18.7636,  -1.4418, -19.1917, -9.1713,  3.9581, -6.1733,  -8.1533}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
-
 
   return {};
 }
 
-inline bool ApplyEqAction(EqCurve& curve, const char* actionName)
-{
+inline bool ApplyEqAction(EqCurve& curve, const char* actionName) {
   const std::string_view action = actionName ? actionName : "";
-  if(action.empty() || curve.Empty())
-    return false;
+  if (action.empty() || curve.Empty()) return false;
 
   auto points = curve.GetPoints();
-  if(MatchesActionLabel(actionName, kActionNormalize))
-  {
+  if (MatchesActionLabel(actionName, kActionNormalize)) {
     double meanDb = 0.0;
     std::size_t activePointCount = 0;
-    for(const auto& point : points)
-    {
-      if(EqCurve::IsMutedGainDb(point.gainDb))
-        continue;
+    for (const auto& point : points) {
+      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
       meanDb += point.gainDb;
       ++activePointCount;
     }
 
-    if(activePointCount == 0)
-      return false;
+    if (activePointCount == 0) return false;
 
     meanDb /= static_cast<double>(activePointCount);
-    for(auto& point : points)
-    {
-      if(EqCurve::IsMutedGainDb(point.gainDb))
-        continue;
+    for (auto& point : points) {
+      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
       point.gainDb = EqCurve::ClampGainDb(point.gainDb - meanDb);
     }
-  }
-  else if(MatchesActionLabel(actionName, kActionInvert))
-  {
-    for(auto& point : points)
-    {
-      if(EqCurve::IsMutedGainDb(point.gainDb))
-        continue;
+  } else if (MatchesActionLabel(actionName, kActionInvert)) {
+    for (auto& point : points) {
+      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
       point.gainDb = EqCurve::ClampGainDb(-point.gainDb);
     }
-  }
-  else if(MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
-  {
+  } else if (MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown)) {
     const double scale = MatchesActionLabel(actionName, kActionScaleUp) ? 1.111111111111111 : 0.9;
-    for(auto& point : points)
-    {
-      if(EqCurve::IsMutedGainDb(point.gainDb))
-        continue;
+    for (auto& point : points) {
+      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
       point.gainDb = EqCurve::ClampGainDb(point.gainDb * scale);
     }
-  }
-  else if(MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown))
-  {
+  } else if (MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown)) {
     const double gainOffsetDb = MatchesActionLabel(actionName, kActionShiftUp) ? 1.0 : -1.0;
-    for(auto& point : points)
-    {
-      if(EqCurve::IsMutedGainDb(point.gainDb))
-        continue;
+    for (auto& point : points) {
+      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
       point.gainDb = EqCurve::ClampGainDb(point.gainDb + gainOffsetDb);
     }
-  }
-  else if(MatchesActionLabel(actionName, kActionShiftRight) || MatchesActionLabel(actionName, kActionShiftLeft))
-  {
+  } else if (MatchesActionLabel(actionName, kActionShiftRight) || MatchesActionLabel(actionName, kActionShiftLeft)) {
     constexpr double kShiftRatio = 1.044273782427414; // Sixteenth-octave in log-frequency space.
-    const double frequencyScale = MatchesActionLabel(actionName, kActionShiftRight)
-      ? kShiftRatio
-      : (1.0 / kShiftRatio);
+    const double frequencyScale = MatchesActionLabel(actionName, kActionShiftRight) ? kShiftRatio : (1.0 / kShiftRatio);
 
-    for(auto& point : points)
-      point.frequencyHz *= frequencyScale;
-  }
-  else
+    for (auto& point : points) point.frequencyHz *= frequencyScale;
+  } else
     return false;
 
   curve.SetPoints(std::move(points));
   return true;
 }
 
-inline const char* GetEqActionShortcutActionName(int keyVK)
-{
-  switch(keyVK)
-  {
-    case kVK_Q:
-      return kActionScaleUp;
-    case kVK_A:
-      return kActionScaleDown;
-    case kVK_W:
-      return kActionShiftUp;
-    case kVK_S:
-      return kActionShiftDown;
-    case kVK_E:
-      return kActionShiftRight;
-    case kVK_D:
-      return kActionShiftLeft;
-    case kVK_N:
-      return kActionNormalize;
-    case kVK_I:
-      return kActionInvert;
-    default:
-      return nullptr;
+inline const char* GetEqActionShortcutActionName(int keyVK) {
+  switch (keyVK) {
+  case kVK_Q: return kActionScaleUp;
+  case kVK_A: return kActionScaleDown;
+  case kVK_W: return kActionShiftUp;
+  case kVK_S: return kActionShiftDown;
+  case kVK_E: return kActionShiftRight;
+  case kVK_D: return kActionShiftLeft;
+  case kVK_N: return kActionNormalize;
+  case kVK_I: return kActionInvert;
+  default:    return nullptr;
   }
 }
 
-inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& context,
-                                      IControl* caller,
-                                      const EqCurve& curve,
-                                      bool refreshOscillatorTabs)
-{
-  if(!caller || !context->HasValidSelectedMidiNote())
-    return;
+inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& context, IControl* caller, const EqCurve& curve, bool refreshOscillatorTabs) {
+  if (!caller || !context->HasValidSelectedMidiNote()) return;
 
   const int midiNote = context->SelectedMidiNote();
-  if(!context->Patch().SetKeyNoteEqCurve(midiNote, curve))
-    return;
+  if (!context->Patch().SetKeyNoteEqCurve(midiNote, curve)) return;
 
   context->SendEqCurveToDSP(caller, midiNote, curve);
-  if(refreshOscillatorTabs)
-    context->RefreshOscillatorTabs();
+  if (refreshOscillatorTabs) context->RefreshOscillatorTabs();
 }
 
-inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
-{
-  if(pTab->NChildren() < 10)
-    return;
+inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r) {
+  if (pTab->NChildren() < 10) return;
 
   constexpr float kLeftInset = 104.f;
   constexpr float kColumnSideInset = 8.f;
@@ -251,25 +187,13 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kButtonHeight);
   const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
   auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
-  auto allKeyNotesLabelBounds = IRECT(
-    allKeyNotesToggleBounds.R + kToggleLabelGap,
-    allKeyNotesToggleBounds.T,
-    rowR,
-    allKeyNotesToggleBounds.B);
+  auto allKeyNotesLabelBounds = IRECT(allKeyNotesToggleBounds.R + kToggleLabelGap, allKeyNotesToggleBounds.T, rowR, allKeyNotesToggleBounds.B);
   const float actionsTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
   auto actionsBounds = IRECT(rowL, actionsTop, rowR, actionsTop + kControlHeight);
-  auto actionsLabelBounds = IRECT(
-    rowL,
-    actionsBounds.T - kTightGap - kLabelHeight,
-    rowR,
-    actionsBounds.T - kTightGap);
+  auto actionsLabelBounds = IRECT(rowL, actionsBounds.T - kTightGap - kLabelHeight, rowR, actionsBounds.T - kTightGap);
   const float setShapeTop = actionsLabelBounds.T - kGap - kControlHeight;
   auto setShapeBounds = IRECT(rowL, setShapeTop, rowR, setShapeTop + kControlHeight);
-  auto setShapeLabelBounds = IRECT(
-    rowL,
-    setShapeBounds.T - kTightGap - kLabelHeight,
-    rowR,
-    setShapeBounds.T - kTightGap);
+  auto setShapeLabelBounds = IRECT(rowL, setShapeBounds.T - kTightGap - kLabelHeight, rowR, setShapeBounds.T - kTightGap);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(setShapeLabelBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeBounds);
@@ -283,44 +207,33 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r)
   pTab->GetChild(9)->SetTargetAndDrawRECTs(editorBounds);
 }
 
-inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context,
-                                                       const EditorStyles& styles)
-{
+inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
   auto* toggleControl = new IVToggleControl(
-    IRECT(),
-    [context](IControl* caller) {
-      auto* toggle = caller ? caller->As<IVToggleControl>() : nullptr;
-      if(!toggle || !context->HasValidSelectedMidiNote())
-        return;
+      IRECT(),
+      [context](IControl* caller) {
+        auto* toggle = caller ? caller->As<IVToggleControl>() : nullptr;
+        if (!toggle || !context->HasValidSelectedMidiNote()) return;
 
-      const int midiNote = context->SelectedMidiNote();
-      const EqCurve* keyNoteEqCurve = context->Patch().GetKeyNoteEqCurve(midiNote);
-      if(!keyNoteEqCurve)
-      {
-        toggle->SetValue(context->IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
-        toggle->SetDirty(false);
-        return;
-      }
+        const int midiNote = context->SelectedMidiNote();
+        const EqCurve* keyNoteEqCurve = context->Patch().GetKeyNoteEqCurve(midiNote);
+        if (!keyNoteEqCurve) {
+          toggle->SetValue(context->IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
+          toggle->SetDirty(false);
+          return;
+        }
 
-      if(toggle->GetValue() > 0.5)
-      {
-        context->Patch().EnableAllKeyNotesEq(*keyNoteEqCurve);
-        context->SendAllKeyNotesEqEnabledToDSP(toggle, true);
-        context->SendEqCurveToDSP(toggle, midiNote, *keyNoteEqCurve);
-      }
-      else
-      {
-        context->Patch().SetAllKeyNotesEqEnabled(false);
-        context->SendAllKeyNotesEqEnabledToDSP(toggle, false);
-      }
+        if (toggle->GetValue() > 0.5) {
+          context->Patch().EnableAllKeyNotesEq(*keyNoteEqCurve);
+          context->SendAllKeyNotesEqEnabledToDSP(toggle, true);
+          context->SendEqCurveToDSP(toggle, midiNote, *keyNoteEqCurve);
+        } else {
+          context->Patch().SetAllKeyNotesEqEnabled(false);
+          context->SendAllKeyNotesEqEnabledToDSP(toggle, false);
+        }
 
-      context->RefreshOscillatorTabs();
-    },
-    "",
-    styles.utilityToggleStyle,
-    "",
-    "X",
-    context->IsAllKeyNotesEqEnabled());
+        context->RefreshOscillatorTabs();
+      },
+      "", styles.utilityToggleStyle, "", "X", context->IsAllKeyNotesEqEnabled());
   toggleControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
 
   auto* labelControl = new ITextControl(IRECT(), "All notes", styles.utilityLabelText, COLOR_TRANSPARENT);
@@ -332,60 +245,37 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
   return {toggleControl, labelControl};
 }
 
-inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller)
-{
-  if(!caller || !context->HasValidSelectedMidiNote())
-    return;
+inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller) {
+  if (!caller || !context->HasValidSelectedMidiNote()) return;
 
   const int midiNote = context->SelectedMidiNote();
-  if(!context->Patch().HasKeyNotePatch(midiNote))
-    return;
+  if (!context->Patch().HasKeyNotePatch(midiNote)) return;
 
   auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
-  if(!control || !control->HasRestoreStateForMidiNote(midiNote))
-    return;
+  if (!control || !control->HasRestoreStateForMidiNote(midiNote)) return;
 
   const EqCurve& restoreState = control->GetRestoreState();
   SetSelectedKeyNoteEqCurve(context, caller, restoreState, true);
 }
 
-inline EqEditorControl* CreateEqEditorControl(const std::shared_ptr<EditorContext>& context)
-{
+inline EqEditorControl* CreateEqEditorControl(const std::shared_ptr<EditorContext>& context) {
   auto* control = new EqEditorControl(IRECT());
   control->SetTooltip(help_text::oscillator_tabs::kEq);
-  control->SetOnCurveChanged([context, control](const EqCurve& curve) {
-    SetSelectedKeyNoteEqCurve(context, control, curve, false);
-  });
+  control->SetOnCurveChanged([context, control](const EqCurve& curve) { SetSelectedKeyNoteEqCurve(context, control, curve, false); });
   return control;
 }
 
-inline void AttachEqTabChildren(IVTabPage* page,
-                                const std::shared_ptr<EditorContext>& context,
-                                const EditorStyles& styles)
-{
+inline void AttachEqTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
   const auto allKeyNotesControls = CreateEqAllKeyNotesControls(context, styles);
 
   auto* setShapeControl = new ActionSelectionControl(
-    IRECT(),
-    "choose shape",
-    {"flat", "low-pass", "high-pass", "5 waves", "10 waves", "15 waves", "20 waves", "5 peaks", "10 peaks", "ä vowel", "o vowel"},
-    styles.utilityDropdownText,
-    styles.darkTab);
+      IRECT(), "choose shape", {"flat", "low-pass", "high-pass", "5 waves", "10 waves", "15 waves", "20 waves", "5 peaks", "10 peaks", "ä vowel", "o vowel"},
+      styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetTooltip(help_text::oscillator_tabs::kEqSetShape);
-  auto* actionsControl = new ActionSelectionControl(
-    IRECT(),
-    "run action",
-    {
-      kActionScaleUpMenuLabel,
-      kActionScaleDownMenuLabel,
-      kActionShiftUpMenuLabel,
-      kActionShiftDownMenuLabel,
-      kActionShiftRightMenuLabel,
-      kActionShiftLeftMenuLabel,
-      kActionNormalizeMenuLabel,
-      kActionInvertMenuLabel},
-    styles.utilityDropdownText,
-    styles.darkTab);
+  auto* actionsControl = new ActionSelectionControl(IRECT(), "run action",
+                                                    {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel,
+                                                     kActionShiftRightMenuLabel, kActionShiftLeftMenuLabel, kActionNormalizeMenuLabel, kActionInvertMenuLabel},
+                                                    styles.utilityDropdownText, styles.darkTab);
   actionsControl->SetTooltip(help_text::oscillator_tabs::kEqActions);
   auto* editorControl = CreateEqEditorControl(context);
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
@@ -393,31 +283,21 @@ inline void AttachEqTabChildren(IVTabPage* page,
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   setShapeControl->SetOnSelection([context, editorControl](const char* selectedText) {
-    if(!selectedText)
-      return;
+    if (!selectedText) return;
 
-    context->ApplyEqCurveActionToSelectedKeyNote(
-      editorControl,
-      [selectedText](EqCurve& curve) {
-        curve = MakeEqShapeCurve(selectedText);
-        return true;
-      });
+    context->ApplyEqCurveActionToSelectedKeyNote(editorControl, [selectedText](EqCurve& curve) {
+      curve = MakeEqShapeCurve(selectedText);
+      return true;
+    });
   });
 
   actionsControl->SetOnSelection([context, editorControl](const char* selectedText) {
-    if(!selectedText)
-      return;
+    if (!selectedText) return;
 
-    context->ApplyEqCurveActionToSelectedKeyNote(
-      editorControl,
-      [selectedText](EqCurve& curve) {
-        return ApplyEqAction(curve, selectedText);
-      });
+    context->ApplyEqCurveActionToSelectedKeyNote(editorControl, [selectedText](EqCurve& curve) { return ApplyEqAction(curve, selectedText); });
   });
 
-  restoreButton->SetAnimationEndActionFunction([context](IControl* caller) {
-    RestoreEqTabValues(context, caller);
-  });
+  restoreButton->SetAnimationEndActionFunction([context](IControl* caller) { RestoreEqTabValues(context, caller); });
 
   *context->eqTab.setShapeControl = setShapeControl;
   *context->eqTab.actionsControl = actionsControl;
@@ -438,31 +318,25 @@ inline void AttachEqTabChildren(IVTabPage* page,
   page->AddChildControl(editorControl);
 }
 
-inline IVTabPage* CreateEqTabPage(const std::shared_ptr<EditorContext>& context,
-                                  const EditorStyles& styles)
-{
+inline IVTabPage* CreateEqTabPage(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
   return new EditorOscillatorTabPage(
-    [context, styles](IVTabPage* page, const IRECT&) {
-      AttachEqTabChildren(page, context, styles);
-      context->RefreshOscillatorTabs();
-    },
-    ResizeEqTabPage,
-    [context](bool isVisible) {
-      auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
-      if(!control)
-        return;
+      [context, styles](IVTabPage* page, const IRECT&) {
+        AttachEqTabChildren(page, context, styles);
+        context->RefreshOscillatorTabs();
+      },
+      ResizeEqTabPage,
+      [context](bool isVisible) {
+        auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
+        if (!control) return;
 
-      if(isVisible)
-      {
-        if(context->HasValidSelectedMidiNote())
-          control->CaptureRestoreState(context->SelectedMidiNote());
-        else
+        if (isVisible) {
+          if (context->HasValidSelectedMidiNote()) control->CaptureRestoreState(context->SelectedMidiNote());
+          else
+            control->ClearRestoreState();
+        } else
           control->ClearRestoreState();
-      }
-      else
-        control->ClearRestoreState();
 
-      context->RefreshOscillatorTabs();
-    });
+        context->RefreshOscillatorTabs();
+      });
 }
 } // namespace editor

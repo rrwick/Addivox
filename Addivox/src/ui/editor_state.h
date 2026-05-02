@@ -5,33 +5,15 @@
 #include "../midi/breath_control.h"
 #include "../settings/oscillator.h"
 
-namespace plugin_ui
-{
+namespace plugin_ui {
 
-enum class EditorLevelTransform
-{
-  Linear,
-  SquareRoot,
-  PseudoLog
-};
+enum class EditorLevelTransform { Linear, SquareRoot, PseudoLog };
 
-enum class EditorOscillatorEditMode
-{
-  Set,
-  Nudge,
-  Smooth,
-  DrawLine
-};
+enum class EditorOscillatorEditMode { Set, Nudge, Smooth, DrawLine };
 
-enum class EditorOscillatorEditScope
-{
-  All,
-  Even,
-  Odd
-};
+enum class EditorOscillatorEditScope { All, Even, Odd };
 
-struct EditorState
-{
+struct EditorState {
   CompoundPatch compoundPatch{};
   BreathCCSource breathCCSource{kDefaultBreathCCSource};
   bool harmonicVisualizerEnabled{true};
@@ -56,13 +38,8 @@ struct EditorState
     result.fill(EditorOscillatorEditScope::All);
     return result;
   }();
-  std::array<EditorLevelTransform, 6> variationTransforms{
-    EditorLevelTransform::Linear,
-    EditorLevelTransform::Linear,
-    EditorLevelTransform::Linear,
-    EditorLevelTransform::Linear,
-    EditorLevelTransform::Linear,
-    EditorLevelTransform::Linear};
+  std::array<EditorLevelTransform, 6> variationTransforms{EditorLevelTransform::Linear, EditorLevelTransform::Linear, EditorLevelTransform::Linear,
+                                                          EditorLevelTransform::Linear, EditorLevelTransform::Linear, EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui

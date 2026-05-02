@@ -6,16 +6,13 @@
 #include <string_view>
 #include <vector>
 
-namespace midi_file
-{
-struct TimedEvent
-{
+namespace midi_file {
+struct TimedEvent {
   double timeSeconds{0.0};
   iplug::IMidiMsg message{};
 };
 
-struct ParsedFile
-{
+struct ParsedFile {
   std::vector<TimedEvent> events;
 };
 

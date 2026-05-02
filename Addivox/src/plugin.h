@@ -1,7 +1,7 @@
 #pragma once
 
-#include "IPlug_include_in_plug_hdr.h"
 #include "IControls.h"
+#include "IPlug_include_in_plug_hdr.h"
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -16,16 +16,13 @@
 
 constexpr int kMaxFactoryPatches = 128;
 
-namespace plugin_ui
-{
-namespace editor
-{
+namespace plugin_ui {
+namespace editor {
 struct EditorContext;
 } // namespace editor
 } // namespace plugin_ui
 
-namespace patch_io
-{
+namespace patch_io {
 struct PatchDocument;
 } // namespace patch_io
 
@@ -33,8 +30,7 @@ struct PatchDocument;
 #include "synth/synth_engine.h"
 #endif
 
-enum EControlTags
-{
+enum EControlTags {
   kCtrlTagMeter = 0,
   kCtrlTagBreathMeter,
   kCtrlTagHarmonicVisualizer,
@@ -48,8 +44,7 @@ enum EControlTags
 using namespace iplug;
 using namespace igraphics;
 
-class Addivox final : public Plugin
-{
+class Addivox final : public Plugin {
 public:
   Addivox(const InstanceInfo& info);
   void SendMidiMsgFromUI(const IMidiMsg& msg) override;
@@ -74,15 +69,9 @@ public:
 #endif
 
 private:
-  enum class PatchSource
-  {
-    Unknown,
-    Factory,
-    User
-  };
+  enum class PatchSource { Unknown, Factory, User };
 
-  struct PatchCatalogEntry
-  {
+  struct PatchCatalogEntry {
     int id{-1};
     PatchSource source{PatchSource::Unknown};
     int factoryIndex{-1};

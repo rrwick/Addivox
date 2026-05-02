@@ -1,6 +1,5 @@
 #pragma once
 
-namespace addivox_standalone
-{
+namespace addivox_standalone {
 bool OpenAudioMidiSettingsDialog();
 } // namespace addivox_standalone

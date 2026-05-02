@@ -4,16 +4,14 @@
 
 #include "../settings/oscillator.h"
 
-struct HarmonicVisualizerOscillator
-{
+struct HarmonicVisualizerOscillator {
   float frequencyHz{0.f};
   float level{0.f};
   float panLeftGain{0.f};
   float panRightGain{0.f};
 };
 
-struct HarmonicVisualizerFrame
-{
+struct HarmonicVisualizerFrame {
   static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;
   using HarmonicArray = std::array<HarmonicVisualizerOscillator, kNumHarmonics>;
 

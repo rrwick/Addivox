@@ -9,9 +9,9 @@ using namespace igraphics;
 
 namespace positions
 {
-inline const IRECT         kPatchManager = IRECT::MakeXYWH(545,  14, 350,  42);
-inline const IRECT      kLoadPatchButton = IRECT::MakeXYWH(795,  14,  50,  42);
-inline const IRECT      kSavePatchButton = IRECT::MakeXYWH(845,  14,  50,  42);
+inline const IRECT          kPatchManager = IRECT::MakeXYWH(545,  14, 350,  42);
+inline const IRECT       kLoadPatchButton = IRECT::MakeXYWH(795,  14,  50,  42);
+inline const IRECT       kSavePatchButton = IRECT::MakeXYWH(845,  14,  50,  42);
 inline const IRECT        kSettingsButton = IRECT::MakeXYWH(907,  19,  32,  32);
 inline const IRECT           kAboutButton = IRECT::MakeXYWH(945,  19,  32,  32);
 

@@ -18,8 +18,8 @@
 
 #include <algorithm>
 #include <array>
-#include <cerrno>
 #include <cctype>
+#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -35,10 +35,8 @@
 #include <direct.h>
 #endif
 
-namespace patch_io
-{
-struct PatchDocument
-{
+namespace patch_io {
+struct PatchDocument {
   std::string name;
   GlobalVoiceSettings voiceSettings{};
   EffectsSettings effectsSettings{};
@@ -47,50 +45,45 @@ struct PatchDocument
 
 inline constexpr int kFormatVersion = 1;
 
-namespace detail
-{
+namespace detail {
 using OscillatorParameter = OscillatorSettings::Parameter;
 
-struct GlobalVoiceSettingDescriptor
-{
+struct GlobalVoiceSettingDescriptor {
   const char* key;
   double GlobalVoiceSettings::* member;
 };
 
-struct EffectsSettingDescriptor
-{
+struct EffectsSettingDescriptor {
   const char* key;
   double EffectsSettings::* member;
 };
 
-struct OscillatorParameterDescriptor
-{
+struct OscillatorParameterDescriptor {
   const char* key;
   OscillatorParameter parameter;
 };
 
 inline constexpr std::array<GlobalVoiceSettingDescriptor, 11> kGlobalVoiceSettingDescriptors{{
-  {"levelScale", &GlobalVoiceSettings::levelScale},
-  {"attackScale", &GlobalVoiceSettings::attackScale},
-  {"releaseScale", &GlobalVoiceSettings::releaseScale},
-  {"levelVariationAmplitudeScale", &GlobalVoiceSettings::levelVariationAmplitudeScale},
-  {"levelVariationRateScale", &GlobalVoiceSettings::levelVariationRateScale},
-  {"pitchVariationAmplitudeScale", &GlobalVoiceSettings::pitchVariationAmplitudeScale},
-  {"pitchVariationRateScale", &GlobalVoiceSettings::pitchVariationRateScale},
-  {"panVariationAmplitudeScale", &GlobalVoiceSettings::panVariationAmplitudeScale},
-  {"panVariationRateScale", &GlobalVoiceSettings::panVariationRateScale},
-  {"portamentoTimeAtCC5MinSec", &GlobalVoiceSettings::portamentoTimeAtCC5MinSec},
-  {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
+    {"levelScale", &GlobalVoiceSettings::levelScale},
+    {"attackScale", &GlobalVoiceSettings::attackScale},
+    {"releaseScale", &GlobalVoiceSettings::releaseScale},
+    {"levelVariationAmplitudeScale", &GlobalVoiceSettings::levelVariationAmplitudeScale},
+    {"levelVariationRateScale", &GlobalVoiceSettings::levelVariationRateScale},
+    {"pitchVariationAmplitudeScale", &GlobalVoiceSettings::pitchVariationAmplitudeScale},
+    {"pitchVariationRateScale", &GlobalVoiceSettings::pitchVariationRateScale},
+    {"panVariationAmplitudeScale", &GlobalVoiceSettings::panVariationAmplitudeScale},
+    {"panVariationRateScale", &GlobalVoiceSettings::panVariationRateScale},
+    {"portamentoTimeAtCC5MinSec", &GlobalVoiceSettings::portamentoTimeAtCC5MinSec},
+    {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
 }};
 
 inline constexpr std::array<EffectsSettingDescriptor, 3> kEffectsSettingDescriptors{{
-  {"drive", &EffectsSettings::drive},
-  {"tone", &EffectsSettings::tone},
-  {"chorus", &EffectsSettings::chorus},
+    {"drive", &EffectsSettings::drive},
+    {"tone", &EffectsSettings::tone},
+    {"chorus", &EffectsSettings::chorus},
 }};
 
-inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::kNumParameters>
-  kOscillatorParameterDescriptors{{
+inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::kNumParameters> kOscillatorParameterDescriptors{{
     {"level", OscillatorParameter::level},
     {"breath_power", OscillatorParameter::breath_power},
     {"attack", OscillatorParameter::attack},
@@ -103,106 +96,79 @@ inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::k
     {"pitch_variation_rate", OscillatorParameter::pitch_variation_rate},
     {"pan_variation_amplitude", OscillatorParameter::pan_variation_amplitude},
     {"pan_variation_rate", OscillatorParameter::pan_variation_rate},
-  }};
+}};
 
-inline std::string_view Trim(std::string_view text)
-{
+inline std::string_view Trim(std::string_view text) {
   std::size_t start = 0;
-  while(start < text.size() && std::isspace(static_cast<unsigned char>(text[start])))
-    ++start;
+  while (start < text.size() && std::isspace(static_cast<unsigned char>(text[start]))) ++start;
 
   std::size_t end = text.size();
-  while(end > start && std::isspace(static_cast<unsigned char>(text[end - 1])))
-    --end;
+  while (end > start && std::isspace(static_cast<unsigned char>(text[end - 1]))) --end;
 
   return text.substr(start, end - start);
 }
 
-inline std::string StripComment(std::string_view line)
-{
+inline std::string StripComment(std::string_view line) {
   bool inString = false;
   bool escaping = false;
-  for(std::size_t i = 0; i < line.size(); ++i)
-  {
+  for (std::size_t i = 0; i < line.size(); ++i) {
     const char c = line[i];
-    if(c == '"' && !escaping)
-      inString = !inString;
+    if (c == '"' && !escaping) inString = !inString;
 
-    if(c == '#' && !inString)
-      return std::string{Trim(line.substr(0, i))};
+    if (c == '#' && !inString) return std::string{Trim(line.substr(0, i))};
 
     escaping = (c == '\\' && !escaping);
-    if(c != '\\')
-      escaping = false;
+    if (c != '\\') escaping = false;
   }
 
   return std::string{Trim(line)};
 }
 
-inline bool ParseInteger(std::string_view text, int& value)
-{
+inline bool ParseInteger(std::string_view text, int& value) {
   const std::string trimmed{Trim(text)};
-  if(trimmed.empty())
-    return false;
+  if (trimmed.empty()) return false;
 
   char* endPtr = nullptr;
   errno = 0;
   const long parsed = std::strtol(trimmed.c_str(), &endPtr, 10);
-  if(errno != 0 || !endPtr || *endPtr != '\0')
-    return false;
+  if (errno != 0 || !endPtr || *endPtr != '\0') return false;
 
   value = static_cast<int>(parsed);
   return true;
 }
 
-inline bool ParseDouble(std::string_view text, double& value)
-{
+inline bool ParseDouble(std::string_view text, double& value) {
   const std::string trimmed{Trim(text)};
-  if(trimmed.empty())
-    return false;
+  if (trimmed.empty()) return false;
 
   char* endPtr = nullptr;
   errno = 0;
   const double parsed = std::strtod(trimmed.c_str(), &endPtr);
-  if(errno != 0 || !endPtr || *endPtr != '\0')
-    return false;
+  if (errno != 0 || !endPtr || *endPtr != '\0') return false;
 
   value = parsed;
   return true;
 }
 
-inline bool ParseQuotedString(std::string_view text, std::string& value)
-{
+inline bool ParseQuotedString(std::string_view text, std::string& value) {
   const std::string_view trimmed = Trim(text);
-  if(trimmed.size() < 2 || trimmed.front() != '"' || trimmed.back() != '"')
-    return false;
+  if (trimmed.size() < 2 || trimmed.front() != '"' || trimmed.back() != '"') return false;
 
   value.clear();
   value.reserve(trimmed.size() - 2);
   bool escaping = false;
-  for(std::size_t i = 1; i + 1 < trimmed.size(); ++i)
-  {
+  for (std::size_t i = 1; i + 1 < trimmed.size(); ++i) {
     const char c = trimmed[i];
-    if(escaping)
-    {
-      switch(c)
-      {
-        case '\\':
-        case '"':
-          value.push_back(c);
-          break;
-        case 'n':
-          value.push_back('\n');
-          break;
-        case 't':
-          value.push_back('\t');
-          break;
-        default:
-          return false;
+    if (escaping) {
+      switch (c) {
+      case '\\':
+      case '"':  value.push_back(c); break;
+      case 'n':  value.push_back('\n'); break;
+      case 't':  value.push_back('\t'); break;
+      default:   return false;
       }
       escaping = false;
-    }
-    else if(c == '\\')
+    } else if (c == '\\')
       escaping = true;
     else
       value.push_back(c);
@@ -211,31 +177,23 @@ inline bool ParseQuotedString(std::string_view text, std::string& value)
   return !escaping;
 }
 
-inline bool ParseDoubleArray(std::string_view text, std::vector<double>& values)
-{
+inline bool ParseDoubleArray(std::string_view text, std::vector<double>& values) {
   const std::string_view trimmed = Trim(text);
-  if(trimmed.size() < 2 || trimmed.front() != '[' || trimmed.back() != ']')
-    return false;
+  if (trimmed.size() < 2 || trimmed.front() != '[' || trimmed.back() != ']') return false;
 
   values.clear();
   std::size_t start = 1;
-  while(start < trimmed.size() - 1)
-  {
+  while (start < trimmed.size() - 1) {
     const std::size_t commaPos = trimmed.find(',', start);
-    const std::size_t end = (commaPos == std::string_view::npos || commaPos >= trimmed.size() - 1)
-      ? trimmed.size() - 1
-      : commaPos;
+    const std::size_t end = (commaPos == std::string_view::npos || commaPos >= trimmed.size() - 1) ? trimmed.size() - 1 : commaPos;
     const std::string_view item = Trim(trimmed.substr(start, end - start));
-    if(!item.empty())
-    {
+    if (!item.empty()) {
       double value = 0.0;
-      if(!ParseDouble(item, value))
-        return false;
+      if (!ParseDouble(item, value)) return false;
       values.push_back(value);
     }
 
-    if(commaPos == std::string_view::npos || commaPos >= trimmed.size() - 1)
-      break;
+    if (commaPos == std::string_view::npos || commaPos >= trimmed.size() - 1) break;
 
     start = commaPos + 1;
   }
@@ -243,101 +201,69 @@ inline bool ParseDoubleArray(std::string_view text, std::vector<double>& values)
   return true;
 }
 
-inline const GlobalVoiceSettingDescriptor* FindGlobalVoiceSettingDescriptor(std::string_view key)
-{
-  const auto it = std::find_if(
-    kGlobalVoiceSettingDescriptors.begin(),
-    kGlobalVoiceSettingDescriptors.end(),
-    [key](const auto& descriptor) { return key == descriptor.key; });
+inline const GlobalVoiceSettingDescriptor* FindGlobalVoiceSettingDescriptor(std::string_view key) {
+  const auto it = std::find_if(kGlobalVoiceSettingDescriptors.begin(), kGlobalVoiceSettingDescriptors.end(),
+                               [key](const auto& descriptor) { return key == descriptor.key; });
   return it == kGlobalVoiceSettingDescriptors.end() ? nullptr : &(*it);
 }
 
-inline const OscillatorParameterDescriptor* FindOscillatorParameterDescriptor(std::string_view key)
-{
-  const auto it = std::find_if(
-    kOscillatorParameterDescriptors.begin(),
-    kOscillatorParameterDescriptors.end(),
-    [key](const auto& descriptor) { return key == descriptor.key; });
+inline const OscillatorParameterDescriptor* FindOscillatorParameterDescriptor(std::string_view key) {
+  const auto it = std::find_if(kOscillatorParameterDescriptors.begin(), kOscillatorParameterDescriptors.end(),
+                               [key](const auto& descriptor) { return key == descriptor.key; });
   return it == kOscillatorParameterDescriptors.end() ? nullptr : &(*it);
 }
 
-inline const EffectsSettingDescriptor* FindEffectsSettingDescriptor(std::string_view key)
-{
-  const auto it = std::find_if(
-    kEffectsSettingDescriptors.begin(),
-    kEffectsSettingDescriptors.end(),
-    [key](const auto& descriptor) { return key == descriptor.key; });
+inline const EffectsSettingDescriptor* FindEffectsSettingDescriptor(std::string_view key) {
+  const auto it =
+      std::find_if(kEffectsSettingDescriptors.begin(), kEffectsSettingDescriptors.end(), [key](const auto& descriptor) { return key == descriptor.key; });
   return it == kEffectsSettingDescriptors.end() ? nullptr : &(*it);
 }
 
-inline SimplePatch MakeDefaultKeyNotePatch()
-{
+inline SimplePatch MakeDefaultKeyNotePatch() {
   SimplePatch::OscillatorArray oscillatorSettings{};
   oscillatorSettings.fill(OscillatorSettings{0.0});
   return SimplePatch{oscillatorSettings};
 }
 
-inline void SetOscillatorParameterValues(SimplePatch& patch,
-                                         OscillatorParameter parameter,
-                                         const std::vector<double>& values)
-{
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-  {
-    patch.SetOscillatorParameter(
-      oscillatorIndex,
-      parameter,
-      values[static_cast<std::size_t>(oscillatorIndex)]);
+inline void SetOscillatorParameterValues(SimplePatch& patch, OscillatorParameter parameter, const std::vector<double>& values) {
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
   }
 }
 
-inline int ChooseDefaultSelectedMidiNote(const CompoundPatch& compoundPatch, int preferredMidiNote = 60)
-{
+inline int ChooseDefaultSelectedMidiNote(const CompoundPatch& compoundPatch, int preferredMidiNote = 60) {
   const auto& keyNotePatches = compoundPatch.GetKeyNotePatches();
-  if(keyNotePatches.empty())
-    return preferredMidiNote;
+  if (keyNotePatches.empty()) return preferredMidiNote;
 
   auto upper = keyNotePatches.lower_bound(preferredMidiNote);
-  if(upper == keyNotePatches.begin())
-    return upper->first;
-  if(upper == keyNotePatches.end())
-    return std::prev(upper)->first;
+  if (upper == keyNotePatches.begin()) return upper->first;
+  if (upper == keyNotePatches.end()) return std::prev(upper)->first;
 
   const auto lower = std::prev(upper);
-  return (std::abs(preferredMidiNote - lower->first) <= std::abs(upper->first - preferredMidiNote))
-    ? lower->first
-    : upper->first;
+  return (std::abs(preferredMidiNote - lower->first) <= std::abs(upper->first - preferredMidiNote)) ? lower->first : upper->first;
 }
 
-inline std::string FormatDouble(double value)
-{
-  if(std::abs(value) < 1.0e-15)
-    value = 0.0;
+inline std::string FormatDouble(double value) {
+  if (std::abs(value) < 1.0e-15) value = 0.0;
 
   std::ostringstream stream;
   stream << std::fixed << std::setprecision(12) << value;
   std::string result = stream.str();
 
   const std::size_t decimalPos = result.find('.');
-  if(decimalPos != std::string::npos)
-  {
-    while(!result.empty() && result.back() == '0')
-      result.pop_back();
+  if (decimalPos != std::string::npos) {
+    while (!result.empty() && result.back() == '0') result.pop_back();
 
-    if(!result.empty() && result.back() == '.')
-      result += '0';
+    if (!result.empty() && result.back() == '.') result += '0';
   }
 
-  if(result.find_first_of(".eE") == std::string::npos)
-    result += ".0";
+  if (result.find_first_of(".eE") == std::string::npos) result += ".0";
 
   return result;
 }
 
-inline std::string MidiNoteToName(int midiNote)
-{
-  static constexpr std::array<const char*, 12> kNoteNames{
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
-  };
+inline std::string MidiNoteToName(int midiNote) {
+  static constexpr std::array<const char*, 12> kNoteNames{"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
   const int clampedMidiNote = std::clamp(midiNote, CompoundPatch::kMinMidiNote, CompoundPatch::kMaxMidiNote);
   const int noteClass = clampedMidiNote % 12;
@@ -348,89 +274,57 @@ inline std::string MidiNoteToName(int midiNote)
   return stream.str();
 }
 
-inline std::string EscapeTomlString(std::string_view text)
-{
+inline std::string EscapeTomlString(std::string_view text) {
   std::string escaped;
   escaped.reserve(text.size());
-  for(const char c : text)
-  {
-    switch(c)
-    {
-      case '\\':
-        escaped += "\\\\";
-        break;
-      case '"':
-        escaped += "\\\"";
-        break;
-      case '\n':
-        escaped += "\\n";
-        break;
-      case '\t':
-        escaped += "\\t";
-        break;
-      default:
-        escaped.push_back(c);
-        break;
+  for (const char c : text) {
+    switch (c) {
+    case '\\': escaped += "\\\\"; break;
+    case '"':  escaped += "\\\""; break;
+    case '\n': escaped += "\\n"; break;
+    case '\t': escaped += "\\t"; break;
+    default:   escaped.push_back(c); break;
     }
   }
 
   return escaped;
 }
 
-inline void AppendOscillatorParameterArray(std::ostringstream& stream,
-                                           const SimplePatch& patch,
-                                           const OscillatorParameterDescriptor& descriptor)
-{
+inline void AppendOscillatorParameterArray(std::ostringstream& stream, const SimplePatch& patch, const OscillatorParameterDescriptor& descriptor) {
   stream << descriptor.key << " = [";
   const auto& oscillatorSettings = patch.GetOscillatorSettingsArray();
-  for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-  {
-    stream << FormatDouble(
-      oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter));
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+    stream << FormatDouble(oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter));
 
     const bool lastValue = oscillatorIndex == (SimplePatch::kNumOscillators - 1);
-    if(!lastValue)
-      stream << ", ";
+    if (!lastValue) stream << ", ";
   }
 
   stream << "]\n";
 }
 
-inline void AppendDoubleArray(std::ostringstream& stream,
-                              std::string_view key,
-                              const std::vector<double>& values)
-{
+inline void AppendDoubleArray(std::ostringstream& stream, std::string_view key, const std::vector<double>& values) {
   stream << key << " = [";
-  for(std::size_t i = 0; i < values.size(); ++i)
-  {
+  for (std::size_t i = 0; i < values.size(); ++i) {
     stream << FormatDouble(values[i]);
-    if(i + 1 < values.size())
-      stream << ", ";
+    if (i + 1 < values.size()) stream << ", ";
   }
 
   stream << "]\n";
 }
 
-inline void AppendAlignedStringArray(std::ostringstream& stream,
-                                     std::string_view key,
-                                     std::size_t prefixWidth,
-                                     const std::vector<std::string>& values,
-                                     const std::vector<std::size_t>& columnWidths)
-{
+inline void AppendAlignedStringArray(std::ostringstream& stream, std::string_view key, std::size_t prefixWidth, const std::vector<std::string>& values,
+                                     const std::vector<std::size_t>& columnWidths) {
   const std::string prefix = std::string{key} + " = ";
   stream << prefix;
-  if(prefixWidth > prefix.size())
-    stream << std::string(prefixWidth - prefix.size(), ' ');
+  if (prefixWidth > prefix.size()) stream << std::string(prefixWidth - prefix.size(), ' ');
 
   stream << '[';
-  for(std::size_t i = 0; i < values.size(); ++i)
-  {
-    if(i > 0)
-      stream << ", ";
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    if (i > 0) stream << ", ";
 
     const std::size_t width = (i < columnWidths.size()) ? columnWidths[i] : values[i].size();
-    if(width > values[i].size())
-      stream << std::string(width - values[i].size(), ' ');
+    if (width > values[i].size()) stream << std::string(width - values[i].size(), ' ');
 
     stream << values[i];
   }
@@ -438,23 +332,20 @@ inline void AppendAlignedStringArray(std::ostringstream& stream,
   stream << "]\n";
 }
 
-inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve)
-{
+inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve) {
   std::vector<std::string> frequenciesHz;
   std::vector<std::string> gainsDb;
   frequenciesHz.reserve(curve.GetPoints().size());
   gainsDb.reserve(curve.GetPoints().size());
 
-  for(const auto& point : curve.GetPoints())
-  {
+  for (const auto& point : curve.GetPoints()) {
     frequenciesHz.push_back(FormatDouble(point.frequencyHz));
     gainsDb.push_back(FormatDouble(point.gainDb));
   }
 
   std::vector<std::size_t> columnWidths;
   columnWidths.reserve(frequenciesHz.size());
-  for(std::size_t i = 0; i < frequenciesHz.size(); ++i)
-  {
+  for (std::size_t i = 0; i < frequenciesHz.size(); ++i) {
     columnWidths.push_back(std::max(frequenciesHz[i].size(), gainsDb[i].size()));
   }
 
@@ -465,16 +356,12 @@ inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve
   AppendAlignedStringArray(stream, kEqDbKey, prefixWidth, gainsDb, columnWidths);
 }
 
-inline std::string JoinPath(std::string_view lhs, std::string_view rhs)
-{
-  if(lhs.empty())
-    return std::string{rhs};
-  if(rhs.empty())
-    return std::string{lhs};
+inline std::string JoinPath(std::string_view lhs, std::string_view rhs) {
+  if (lhs.empty()) return std::string{rhs};
+  if (rhs.empty()) return std::string{lhs};
 
   std::string joined{lhs};
-  if(joined.back() != '/' && joined.back() != '\\')
-  {
+  if (joined.back() != '/' && joined.back() != '\\') {
 #if defined(OS_WIN)
     joined.push_back('\\');
 #else
@@ -483,54 +370,40 @@ inline std::string JoinPath(std::string_view lhs, std::string_view rhs)
   }
 
   std::size_t rhsOffset = 0;
-  while(rhsOffset < rhs.size() && (rhs[rhsOffset] == '/' || rhs[rhsOffset] == '\\'))
-    ++rhsOffset;
+  while (rhsOffset < rhs.size() && (rhs[rhsOffset] == '/' || rhs[rhsOffset] == '\\')) ++rhsOffset;
 
   joined.append(rhs.substr(rhsOffset));
 
   return joined;
 }
 
-inline bool IsRootPath(std::string_view path)
-{
-  if(path == "/" || path == "\\")
-    return true;
+inline bool IsRootPath(std::string_view path) {
+  if (path == "/" || path == "\\") return true;
 
 #if defined(OS_WIN)
-  return path.size() == 3
-    && std::isalpha(static_cast<unsigned char>(path[0]))
-    && path[1] == ':'
-    && (path[2] == '/' || path[2] == '\\');
+  return path.size() == 3 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && (path[2] == '/' || path[2] == '\\');
 #else
   return false;
 #endif
 }
 
-inline std::string_view TrimTrailingPathSeparators(std::string_view path)
-{
-  while(path.size() > 1 && !IsRootPath(path) && (path.back() == '/' || path.back() == '\\'))
-    path.remove_suffix(1);
+inline std::string_view TrimTrailingPathSeparators(std::string_view path) {
+  while (path.size() > 1 && !IsRootPath(path) && (path.back() == '/' || path.back() == '\\')) path.remove_suffix(1);
   return path;
 }
 
-inline std::string_view FileNameView(std::string_view path)
-{
+inline std::string_view FileNameView(std::string_view path) {
   const std::size_t slashPos = path.find_last_of("/\\");
   return slashPos == std::string_view::npos ? path : path.substr(slashPos + 1);
 }
 
-inline bool HasExtension(std::string_view path, std::string_view extension)
-{
+inline bool HasExtension(std::string_view path, std::string_view extension) {
   const std::string_view fileName = FileNameView(path);
-  if(fileName.size() < extension.size())
-    return false;
+  if (fileName.size() < extension.size()) return false;
 
   const std::string_view suffix = fileName.substr(fileName.size() - extension.size());
-  for(std::size_t i = 0; i < extension.size(); ++i)
-  {
-    if(std::tolower(static_cast<unsigned char>(suffix[i]))
-       != std::tolower(static_cast<unsigned char>(extension[i])))
-    {
+  for (std::size_t i = 0; i < extension.size(); ++i) {
+    if (std::tolower(static_cast<unsigned char>(suffix[i])) != std::tolower(static_cast<unsigned char>(extension[i]))) {
       return false;
     }
   }
@@ -538,23 +411,16 @@ inline bool HasExtension(std::string_view path, std::string_view extension)
   return true;
 }
 
-inline std::string ParentPath(std::string_view path)
-{
+inline std::string ParentPath(std::string_view path) {
   const std::string_view trimmedPath = TrimTrailingPathSeparators(path);
-  if(trimmedPath.empty() || IsRootPath(trimmedPath))
-    return std::string{trimmedPath};
+  if (trimmedPath.empty() || IsRootPath(trimmedPath)) return std::string{trimmedPath};
 
   const std::size_t slashPos = trimmedPath.find_last_of("/\\");
-  if(slashPos == std::string::npos)
-    return {};
-  if(slashPos == 0)
-    return "/";
+  if (slashPos == std::string::npos) return {};
+  if (slashPos == 0) return "/";
 
 #if defined(OS_WIN)
-  if(slashPos == 2
-     && std::isalpha(static_cast<unsigned char>(trimmedPath[0]))
-     && trimmedPath[1] == ':')
-  {
+  if (slashPos == 2 && std::isalpha(static_cast<unsigned char>(trimmedPath[0])) && trimmedPath[1] == ':') {
     return std::string{trimmedPath.substr(0, 3)};
   }
 #endif
@@ -562,15 +428,13 @@ inline std::string ParentPath(std::string_view path)
   return std::string{trimmedPath.substr(0, slashPos)};
 }
 
-inline std::string FileStem(std::string_view path)
-{
+inline std::string FileStem(std::string_view path) {
   const std::string_view fileName = FileNameView(path);
   const std::size_t dotPos = fileName.find_last_of('.');
   return dotPos == std::string::npos ? std::string{fileName} : std::string{fileName.substr(0, dotPos)};
 }
 
-inline bool PathExists(std::string_view path)
-{
+inline bool PathExists(std::string_view path) {
 #if defined(OS_WIN)
   struct _stat info{};
   return _wstat(UTF8AsUTF16(std::string{path}.c_str()).Get(), &info) == 0;
@@ -580,30 +444,24 @@ inline bool PathExists(std::string_view path)
 #endif
 }
 
-inline bool IsDirectory(std::string_view path)
-{
+inline bool IsDirectory(std::string_view path) {
 #if defined(OS_WIN)
   struct _stat info{};
-  return _wstat(UTF8AsUTF16(std::string{path}.c_str()).Get(), &info) == 0
-    && (info.st_mode & _S_IFDIR) != 0;
+  return _wstat(UTF8AsUTF16(std::string{path}.c_str()).Get(), &info) == 0 && (info.st_mode & _S_IFDIR) != 0;
 #else
   struct stat info{};
   return ::stat(std::string{path}.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
 #endif
 }
 
-inline bool EnsureDirectoryExists(std::string_view path)
-{
+inline bool EnsureDirectoryExists(std::string_view path) {
   const std::string_view trimmedPath = TrimTrailingPathSeparators(path);
-  if(trimmedPath.empty() || IsRootPath(trimmedPath))
-    return true;
+  if (trimmedPath.empty() || IsRootPath(trimmedPath)) return true;
 
-  if(IsDirectory(trimmedPath))
-    return true;
+  if (IsDirectory(trimmedPath)) return true;
 
   const std::string parent = ParentPath(trimmedPath);
-  if(!parent.empty() && parent != std::string{trimmedPath} && !EnsureDirectoryExists(parent))
-    return false;
+  if (!parent.empty() && parent != std::string{trimmedPath} && !EnsureDirectoryExists(parent)) return false;
 
   errno = 0;
 #if defined(OS_WIN)
@@ -613,8 +471,7 @@ inline bool EnsureDirectoryExists(std::string_view path)
 #endif
 }
 
-inline bool ReadTextFile(std::string_view path, std::string& text)
-{
+inline bool ReadTextFile(std::string_view path, std::string& text) {
   text.clear();
 
 #if defined(OS_WIN)
@@ -622,25 +479,20 @@ inline bool ReadTextFile(std::string_view path, std::string& text)
 #else
   FILE* stream = std::fopen(std::string{path}.c_str(), "rb");
 #endif
-  if(!stream)
-    return false;
+  if (!stream) return false;
 
   std::array<char, 4096> buffer{};
-  while(const std::size_t bytesRead = std::fread(buffer.data(), 1, buffer.size(), stream))
-    text.append(buffer.data(), bytesRead);
+  while (const std::size_t bytesRead = std::fread(buffer.data(), 1, buffer.size(), stream)) text.append(buffer.data(), bytesRead);
 
   const bool success = std::ferror(stream) == 0;
   std::fclose(stream);
   return success;
 }
 
-inline bool WriteTextFile(std::string_view path, const std::string& text)
-{
+inline bool WriteTextFile(std::string_view path, const std::string& text) {
   const std::string parent = ParentPath(path);
-  if(!parent.empty())
-  {
-    if(!EnsureDirectoryExists(parent))
-      return false;
+  if (!parent.empty()) {
+    if (!EnsureDirectoryExists(parent)) return false;
   }
 
 #if defined(OS_WIN)
@@ -648,8 +500,7 @@ inline bool WriteTextFile(std::string_view path, const std::string& text)
 #else
   FILE* stream = std::fopen(std::string{path}.c_str(), "wb");
 #endif
-  if(!stream)
-    return false;
+  if (!stream) return false;
 
   const std::size_t bytesWritten = std::fwrite(text.data(), 1, text.size(), stream);
   const bool success = bytesWritten == text.size() && std::ferror(stream) == 0;
@@ -657,8 +508,7 @@ inline bool WriteTextFile(std::string_view path, const std::string& text)
   return success;
 }
 
-inline bool DeleteFile(std::string_view path)
-{
+inline bool DeleteFile(std::string_view path) {
 #if defined(OS_WIN)
   return _wremove(UTF8AsUTF16(std::string{path}.c_str()).Get()) == 0;
 #else
@@ -667,58 +517,43 @@ inline bool DeleteFile(std::string_view path)
 }
 } // namespace detail
 
-inline std::string SerializePatchToToml(const PatchDocument& document, bool includeName = true)
-{
+inline std::string SerializePatchToToml(const PatchDocument& document, bool includeName = true) {
   std::ostringstream stream;
   stream << "format_version = " << kFormatVersion << '\n';
-  if(includeName)
-    stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Patch" : document.name) << "\"\n";
+  if (includeName) stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Patch" : document.name) << "\"\n";
   stream << '\n';
 
   stream << "[voice_settings]\n";
-  for(const auto& descriptor : detail::kGlobalVoiceSettingDescriptors)
-  {
-    stream << descriptor.key << " = "
-           << detail::FormatDouble(document.voiceSettings.*(descriptor.member))
-           << '\n';
+  for (const auto& descriptor : detail::kGlobalVoiceSettingDescriptors) {
+    stream << descriptor.key << " = " << detail::FormatDouble(document.voiceSettings.*(descriptor.member)) << '\n';
   }
 
   stream << "\n[effects_settings]\n";
-  for(const auto& descriptor : detail::kEffectsSettingDescriptors)
-  {
-    stream << descriptor.key << " = "
-           << detail::FormatDouble(document.effectsSettings.*(descriptor.member))
-           << '\n';
+  for (const auto& descriptor : detail::kEffectsSettingDescriptors) {
+    stream << descriptor.key << " = " << detail::FormatDouble(document.effectsSettings.*(descriptor.member)) << '\n';
   }
 
   bool wroteAllKeyNotes = false;
-  for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
-  {
-    if(!document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter))
-      continue;
+  for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
+    if (!document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
-    if(!wroteAllKeyNotes)
-    {
+    if (!wroteAllKeyNotes) {
       stream << "\n[all_key_notes]\n";
       wroteAllKeyNotes = true;
     }
 
     stream << descriptor.key << " = [";
     const auto& values = document.compoundPatch.GetAllKeyNotesValues(descriptor.parameter);
-    for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-    {
+    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
       stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)]);
-      if(oscillatorIndex != (SimplePatch::kNumOscillators - 1))
-        stream << ", ";
+      if (oscillatorIndex != (SimplePatch::kNumOscillators - 1)) stream << ", ";
     }
 
     stream << "]\n";
   }
 
-  if(document.compoundPatch.IsAllKeyNotesEqEnabled())
-  {
-    if(!wroteAllKeyNotes)
-    {
+  if (document.compoundPatch.IsAllKeyNotesEqEnabled()) {
+    if (!wroteAllKeyNotes) {
       stream << "\n[all_key_notes]\n";
       wroteAllKeyNotes = true;
     }
@@ -726,43 +561,28 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     detail::AppendEqCurveArrays(stream, document.compoundPatch.GetAllKeyNotesEqCurve());
   }
 
-  for(const auto& [midiNote, patch] : document.compoundPatch.GetKeyNotePatches())
-  {
+  for (const auto& [midiNote, patch] : document.compoundPatch.GetKeyNotePatches()) {
     stream << "\n[[key_notes]]\n";
     stream << "midi_note = " << midiNote << '\n';
     stream << "note_name = \"" << detail::EscapeTomlString(detail::MidiNoteToName(midiNote)) << "\"\n";
-    for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
-    {
-      if(document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter))
-        continue;
+    for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
+      if (document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
       detail::AppendOscillatorParameterArray(stream, patch, descriptor);
     }
 
-    if(!document.compoundPatch.IsAllKeyNotesEqEnabled())
-    {
-      if(const auto* eqCurve = document.compoundPatch.GetKeyNoteEqCurve(midiNote))
-        detail::AppendEqCurveArrays(stream, *eqCurve);
+    if (!document.compoundPatch.IsAllKeyNotesEqEnabled()) {
+      if (const auto* eqCurve = document.compoundPatch.GetKeyNoteEqCurve(midiNote)) detail::AppendEqCurveArrays(stream, *eqCurve);
     }
   }
 
   return stream.str();
 }
 
-inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std::string* errorMessage = nullptr)
-{
-  enum class Section
-  {
-    Root,
-    VoiceSettings,
-    EffectsSettings,
-    AllKeyNotes,
-    KeyNote,
-    Ignored
-  };
+inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std::string* errorMessage = nullptr) {
+  enum class Section { Root, VoiceSettings, EffectsSettings, AllKeyNotes, KeyNote, Ignored };
 
-  struct ParsedKeyNote
-  {
+  struct ParsedKeyNote {
     int midiNote = 60;
     bool hasMidiNote = false;
     SimplePatch patch = detail::MakeDefaultKeyNotePatch();
@@ -772,14 +592,12 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
     std::vector<double> eqDb;
   };
 
-  struct ParsedAllKeyNotesParameter
-  {
+  struct ParsedAllKeyNotesParameter {
     bool present = false;
     CompoundPatch::OscillatorParameterValues values{};
   };
 
-  struct ParsedEqCurve
-  {
+  struct ParsedEqCurve {
     bool hasFreqHz = false;
     bool hasDb = false;
     std::vector<double> freqHz;
@@ -787,8 +605,7 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
   };
 
   const auto fail = [errorMessage](const std::string& message) {
-    if(errorMessage)
-      *errorMessage = message;
+    if (errorMessage) *errorMessage = message;
     return false;
   };
 
@@ -809,164 +626,115 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
   ParsedKeyNote* pendingKeyNote = nullptr;
   int lineNumber = 0;
 
-  const auto parseAssignment = [&](std::string_view key,
-                                   std::string_view value,
-                                   Section section,
-                                   ParsedKeyNote* keyNote,
-                                   int assignmentLine) {
-    if(section == Section::Root)
-    {
-      if(key == "format_version")
-      {
+  const auto parseAssignment = [&](std::string_view key, std::string_view value, Section section, ParsedKeyNote* keyNote, int assignmentLine) {
+    if (section == Section::Root) {
+      if (key == "format_version") {
         int formatVersion = 0;
-        if(!detail::ParseInteger(value, formatVersion))
-          return fail("Invalid format_version on line " + std::to_string(assignmentLine));
-        if(formatVersion != kFormatVersion)
-          return fail("Unsupported format_version on line " + std::to_string(assignmentLine));
+        if (!detail::ParseInteger(value, formatVersion)) return fail("Invalid format_version on line " + std::to_string(assignmentLine));
+        if (formatVersion != kFormatVersion) return fail("Unsupported format_version on line " + std::to_string(assignmentLine));
         sawFormatVersion = true;
-      }
-      else if(key == "name")
-      {
-        if(!detail::ParseQuotedString(value, document.name))
-          return fail("Invalid patch name on line " + std::to_string(assignmentLine));
+      } else if (key == "name") {
+        if (!detail::ParseQuotedString(value, document.name)) return fail("Invalid patch name on line " + std::to_string(assignmentLine));
       }
 
       return true;
     }
 
-    if(section == Section::VoiceSettings)
-    {
+    if (section == Section::VoiceSettings) {
       const auto* descriptor = detail::FindGlobalVoiceSettingDescriptor(key);
-      if(!descriptor)
-        return true;
+      if (!descriptor) return true;
 
       double parsedValue = 0.0;
-      if(!detail::ParseDouble(value, parsedValue))
-        return fail("Invalid voice setting on line " + std::to_string(assignmentLine));
+      if (!detail::ParseDouble(value, parsedValue)) return fail("Invalid voice setting on line " + std::to_string(assignmentLine));
 
       document.voiceSettings.*(descriptor->member) = parsedValue;
       return true;
     }
 
-    if(section == Section::EffectsSettings)
-    {
+    if (section == Section::EffectsSettings) {
       const auto* descriptor = detail::FindEffectsSettingDescriptor(key);
-      if(!descriptor)
-        return true;
+      if (!descriptor) return true;
 
       double parsedValue = 0.0;
-      if(!detail::ParseDouble(value, parsedValue))
-        return fail("Invalid effects setting on line " + std::to_string(assignmentLine));
+      if (!detail::ParseDouble(value, parsedValue)) return fail("Invalid effects setting on line " + std::to_string(assignmentLine));
 
-      if(descriptor->member == &EffectsSettings::tone && std::abs(parsedValue) > 1.0)
-        parsedValue *= 0.01;
+      if (descriptor->member == &EffectsSettings::tone && std::abs(parsedValue) > 1.0) parsedValue *= 0.01;
 
       document.effectsSettings.*(descriptor->member) = parsedValue;
       return true;
     }
 
-    if(section == Section::AllKeyNotes)
-    {
-      if(key == "eq_freq_hz")
-      {
-        if(!detail::ParseDoubleArray(value, allKeyNotesEqCurve.freqHz))
-          return fail("Invalid EQ frequency array on line " + std::to_string(assignmentLine));
+    if (section == Section::AllKeyNotes) {
+      if (key == "eq_freq_hz") {
+        if (!detail::ParseDoubleArray(value, allKeyNotesEqCurve.freqHz)) return fail("Invalid EQ frequency array on line " + std::to_string(assignmentLine));
 
         allKeyNotesEqCurve.hasFreqHz = true;
         return true;
       }
 
-      if(key == "eq_db")
-      {
-        if(!detail::ParseDoubleArray(value, allKeyNotesEqCurve.db))
-          return fail("Invalid EQ gain array on line " + std::to_string(assignmentLine));
+      if (key == "eq_db") {
+        if (!detail::ParseDoubleArray(value, allKeyNotesEqCurve.db)) return fail("Invalid EQ gain array on line " + std::to_string(assignmentLine));
 
         allKeyNotesEqCurve.hasDb = true;
         return true;
       }
 
       const auto* descriptor = detail::FindOscillatorParameterDescriptor(key);
-      if(!descriptor)
-        return true;
+      if (!descriptor) return true;
 
       std::vector<double> values;
-      if(!detail::ParseDoubleArray(value, values))
-        return fail("Invalid all_key_notes array on line " + std::to_string(assignmentLine));
-      if(static_cast<int>(values.size()) != SimplePatch::kNumOscillators)
-      {
-        return fail(
-          "All-key-notes array must contain "
-          + std::to_string(SimplePatch::kNumOscillators)
-          + " values on line "
-          + std::to_string(assignmentLine));
+      if (!detail::ParseDoubleArray(value, values)) return fail("Invalid all_key_notes array on line " + std::to_string(assignmentLine));
+      if (static_cast<int>(values.size()) != SimplePatch::kNumOscillators) {
+        return fail("All-key-notes array must contain " + std::to_string(SimplePatch::kNumOscillators) + " values on line " + std::to_string(assignmentLine));
       }
 
       auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor->parameter)];
       parsedParameter.present = true;
-      for(int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      {
-        parsedParameter.values[static_cast<std::size_t>(oscillatorIndex)] =
-          values[static_cast<std::size_t>(oscillatorIndex)];
+      for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+        parsedParameter.values[static_cast<std::size_t>(oscillatorIndex)] = values[static_cast<std::size_t>(oscillatorIndex)];
       }
 
       return true;
     }
 
-    if(section == Section::KeyNote)
-    {
-      if(!keyNote)
-        return fail("Key-note data found before [[key_notes]] on line " + std::to_string(assignmentLine));
+    if (section == Section::KeyNote) {
+      if (!keyNote) return fail("Key-note data found before [[key_notes]] on line " + std::to_string(assignmentLine));
 
-      if(key == "midi_note")
-      {
+      if (key == "midi_note") {
         int midiNote = 0;
-        if(!detail::ParseInteger(value, midiNote))
-          return fail("Invalid midi_note on line " + std::to_string(assignmentLine));
+        if (!detail::ParseInteger(value, midiNote)) return fail("Invalid midi_note on line " + std::to_string(assignmentLine));
         keyNote->midiNote = std::clamp(midiNote, CompoundPatch::kMinMidiNote, CompoundPatch::kMaxMidiNote);
         keyNote->hasMidiNote = true;
         return true;
       }
 
-      if(key == "note_name")
-      {
+      if (key == "note_name") {
         std::string ignored;
-        if(!detail::ParseQuotedString(value, ignored))
-          return fail("Invalid note_name on line " + std::to_string(assignmentLine));
+        if (!detail::ParseQuotedString(value, ignored)) return fail("Invalid note_name on line " + std::to_string(assignmentLine));
         return true;
       }
 
-      if(key == "eq_freq_hz")
-      {
-        if(!detail::ParseDoubleArray(value, keyNote->eqFreqHz))
-          return fail("Invalid EQ frequency array on line " + std::to_string(assignmentLine));
+      if (key == "eq_freq_hz") {
+        if (!detail::ParseDoubleArray(value, keyNote->eqFreqHz)) return fail("Invalid EQ frequency array on line " + std::to_string(assignmentLine));
 
         keyNote->hasEqFreqHz = true;
         return true;
       }
 
-      if(key == "eq_db")
-      {
-        if(!detail::ParseDoubleArray(value, keyNote->eqDb))
-          return fail("Invalid EQ gain array on line " + std::to_string(assignmentLine));
+      if (key == "eq_db") {
+        if (!detail::ParseDoubleArray(value, keyNote->eqDb)) return fail("Invalid EQ gain array on line " + std::to_string(assignmentLine));
 
         keyNote->hasEqDb = true;
         return true;
       }
 
       const auto* descriptor = detail::FindOscillatorParameterDescriptor(key);
-      if(!descriptor)
-        return true;
+      if (!descriptor) return true;
 
       std::vector<double> values;
-      if(!detail::ParseDoubleArray(value, values))
-        return fail("Invalid oscillator array on line " + std::to_string(assignmentLine));
-      if(static_cast<int>(values.size()) != SimplePatch::kNumOscillators)
-      {
-        return fail(
-          "Oscillator array must contain "
-          + std::to_string(SimplePatch::kNumOscillators)
-          + " values on line "
-          + std::to_string(assignmentLine));
+      if (!detail::ParseDoubleArray(value, values)) return fail("Invalid oscillator array on line " + std::to_string(assignmentLine));
+      if (static_cast<int>(values.size()) != SimplePatch::kNumOscillators) {
+        return fail("Oscillator array must contain " + std::to_string(SimplePatch::kNumOscillators) + " values on line " + std::to_string(assignmentLine));
       }
 
       detail::SetOscillatorParameterValues(keyNote->patch, descriptor->parameter, values);
@@ -975,26 +743,16 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
     return true;
   };
 
-  while(std::getline(input, rawLine))
-  {
+  while (std::getline(input, rawLine)) {
     ++lineNumber;
     const std::string line = detail::StripComment(rawLine);
-    if(line.empty())
-      continue;
+    if (line.empty()) continue;
 
-    if(!pendingKey.empty())
-    {
+    if (!pendingKey.empty()) {
       pendingValue += line;
-      if(line.find(']') == std::string::npos)
-        continue;
+      if (line.find(']') == std::string::npos) continue;
 
-      if(!parseAssignment(
-           pendingKey,
-           pendingValue,
-           pendingSection,
-           pendingKeyNote,
-           lineNumber))
-      {
+      if (!parseAssignment(pendingKey, pendingValue, pendingSection, pendingKeyNote, lineNumber)) {
         return false;
       }
 
@@ -1006,53 +764,45 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
     }
 
     const std::string_view trimmedLine = detail::Trim(line);
-    if(trimmedLine == "[voice_settings]")
-    {
+    if (trimmedLine == "[voice_settings]") {
       currentSection = Section::VoiceSettings;
       currentKeyNote = nullptr;
       continue;
     }
 
-    if(trimmedLine == "[effects_settings]")
-    {
+    if (trimmedLine == "[effects_settings]") {
       currentSection = Section::EffectsSettings;
       currentKeyNote = nullptr;
       continue;
     }
 
-    if(trimmedLine == "[all_key_notes]")
-    {
+    if (trimmedLine == "[all_key_notes]") {
       currentSection = Section::AllKeyNotes;
       currentKeyNote = nullptr;
       continue;
     }
 
-    if(trimmedLine == "[[key_notes]]")
-    {
+    if (trimmedLine == "[[key_notes]]") {
       keyNotes.emplace_back();
       currentKeyNote = &keyNotes.back();
       currentSection = Section::KeyNote;
       continue;
     }
 
-    if(trimmedLine.front() == '[' && trimmedLine.back() == ']')
-    {
+    if (trimmedLine.front() == '[' && trimmedLine.back() == ']') {
       currentSection = Section::Ignored;
       currentKeyNote = nullptr;
       continue;
     }
 
     const std::size_t equalsPos = trimmedLine.find('=');
-    if(equalsPos == std::string_view::npos)
-      return fail("Invalid TOML assignment on line " + std::to_string(lineNumber));
+    if (equalsPos == std::string_view::npos) return fail("Invalid TOML assignment on line " + std::to_string(lineNumber));
 
     const std::string key{detail::Trim(trimmedLine.substr(0, equalsPos))};
     const std::string value{detail::Trim(trimmedLine.substr(equalsPos + 1))};
-    if(key.empty() || value.empty())
-      return fail("Invalid TOML assignment on line " + std::to_string(lineNumber));
+    if (key.empty() || value.empty()) return fail("Invalid TOML assignment on line " + std::to_string(lineNumber));
 
-    if(!value.empty() && value.front() == '[' && value.find(']') == std::string::npos)
-    {
+    if (!value.empty() && value.front() == '[' && value.find(']') == std::string::npos) {
       pendingKey = key;
       pendingValue = value;
       pendingSection = currentSection;
@@ -1060,75 +810,58 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
       continue;
     }
 
-    if(!parseAssignment(key, value, currentSection, currentKeyNote, lineNumber))
-      return false;
+    if (!parseAssignment(key, value, currentSection, currentKeyNote, lineNumber)) return false;
   }
 
-  if(!pendingKey.empty())
-    return fail("Unterminated array at end of file");
+  if (!pendingKey.empty()) return fail("Unterminated array at end of file");
 
-  if(!sawFormatVersion)
-    return fail("Missing format_version");
+  if (!sawFormatVersion) return fail("Missing format_version");
 
   CompoundPatch compoundPatch;
   compoundPatch.ClearKeyNotePatches();
   bool eqCurveBuildFailed = false;
-  const auto buildEqCurve = [&](const std::vector<double>& frequenciesHz,
-                                const std::vector<double>& gainsDb,
-                                const char* contextLabel) -> EqCurve {
-    if(frequenciesHz.size() != gainsDb.size())
-    {
+  const auto buildEqCurve = [&](const std::vector<double>& frequenciesHz, const std::vector<double>& gainsDb, const char* contextLabel) -> EqCurve {
+    if (frequenciesHz.size() != gainsDb.size()) {
       eqCurveBuildFailed = true;
-      fail(
-        std::string{contextLabel}
-          + " EQ frequency and gain arrays must have the same length");
+      fail(std::string{contextLabel} + " EQ frequency and gain arrays must have the same length");
       return {};
     }
 
     EqCurve::PointList points;
     points.reserve(frequenciesHz.size());
-    for(std::size_t i = 0; i < frequenciesHz.size(); ++i)
-      points.push_back({frequenciesHz[i], gainsDb[i]});
+    for (std::size_t i = 0; i < frequenciesHz.size(); ++i) points.push_back({frequenciesHz[i], gainsDb[i]});
 
     return EqCurve{std::move(points)};
   };
 
-  for(const auto& keyNote : keyNotes)
-  {
-    if(!keyNote.hasMidiNote)
-      return fail("Each [[key_notes]] table must define midi_note");
+  for (const auto& keyNote : keyNotes) {
+    if (!keyNote.hasMidiNote) return fail("Each [[key_notes]] table must define midi_note");
 
-    if(keyNote.hasEqFreqHz != keyNote.hasEqDb)
-      return fail("Each [[key_notes]] EQ definition must include both eq_freq_hz and eq_db");
+    if (keyNote.hasEqFreqHz != keyNote.hasEqDb)
+      return fail("Each [[key_notes]] EQ definition must include both "
+                  "eq_freq_hz and eq_db");
 
     compoundPatch.SetKeyNotePatch(keyNote.midiNote, keyNote.patch);
 
-    if(keyNote.hasEqFreqHz)
-    {
+    if (keyNote.hasEqFreqHz) {
       const EqCurve eqCurve = buildEqCurve(keyNote.eqFreqHz, keyNote.eqDb, "[[key_notes]]");
-      if(eqCurveBuildFailed)
-        return false;
+      if (eqCurveBuildFailed) return false;
 
-      if(!compoundPatch.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
+      if (!compoundPatch.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
         return fail("Could not apply EQ curve for midi_note " + std::to_string(keyNote.midiNote));
     }
   }
 
-  for(const auto& descriptor : detail::kOscillatorParameterDescriptors)
-  {
+  for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
     const auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor.parameter)];
-    if(parsedParameter.present)
-      compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
+    if (parsedParameter.present) compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
   }
 
-  if(allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb)
-    return fail("[all_key_notes] EQ definition must include both eq_freq_hz and eq_db");
+  if (allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb) return fail("[all_key_notes] EQ definition must include both eq_freq_hz and eq_db");
 
-  if(allKeyNotesEqCurve.hasFreqHz)
-  {
+  if (allKeyNotesEqCurve.hasFreqHz) {
     const EqCurve eqCurve = buildEqCurve(allKeyNotesEqCurve.freqHz, allKeyNotesEqCurve.db, "[all_key_notes]");
-    if(eqCurveBuildFailed)
-      return false;
+    if (eqCurveBuildFailed) return false;
 
     compoundPatch.EnableAllKeyNotesEq(eqCurve);
   }
@@ -1139,70 +872,50 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
   return true;
 }
 
-inline bool LoadPatchFromFile(std::string_view path,
-                               PatchDocument& document,
-                               std::string* errorMessage = nullptr)
-{
+inline bool LoadPatchFromFile(std::string_view path, PatchDocument& document, std::string* errorMessage = nullptr) {
   std::string toml;
-  if(!detail::ReadTextFile(path, toml))
-  {
-    if(errorMessage)
-      *errorMessage = "Could not read patch file";
+  if (!detail::ReadTextFile(path, toml)) {
+    if (errorMessage) *errorMessage = "Could not read patch file";
     return false;
   }
 
-  if(!ParsePatchToml(toml, document, errorMessage))
-    return false;
+  if (!ParsePatchToml(toml, document, errorMessage)) return false;
 
-  if(document.name.empty())
-    document.name = detail::FileStem(path);
+  if (document.name.empty()) document.name = detail::FileStem(path);
 
   return true;
 }
 
-inline bool SavePatchToFile(std::string_view path,
-                             const PatchDocument& document,
-                             std::string* errorMessage = nullptr)
-{
-  if(!detail::WriteTextFile(path, SerializePatchToToml(document, false)))
-  {
-    if(errorMessage)
-      *errorMessage = "Could not write patch file";
+inline bool SavePatchToFile(std::string_view path, const PatchDocument& document, std::string* errorMessage = nullptr) {
+  if (!detail::WriteTextFile(path, SerializePatchToToml(document, false))) {
+    if (errorMessage) *errorMessage = "Could not write patch file";
     return false;
   }
 
   return true;
 }
 
-inline void FindPatchFilesRecursive(std::string_view directory, std::vector<std::string>& paths)
-{
+inline void FindPatchFilesRecursive(std::string_view directory, std::vector<std::string>& paths) {
   WDL_DirScan scan;
-  if(scan.First(std::string{directory}.c_str()) != 0)
-    return;
+  if (scan.First(std::string{directory}.c_str()) != 0) return;
 
-  do
-  {
+  do {
     const char* entryName = scan.GetCurrentFN();
-    if(!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0)
-      continue;
+    if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
 
     WDL_FastString childPath;
     scan.GetCurrentFullFN(&childPath);
     const int directoryState = scan.GetCurrentIsDirectory();
-    if(directoryState != 0 && directoryState != 4)
-    {
+    if (directoryState != 0 && directoryState != 4) {
       FindPatchFilesRecursive(childPath.Get(), paths);
       continue;
     }
 
-    if(detail::HasExtension(childPath.Get(), ".toml"))
-      paths.push_back(childPath.Get());
-  }
-  while(scan.Next() == 0);
+    if (detail::HasExtension(childPath.Get(), ".toml")) paths.push_back(childPath.Get());
+  } while (scan.Next() == 0);
 }
 
-inline std::vector<std::string> FindPatchFiles(std::string_view directory)
-{
+inline std::vector<std::string> FindPatchFiles(std::string_view directory) {
   std::vector<std::string> paths;
   FindPatchFilesRecursive(directory, paths);
   std::sort(paths.begin(), paths.end());

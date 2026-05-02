@@ -1,46 +1,38 @@
 #pragma once
 
-#include "midi_synth.h"
-#include "../settings/params.h"
-#include "../settings/effects.h"
-#include "voice.h"
-#include "../effects/drive.h"
-#include "../effects/tone.h"
 #include "../effects/chorus.h"
+#include "../effects/drive.h"
 #include "../effects/reverb.h"
+#include "../effects/tone.h"
+#include "../settings/effects.h"
+#include "../settings/params.h"
+#include "midi_synth.h"
+#include "voice.h"
 #include <cstring>
 
 using namespace iplug;
 
-class SynthEngine
-{
+class SynthEngine {
 public:
   using VisualizerFrame = SynthVoice::VisualizerFrame;
 
-  void ProcessBlock(sample** outputs, int nFrames)
-  {
+  void ProcessBlock(sample** outputs, int nFrames) {
     constexpr int kNumOutputs = 2;
 
-    for(int i = 0; i < kNumOutputs; i++)
-      memset(outputs[i], 0, nFrames * sizeof(sample));
+    for (int i = 0; i < kNumOutputs; i++) memset(outputs[i], 0, nFrames * sizeof(sample));
 
     mSynth.ProcessBlock(outputs, nFrames);
 
-    if(mDrive.IsActive())
-      mDrive.ProcessBlock(outputs, nFrames);
+    if (mDrive.IsActive()) mDrive.ProcessBlock(outputs, nFrames);
 
-    if(mTone.IsActive())
-      mTone.ProcessBlock(outputs, nFrames);
+    if (mTone.IsActive()) mTone.ProcessBlock(outputs, nFrames);
 
-    if(mChorus.IsActive())
-      mChorus.ProcessBlock(outputs, nFrames);
+    if (mChorus.IsActive()) mChorus.ProcessBlock(outputs, nFrames);
 
-    if(mReverb.IsActive())
-      mReverb.ProcessBlock(outputs, nFrames);
+    if (mReverb.IsActive()) mReverb.ProcessBlock(outputs, nFrames);
   }
 
-  void Reset(double sampleRate, int blockSize)
-  {
+  void Reset(double sampleRate, int blockSize) {
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
@@ -55,38 +47,25 @@ public:
     mReverb.SetAmount(mEffectsSettings.reverb);
   }
 
-  void ProcessMidiMsg(const IMidiMsg& msg)
-  {
-    mSynth.AddMidiMsgToQueue(msg);
-  }
+  void ProcessMidiMsg(const IMidiMsg& msg) { mSynth.AddMidiMsgToQueue(msg); }
 
-  void SetBreathCCSource(BreathCCSource source)
-  {
-    mSynth.SetBreathCCSource(source);
-  }
+  void SetBreathCCSource(BreathCCSource source) { mSynth.SetBreathCCSource(source); }
 
-  void SetBreathCCSourceForChannel(int channel, BreathCCSource source)
-  {
-    mSynth.SetBreathCCSourceForChannel(channel, source);
-  }
+  void SetBreathCCSourceForChannel(int channel, BreathCCSource source) { mSynth.SetBreathCCSourceForChannel(channel, source); }
 
-  void SetParam(int paramIdx, double value)
-  {
-    if(paramIdx == kParamTranspose)
-    {
+  void SetParam(int paramIdx, double value) {
+    if (paramIdx == kParamTranspose) {
       mTransposeSemitones = value;
       mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
       return;
     }
 
-    if(global_settings::ApplyParam(paramIdx, value, mGlobalVoiceSettings))
-    {
+    if (global_settings::ApplyParam(paramIdx, value, mGlobalVoiceSettings)) {
       mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
       return;
     }
 
-    if(effects_settings::ApplyParam(paramIdx, value, mEffectsSettings))
-    {
+    if (effects_settings::ApplyParam(paramIdx, value, mEffectsSettings)) {
       mDrive.SetAmount(mEffectsSettings.drive);
       mTone.SetAmount(mEffectsSettings.tone);
       mChorus.SetAmount(mEffectsSettings.chorus);
@@ -94,18 +73,12 @@ public:
     }
   }
 
-  void SetCompoundPatch(const CompoundPatch& patch)
-  {
-    mSynth.GetVoice().SetCompoundPatch(patch);
-  }
+  void SetCompoundPatch(const CompoundPatch& patch) { mSynth.GetVoice().SetCompoundPatch(patch); }
 
-  void GetVisualizerFrame(VisualizerFrame& frame) const
-  {
-    mSynth.GetVoice().GetVisualizerFrame(frame);
-  }
+  void GetVisualizerFrame(VisualizerFrame& frame) const { mSynth.GetVoice().GetVisualizerFrame(frame); }
 
 public:
-  MidiSynth<SynthVoice> mSynth { MidiSynth<SynthVoice>::kDefaultBlockSize };
+  MidiSynth<SynthVoice> mSynth{MidiSynth<SynthVoice>::kDefaultBlockSize};
   GlobalVoiceSettings mGlobalVoiceSettings{};
   EffectsSettings mEffectsSettings{};
   double mTransposeSemitones{0.0};

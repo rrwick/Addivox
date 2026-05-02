@@ -4,10 +4,8 @@
 
 #include <algorithm>
 
-namespace effects_settings
-{
-EffectsSettings Sanitize(const EffectsSettings& settings)
-{
+namespace effects_settings {
+EffectsSettings Sanitize(const EffectsSettings& settings) {
   EffectsSettings sanitized = settings;
   sanitized.drive = std::clamp(sanitized.drive, 0.0, 100.0);
   sanitized.tone = std::clamp(sanitized.tone, -1.0, 1.0);
@@ -16,24 +14,13 @@ EffectsSettings Sanitize(const EffectsSettings& settings)
   return sanitized;
 }
 
-bool ApplyParam(int paramIdx, double value, EffectsSettings& settings)
-{
-  switch(paramIdx)
-  {
-    case kParamEffectsDrive:
-      settings.drive = std::clamp(value, 0.0, 100.0);
-      return true;
-    case kParamEffectsTone:
-      settings.tone = std::clamp(value, -1.0, 1.0);
-      return true;
-    case kParamEffectsChorus:
-      settings.chorus = std::clamp(value, 0.0, 100.0);
-      return true;
-    case kParamEffectsReverb:
-      settings.reverb = std::clamp(value, 0.0, 100.0);
-      return true;
-    default:
-      return false;
+bool ApplyParam(int paramIdx, double value, EffectsSettings& settings) {
+  switch (paramIdx) {
+  case kParamEffectsDrive:  settings.drive = std::clamp(value, 0.0, 100.0); return true;
+  case kParamEffectsTone:   settings.tone = std::clamp(value, -1.0, 1.0); return true;
+  case kParamEffectsChorus: settings.chorus = std::clamp(value, 0.0, 100.0); return true;
+  case kParamEffectsReverb: settings.reverb = std::clamp(value, 0.0, 100.0); return true;
+  default:                  return false;
   }
 }
 } // namespace effects_settings

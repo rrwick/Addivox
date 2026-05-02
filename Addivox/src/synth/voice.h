@@ -3,13 +3,12 @@
 #include <array>
 #include <limits>
 
-#include "IPlugConstants.h"
-#include "oscillator.h"
 #include "../settings/global.h"
 #include "../settings/oscillator.h"
+#include "IPlugConstants.h"
+#include "oscillator.h"
 
-class SynthVoice
-{
+class SynthVoice {
 public:
   using VisualizerFrame = HarmonicVisualizerFrame;
 
@@ -25,14 +24,9 @@ public:
   void SetCompoundPatch(const CompoundPatch& patch);
   bool AddKeyNotePatch(double midiNote);
   bool RemoveKeyNotePatch(double midiNote);
-  bool SetKeyNoteOscillatorParameter(double midiNote,
-                                     int oscillatorIndex,
-                                     OscillatorSettings::Parameter parameter,
-                                     double value);
-  bool SetKeyNoteOscillatorParameterValues(
-    double midiNote,
-    OscillatorSettings::Parameter parameter,
-    const std::array<double, SimplePatch::kNumOscillators>& values);
+  bool SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
+  bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
+                                           const std::array<double, SimplePatch::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
   bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote);
   bool SetAllKeyNotesEqEnabled(bool enabled);
@@ -53,14 +47,10 @@ private:
   double GetPortamentoTimeSec() const;
   double SmoothBreath(double breath);
   static double AdvancePitchTowards(double currentPitch, double targetPitch, double maxDeltaSemitones);
-  static double GetOscillatorBasePitchSemitones(int harmonic,
-                                                const OscillatorSettings& settings,
-                                                double fundamentalPitchSemitones,
+  static double GetOscillatorBasePitchSemitones(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones,
                                                 const GlobalVoiceSettings& globalSettings);
   static double PitchSemitonesToFrequencyHz(double pitchSemitones);
-  void ApplyOscillatorSettings(int harmonic,
-                               const OscillatorSettings& currentSettings,
-                               const OscillatorSettings& futurePitchSettings,
+  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& currentSettings, const OscillatorSettings& futurePitchSettings,
                                double futureFundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;

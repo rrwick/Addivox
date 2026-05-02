@@ -1,7 +1,8 @@
 // Oscillator-level settings are stored in three levels:
 // - OscillatorSettings: settings for a single oscillator.
 // - SimplePatch: settings for all 100 oscillators in a patch.
-// - CompoundPatch: a collection of SimplePatches for different MIDI notes, with interpolation
+// - CompoundPatch: a collection of SimplePatches for different MIDI notes, with
+// interpolation
 //       between them.
 
 #pragma once
@@ -13,11 +14,9 @@
 #include <map>
 #include <utility>
 
-class OscillatorSettings
-{
+class OscillatorSettings {
 public:
-  enum class Parameter : int
-  {
+  enum class Parameter : int {
     level = 0,
     breath_power,
     attack,
@@ -36,51 +35,30 @@ public:
   static constexpr int kNumParameters = static_cast<int>(Parameter::count);
 
   OscillatorSettings() = default;
-  constexpr OscillatorSettings(double levelIn,
-                               double breathPowerIn = 1.0,
-                               double attackIn = 0.005,
-                               double releaseIn = 0.01,
-                               double pitchIn = 0.0,
-                               double panIn = 0.0,
-                               double levelVariationAmplitudeIn = 0.25,
-                               double levelVariationRateIn = 1.0,
-                               double pitchVariationAmplitudeIn = 5.0,
-                               double pitchVariationRateIn = 1.0,
-                               double panVariationAmplitudeIn = 0.25,
+  constexpr OscillatorSettings(double levelIn, double breathPowerIn = 1.0, double attackIn = 0.005, double releaseIn = 0.01, double pitchIn = 0.0,
+                               double panIn = 0.0, double levelVariationAmplitudeIn = 0.25, double levelVariationRateIn = 1.0,
+                               double pitchVariationAmplitudeIn = 5.0, double pitchVariationRateIn = 1.0, double panVariationAmplitudeIn = 0.25,
                                double panVariationRateIn = 1.0)
-  : level(levelIn)
-  , breath_power(breathPowerIn)
-  , attack(attackIn)
-  , release(releaseIn)
-  , pitch(pitchIn)
-  , pan(panIn)
-  , level_variation_amplitude(levelVariationAmplitudeIn)
-  , level_variation_rate(levelVariationRateIn)
-  , pitch_variation_amplitude(pitchVariationAmplitudeIn)
-  , pitch_variation_rate(pitchVariationRateIn)
-  , pan_variation_amplitude(panVariationAmplitudeIn)
-  , pan_variation_rate(panVariationRateIn)
-  {
-  }
+      : level(levelIn), breath_power(breathPowerIn), attack(attackIn), release(releaseIn), pitch(pitchIn), pan(panIn),
+        level_variation_amplitude(levelVariationAmplitudeIn), level_variation_rate(levelVariationRateIn), pitch_variation_amplitude(pitchVariationAmplitudeIn),
+        pitch_variation_rate(pitchVariationRateIn), pan_variation_amplitude(panVariationAmplitudeIn), pan_variation_rate(panVariationRateIn) {}
 
-  double level{0.0};
-  double breath_power{1.0};
-  double attack{0.0};
-  double release{0.0};
-  double pitch{0.0};
-  double pan{0.0};
-  double level_variation_amplitude{0.0};
-  double level_variation_rate{0.0};
-  double pitch_variation_amplitude{0.0};
-  double pitch_variation_rate{0.0};
-  double pan_variation_amplitude{0.0};
-  double pan_variation_rate{0.0};
+  double                       level {0.0};
+  double                breath_power {1.0};
+  double                      attack {0.0};
+  double                     release {0.0};
+  double                       pitch {0.0};
+  double                         pan {0.0};
+  double   level_variation_amplitude {0.0};
+  double        level_variation_rate {0.0};
+  double   pitch_variation_amplitude {0.0};
+  double        pitch_variation_rate {0.0};
+  double     pan_variation_amplitude {0.0};
+  double          pan_variation_rate {0.0};
 
-  static constexpr std::array<Parameter, kNumParameters> AllParameters()
-  {
+  static constexpr std::array<Parameter, kNumParameters> AllParameters() {
     std::array<Parameter, kNumParameters> parameters{};
-    for(int i = 0; i < kNumParameters; ++i)
-      parameters[static_cast<std::size_t>(i)] = static_cast<Parameter>(i);
+    for (int i = 0; i < kNumParameters; ++i) parameters[static_cast<std::size_t>(i)] = static_cast<Parameter>(i);
 
     return parameters;
   }
@@ -93,8 +71,7 @@ public:
   static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t);
 };
 
-class SimplePatch
-{
+class SimplePatch {
 public:
   static constexpr int kNumOscillators = 100;
   using OscillatorArray = std::array<OscillatorSettings, kNumOscillators>;
@@ -122,14 +99,12 @@ private:
   OscillatorArray mOscillatorSettings{};
 };
 
-class CompoundPatch
-{
+class CompoundPatch {
 public:
   using KeyNotePatch = std::pair<int, SimplePatch>;
   using OscillatorParameterValues = std::array<double, SimplePatch::kNumOscillators>;
 
-  struct ResolvedNoteSpan
-  {
+  struct ResolvedNoteSpan {
     const SimplePatch* lowerPatch{nullptr};
     const SimplePatch* upperPatch{nullptr};
     const EqCurve* lowerEqCurve{nullptr};
@@ -160,19 +135,12 @@ public:
   double EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const;
 
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
-  bool SetKeyNoteOscillatorParameter(double midiNote,
-                                     int oscillatorIndex,
-                                     OscillatorSettings::Parameter parameter,
-                                     double value);
-  bool SetKeyNoteOscillatorParameterValues(
-    double midiNote,
-    OscillatorSettings::Parameter parameter,
-    const std::array<double, SimplePatch::kNumOscillators>& values);
+  bool SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
+  bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
+                                           const std::array<double, SimplePatch::kNumOscillators>& values);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
-  void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter,
-                             bool enabled,
-                             double sourceMidiNote = kMinMidiNote);
+  void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
   bool RemoveKeyNotePatch(int midiNote);
@@ -183,9 +151,7 @@ private:
   static int RoundAndClampMidiNote(double midiNote);
   static std::size_t ParameterIndex(OscillatorSettings::Parameter parameter);
   void ApplyAllKeyNotesValues(SimplePatch& patch) const;
-  void ApplyAllKeyNotesValues(SimplePatch& patch,
-                              OscillatorSettings::Parameter parameter,
-                              const OscillatorParameterValues& values) const;
+  void ApplyAllKeyNotesValues(SimplePatch& patch, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) const;
   const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
   void SetAllKeyNoteEqCurves(const EqCurve& curve);
 
