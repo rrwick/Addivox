@@ -40,11 +40,11 @@
 					<key>sandboxSafe</key>
 					<true/>
 					<key>subtype</key>
-					<string>AdWS</string>
+					<string>Advx</string>
 					<key>tags</key>
 					<array>
 						<string>Synth</string>
-						<string>size:{1000,550}</string>
+						<string>size:{1000,750}</string>
 					</array>
 					<key>type</key>
 					<string>aumu</string>
