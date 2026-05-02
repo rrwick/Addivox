@@ -21,6 +21,7 @@
 		C0D300000000000000000108 /* chorus.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0D300000000000000000008 /* chorus.cpp */; };
 		C0D300000000000000000110 /* tone.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0D300000000000000000010 /* tone.cpp */; };
 		4F32AE7D231431BD00710734 /* AUv3Framework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA61F6E22E899B500A92C58 /* AUv3Framework.framework */; };
+		4F32AE7E231431BD00710734 /* CoreMIDI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F32AE7F231431BD00710734 /* CoreMIDI.framework */; };
 		4F3E0F6A20A0BCD900A9C2BE /* Addivox-iOS.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F3E0F6720A0BC5B00A9C2BE /* Addivox-iOS.storyboard */; };
 		4F3E0F6B20A0BCE300A9C2BE /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F3E0F6820A0BCAF00A9C2BE /* Images.xcassets */; };
 		4FA61F6822E8996C00A92C58 /* IPlugAUv3Appex.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FA61F6722E8996C00A92C58 /* IPlugAUv3Appex.m */; };
@@ -209,8 +210,8 @@
 		4FDF6D742267CE540007B686 /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		4FDF6D752267CE540007B686 /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		4FDF6D762267CE540007B686 /* AppViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppViewController.h; sourceTree = "<group>"; };
-		4FDF6D7D2267CEBA0007B686 /* IPlugAUPlayer.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = IPlugAUPlayer.mm; sourceTree = "<group>"; };
-		4FDF6D7E2267CEBA0007B686 /* IPlugAUPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IPlugAUPlayer.h; sourceTree = "<group>"; };
+		4FDF6D7D2267CEBA0007B686 /* IPlugAUPlayer.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = IPlugAUPlayer.mm; path = ../src/ios/IPlugAUPlayer.mm; sourceTree = SOURCE_ROOT; };
+		4FDF6D7E2267CEBA0007B686 /* IPlugAUPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IPlugAUPlayer.h; path = ../src/ios/IPlugAUPlayer.h; sourceTree = SOURCE_ROOT; };
 		4FE8F3AF20BA273800BF938F /* IGraphicsEditorDelegate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsEditorDelegate.cpp; sourceTree = "<group>"; };
 		4FE8F3B020BA273800BF938F /* IGraphicsEditorDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IGraphicsEditorDelegate.h; sourceTree = "<group>"; };
 		4FF3204920B2BC4C00269268 /* IPlugPaths.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = IPlugPaths.h; path = ../../iPlug2/IPlug/IPlugPaths.h; sourceTree = "<group>"; };
@@ -253,6 +254,7 @@
 		4FFF108420A1036200D3092F /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = config.h; path = ../config.h; sourceTree = "<group>"; };
 		4FFF108720A1036200D3092F /* plugin.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = plugin.cpp; path = ../src/plugin.cpp; sourceTree = SOURCE_ROOT; };
 		4FFF108820A1036200D3092F /* plugin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = plugin.h; path = ../src/plugin.h; sourceTree = SOURCE_ROOT; };
+		4F32AE7F231431BD00710734 /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
 		91236D0D1B08F42B00734C5E /* Addivox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Addivox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		91236D771B08F59300734C5E /* AddivoxAppExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AddivoxAppExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -269,6 +271,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4F32AE7E231431BD00710734 /* CoreMIDI.framework in Frameworks */,
 				4FA61F7522E899B500A92C58 /* AUv3Framework.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -287,6 +290,7 @@
 		4F3E0F9B20A0C64100A9C2BE /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				4F32AE7F231431BD00710734 /* CoreMIDI.framework */,
 				4F63697420A463AF0022C370 /* IGraphics */,
 				4FFF102E20A0E54400D3092F /* IPlug */,
 				4FFF102F20A0E54C00D3092F /* WDL */,
