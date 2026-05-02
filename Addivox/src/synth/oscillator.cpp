@@ -203,20 +203,24 @@ std::array<iplug::sample, 2> Oscillator::Process()
   const double pitchStep = std::min(std::abs(pitchDelta), mPitchRatePerSample);
   mPitch += std::copysign(pitchStep, pitchDelta);
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
-  UpdatePhaseIncrement(frequencyHz);
+  mPhaseIncrement = frequencyHz * mInverseSampleRate;  // inlined UpdatePhaseIncrement
 
   if(mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon)
     mLevel = 0.0;
 
-  const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * mPhase) * mLevel);
-
+  const double phase = mPhase;
   mPhase += mPhaseIncrement;
   if(mPhase >= 1.0)
     mPhase -= std::floor(mPhase);
 
-  // Deactivate oscillator if frequency is out of range - prevents aliasing
-  if(frequencyHz > mSampleRate * 0.5 || frequencyHz < kMinFrequencyHz)
+  if(mLevel == 0.0)
     return {0.0, 0.0};
+
+  // Deactivate oscillator if frequency is out of range - prevents aliasing
+  if(frequencyHz > mSampleRate * 0.5)
+    return {0.0, 0.0};
+
+  const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * phase) * mLevel);
 
   return {
     out * static_cast<iplug::sample>(mPanLeftGain),
