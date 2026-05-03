@@ -13,6 +13,9 @@
 
 #include "audio_midi_settings_ios.h"
 #include "config.h"
+#include "../settings/params.h"
+
+#include <cmath>
 
 #if !__has_feature(objc_arc)
 #error This file must be compiled with Arc. Use -fobjc-arc flag
@@ -28,6 +31,7 @@ static bool isInstrument()
 }
 
 @interface IPlugAUPlayer ()
+- (void)applyStandaloneParameterDefaults;
 - (void)connectMIDISources;
 - (void)handleMIDIPacketList:(const MIDIPacketList*)packetList;
 - (void)onAudioSettingsChanged:(NSNotification*)notification;
@@ -35,6 +39,8 @@ static bool isInstrument()
 
 namespace {
 NSString* const kAudioSettingsChangedNotification = @"AddivoxAudioSettingsChanged";
+constexpr AUValue kPluginDefaultReverb = 0.f;
+constexpr AUValue kIOSStandaloneDefaultReverb = 50.f;
 }
 
 static void MIDIReadCallback(const MIDIPacketList* packetList, void* readProcRefCon, void* srcConnRefCon)
@@ -96,6 +102,7 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   [engine attachNode:avAudioUnit];
 
   self.currentAudioUnit = avAudioUnit.AUAudioUnit;
+  [self applyStandaloneParameterDefaults];
   [self startMIDIInput];
 
   [self setupSession];
@@ -121,6 +128,20 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   }
 
   completionBlock();
+}
+
+- (void)applyStandaloneParameterDefaults
+{
+  AUParameterTree* parameterTree = self.currentAudioUnit.parameterTree;
+  if (parameterTree == nil)
+    return;
+
+  AUParameter* reverbParameter = [parameterTree parameterWithAddress:kParamEffectsReverb];
+  if (reverbParameter == nil)
+    return;
+
+  if (std::fabs(reverbParameter.value - kPluginDefaultReverb) <= 0.001f)
+    [reverbParameter setValue:kIOSStandaloneDefaultReverb originator:nil];
 }
 
 - (void)dealloc
