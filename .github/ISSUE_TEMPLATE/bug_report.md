@@ -1,0 +1,37 @@
+---
+name: Bug report
+about: Create a report to help us improve
+title: ''
+labels: ''
+assignees: ''
+
+---
+
+**Describe the bug**
+What went wrong?
+
+**To reproduce**
+Steps to reproduce:
+1. 
+2. 
+3. 
+
+**Expected behavior**
+What did you expect to happen?
+
+**System**
+- OS:
+- Addivox version:
+- Format: [Standalone / AU / VST3 / CLAP / AAX / iOS AUv3]
+- DAW and version, if using Addivox as a plugin:
+- Audio/MIDI device, if relevant:
+- Wind controller, if relevant:
+
+**Patch / settings**
+If the issue depends on a patch, please attach the patch TOML file or describe the patch/settings used.
+
+**Screenshots or audio**
+Add screenshots, screen recordings, crash logs, or short audio examples if they help explain the issue.
+
+**Additional context**
+Anything else that might help reproduce or understand the problem.
