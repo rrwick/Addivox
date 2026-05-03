@@ -290,28 +290,25 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 - (void)setupSession
 {
   AVAudioSession* session = [AVAudioSession sharedInstance];
+
   NSError* error = nil;
-
-  AVAudioSessionCategoryOptions options = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothHFP;
-  [session setCategory:isInstrument() ? AVAudioSessionCategoryPlayback : AVAudioSessionCategoryPlayAndRecord withOptions:options error:&error];
-
-  if (error)
+  const AVAudioSessionCategory category = isInstrument() ? AVAudioSessionCategoryPlayback : AVAudioSessionCategoryPlayAndRecord;
+  const AVAudioSessionCategoryOptions options = isInstrument() ? 0 : (AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothHFP);
+  if (![session setCategory:category withOptions:options error:&error])
   {
     NSLog(@"Error setting category: %@", error);
   }
 
   const int preferredSampleRate = addivox_standalone::GetPreferredSampleRate();
-  [session setPreferredSampleRate:preferredSampleRate error:&error];
-
-  if (error)
+  error = nil;
+  if (![session setPreferredSampleRate:preferredSampleRate error:&error])
   {
     NSLog(@"Error setting samplerate: %@", error);
   }
 
   const int preferredBufferSize = addivox_standalone::GetPreferredBufferSize();
-  [session setPreferredIOBufferDuration:static_cast<double>(preferredBufferSize) / static_cast<double>(preferredSampleRate) error:&error];
-
-  if (error)
+  error = nil;
+  if (![session setPreferredIOBufferDuration:static_cast<double>(preferredBufferSize) / static_cast<double>(preferredSampleRate) error:&error])
   {
     NSLog(@"Error setting io buffer duration: %@", error);
   }

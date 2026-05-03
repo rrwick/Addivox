@@ -2,8 +2,8 @@
 
 namespace addivox_standalone {
 
-inline constexpr int kIOSAudioSettingsSampleRates[] = {44100, 48000, 88200, 96000};
-inline constexpr int kIOSAudioSettingsBufferSizes[] = {32, 64, 96, 128, 192, 256, 512, 1024, 2048, 4096, 8192};
+inline constexpr int kIOSAudioSettingsSampleRates[] = {44100, 48000};
+inline constexpr int kIOSAudioSettingsBufferSizes[] = {32, 64, 96, 128, 192, 256, 512, 1024, 2048, 4096};
 
 bool IsAudioMidiSettingsMenuAvailable();
 

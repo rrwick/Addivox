@@ -245,7 +245,7 @@ private:
 #if defined OS_IOS
   static constexpr const char* kIOSAudioMidiSettingsMenuLabel = "Audio & MIDI Settings";
 #endif
-  static constexpr const char* kResetToDefaultsMenuLabel = "Reset Synth Settings to Defaults...";
+  static constexpr const char* kResetToDefaultsMenuLabel = "Reset Synth Settings to Defaults";
 };
 
 inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<editor::EditorContext>& context, int aboutBoxTag) {
