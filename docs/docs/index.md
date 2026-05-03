@@ -1,17 +1,24 @@
-# Addivox
+<style>
+.md-content h1:first-of-type {
+  display: none;
+}
+</style>
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+# Addivox documentation
 
-## Commands
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+<p align="center"><img src="assets/main-ui.png" alt="Addivox main UI" style="width: 100%;"></p>
 
-## Project layout
+**Addivox** is an additive synthesizer for wind controllers. Key features include:
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+- Additive synthesis, creating sounds by summing harmonics.
+- Monosynth, plays one note at a time.
+- Per-harmonic controls over level, breath response, attack, release, pitch, pan and more.
+- Designed specifically for wind controllers.
+- EQ shaping to create formants.
+- Built-in effects.
+- Available for macOS, iOS and Windows.
+- Can run as a standalone instrument or as a plugin in a DAW.
+- Built using the [iPlug2](https://iplug2.github.io/) framework.
+
+Check out the [Videos](videos.md) page for some demonstrations and tutorials. You can also download a [Demo version](demo.md) of Addivox to try. If you like it, head over to [Purchasing](purchasing.md) to buy Addivox.

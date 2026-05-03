@@ -2,3 +2,37 @@ site_name: Addivox
 
 theme:
   name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+extra_css:
+  - assets/custom.css
+
+nav:
+  - Home: index.md
+  - Demo version: demo.md
+  - Purchasing: purchasing.md
+  - Using Addivox:
+      - Main UI: main-ui.md
+      - EQ: eq.md
+      - Per-harmonic settings: per-harmonic-settings.md
+      - Key notes and interpolation: key-notes-and-interpolation.md
+      - Global settings: global-settings.md
+      - Pitch settings: pitch-settings.md
+      - Effects: effects.md
+      - Custom patches: custom-patches.md
+  - Support:
+      - Videos: videos.md
+      - FAQ and miscellaneous tips: faq-and-miscellaneous-tips.md
+      - Support and feedback: support_and_feedback.md
+      - License: license.md
