@@ -16,6 +16,7 @@ enum class EditorOscillatorEditScope { All, Even, Odd };
 struct EditorState {
   CompoundPatch compoundPatch{};
   BreathCCSource breathCCSource{kDefaultBreathCCSource};
+  int pitchBendRange{2};
   bool harmonicVisualizerEnabled{true};
   int selectedMidiNote{60};
   bool editMode{false};

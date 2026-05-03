@@ -91,9 +91,9 @@ inline std::vector<OutMeterLEDRange> MakeOutputMeterLEDRanges() {
 class SettingsMenuButton final : public IVButtonControl {
 public:
   SettingsMenuButton(const IRECT& bounds, const ISVG& gearIcon, const std::shared_ptr<BreathCCSource>& breathCCSource,
-                     const std::shared_ptr<bool>& harmonicVisualizerEnabled)
+                     const std::shared_ptr<int>& pitchBendRange, const std::shared_ptr<bool>& harmonicVisualizerEnabled)
       : IVButtonControl(bounds, EmptyClickActionFunc, "", theme::AboutIconButtonStyle(), false, false, EVShape::Ellipse), mGearIcon(gearIcon),
-        mBreathCCSource(breathCCSource), mHarmonicVisualizerEnabled(harmonicVisualizerEnabled) {
+        mBreathCCSource(breathCCSource), mPitchBendRange(pitchBendRange), mHarmonicVisualizerEnabled(harmonicVisualizerEnabled) {
     SetTooltip("Settings");
     SetActionFunction(MakeImmediateButtonAction([this](IControl*) { OpenMenu(); }));
   }
@@ -141,6 +141,16 @@ public:
             const editor_messages::SetBreathCCSourcePayload payload{static_cast<int>(selectedSource)};
             delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetBreathCCSource, GetTag(), sizeof(payload), &payload);
           }
+        } else {
+          int selectedPitchBendRange = 2;
+          if (TryParsePitchBendRangeMenuLabel(selectedText, selectedPitchBendRange)) {
+            if (mPitchBendRange) *mPitchBendRange = selectedPitchBendRange;
+
+            if (auto* delegate = GetDelegate()) {
+              const editor_messages::SetPitchBendRangePayload payload{selectedPitchBendRange};
+              delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetPitchBendRange, GetTag(), sizeof(payload), &payload);
+            }
+          }
         }
       }
     }
@@ -177,6 +187,15 @@ private:
     }
 
     mMenu.AddItem("Breath CC", breathMenu);
+
+    auto* pitchBendRangeMenu = new IPopupMenu("Pitch Bend Range");
+    const int currentPitchBendRange = mPitchBendRange ? *mPitchBendRange : 2;
+    for (const PitchBendRangeMenuItem& item : kPitchBendRangeMenuItems) {
+      const int flags = (item.semitones == currentPitchBendRange) ? IPopupMenu::Item::kChecked : 0;
+      pitchBendRangeMenu->AddItem(item.label, -1, flags);
+    }
+
+    mMenu.AddItem("Pitch Bend Range", pitchBendRangeMenu);
     mMenu.AddSeparator();
 #if defined APP_API && !defined OS_IOS
     mMenu.AddItem(kMacAudioMidiSettingsMenuLabel);
@@ -236,9 +255,16 @@ private:
   IPopupMenu mMenu{"Settings"};
   ISVG mGearIcon;
   std::shared_ptr<BreathCCSource> mBreathCCSource;
+  std::shared_ptr<int> mPitchBendRange;
   std::shared_ptr<bool> mHarmonicVisualizerEnabled;
 
+  struct PitchBendRangeMenuItem {
+    const char* label;
+    int semitones;
+  };
+
   static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer Enabled";
+  static constexpr PitchBendRangeMenuItem kPitchBendRangeMenuItems[] = {{"1 semitone", 1}, {"2 semitones", 2}, {"Fifth", 7}, {"Octave", 12}};
 #if defined APP_API && !defined OS_IOS
   static constexpr const char* kMacAudioMidiSettingsMenuLabel = "Audio & MIDI Settings...";
 #endif
@@ -246,13 +272,26 @@ private:
   static constexpr const char* kIOSAudioMidiSettingsMenuLabel = "Audio & MIDI Settings";
 #endif
   static constexpr const char* kResetToDefaultsMenuLabel = "Reset Synth Settings to Defaults";
+
+  static bool TryParsePitchBendRangeMenuLabel(const char* label, int& semitones) {
+    if (!label) return false;
+
+    for (const PitchBendRangeMenuItem& item : kPitchBendRangeMenuItems) {
+      if (std::strcmp(label, item.label) == 0) {
+        semitones = item.semitones;
+        return true;
+      }
+    }
+
+    return false;
+  }
 };
 
 inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<editor::EditorContext>& context, int aboutBoxTag) {
   auto* patchManagerControl = new PatchManagerControl(positions::kPatchManager, "", theme::PatchManagerStyle());
 
   auto* settingsButton = new SettingsMenuButton(positions::kSettingsButton, pGraphics->LoadSVG("gear.svg"), context->model.breathCCSource,
-                                                context->model.harmonicVisualizerEnabled);
+                                                context->model.pitchBendRange, context->model.harmonicVisualizerEnabled);
 
   auto* aboutButton =
       new IVButtonControl(positions::kAboutButton, MakeImmediateButtonAction([pGraphics, aboutBoxTag](IControl*) { ShowAboutBox(pGraphics, aboutBoxTag); }),

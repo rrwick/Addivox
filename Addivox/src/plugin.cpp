@@ -905,6 +905,7 @@ void Addivox::SetPitchBendRange(int pitchBendRange) {
   const int sanitizedPitchBendRange = SanitizePitchBendRange(pitchBendRange);
   const bool changed = sanitizedPitchBendRange != mPitchBendRange;
   mPitchBendRange = sanitizedPitchBendRange;
+  if (mEditorState) mEditorState->pitchBendRange = mPitchBendRange;
 
 #if IPLUG_DSP
   mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
@@ -1368,6 +1369,12 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   if (msgTag == editor_messages::kMsgTagSetBreathCCSource && dataSize == sizeof(editor_messages::SetBreathCCSourcePayload) && pData) {
     const auto* payload = static_cast<const editor_messages::SetBreathCCSourcePayload*>(pData);
     SetBreathCCSource(SanitizeBreathCCSource(payload->source));
+    return true;
+  }
+
+  if (msgTag == editor_messages::kMsgTagSetPitchBendRange && dataSize == sizeof(editor_messages::SetPitchBendRangePayload) && pData) {
+    const auto* payload = static_cast<const editor_messages::SetPitchBendRangePayload*>(pData);
+    SetPitchBendRange(payload->semitones);
     return true;
   }
 
@@ -1883,6 +1890,7 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates) {
 
 void Addivox::SyncPitchBendRangeUI() {
 #if IPLUG_EDITOR
+  if (mEditorState) mEditorState->pitchBendRange = mPitchBendRange;
   if (!GetUI()) return;
 
   if (auto* control = GetUI()->GetControlWithTag(kCtrlTagBender)) {
