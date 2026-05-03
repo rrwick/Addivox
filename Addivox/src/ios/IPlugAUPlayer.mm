@@ -11,7 +11,7 @@
 
 #import <CoreMIDI/CoreMIDI.h>
 
-#include "IPlugConstants.h"
+#include "audio_midi_settings_ios.h"
 #include "config.h"
 
 #if !__has_feature(objc_arc)
@@ -30,7 +30,12 @@ static bool isInstrument()
 @interface IPlugAUPlayer ()
 - (void)connectMIDISources;
 - (void)handleMIDIPacketList:(const MIDIPacketList*)packetList;
+- (void)onAudioSettingsChanged:(NSNotification*)notification;
 @end
+
+namespace {
+NSString* const kAudioSettingsChangedNotification = @"AddivoxAudioSettingsChanged";
+}
 
 static void MIDIReadCallback(const MIDIPacketList* packetList, void* readProcRefCon, void* srcConnRefCon)
 {
@@ -287,7 +292,7 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   AVAudioSession* session = [AVAudioSession sharedInstance];
   NSError* error = nil;
 
-  AVAudioSessionCategoryOptions options = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth;
+  AVAudioSessionCategoryOptions options = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothHFP;
   [session setCategory:isInstrument() ? AVAudioSessionCategoryPlayback : AVAudioSessionCategoryPlayAndRecord withOptions:options error:&error];
 
   if (error)
@@ -295,14 +300,16 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
     NSLog(@"Error setting category: %@", error);
   }
 
-  [session setPreferredSampleRate:iplug::DEFAULT_SAMPLE_RATE error:&error];
+  const int preferredSampleRate = addivox_standalone::GetPreferredSampleRate();
+  [session setPreferredSampleRate:preferredSampleRate error:&error];
 
   if (error)
   {
     NSLog(@"Error setting samplerate: %@", error);
   }
 
-  [session setPreferredIOBufferDuration:128.0 / iplug::DEFAULT_SAMPLE_RATE error:&error];
+  const int preferredBufferSize = addivox_standalone::GetPreferredBufferSize();
+  [session setPreferredIOBufferDuration:static_cast<double>(preferredBufferSize) / static_cast<double>(preferredSampleRate) error:&error];
 
   if (error)
   {
@@ -397,11 +404,18 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   NSNotificationCenter* notifCtr = [NSNotificationCenter defaultCenter];
 
   [notifCtr addObserver:self selector:@selector(onEngineConfigurationChange:) name:AVAudioEngineConfigurationChangeNotification object:engine];
+  [notifCtr addObserver:self selector:@selector(onAudioSettingsChanged:) name:kAudioSettingsChangedNotification object:nil];
 }
 
 #pragma mark Notifications
 - (void)onEngineConfigurationChange:(NSNotification*)notification
 {
+  [self restartAudioEngine];
+}
+
+- (void)onAudioSettingsChanged:(NSNotification*)notification
+{
+  [self setupSession];
   [self restartAudioEngine];
 }
 
