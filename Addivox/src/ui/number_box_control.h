@@ -39,6 +39,12 @@ public:
     AddChildControl(mIncrementButton);
     AddChildControl(mDecrementButton);
 
+    if (IsDisabled()) {
+      mNumberBox->SetDisabled(true);
+      mIncrementButton->SetDisabled(true);
+      mDecrementButton->SetDisabled(true);
+    }
+
     if (mTooltip.GetLength() > 0) SetTooltip(mTooltip.Get());
 
     OnResize();
@@ -69,17 +75,23 @@ private:
     }
 
     void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override {
+      if (IsDisabled()) return;
+
       const double gearing = IsFineControl(mod, true) ? mSmallIncrement : mLargeIncrement;
       mRealValue -= static_cast<double>(dY) * gearing;
       ApplyValueChange();
     }
 
     void OnTextEntryCompletion(const char* str, int valIdx) override {
+      if (IsDisabled()) return;
+
       mRealValue = str ? std::atof(str) : 0.0;
       ApplyValueChange();
     }
 
     void OnMouseWheel(float x, float y, const IMouseMod& mod, float d) override {
+      if (IsDisabled()) return;
+
       const double gearing = IsFineControl(mod, true) ? mSmallIncrement : mLargeIncrement;
       const double increment = (d > 0.f ? 1.0 : -1.0) * gearing;
       mRealValue += increment;

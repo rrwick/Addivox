@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>AddivoxDemoAppExtension</string>
+	<string>AddivoxAppExtension</string>
 	<key>CFBundleExecutable</key>
-	<string>AddivoxDemoAppExtension</string>
+	<string>AddivoxAppExtension</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>AddivoxDemoAppExtension</string>
+	<string>AddivoxAppExtension</string>
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
@@ -30,13 +30,13 @@
 			<array>
 				<dict>
 					<key>description</key>
-					<string>Addivox Demo</string>
+					<string>Addivox</string>
 					<key>factoryFunction</key>
 					<string>IPlugAUViewController_vAddivox</string>
 					<key>manufacturer</key>
 					<string>RWic</string>
 					<key>name</key>
-					<string>rrwick: Addivox Demo</string>
+					<string>rrwick: Addivox</string>
 					<key>sandboxSafe</key>
 					<true/>
 					<key>subtype</key>

@@ -6,13 +6,13 @@
 	<array>
 		<dict>
 			<key>description</key>
-			<string>Addivox Demo</string>
+			<string>Addivox</string>
 			<key>factoryFunction</key>
 			<string>Addivox_Factory</string>
 			<key>manufacturer</key>
 			<string>RWic</string>
 			<key>name</key>
-			<string>rrwick: Addivox Demo</string>
+			<string>rrwick: Addivox</string>
 			<key>sandboxSafe</key>
 			<true/>
 			<key>subtype</key>
@@ -28,15 +28,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>AddivoxDemo</string>
+	<string>Addivox</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AddivoxDemo v1.0.0 copyright 2026 Ryan Wick</string>
+	<string>Addivox v1.0.0 copyright 2026 Ryan Wick</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.rrwick.audiounit.AddivoxDemo</string>
+	<string>com.rrwick.audiounit.Addivox</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>AddivoxDemo</string>
+	<string>Addivox</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
