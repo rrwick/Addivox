@@ -68,6 +68,7 @@ inline const IRECT           kAboutUrlRow = IRECT::MakeXYWH(  0, 210, 920,  24);
 inline const IRECT          kAboutVersion = IRECT::MakeXYWH(  0, 240, 920,  24);
 inline const IRECT        kAboutCopyright = IRECT::MakeXYWH(  0, 270, 920,  24);
 inline const IRECT        kAboutBuiltWith = IRECT::MakeXYWH(  0, 300, 920,  24);
+inline const IRECT         kAboutDemoText = IRECT::MakeXYWH(  0, 330, 920,  24);
 
 } // namespace positions
 } // namespace plugin_ui

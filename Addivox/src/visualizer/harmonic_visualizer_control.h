@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../demo_mode.h"
 #include "../ui/colour.h"
 #include "../ui/transformations.h"
 #include "IControl.h"
@@ -83,6 +84,10 @@ public:
 
     for (std::size_t i = 0; i < kAxisLabelFrequenciesHz.size(); ++i)
       DrawFrequencyLabel(g, labelText, kAxisLabelStrings[i], kAxisLabelFrequenciesHz[i], labelArea, barPlot, xMapping);
+
+#if ADDIVOX_DEMO
+    DrawDemoModeMessage(g, plot);
+#endif
   }
 
   void OnMsgFromDelegate(int msgTag, int dataSize, const void* pData) override {
@@ -209,6 +214,19 @@ private:
     const IRECT labelBounds{x - (kLabelWidth * 0.5f), labelArea.T, x + (kLabelWidth * 0.5f), labelArea.B};
 
     g.DrawText(text, label, labelBounds, nullptr);
+  }
+
+  static void DrawDemoModeMessage(IGraphics& g, const IRECT& bounds) {
+    constexpr float kTitleHeight = 130.f;
+    constexpr float kBodyHeight = 55.f;
+    const IRECT messageBounds = bounds.GetCentredInside(bounds.W(), kTitleHeight + kBodyHeight + 8.f);
+    const IRECT titleBounds{messageBounds.L, messageBounds.T, messageBounds.R, messageBounds.T + kTitleHeight};
+    const IRECT bodyBounds{messageBounds.L, titleBounds.B + 8.f, messageBounds.R, titleBounds.B + 8.f + kBodyHeight};
+    const IText titleText{120.f, plugin_ui::colour::ui::kDemoModeText, "Roboto-Black", EAlign::Center, EVAlign::Middle};
+    const IText bodyText{45.f, plugin_ui::colour::ui::kDemoModeText, "Roboto-Bold", EAlign::Center, EVAlign::Middle};
+
+    g.DrawText(titleText, addivox_demo::kVisualizerTitle, titleBounds, nullptr);
+    g.DrawText(bodyText, addivox_demo::kLimitationsText, bodyBounds, nullptr);
   }
 
   static constexpr float kMinFrequencyHzX = 18.f;

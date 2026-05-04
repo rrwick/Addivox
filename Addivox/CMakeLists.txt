@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 project(Addivox VERSION 1.0.0)
 
+option(ADDIVOX_DEMO "Build the Addivox demo version" OFF)
+
 if(NOT DEFINED IPLUG2_DIR)
   set(IPLUG2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." CACHE PATH "iPlug2 root directory")
 endif()
@@ -12,6 +14,7 @@ file(GLOB BUILTIN_PATCH_RESOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/factory_patches/*.toml")
 
 set(ADDIVOX_COMMON_SOURCES
+  src/demo_mode.h
   src/synth/voice.cpp
   src/synth/voice.h
   src/synth/oscillator.cpp
@@ -84,9 +87,11 @@ if(APPLE AND NOT IOS)
   )
 
   set_target_properties(addivox-cli PROPERTIES
-    OUTPUT_NAME addivox
+    OUTPUT_NAME $<IF:$<BOOL:${ADDIVOX_DEMO}>,addivox-demo,addivox>
     CXX_STANDARD ${IPLUG2_CXX_STANDARD}
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
   )
+
+  target_compile_definitions(addivox-cli PRIVATE ADDIVOX_DEMO=$<IF:$<BOOL:${ADDIVOX_DEMO}>,1,0>)
 endif()

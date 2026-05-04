@@ -54,6 +54,10 @@ def main():
        copy_resources_to_destination(projectpath, dst)
 
   config = parse_config(projectpath)
+  resource_bundle_name = config['BUNDLE_NAME']
+  if os.environ.get('ADDIVOX_DEMO', '').lower() in ('1', 'yes', 'true', 'on'):
+    config['PLUG_NAME'] = 'Addivox Demo'
+    config['BUNDLE_NAME'] = 'AddivoxDemo'
   xcconfig = parse_xcconfig(os.path.join(os.getcwd(), IPLUG2_ROOT +  '/common-ios.xcconfig'))
 
   CFBundleGetInfoString = config['BUNDLE_NAME'] + " v" + config['FULL_VER_STR'] + " " + config['PLUG_COPYRIGHT_STR']
@@ -81,7 +85,7 @@ def main():
   else:
     NSEXTENSIONPOINTIDENTIFIER  = "com.apple.AudioUnit"
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-iOS-AUv3-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-iOS-AUv3-Info.plist"
   
   NSEXTENSIONATTRDICT = dict(
     NSExtensionAttributes = dict(AudioComponents = [{}]),
@@ -115,7 +119,7 @@ def main():
   if config['PLUG_HAS_UI'] == 1:
     auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'][0]['tags'][1] = "size:{" + str(config['PLUG_WIDTH']) + "," + str(config['PLUG_HEIGHT']) + "}"
     auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'][0]['factoryFunction'] = "IPlugAUViewController_vAddivox"
-    auv3['NSExtension']['NSExtensionMainStoryboard'] = config['BUNDLE_NAME'] + "-iOS-MainInterface"
+    auv3['NSExtension']['NSExtensionMainStoryboard'] = resource_bundle_name + "-iOS-MainInterface"
   else:
     auv3['NSExtension']['NSExtensionPrincipalClass'] = "IPlugAUViewController_vAddivox"
 
@@ -124,7 +128,7 @@ def main():
     plistlib.dump(auv3, fp)
 # Standalone APP
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-iOS-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-iOS-Info.plist"
   with open(plistpath, 'rb') as fp:
     iOSapp = plistlib.load(fp)
   iOSapp['CFBundleExecutable'] = config['BUNDLE_NAME']

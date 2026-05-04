@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../demo_mode.h"
 #include "../settings/params.h"
 #include "IControls.h"
 #include "about_built_with_control.h"
@@ -352,6 +353,9 @@ inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& re
                 pParent->AddChildControl(new ITextControl(IRECT(), "version " PLUG_VERSION_STR, theme::AboutMetaText(), COLOR_TRANSPARENT));
                 pParent->AddChildControl(new ITextControl(IRECT(), PLUG_COPYRIGHT_STR, theme::AboutMetaText(), COLOR_TRANSPARENT));
                 pParent->AddChildControl(new AboutBuiltWithControl(IRECT(), "https://iplug2.github.io/"));
+#if ADDIVOX_DEMO
+                pParent->AddChildControl(new ITextControl(IRECT(), addivox_demo::kAboutText, theme::AboutMetaText(), COLOR_TRANSPARENT));
+#endif
               },
               [](IContainerBase* pParent, const IRECT& r) {
                 const IRECT content = r.GetCentredInside(positions::kAboutContent.W(), positions::kAboutContent.H());
@@ -371,6 +375,10 @@ inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& re
                                                                             positions::kAboutCopyright.W(), positions::kAboutCopyright.H()));
                 pParent->GetChild(5)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutBuiltWith.L, content.T + positions::kAboutBuiltWith.T,
                                                                             positions::kAboutBuiltWith.W(), positions::kAboutBuiltWith.H()));
+#if ADDIVOX_DEMO
+                pParent->GetChild(6)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutDemoText.L, content.T + positions::kAboutDemoText.T,
+                                                                            positions::kAboutDemoText.W(), positions::kAboutDemoText.H()));
+#endif
               },
               180),
           aboutBoxTag)
@@ -456,6 +464,9 @@ inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& reso
   AttachPassiveSectionLabel(pGraphics, positions::kPitchLabel, "PITCH");
   AttachPassiveText(pGraphics, positions::kTransposeLabel, "Transpose", resources.compactLabelText, help_text::main_ui::kTranspose);
   auto* transposeControl = new NumberBoxControl(positions::kTransposeNumberBox, kParamTranspose, resources.numberBoxStyle, 0.0, -36.0, 36.0, "%+0.0f");
+#if ADDIVOX_DEMO
+  transposeControl->SetDisabled(true);
+#endif
   pGraphics->AttachControl(transposeControl);
   transposeControl->SetTooltip(help_text::main_ui::kTranspose);
 

@@ -94,6 +94,10 @@ void SynthVoice::SetPortamentoControl(double control) {
 }
 
 void SynthVoice::SetTransposeSemitones(double transposeSemitones) {
+#if ADDIVOX_DEMO
+  transposeSemitones = 0.0;
+#endif
+
   const double clampedTransposeSemitones = std::clamp(std::round(transposeSemitones), -36.0, 36.0);
   if (clampedTransposeSemitones == mTransposeSemitones) return;
 

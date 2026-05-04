@@ -2220,7 +2220,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ -d $APP_PATH/Addivox.app ]; then\n  pluginkit -a $APP_PATH/Addivox.app/Contents/PlugIns/Addivox.appex\n  echo \"Force register auv3\"\nelse\n  echo \"App path doesn't exist yet, cant force register auv3\"\nfi\n";
+			shellScript = "APP_BUNDLE=\"$APP_PATH/$BINARY_NAME.app\"\nAPPEX_BUNDLE=\"$APP_BUNDLE/Contents/PlugIns/Addivox.appex\"\n\nif [ -d \"$APP_BUNDLE\" ] && [ -d \"$APPEX_BUNDLE\" ]; then\n  pluginkit -a \"$APPEX_BUNDLE\"\n  echo \"Force register auv3\"\nelse\n  echo \"App path doesn't exist yet, cant force register auv3\"\nfi\n";
 		};
 		4F3EE1BD231438D000004786 /* Run Script - prepare_resources-mac.py */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3035,7 +3035,8 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = YES;
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.rrwick.app.Addivox.AUv3;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rrwick.app.${BINARY_NAME}.AUv3";
+				PRODUCT_NAME = Addivox;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -3079,7 +3080,8 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.rrwick.app.Addivox.AUv3;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rrwick.app.${BINARY_NAME}.AUv3";
+				PRODUCT_NAME = Addivox;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -3123,7 +3125,8 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_LDFLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.rrwick.app.Addivox.AUv3;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rrwick.app.${BINARY_NAME}.AUv3";
+				PRODUCT_NAME = Addivox;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -3364,7 +3367,7 @@
 					"$(EXTRA_LNK_FLAGS)",
 					"$(ALL_FRAMEWORKS)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rrwick.app.Addivox.AUv3Framework;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rrwick.app.${BINARY_NAME}.AUv3Framework";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
@@ -3427,7 +3430,7 @@
 					"$(EXTRA_LNK_FLAGS)",
 					"$(ALL_FRAMEWORKS)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rrwick.app.Addivox.AUv3Framework;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rrwick.app.${BINARY_NAME}.AUv3Framework";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
@@ -3490,7 +3493,7 @@
 					"$(EXTRA_LNK_FLAGS)",
 					"$(ALL_FRAMEWORKS)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rrwick.app.Addivox.AUv3Framework;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.rrwick.app.${BINARY_NAME}.AUv3Framework";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;

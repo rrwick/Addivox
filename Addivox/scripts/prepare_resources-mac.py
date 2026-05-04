@@ -80,8 +80,18 @@ def dump_plist_atomic(plistpath, plist):
       os.remove(tmppath)
     raise
 
+def demo_build_enabled():
+  return os.environ.get('ADDIVOX_DEMO', '').lower() in ('1', 'yes', 'true', 'on')
+
+def apply_demo_config(config):
+  if demo_build_enabled():
+    config['PLUG_NAME'] = 'Addivox Demo'
+    config['BUNDLE_NAME'] = 'AddivoxDemo'
+
 def main():
   config = parse_config(projectpath)
+  resource_bundle_name = config['BUNDLE_NAME']
+  apply_demo_config(config)
   xcconfig = parse_xcconfig(os.path.join(os.getcwd(), IPLUG2_ROOT +  '/common-mac.xcconfig'))
 
   CFBundleGetInfoString = config['BUNDLE_NAME'] + " v" + config['FULL_VER_STR'] + " " + config['PLUG_COPYRIGHT_STR']
@@ -119,7 +129,7 @@ def main():
 
 # VST3
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-VST3-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-VST3-Info.plist"
   vst3 = load_plist(plistpath)
   vst3['CFBundleExecutable'] = config['BUNDLE_NAME']
   vst3['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -135,7 +145,7 @@ def main():
   dump_plist_atomic(plistpath, vst3)
 # VST2
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-VST2-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-VST2-Info.plist"
   vst2 = load_plist(plistpath)
   vst2['CFBundleExecutable'] = config['BUNDLE_NAME']
   vst2['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -152,7 +162,7 @@ def main():
 
 # CLAP
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-CLAP-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-CLAP-Info.plist"
   clap = load_plist(plistpath)
   clap['CFBundleExecutable'] = config['BUNDLE_NAME']
   clap['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -169,7 +179,7 @@ def main():
 
 # AUDIOUNIT v2
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-AU-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-AU-Info.plist"
   auv2 = load_plist(plistpath)
   auv2['CFBundleExecutable'] = config['BUNDLE_NAME']
   auv2['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -211,7 +221,7 @@ def main():
   else:
     NSEXTENSIONPOINTIDENTIFIER  = "com.apple.AudioUnit"
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-macOS-AUv3-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-macOS-AUv3-Info.plist"
   auv3 = load_plist(plistpath)
   auv3['CFBundleExecutable'] = config['BUNDLE_NAME']
   auv3['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -247,7 +257,7 @@ def main():
   dump_plist_atomic(plistpath, auv3)
 # AAX
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-AAX-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-AAX-Info.plist"
   aax = load_plist(plistpath)
   aax['CFBundleExecutable'] = config['BUNDLE_NAME']
   aax['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -261,7 +271,7 @@ def main():
   dump_plist_atomic(plistpath, aax)
 # APP
 
-  plistpath = projectpath + "/resources/" + config['BUNDLE_NAME'] + "-macOS-Info.plist"
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-macOS-Info.plist"
   macOSapp = load_plist(plistpath)
   macOSapp['CFBundleExecutable'] = config['BUNDLE_NAME']
   macOSapp['CFBundleGetInfoString'] = CFBundleGetInfoString
@@ -274,9 +284,9 @@ def main():
   macOSapp['CFBundleSignature'] = config['PLUG_UNIQUE_ID']
   macOSapp['CSResourcesFileMapped'] = CSResourcesFileMapped
   macOSapp['NSPrincipalClass'] = "SWELLApplication"
-  macOSapp['NSMainNibFile'] = config['BUNDLE_NAME'] + "-macOS-MainMenu"
+  macOSapp['NSMainNibFile'] = resource_bundle_name + "-macOS-MainMenu"
   macOSapp['LSApplicationCategoryType'] = "public.app-category.music"
-  macOSapp['CFBundleIconFile'] = config['BUNDLE_NAME'] + ".icns"
+  macOSapp['CFBundleIconFile'] = resource_bundle_name + ".icns"
 #  macOSapp['NSMicrophoneUsageDescription'] = 	"This app needs mic access to process audio."
 
   dump_plist_atomic(plistpath, macOSapp)

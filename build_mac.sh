@@ -21,7 +21,7 @@ set -o pipefail
 #
 #   build/mac-release/logs/
 #
-# Main outputs are copied into build/dist/:
+# Main outputs are copied into build/dist/full and build/dist/demo:
 #
 #   build/dist/macos/Addivox.app
 #     Standalone macOS app bundle.
@@ -97,6 +97,7 @@ IOS_PROJECT="${PROJECT_DIR}/projects/Addivox-iOS.xcodeproj"
 BUILD_ROOT="${ROOT_DIR}/build"
 WORK_ROOT="${BUILD_ROOT}/mac-release"
 DIST_ROOT="${BUILD_ROOT}/dist"
+ACTIVE_DIST_ROOT="${DIST_ROOT}/full"
 LOG_ROOT="${WORK_ROOT}/logs"
 ARCHIVE_ROOT="${WORK_ROOT}/archives"
 XCODE_DERIVED_ROOT="${WORK_ROOT}/xcode-derived"
@@ -105,6 +106,10 @@ CMAKE_BUILD_DIR="${WORK_ROOT}/cli-cmake"
 CONFIGURATION="Release"
 INSTALL_PLUGINS=0
 CLEAN=0
+BUILD_VARIANT="full"
+BUILD_BINARY_NAME="Addivox"
+BUILD_CLI_NAME="addivox"
+ADDIVOX_DEMO_VALUE=0
 
 MAC_SCHEMES=(
   "All macOS"
@@ -211,7 +216,7 @@ require_tool() {
 copy_bundle() {
   local source_path="$1"
   local relative_path="$2"
-  local destination_path="${DIST_ROOT}/${relative_path}"
+  local destination_path="${ACTIVE_DIST_ROOT}/${relative_path}"
 
   mkdir -p "$(dirname "${destination_path}")"
   rm -rf "${destination_path}"
@@ -219,10 +224,26 @@ copy_bundle() {
   record_copied_artifact "${destination_path}"
 }
 
+copy_named_artifact_from_products_as() {
+  local platform_label="$1"
+  local products_dir="$2"
+  local source_name="$3"
+  local destination_name="$4"
+
+  [[ -d "${products_dir}" ]] || return 0
+
+  local artifact_path="${products_dir}/${source_name}"
+  if [[ -e "${artifact_path}" ]]; then
+    copy_bundle "${artifact_path}" "${platform_label}/${destination_name}"
+  else
+    record_fail "Copy ${platform_label}/${destination_name} (${artifact_path} not found)"
+  fi
+}
+
 copy_file() {
   local source_path="$1"
   local relative_path="$2"
-  local destination_path="${DIST_ROOT}/${relative_path}"
+  local destination_path="${ACTIVE_DIST_ROOT}/${relative_path}"
 
   mkdir -p "$(dirname "${destination_path}")"
   rm -f "${destination_path}"
@@ -266,31 +287,32 @@ copy_macos_scheme_artifacts() {
 
   case "${scheme}" in
     "macOS-APP")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.app"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.app"
       ;;
     "macOS-APP with AUv3")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.app" "Addivox.appex" "AUv3Framework.framework"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.app" "AUv3Framework.framework"
+      copy_named_artifact_from_products_as "macos" "${products_dir}" "Addivox.appex" "${BUILD_BINARY_NAME}.appex"
       ;;
     "macOS-AUv2")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.component"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.component"
       ;;
     "macOS-AUv3")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.appex"
+      copy_named_artifact_from_products_as "macos" "${products_dir}" "Addivox.appex" "${BUILD_BINARY_NAME}.appex"
       ;;
     "macOS-AUv3Framework")
       copy_named_artifacts_from_products "macos" "${products_dir}" "AUv3Framework.framework"
       ;;
     "macOS-VST2")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.vst"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.vst"
       ;;
     "macOS-VST3")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.vst3"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.vst3"
       ;;
     "macOS-CLAP")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.clap"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.clap"
       ;;
     "macOS-AAX")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "Addivox.aaxplugin"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.aaxplugin"
       ;;
   esac
 }
@@ -302,10 +324,11 @@ copy_ios_scheme_artifacts() {
 
   case "${scheme}" in
     "iOS-APP with AUv3")
-      copy_named_artifacts_from_products "${platform_label}" "${products_dir}" "Addivox.app" "AddivoxAppExtension.appex" "AUv3Framework.framework"
+      copy_named_artifacts_from_products "${platform_label}" "${products_dir}" "${BUILD_BINARY_NAME}.app" "AUv3Framework.framework"
+      copy_named_artifact_from_products_as "${platform_label}" "${products_dir}" "AddivoxAppExtension.appex" "${BUILD_BINARY_NAME}AppExtension.appex"
       ;;
     "iOS-AUv3")
-      copy_named_artifacts_from_products "${platform_label}" "${products_dir}" "AddivoxAppExtension.appex"
+      copy_named_artifact_from_products_as "${platform_label}" "${products_dir}" "AddivoxAppExtension.appex" "${BUILD_BINARY_NAME}AppExtension.appex"
       ;;
     "iOS-AUv3Framework")
       copy_named_artifacts_from_products "${platform_label}" "${products_dir}" "AUv3Framework.framework"
@@ -352,7 +375,7 @@ install_plugins() {
 
   while IFS= read -r -d '' bundle; do
     install_plugin_bundle "${bundle}"
-  done < <(find "${DIST_ROOT}/macos" -type d \( \
+  done < <(find "${DIST_ROOT}/full/macos" "${DIST_ROOT}/demo/macos" -type d \( \
       -name "*.component" -o \
       -name "*.vst" -o \
       -name "*.vst3" -o \
@@ -371,7 +394,8 @@ xcode_build() {
   local name="$7"
 
   run_step "${name}" "${log_file}" \
-    xcodebuild \
+    env "ADDIVOX_DEMO=${ADDIVOX_DEMO_VALUE}" \
+      xcodebuild \
       -project "${project_path}" \
       -scheme "${scheme}" \
       -configuration "${CONFIGURATION}" \
@@ -381,6 +405,9 @@ xcode_build() {
       SYMROOT="${derived_data}/Products" \
       OBJROOT="${derived_data}/Intermediates" \
       DSTROOT="${derived_data}/DSTROOT" \
+      ADDIVOX_DEMO="${ADDIVOX_DEMO_VALUE}" \
+      BINARY_NAME="${BUILD_BINARY_NAME}" \
+      GCC_PREPROCESSOR_DEFINITIONS="\$(inherited) ADDIVOX_DEMO=${ADDIVOX_DEMO_VALUE}" \
       DEPLOYMENT_LOCATION=NO \
       SKIP_INSTALL=NO \
       CODE_SIGNING_ALLOWED=NO \
@@ -400,13 +427,17 @@ xcode_archive() {
   mkdir -p "$(dirname "${archive_path}")"
 
   run_step "${name}" "${log_file}" \
-    xcodebuild \
+    env "ADDIVOX_DEMO=${ADDIVOX_DEMO_VALUE}" \
+      xcodebuild \
       -project "${project_path}" \
       -scheme "${scheme}" \
       -configuration "${CONFIGURATION}" \
       -destination "${destination}" \
       -derivedDataPath "${derived_data}" \
       -archivePath "${archive_path}" \
+      ADDIVOX_DEMO="${ADDIVOX_DEMO_VALUE}" \
+      BINARY_NAME="${BUILD_BINARY_NAME}" \
+      GCC_PREPROCESSOR_DEFINITIONS="\$(inherited) ADDIVOX_DEMO=${ADDIVOX_DEMO_VALUE}" \
       SKIP_INSTALL=NO \
       DEPLOYMENT_POSTPROCESSING=NO \
       STRIP_INSTALLED_PRODUCT=NO \
@@ -416,7 +447,7 @@ xcode_archive() {
 }
 
 build_macos() {
-  local derived_data="${XCODE_DERIVED_ROOT}/macos"
+  local derived_data="${XCODE_DERIVED_ROOT}/${BUILD_VARIANT}/macos"
 
   for scheme in "${MAC_SCHEMES[@]}"; do
     local safe_scheme="${scheme// /_}"
@@ -426,15 +457,15 @@ build_macos() {
       "macosx" \
       "generic/platform=macOS" \
       "${derived_data}" \
-      "${LOG_ROOT}/macos-${safe_scheme}.log" \
-      "macOS ${scheme}"; then
+      "${LOG_ROOT}/${BUILD_VARIANT}-macos-${safe_scheme}.log" \
+      "${BUILD_VARIANT} macOS ${scheme}"; then
       copy_macos_scheme_artifacts "${scheme}" "${derived_data}/Products/${CONFIGURATION}"
     fi
   done
 }
 
 build_ios_devices() {
-  local derived_data="${XCODE_DERIVED_ROOT}/ios-device"
+  local derived_data="${XCODE_DERIVED_ROOT}/${BUILD_VARIANT}/ios-device"
 
   for scheme in "${IOS_SCHEMES[@]}"; do
     local safe_scheme="${scheme// /_}"
@@ -444,15 +475,15 @@ build_ios_devices() {
       "iphoneos" \
       "generic/platform=iOS" \
       "${derived_data}" \
-      "${LOG_ROOT}/ios-device-${safe_scheme}.log" \
-      "iOS device ${scheme}"; then
+      "${LOG_ROOT}/${BUILD_VARIANT}-ios-device-${safe_scheme}.log" \
+      "${BUILD_VARIANT} iOS device ${scheme}"; then
       copy_ios_scheme_artifacts "ios-device" "${scheme}" "${derived_data}/Products/${CONFIGURATION}-iphoneos"
     fi
   done
 }
 
 build_ios_simulators() {
-  local derived_data="${XCODE_DERIVED_ROOT}/ios-simulator"
+  local derived_data="${XCODE_DERIVED_ROOT}/${BUILD_VARIANT}/ios-simulator"
 
   for scheme in "${IOS_SCHEMES[@]}"; do
     local safe_scheme="${scheme// /_}"
@@ -462,20 +493,20 @@ build_ios_simulators() {
       "iphonesimulator" \
       "generic/platform=iOS Simulator" \
       "${derived_data}" \
-      "${LOG_ROOT}/ios-simulator-${safe_scheme}.log" \
-      "iOS simulator ${scheme}"; then
+      "${LOG_ROOT}/${BUILD_VARIANT}-ios-simulator-${safe_scheme}.log" \
+      "${BUILD_VARIANT} iOS simulator ${scheme}"; then
       copy_ios_scheme_artifacts "ios-simulator" "${scheme}" "${derived_data}/Products/${CONFIGURATION}-iphonesimulator"
     fi
   done
 }
 
 build_archives() {
-  local mac_derived="${XCODE_DERIVED_ROOT}/macos-archives"
-  local ios_derived="${XCODE_DERIVED_ROOT}/ios-archives"
+  local mac_derived="${XCODE_DERIVED_ROOT}/${BUILD_VARIANT}/macos-archives"
+  local ios_derived="${XCODE_DERIVED_ROOT}/${BUILD_VARIANT}/ios-archives"
 
   for scheme in "${ARCHIVE_SCHEMES_MAC[@]}"; do
     local safe_scheme="${scheme// /_}"
-    local archive_path="${ARCHIVE_ROOT}/macos/${scheme}.xcarchive"
+    local archive_path="${ARCHIVE_ROOT}/${BUILD_VARIANT}/macos/${scheme}.xcarchive"
 
     if xcode_archive \
       "${MAC_PROJECT}" \
@@ -483,15 +514,15 @@ build_archives() {
       "generic/platform=macOS" \
       "${archive_path}" \
       "${mac_derived}" \
-      "${LOG_ROOT}/archive-macos-${safe_scheme}.log" \
-      "Archive macOS ${scheme}"; then
+      "${LOG_ROOT}/${BUILD_VARIANT}-archive-macos-${safe_scheme}.log" \
+      "${BUILD_VARIANT} archive macOS ${scheme}"; then
       copy_bundle "${archive_path}" "archives/macos/${scheme}.xcarchive"
     fi
   done
 
   for scheme in "${ARCHIVE_SCHEMES_IOS[@]}"; do
     local safe_scheme="${scheme// /_}"
-    local archive_path="${ARCHIVE_ROOT}/ios/${scheme}.xcarchive"
+    local archive_path="${ARCHIVE_ROOT}/${BUILD_VARIANT}/ios/${scheme}.xcarchive"
 
     if xcode_archive \
       "${IOS_PROJECT}" \
@@ -499,35 +530,67 @@ build_archives() {
       "generic/platform=iOS" \
       "${archive_path}" \
       "${ios_derived}" \
-      "${LOG_ROOT}/archive-ios-${safe_scheme}.log" \
-      "Archive iOS ${scheme}"; then
+      "${LOG_ROOT}/${BUILD_VARIANT}-archive-ios-${safe_scheme}.log" \
+      "${BUILD_VARIANT} archive iOS ${scheme}"; then
       copy_bundle "${archive_path}" "archives/ios/${scheme}.xcarchive"
     fi
   done
 }
 
 build_cli() {
-  local log_file="${LOG_ROOT}/cli-cmake.log"
+  local log_file="${LOG_ROOT}/${BUILD_VARIANT}-cli-cmake.log"
+  local cmake_build_dir="${CMAKE_BUILD_DIR}-${BUILD_VARIANT}"
 
   run_step "Configure CLI with CMake" "${log_file}" \
     cmake \
       -S "${PROJECT_DIR}" \
-      -B "${CMAKE_BUILD_DIR}" \
+      -B "${cmake_build_dir}" \
       -DCMAKE_BUILD_TYPE="${CONFIGURATION}" \
+      -DADDIVOX_DEMO="$([[ "${ADDIVOX_DEMO_VALUE}" -eq 1 ]] && printf ON || printf OFF)" \
       -DIPLUG2_DIR="${ROOT_DIR}/iPlug2"
 
-  run_step "Build CLI" "${LOG_ROOT}/cli-build.log" \
+  run_step "Build CLI" "${LOG_ROOT}/${BUILD_VARIANT}-cli-build.log" \
     cmake \
-      --build "${CMAKE_BUILD_DIR}" \
+      --build "${cmake_build_dir}" \
       --config "${CONFIGURATION}" \
       --target addivox-cli
 
-  local cli_binary="${CMAKE_BUILD_DIR}/addivox"
+  local cli_binary="${cmake_build_dir}/${BUILD_CLI_NAME}"
   if [[ -x "${cli_binary}" ]]; then
-    copy_file "${cli_binary}" "cli/addivox"
+    copy_file "${cli_binary}" "cli/${BUILD_CLI_NAME}"
   else
     record_fail "Copy CLI artifact (${cli_binary} not found)"
   fi
+}
+
+reset_generated_resource_metadata() {
+  log "Resetting generated resource metadata to full build defaults"
+  (
+    cd "${PROJECT_DIR}/projects" &&
+      TARGET_BUILD_DIR="${WORK_ROOT}/resource-reset" UNLOCALIZED_RESOURCES_FOLDER_PATH="Resources" ADDIVOX_DEMO=0 python3 ../scripts/prepare_resources-mac.py &&
+      ADDIVOX_DEMO=0 python3 ../scripts/prepare_resources-ios.py
+  )
+}
+
+build_variant() {
+  BUILD_VARIANT="$1"
+  ADDIVOX_DEMO_VALUE="$2"
+
+  if [[ "${ADDIVOX_DEMO_VALUE}" -eq 1 ]]; then
+    BUILD_BINARY_NAME="AddivoxDemo"
+    BUILD_CLI_NAME="addivox-demo"
+  else
+    BUILD_BINARY_NAME="Addivox"
+    BUILD_CLI_NAME="addivox"
+  fi
+
+  ACTIVE_DIST_ROOT="${DIST_ROOT}/${BUILD_VARIANT}"
+  log "Building ${BUILD_VARIANT} artifacts"
+  build_macos
+  build_ios_devices
+  build_ios_simulators
+  build_archives
+  build_cli
 }
 
 print_summary() {
@@ -580,11 +643,9 @@ main() {
   rm -rf "${DIST_ROOT}" "${XCODE_DERIVED_ROOT}" "${ARCHIVE_ROOT}"
   mkdir -p "${DIST_ROOT}" "${LOG_ROOT}" "${ARCHIVE_ROOT}"
 
-  build_macos
-  build_ios_devices
-  build_ios_simulators
-  build_archives
-  build_cli
+  build_variant "full" 0
+  build_variant "demo" 1
+  reset_generated_resource_metadata
 
   if [[ "${INSTALL_PLUGINS}" -eq 1 ]]; then
     install_plugins

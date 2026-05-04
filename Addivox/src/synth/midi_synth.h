@@ -8,6 +8,7 @@
 #include <array>
 #include <stdint.h>
 
+#include "../demo_mode.h"
 #include "../midi/breath_control.h"
 #include "IPlugConstants.h"
 #include "IPlugMidi.h"
@@ -134,6 +135,10 @@ private:
       if (msg.Velocity() == 0) {
         if (IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key))) StopVoice();
       } else {
+#if ADDIVOX_DEMO
+        if (!addivox_demo::IsWhiteKeyMidiNote(key)) break;
+#endif
+
         mActiveChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
         mActiveKey = static_cast<uint8_t>(Clip(key, 0, 127));
 

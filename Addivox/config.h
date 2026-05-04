@@ -1,8 +1,20 @@
+#ifndef ADDIVOX_DEMO
+#define ADDIVOX_DEMO 0
+#endif
+
+#if ADDIVOX_DEMO
+#define PLUG_NAME "Addivox Demo"
+#else
 #define PLUG_NAME "Addivox"
+#endif
 #define PLUG_MFR "rrwick"
 #define PLUG_VERSION_HEX 0x00010000
 #define PLUG_VERSION_STR "1.0.0"
+#if ADDIVOX_DEMO
+#define PLUG_UNIQUE_ID 'AdvD'
+#else
 #define PLUG_UNIQUE_ID 'Advx'
+#endif
 #define PLUG_MFR_ID 'RWic'
 #define PLUG_URL_STR "https://github.com/rrwick/Addivox/wiki"
 #define PLUG_URL_DISPLAY_STR "github.com/rrwick/Addivox/wiki"
@@ -10,7 +22,11 @@
 #define PLUG_COPYRIGHT_STR "copyright 2026 Ryan Wick"
 #define PLUG_CLASS_NAME Addivox
 
+#if ADDIVOX_DEMO
+#define BUNDLE_NAME "AddivoxDemo"
+#else
 #define BUNDLE_NAME "Addivox"
+#endif
 #define BUNDLE_MFR "rrwick"
 #define BUNDLE_DOMAIN "com"
 
@@ -36,9 +52,17 @@
 #define AUV2_VIEW_CLASS Addivox_View
 #define AUV2_VIEW_CLASS_STR "Addivox_View"
 
+#if ADDIVOX_DEMO
+#define AAX_TYPE_IDS 'IPD1', 'IPD2'
+#else
 #define AAX_TYPE_IDS 'IPI1', 'IPI2'
+#endif
 #define AAX_PLUG_MFR_STR "RWic"
+#if ADDIVOX_DEMO
+#define AAX_PLUG_NAME_STR "Addivox Demo\nIPIS"
+#else
 #define AAX_PLUG_NAME_STR "Addivox\nIPIS"
+#endif
 #define AAX_DOES_AUDIOSUITE 0
 #define AAX_PLUG_CATEGORY_STR "Synth"
 

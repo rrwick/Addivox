@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>Addivox</string>
+	<string>AddivoxDemo</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Addivox v1.0.0 copyright 2026 Ryan Wick</string>
+	<string>AddivoxDemo v1.0.0 copyright 2026 Ryan Wick</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.rrwick.vst.Addivox</string>
+	<string>com.rrwick.vst.AddivoxDemo</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Addivox</string>
+	<string>AddivoxDemo</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>

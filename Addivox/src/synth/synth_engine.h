@@ -4,6 +4,7 @@
 #include "../effects/drive.h"
 #include "../effects/reverb.h"
 #include "../effects/tone.h"
+#include "../demo_mode.h"
 #include "../settings/effects.h"
 #include "../settings/params.h"
 #include "midi_synth.h"
@@ -55,6 +56,10 @@ public:
 
   void SetParam(int paramIdx, double value) {
     if (paramIdx == kParamTranspose) {
+#if ADDIVOX_DEMO
+      value = 0.0;
+#endif
+
       mTransposeSemitones = value;
       mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
       return;

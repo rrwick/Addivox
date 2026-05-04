@@ -21,6 +21,7 @@ static const IColor        kLabelText{255, 188, 188, 188};  // Label text color 
 static const IColor        kValueText{255, 188, 188, 188};  // Value readout text color for control values
 static const IColor  kMeterForeground{210,  88, 150, 220};  // Meter fill color for non-LED meter body/level
 static const IColor   kMeterHighlight{ 90, 170, 210, 255};  // Meter marker/hover emphasis color
+static const IColor     kDemoModeText{191, 188, 188, 188};  // For demo mode visualizer overlay
 } // namespace ui
 
 namespace visualizer {
