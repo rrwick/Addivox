@@ -944,12 +944,12 @@ void Addivox::SetHarmonicVisualizerEnabled(bool enabled) {
 void Addivox::SendBreathControlFromUI(double value, int channel, int offset) {
   if (IsHighResolutionBreathCCSource(mBreathCCSource)) {
     const int rawValue = GetHighResolutionControllerValue(value);
-    Plugin::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), rawValue / 128, channel, offset));
-    Plugin::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceLSBController(mBreathCCSource), rawValue % 128, channel, offset));
+    IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), rawValue / 128, channel, offset));
+    IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceLSBController(mBreathCCSource), rawValue % 128, channel, offset));
     return;
   }
 
-  Plugin::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), GetSevenBitControllerValue(value), channel, offset));
+  IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), GetSevenBitControllerValue(value), channel, offset));
 }
 
 void Addivox::ApplyPatchDocument(const patch_io::PatchDocument& document) {
@@ -1071,13 +1071,13 @@ void Addivox::SendMidiMsgFromUI(const IMidiMsg& msg) {
   const bool isNoteOff = (status == IMidiMsg::kNoteOff) || ((status == IMidiMsg::kNoteOn) && (msg.Velocity() == 0));
 
   if (!isNoteOn && !isNoteOff) {
-    Plugin::SendMidiMsgFromUI(msg);
+    IPlugAPIBase::SendMidiMsgFromUI(msg);
     return;
   }
 
   const int midiNote = msg.NoteNumber();
   if (midiNote < 0 || midiNote >= static_cast<int>(mActiveUIMIDINotes.size())) {
-    Plugin::SendMidiMsgFromUI(msg);
+    IPlugAPIBase::SendMidiMsgFromUI(msg);
     return;
   }
 
@@ -1091,7 +1091,7 @@ void Addivox::SendMidiMsgFromUI(const IMidiMsg& msg) {
       ++mNumActiveUIMIDINotes;
     }
 
-    Plugin::SendMidiMsgFromUI(msg);
+    IPlugAPIBase::SendMidiMsgFromUI(msg);
     return;
   }
 
@@ -1102,7 +1102,7 @@ void Addivox::SendMidiMsgFromUI(const IMidiMsg& msg) {
     releasedActiveUINote = true;
   }
 
-  Plugin::SendMidiMsgFromUI(msg);
+  IPlugAPIBase::SendMidiMsgFromUI(msg);
 
   if (releasedActiveUINote && mNumActiveUIMIDINotes == 0) sendBreathFromUI(0.0);
 }
@@ -1184,7 +1184,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
 
 void Addivox::OnRestoreState() {
   mSuppressPatchDirtyTracking = true;
-  Plugin::OnRestoreState();
+  IEditorDelegate::OnRestoreState();
   mSuppressPatchDirtyTracking = false;
 
   if (!mPendingRestoredStatePatchName.empty()) {
@@ -1251,7 +1251,7 @@ void Addivox::OnRestoreState() {
 void Addivox::OnUIOpen() {
   EnsureStandaloneStateInitialized();
   mSuppressPatchDirtyTracking = true;
-  Plugin::OnUIOpen();
+  IEditorDelegate::OnUIOpen();
   mSuppressPatchDirtyTracking = false;
   RebuildPatchCatalog();
   RefreshEditorUI();
