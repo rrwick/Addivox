@@ -91,6 +91,8 @@ private:
   void SetPitchBendRange(int pitchBendRange);
   void SetBreathCCSource(BreathCCSource source);
   void SetHarmonicVisualizerEnabled(bool enabled);
+  bool HasPendingRestoredState() const;
+  void ApplyPendingRestoredState();
   void SendBreathControlFromUI(double value, int channel, int offset);
   void PromptLoadPatchFromFile();
   void PromptSavePatchToFile();

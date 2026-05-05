@@ -1182,11 +1182,11 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
   return pos;
 }
 
-void Addivox::OnRestoreState() {
-  mSuppressPatchDirtyTracking = true;
-  IEditorDelegate::OnRestoreState();
-  mSuppressPatchDirtyTracking = false;
+bool Addivox::HasPendingRestoredState() const {
+  return !mPendingRestoredStatePatchName.empty() || mPendingRestoredPatchHasIdentity || mPendingRestoredPatchHasCleanSnapshot || mRestoringFactoryPatchIdx >= 0;
+}
 
+void Addivox::ApplyPendingRestoredState() {
   if (!mPendingRestoredStatePatchName.empty()) {
     mActivePatchDisplayName = mPendingRestoredStatePatchName;
     mPendingRestoredStatePatchName.clear();
@@ -1248,13 +1248,25 @@ void Addivox::OnRestoreState() {
   MarkStandaloneStateDirty();
 }
 
+void Addivox::OnRestoreState() {
+  mSuppressPatchDirtyTracking = true;
+  IEditorDelegate::OnRestoreState();
+  mSuppressPatchDirtyTracking = false;
+
+  ApplyPendingRestoredState();
+}
+
 void Addivox::OnUIOpen() {
   EnsureStandaloneStateInitialized();
   mSuppressPatchDirtyTracking = true;
   IEditorDelegate::OnUIOpen();
   mSuppressPatchDirtyTracking = false;
-  RebuildPatchCatalog();
-  RefreshEditorUI();
+  if (HasPendingRestoredState()) {
+    ApplyPendingRestoredState();
+  } else {
+    RebuildPatchCatalog();
+    RefreshEditorUI();
+  }
 }
 
 void Addivox::OnUIClose() {

@@ -10,6 +10,7 @@
 #import "IPlugAUPlayer.h"
 
 #import <CoreMIDI/CoreMIDI.h>
+#import <UIKit/UIKit.h>
 
 #include "audio_midi_settings_ios.h"
 #include "config.h"
@@ -33,12 +34,21 @@ static bool isInstrument()
 @interface IPlugAUPlayer ()
 - (void)applyStandaloneParameterDefaults;
 - (void)connectMIDISources;
+- (void)finishAudioUnitInstantiationWithError:(NSError*)error completion:(void (^)(void))completionBlock;
 - (void)handleMIDIPacketList:(const MIDIPacketList*)packetList;
+- (BOOL)restoreStandaloneState;
+- (BOOL)saveStandaloneState;
+- (NSArray<NSNumber*>*)currentParameterValues;
+- (void)restoreParameterValues:(NSArray*)parameterValues;
 - (void)onAudioSettingsChanged:(NSNotification*)notification;
+- (void)onAppStateShouldSave:(NSNotification*)notification;
 @end
 
 namespace {
 NSString* const kAudioSettingsChangedNotification = @"AddivoxAudioSettingsChanged";
+NSString* const kStandaloneAUStateKey = @"auState";
+NSString* const kStandaloneParameterValuesKey = @"parameterValues";
+NSString* const kStandaloneStateFileName = @"ios_standalone_state.plist";
 constexpr AUValue kPluginDefaultReverb = 0.f;
 constexpr AUValue kIOSStandaloneDefaultReverb = 50.f;
 }
@@ -102,7 +112,17 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   [engine attachNode:avAudioUnit];
 
   self.currentAudioUnit = avAudioUnit.AUAudioUnit;
-  [self applyStandaloneParameterDefaults];
+
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self finishAudioUnitInstantiationWithError:error completion:completionBlock];
+  });
+}
+
+- (void)finishAudioUnitInstantiationWithError:(NSError*)error completion:(void (^)(void))completionBlock
+{
+  const BOOL restoredState = [self restoreStandaloneState];
+  if (!restoredState)
+    [self applyStandaloneParameterDefaults];
   [self startMIDIInput];
 
   [self setupSession];
@@ -146,8 +166,139 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 
 - (void)dealloc
 {
+  [self saveStandaloneState];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
   [self stopMIDIInput];
+}
+
+- (NSURL*)standaloneStateURLCreatingDirectory:(BOOL)createDirectory
+{
+  NSFileManager* fileManager = NSFileManager.defaultManager;
+  NSError* error = nil;
+  NSURL* appSupportURL = [fileManager URLForDirectory:NSApplicationSupportDirectory
+                                             inDomain:NSUserDomainMask
+                                    appropriateForURL:nil
+                                               create:createDirectory
+                                                error:&error];
+  if (appSupportURL == nil)
+  {
+    if (error != nil)
+      NSLog(@"Could not locate Application Support directory: %@", error.localizedDescription);
+    return nil;
+  }
+
+  NSString* bundleName = [NSString stringWithUTF8String:BUNDLE_NAME];
+  NSURL* stateDirectoryURL = [appSupportURL URLByAppendingPathComponent:bundleName isDirectory:YES];
+  if (createDirectory && ![fileManager createDirectoryAtURL:stateDirectoryURL withIntermediateDirectories:YES attributes:nil error:&error])
+  {
+    NSLog(@"Could not create Addivox state directory: %@", error.localizedDescription);
+    return nil;
+  }
+
+  return [stateDirectoryURL URLByAppendingPathComponent:kStandaloneStateFileName isDirectory:NO];
+}
+
+- (BOOL)restoreStandaloneState
+{
+  if (self.currentAudioUnit == nil)
+    return NO;
+
+  NSURL* stateURL = [self standaloneStateURLCreatingDirectory:NO];
+  if (stateURL == nil)
+    return NO;
+
+  NSError* error = nil;
+  NSData* stateData = [NSData dataWithContentsOfURL:stateURL options:0 error:&error];
+  if (stateData == nil)
+    return NO;
+
+  id propertyList = [NSPropertyListSerialization propertyListWithData:stateData options:NSPropertyListImmutable format:nil error:&error];
+  if (![propertyList isKindOfClass:NSDictionary.class])
+  {
+    if (error != nil)
+      NSLog(@"Could not read Addivox standalone state: %@", error.localizedDescription);
+    return NO;
+  }
+
+  NSDictionary<NSString*, id>* storedState = (NSDictionary<NSString*, id>*)propertyList;
+  NSDictionary<NSString*, id>* auState = storedState[kStandaloneAUStateKey];
+  if (![auState isKindOfClass:NSDictionary.class])
+    auState = storedState; // Legacy state file from earlier iOS persistence builds.
+
+  self.currentAudioUnit.fullState = auState;
+  [self restoreParameterValues:storedState[kStandaloneParameterValuesKey]];
+  return YES;
+}
+
+- (BOOL)saveStandaloneState
+{
+  if (self.currentAudioUnit == nil)
+    return NO;
+
+  NSDictionary<NSString*, id>* state = self.currentAudioUnit.fullState;
+  if (state.count == 0)
+    return NO;
+
+  NSMutableDictionary<NSString*, id>* storedState = [[NSMutableDictionary alloc] init];
+  storedState[kStandaloneAUStateKey] = state;
+  NSArray<NSNumber*>* parameterValues = [self currentParameterValues];
+  if (parameterValues.count > 0)
+    storedState[kStandaloneParameterValuesKey] = parameterValues;
+
+  NSError* error = nil;
+  NSData* stateData = [NSPropertyListSerialization dataWithPropertyList:storedState format:NSPropertyListBinaryFormat_v1_0 options:0 error:&error];
+  if (stateData == nil)
+  {
+    NSLog(@"Could not serialize Addivox standalone state: %@", error.localizedDescription);
+    return NO;
+  }
+
+  NSURL* stateURL = [self standaloneStateURLCreatingDirectory:YES];
+  if (stateURL == nil)
+    return NO;
+
+  if (![stateData writeToURL:stateURL options:NSDataWritingAtomic error:&error])
+  {
+    NSLog(@"Could not save Addivox standalone state: %@", error.localizedDescription);
+    return NO;
+  }
+
+  return YES;
+}
+
+- (NSArray<NSNumber*>*)currentParameterValues
+{
+  AUParameterTree* parameterTree = self.currentAudioUnit.parameterTree;
+  if (parameterTree == nil)
+    return @[];
+
+  NSMutableArray<NSNumber*>* parameterValues = [NSMutableArray arrayWithCapacity:kNumParams];
+  for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
+  {
+    AUParameter* parameter = [parameterTree parameterWithAddress:static_cast<AUParameterAddress>(paramIdx)];
+    [parameterValues addObject:@(parameter != nil ? parameter.value : 0.f)];
+  }
+
+  return parameterValues;
+}
+
+- (void)restoreParameterValues:(NSArray*)parameterValues
+{
+  AUParameterTree* parameterTree = self.currentAudioUnit.parameterTree;
+  if (![parameterValues isKindOfClass:NSArray.class] || parameterTree == nil)
+    return;
+
+  const NSUInteger count = MIN(parameterValues.count, static_cast<NSUInteger>(kNumParams));
+  for (NSUInteger paramIdx = 0; paramIdx < count; ++paramIdx)
+  {
+    NSNumber* value = parameterValues[paramIdx];
+    if (![value isKindOfClass:NSNumber.class])
+      continue;
+
+    AUParameter* parameter = [parameterTree parameterWithAddress:static_cast<AUParameterAddress>(paramIdx)];
+    if (parameter != nil)
+      parameter.value = value.floatValue;
+  }
 }
 
 - (void)startMIDIInput
@@ -423,6 +574,9 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 
   [notifCtr addObserver:self selector:@selector(onEngineConfigurationChange:) name:AVAudioEngineConfigurationChangeNotification object:engine];
   [notifCtr addObserver:self selector:@selector(onAudioSettingsChanged:) name:kAudioSettingsChangedNotification object:nil];
+  [notifCtr addObserver:self selector:@selector(onAppStateShouldSave:) name:UIApplicationWillResignActiveNotification object:nil];
+  [notifCtr addObserver:self selector:@selector(onAppStateShouldSave:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+  [notifCtr addObserver:self selector:@selector(onAppStateShouldSave:) name:UIApplicationWillTerminateNotification object:nil];
 }
 
 #pragma mark Notifications
@@ -435,6 +589,11 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 {
   [self setupSession];
   [self restartAudioEngine];
+}
+
+- (void)onAppStateShouldSave:(NSNotification*)notification
+{
+  [self saveStandaloneState];
 }
 
 @end
