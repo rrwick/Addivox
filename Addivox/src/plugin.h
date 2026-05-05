@@ -123,6 +123,8 @@ private:
   std::string mActivePatchDisplayName;
   std::string mPendingRestoredStatePatchName;
   std::string mPendingRestoredPatchCleanSnapshot;
+  bool mPendingRestoredPatchDirty{false};
+  bool mPendingRestoredPatchHasDirtyState{false};
   bool mPendingRestoredPatchHasCleanSnapshot{false};
   PatchSource mPendingRestoredPatchSource{PatchSource::Unknown};
   int mPendingRestoredFactoryPatchIdx{-1};

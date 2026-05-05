@@ -38,8 +38,7 @@ static bool isInstrument()
 - (void)handleMIDIPacketList:(const MIDIPacketList*)packetList;
 - (BOOL)restoreStandaloneState;
 - (BOOL)saveStandaloneState;
-- (NSArray<NSNumber*>*)currentParameterValues;
-- (void)restoreParameterValues:(NSArray*)parameterValues;
+- (void)syncParameterTreeToRestoredState;
 - (void)onAudioSettingsChanged:(NSNotification*)notification;
 - (void)onAppStateShouldSave:(NSNotification*)notification;
 @end
@@ -47,7 +46,6 @@ static bool isInstrument()
 namespace {
 NSString* const kAudioSettingsChangedNotification = @"AddivoxAudioSettingsChanged";
 NSString* const kStandaloneAUStateKey = @"auState";
-NSString* const kStandaloneParameterValuesKey = @"parameterValues";
 NSString* const kStandaloneStateFileName = @"ios_standalone_state.plist";
 constexpr AUValue kPluginDefaultReverb = 0.f;
 constexpr AUValue kIOSStandaloneDefaultReverb = 50.f;
@@ -226,7 +224,7 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
     auState = storedState; // Legacy state file from earlier iOS persistence builds.
 
   self.currentAudioUnit.fullState = auState;
-  [self restoreParameterValues:storedState[kStandaloneParameterValuesKey]];
+  [self syncParameterTreeToRestoredState];
   return YES;
 }
 
@@ -241,9 +239,6 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 
   NSMutableDictionary<NSString*, id>* storedState = [[NSMutableDictionary alloc] init];
   storedState[kStandaloneAUStateKey] = state;
-  NSArray<NSNumber*>* parameterValues = [self currentParameterValues];
-  if (parameterValues.count > 0)
-    storedState[kStandaloneParameterValuesKey] = parameterValues;
 
   NSError* error = nil;
   NSData* stateData = [NSPropertyListSerialization dataWithPropertyList:storedState format:NSPropertyListBinaryFormat_v1_0 options:0 error:&error];
@@ -266,38 +261,19 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   return YES;
 }
 
-- (NSArray<NSNumber*>*)currentParameterValues
+- (void)syncParameterTreeToRestoredState
 {
   AUParameterTree* parameterTree = self.currentAudioUnit.parameterTree;
   if (parameterTree == nil)
-    return @[];
-
-  NSMutableArray<NSNumber*>* parameterValues = [NSMutableArray arrayWithCapacity:kNumParams];
-  for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx)
-  {
-    AUParameter* parameter = [parameterTree parameterWithAddress:static_cast<AUParameterAddress>(paramIdx)];
-    [parameterValues addObject:@(parameter != nil ? parameter.value : 0.f)];
-  }
-
-  return parameterValues;
-}
-
-- (void)restoreParameterValues:(NSArray*)parameterValues
-{
-  AUParameterTree* parameterTree = self.currentAudioUnit.parameterTree;
-  if (![parameterValues isKindOfClass:NSArray.class] || parameterTree == nil)
     return;
 
-  const NSUInteger count = MIN(parameterValues.count, static_cast<NSUInteger>(kNumParams));
-  for (NSUInteger paramIdx = 0; paramIdx < count; ++paramIdx)
+  for (AUParameter* parameter in parameterTree.allParameters)
   {
-    NSNumber* value = parameterValues[paramIdx];
-    if (![value isKindOfClass:NSNumber.class])
-      continue;
+    AUValue restoredValue = parameter.value;
+    if (parameterTree.implementorValueProvider != nil)
+      restoredValue = parameterTree.implementorValueProvider(parameter);
 
-    AUParameter* parameter = [parameterTree parameterWithAddress:static_cast<AUParameterAddress>(paramIdx)];
-    if (parameter != nil)
-      parameter.value = value.floatValue;
+    [parameter setValue:restoredValue originator:nil];
   }
 }
 

@@ -26,6 +26,9 @@ constexpr int kDefaultPitchBendRange = 2;
 constexpr int kMaxPitchBendRange = 96;
 constexpr bool kDefaultHarmonicVisualizerEnabled = true;
 constexpr int64_t kStandaloneStateSaveDebounceMs = 250;
+#if defined(OS_IOS)
+constexpr double kIOSStandaloneDefaultReverb = 50.0;
+#endif
 
 int SanitizePitchBendRange(int pitchBendRange) { return std::clamp(pitchBendRange, 0, kMaxPitchBendRange); }
 
@@ -92,6 +95,21 @@ void SyncPatchOwnedParamDefaultsToCurrentValues(Addivox& plugin) {
 
     IParam* const param = plugin.GetParam(paramIdx);
     param->SetDefault(param->Value());
+  }
+}
+
+void ResetNonPatchOwnedParamsToDefaults(Addivox& plugin) {
+  for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx) {
+    if (IsPatchOwnedParam(paramIdx)) continue;
+
+    IParam* const param = plugin.GetParam(paramIdx);
+    if (param->Value() == param->GetDefault()) continue;
+
+    param->SetToDefault();
+#if IPLUG_DSP
+    plugin.OnParamChange(paramIdx);
+#endif
+    plugin.SendParameterValueFromDelegate(paramIdx, param->GetNormalized(), true);
   }
 }
 
@@ -594,6 +612,7 @@ bool ShouldTrackPatchDirtyForParamSource(EParamSource source) {
   switch (source) {
   case kPresetRecall:
   case kDelegate:
+  case kHost:
   case kRecompile:    return false;
   default:            return true;
   }
@@ -603,6 +622,17 @@ std::string CanonicalizePatchSnapshotToml(const std::string& snapshot) {
   patch_io::PatchDocument document;
   if (snapshot.empty() || !patch_io::ParsePatchToml(snapshot, document)) return snapshot;
 
+  return patch_io::SerializePatchToToml(document);
+}
+
+std::string CanonicalizePatchDirtySnapshotToml(const std::string& snapshot) {
+  patch_io::PatchDocument document;
+  if (snapshot.empty() || !patch_io::ParsePatchToml(snapshot, document)) return snapshot;
+
+  document.name.clear();
+  document.voiceSettings.tuningCents = 0.0;
+  document.voiceSettings.panOffset = 0.0;
+  document.effectsSettings.reverb = 0.0;
   return patch_io::SerializePatchToToml(document);
 }
 } // namespace
@@ -888,6 +918,16 @@ void Addivox::ResetStandaloneStateToDefaults() {
   mNumActiveUIMIDINotes = 0;
 
   if (NPresets() > 0) RestoreFactoryPatch(0);
+  ResetNonPatchOwnedParamsToDefaults(*this);
+#if defined(OS_IOS)
+  if (GetParam(kParamEffectsReverb)->Value() != kIOSStandaloneDefaultReverb) {
+    GetParam(kParamEffectsReverb)->Set(kIOSStandaloneDefaultReverb);
+#if IPLUG_DSP
+    OnParamChange(kParamEffectsReverb);
+#endif
+    SendParameterValueFromDelegate(kParamEffectsReverb, GetParam(kParamEffectsReverb)->GetNormalized(), true);
+  }
+#endif
 
   SetPitchBendRange(kDefaultPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
@@ -1168,6 +1208,8 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
     SetPitchBendRange(restoredPitchBendRange);
     SetBreathCCSource(restoredBreathCCSource);
     SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
+    mPendingRestoredPatchDirty = restoredPatchDirty;
+    mPendingRestoredPatchHasDirtyState = true;
     mPendingRestoredPatchSource =
         static_cast<PatchSource>(std::clamp(restoredPatchSource, static_cast<int>(PatchSource::Unknown), static_cast<int>(PatchSource::User)));
     mPendingRestoredFactoryPatchIdx = restoredFactoryPatchIdx;
@@ -1175,7 +1217,6 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
     mPendingRestoredPatchGroupKey = std::move(restoredPatchGroupKey);
     mPendingRestoredPatchHasIdentity = mPendingRestoredPatchSource != PatchSource::Unknown;
   }
-  (void)restoredPatchDirty;
   mPendingRestoredPatchCleanSnapshot = std::move(restoredPatchCleanSnapshot);
   mPendingRestoredPatchHasCleanSnapshot = !mPendingRestoredPatchCleanSnapshot.empty();
 
@@ -1237,12 +1278,16 @@ void Addivox::ApplyPendingRestoredState() {
 
   if (mPendingRestoredPatchHasCleanSnapshot) {
     mActivePatchCleanSnapshot = CanonicalizePatchSnapshotToml(mPendingRestoredPatchCleanSnapshot);
-    mActivePatchDirty = SerializeCurrentPatchSnapshot() != mActivePatchCleanSnapshot;
+    const bool patchOwnedStateDiffers =
+        CanonicalizePatchDirtySnapshotToml(SerializeCurrentPatchSnapshot()) != CanonicalizePatchDirtySnapshotToml(mActivePatchCleanSnapshot);
+    mActivePatchDirty = mPendingRestoredPatchHasDirtyState ? (mPendingRestoredPatchDirty && patchOwnedStateDiffers) : patchOwnedStateDiffers;
   } else {
     SetActivePatchCleanSnapshotFromCurrentState();
   }
   mPendingRestoredPatchCleanSnapshot.clear();
   mPendingRestoredPatchHasCleanSnapshot = false;
+  mPendingRestoredPatchDirty = false;
+  mPendingRestoredPatchHasDirtyState = false;
   RebuildPatchCatalog();
   RefreshEditorUI(true);
   MarkStandaloneStateDirty();
@@ -1601,6 +1646,7 @@ void Addivox::RestoreFactoryPatch(int patchIdx) {
   mActiveFactoryPatchIdx = patchIdx;
   mActivePatchPath = (patchIdx < static_cast<int>(mFactoryPatchPaths.size())) ? mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)] : std::string{};
   mActivePatchGroupKey = "Factory";
+  mActivePatchDisplayName = GetPresetName(patchIdx);
   SetActivePatchCleanSnapshotFromCurrentState();
   RefreshEditorUI(true);
 }
@@ -1802,7 +1848,9 @@ void Addivox::SetActivePatchCleanSnapshotFromCurrentState() {
 void Addivox::MarkActivePatchDirty() {
   if (mSuppressPatchDirtyTracking || mActivePatchDirty) return;
 
-  if (!mActivePatchCleanSnapshot.empty() && SerializeCurrentPatchSnapshot() == mActivePatchCleanSnapshot) return;
+  if (!mActivePatchCleanSnapshot.empty() &&
+      CanonicalizePatchDirtySnapshotToml(SerializeCurrentPatchSnapshot()) == CanonicalizePatchDirtySnapshotToml(mActivePatchCleanSnapshot))
+    return;
 
   mActivePatchDirty = true;
   RefreshEditorUI();
