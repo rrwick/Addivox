@@ -47,6 +47,14 @@ public:
 
   void SetOnCurveChanged(OnCurveChangedFunc func) { mOnCurveChanged = std::move(func); }
 
+  void OnAttached() override {
+    IControl::OnAttached();
+    if (mDoubleTapGestureAttached || !GetUI()) return;
+
+    AttachGestureRecognizer(EGestureType::DoubleTap, [this](IControl*, const IGestureInfo& info) { TogglePointAt(info.x, info.y); });
+    mDoubleTapGestureAttached = true;
+  }
+
   void CaptureRestoreState(int midiNote) {
     mRestoreCurve = mCurve;
     mHasRestoreState = true;
@@ -138,7 +146,11 @@ public:
 
   void OnMouseDblClick(float x, float y, const IMouseMod& mod) override {
     IControl::OnMouseDblClick(x, y, mod);
+    TogglePointAt(x, y);
+  }
 
+private:
+  void TogglePointAt(float x, float y) {
     if (!IsEditable()) return;
 
     auto points = mCurve.GetPoints();
@@ -158,7 +170,6 @@ public:
     NotifyCurveChanged();
   }
 
-private:
   static constexpr int kNoPointIndex = -1;
   static constexpr float kPointRadiusPx = 5.f;
   static constexpr float kCurveThicknessPx = 2.0f;
@@ -499,6 +510,7 @@ private:
   int mDraggedPointIndex{kNoPointIndex};
   bool mHasDraggedPoint{false};
   bool mHasRestoreState{false};
+  bool mDoubleTapGestureAttached{false};
   int mRestoreMidiNote{kNoRestoreMidiNote};
 };
 } // namespace plugin_ui

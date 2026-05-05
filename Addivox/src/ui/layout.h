@@ -19,6 +19,7 @@
 #include "../ios/audio_midi_settings_ios.h"
 #endif
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -32,6 +33,40 @@ using namespace iplug;
 using namespace igraphics;
 
 namespace layout {
+class TouchRangeSliderControl final : public IVRangeSliderControl {
+public:
+  using IVRangeSliderControl::IVRangeSliderControl;
+
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override {
+    mMouseOverHandle = FindNearestHandle(x, y);
+    IVRangeSliderControl::OnMouseDown(x, y, mod);
+  }
+
+private:
+  int FindNearestHandle(float x, float y) {
+    if (!mRECT.Contains(x, y)) return -1;
+
+    for (int handleIndex = 0; handleIndex < NVals(); ++handleIndex) {
+      if (GetHandleBounds(handleIndex).Contains(x, y)) return handleIndex;
+    }
+
+    int nearestHandle = -1;
+    float nearestAxisDistance = 0.f;
+    for (int handleIndex = 0; handleIndex < NVals(); ++handleIndex) {
+      const IRECT handleBounds = GetHandleBounds(handleIndex);
+      const float handlePosition = (mDirection == EDirection::Horizontal) ? handleBounds.MW() : handleBounds.MH();
+      const float touchPosition = (mDirection == EDirection::Horizontal) ? x : y;
+      const float axisDistance = std::fabs(touchPosition - handlePosition);
+      if (nearestHandle == -1 || axisDistance < nearestAxisDistance) {
+        nearestHandle = handleIndex;
+        nearestAxisDistance = axisDistance;
+      }
+    }
+
+    return nearestHandle;
+  }
+};
+
 inline bool ShowAboutBox(IGraphics* pGraphics, int aboutBoxTag) {
   if (!pGraphics) return false;
 
@@ -475,8 +510,8 @@ inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& reso
   AttachPassiveText(pGraphics, positions::kPortamentoLabel, "Portamento", resources.compactLabelText, help_text::main_ui::kPortamento);
   AttachPassiveCaption(pGraphics, positions::kPortamentoMinCaption, kParamPortamentoAtCC5Min, resources.portamentoValueText, help_text::main_ui::kPortamento);
   AttachPassiveCaption(pGraphics, positions::kPortamentoMaxCaption, kParamPortamentoAtCC5Max, resources.portamentoValueText, help_text::main_ui::kPortamento);
-  auto* portamentoControl = new IVRangeSliderControl(positions::kPortamentoRangeSlider, {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max}, "",
-                                                     resources.portamentoRangeSliderStyle, EDirection::Horizontal, true, 9.f, 3.f);
+  auto* portamentoControl = new TouchRangeSliderControl(positions::kPortamentoRangeSlider, {kParamPortamentoAtCC5Min, kParamPortamentoAtCC5Max}, "",
+                                                        resources.portamentoRangeSliderStyle, EDirection::Horizontal, true, 9.f, 3.f);
   portamentoControl->SetTooltip(help_text::main_ui::kPortamento);
   pGraphics->AttachControl(portamentoControl);
 }
