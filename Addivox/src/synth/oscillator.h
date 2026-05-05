@@ -156,7 +156,10 @@ private:
   bool mHasLevelVariation = false;
   bool mHasPitchVariation = false;
   bool mHasPanVariation = false;
-  static constexpr uint32_t kDefaultVariationSeed = 0xA53C9D1Fu;
+  static constexpr uint32_t kDefaultVariationSeed  = 0xA53C9D1Fu;
+  static constexpr uint32_t kPitchVariationSeedXor = 0x17D39EF5u;
+  static constexpr uint32_t kLevelVariationSeedXor = 0xF1023A17u;
+  static constexpr uint32_t kPanVariationSeedXor   = 0xC29B3F4Bu;
   double mMinPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
   void UpdateVariationParameterSmoothingRate();
   void RefreshVariationTargets();

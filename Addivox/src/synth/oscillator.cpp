@@ -20,9 +20,9 @@ void Oscillator::SetSampleRate(double sampleRate) {
   UpdatePanSlewRate();
   UpdateVariationParameterSmoothingRate();
   RefreshVariationTargets();
-  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
-  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ 0xF1023A17u));
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
+  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
 }
 
 void Oscillator::SetVariationSeed(uint32_t seed) {
@@ -37,16 +37,16 @@ void Oscillator::SetVariationSeed(uint32_t seed) {
   mPanVariation.InvalidateNoiseCache();
 
   RefreshVariationTargets();
-  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
-  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ 0xF1023A17u));
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
+  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
 }
 
 void Oscillator::SetPitch(double pitchSemitones) {
   if (pitchSemitones == mBasePitch) return;
 
   mBasePitch = pitchSemitones;
-  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
 }
 
 void Oscillator::SetPitchTime(double pitchTimeSec) {
@@ -83,7 +83,7 @@ void Oscillator::SetPan(double pan) {
 
   mBasePan = clampedPan;
   dsp::PanToGains(mBasePan, mBasePanLeftGain, mBasePanRightGain);
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
 }
 
 void Oscillator::SetPanVariation(double amplitude, double rateHz) { mPanVariation.SetTargets(amplitude, rateHz); }
@@ -93,7 +93,7 @@ void Oscillator::SetLevel(double level) {
   if (clampedLevel == mBaseLevel) return;
 
   mBaseLevel = clampedLevel;
-  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ 0xF1023A17u));
+  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
 }
 
 void Oscillator::Reset() {
@@ -104,12 +104,12 @@ void Oscillator::Reset() {
   mPitchVariation.SnapToTargets();
   mPanVariation.SnapToTargets();
   mVariationTargetRefreshCountdown = kVariationTargetRefreshIntervalSamples;
-  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u));
+  UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
   mPitch = mTargetPitch;
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
-  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ 0xF1023A17u));
+  UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
   // On full retrigger, start from the current pan target.
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu));
+  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
   mPanLeftGain = mTargetPanLeftGain;
   mPanRightGain = mTargetPanRightGain;
   UpdatePhaseIncrement(frequencyHz);
@@ -125,7 +125,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mHasLevelVariation) {
     SmoothVariationParameters(mLevelVariation);
     if (IsVariationActiveNow(mLevelVariation)) {
-      const double levelNoise = VariationNoise(mLevelVariation, mVariationSeed ^ 0xF1023A17u);
+      const double levelNoise = VariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor);
       mLevelVariation.position += mLevelVariation.positionIncrement;
       UpdateLevelTarget(levelNoise);
     } else
@@ -135,7 +135,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mHasPanVariation) {
     SmoothVariationParameters(mPanVariation);
     if (IsVariationActiveNow(mPanVariation)) {
-      const double panNoise = VariationNoise(mPanVariation, mVariationSeed ^ 0xC29B3F4Bu);
+      const double panNoise = VariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor);
       mPanVariation.position += mPanVariation.positionIncrement;
       UpdatePanTargetGains(panNoise);
     } else
@@ -145,7 +145,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mHasPitchVariation) {
     SmoothVariationParameters(mPitchVariation);
     if (IsVariationActiveNow(mPitchVariation)) {
-      const double pitchNoise = VariationNoise(mPitchVariation, mVariationSeed ^ 0x17D39EF5u);
+      const double pitchNoise = VariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor);
       mPitchVariation.position += mPitchVariation.positionIncrement;
       UpdatePitchTarget(pitchNoise);
     } else

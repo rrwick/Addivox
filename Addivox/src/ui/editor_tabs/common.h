@@ -888,6 +888,21 @@ struct EditorContext {
     SetDisabledState(*eqTab.deleteButton, !deleteEnabled);
   }
 
+  void SetHarmonicActionControlsDisabled(bool disabled) const {
+    SetDisabledState(*levelTab.setShapeControl,   disabled);
+    SetDisabledState(*levelTab.actionsControl,    disabled);
+    SetDisabledState(*breathTab.setShapeControl,  disabled);
+    SetDisabledState(*breathTab.actionsControl,   disabled);
+    SetDisabledState(*pitchTab.setShapeControl,   disabled);
+    SetDisabledState(*pitchTab.actionsControl,    disabled);
+    SetDisabledState(*panTab.setShapeControl,     disabled);
+    SetDisabledState(*panTab.actionsControl,      disabled);
+    for (auto* control : *variationTab.setShapeControls)     SetDisabledState(control, disabled);
+    for (auto* control : *variationTab.actionsControls)      SetDisabledState(control, disabled);
+    for (auto* control : *attackReleaseTab.setShapeControls) SetDisabledState(control, disabled);
+    for (auto* control : *attackReleaseTab.actionsControls)  SetDisabledState(control, disabled);
+  }
+
   void RefreshOscillatorTabs() const {
     ApplyVisibleOscillatorRangeToSliders();
     SyncXRangeNumberBoxes();
@@ -904,18 +919,7 @@ struct EditorContext {
         SetDisabledState((*oscillatorTabControls.restoreButtons)[i], true);
       }
 
-      SetDisabledState(*levelTab.setShapeControl, true);
-      SetDisabledState(*levelTab.actionsControl, true);
-      SetDisabledState(*breathTab.setShapeControl, true);
-      SetDisabledState(*breathTab.actionsControl, true);
-      SetDisabledState(*pitchTab.setShapeControl, true);
-      SetDisabledState(*pitchTab.actionsControl, true);
-      SetDisabledState(*panTab.setShapeControl, true);
-      SetDisabledState(*panTab.actionsControl, true);
-      for (auto* control : *variationTab.setShapeControls) SetDisabledState(control, true);
-      for (auto* control : *variationTab.actionsControls) SetDisabledState(control, true);
-      for (auto* control : *attackReleaseTab.setShapeControls) SetDisabledState(control, true);
-      for (auto* control : *attackReleaseTab.actionsControls) SetDisabledState(control, true);
+      SetHarmonicActionControlsDisabled(true);
 
       if (eqTab.editorControl && *eqTab.editorControl) {
         (*eqTab.editorControl)->SetCurve(EqCurve{});
@@ -938,18 +942,7 @@ struct EditorContext {
     const SimplePatch& selectedPatch = keyNotePatch ? *keyNotePatch : Patch().GetPatchForMidiNote(midiNote);
     const bool editable = keyNotePatch != nullptr;
 
-    SetDisabledState(*levelTab.setShapeControl, !editable);
-    SetDisabledState(*levelTab.actionsControl, !editable);
-    SetDisabledState(*breathTab.setShapeControl, !editable);
-    SetDisabledState(*breathTab.actionsControl, !editable);
-    SetDisabledState(*pitchTab.setShapeControl, !editable);
-    SetDisabledState(*pitchTab.actionsControl, !editable);
-    SetDisabledState(*panTab.setShapeControl, !editable);
-    SetDisabledState(*panTab.actionsControl, !editable);
-    for (auto* control : *variationTab.setShapeControls) SetDisabledState(control, !editable);
-    for (auto* control : *variationTab.actionsControls) SetDisabledState(control, !editable);
-    for (auto* control : *attackReleaseTab.setShapeControls) SetDisabledState(control, !editable);
-    for (auto* control : *attackReleaseTab.actionsControls) SetDisabledState(control, !editable);
+    SetHarmonicActionControlsDisabled(!editable);
     SetDisabledState(*eqTab.setShapeControl, !editable);
     SetDisabledState(*eqTab.actionsControl, !editable);
 

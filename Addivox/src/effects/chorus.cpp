@@ -84,8 +84,8 @@ ChorusParameters ComputeParameters(double amount, double sampleRate) {
   parameters.rateScale = 1.0 + (2.0 * knob);
   parameters.toneCoefficient = dsp::CutoffHzToCoefficient(sampleRate, kWetToneCutoffHz);
 
-  for (int voiceIndex = 0; voiceIndex < kNumVoices; ++voiceIndex)
-    parameters.voiceLevels[static_cast<std::size_t>(voiceIndex)] = ComputeVoiceLevel(knob, voiceIndex);
+  for (std::size_t i = 0; i < parameters.voiceLevels.size(); ++i)
+    parameters.voiceLevels[i] = ComputeVoiceLevel(knob, static_cast<int>(i));
 
   parameters.voiceMixScale = ComputeVoiceMixScale(parameters.voiceLevels);
   return parameters;
@@ -93,9 +93,9 @@ ChorusParameters ComputeParameters(double amount, double sampleRate) {
 } // namespace
 
 void effects::Chorus::InitializeVoiceStates() {
-  for (int i = 0; i < kNumVoices; ++i) {
-    VoiceState& voice = mVoices[static_cast<std::size_t>(i)];
-    const VoiceSetup& setup = kVoiceSetups[static_cast<std::size_t>(i)];
+  for (std::size_t i = 0; i < mVoices.size(); ++i) {
+    VoiceState& voice = mVoices[i];
+    const VoiceSetup& setup = kVoiceSetups[i];
     voice.modSeed = setup.seed;
     voice.modPosition = (dsp::HashToSignedUnitFloat(voice.modSeed ^ 0xB8C9F52Du) + 1.0) * 100.0 + (17.0 * static_cast<double>(i));
   }
@@ -149,9 +149,9 @@ void effects::Chorus::AdvanceSilentBlock(int nFrames) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
     const ChorusParameters parameters = ComputeParameters(mCurrentAmount, mSampleRate);
 
-    for (int voiceIndex = 0; voiceIndex < kNumVoices; ++voiceIndex) {
-      VoiceState& voice = mVoices[static_cast<std::size_t>(voiceIndex)];
-      const VoiceSetup& setup = kVoiceSetups[static_cast<std::size_t>(voiceIndex)];
+    for (std::size_t i = 0; i < mVoices.size(); ++i) {
+      VoiceState& voice = mVoices[i];
+      const VoiceSetup& setup = kVoiceSetups[i];
       voice.modPosition += (setup.baseRateHz * parameters.rateScale) / mSampleRate;
       voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
     }
@@ -200,10 +200,10 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
     double wetLeft = 0.0;
     double wetRight = 0.0;
 
-    for (int voiceIndex = 0; voiceIndex < kNumVoices; ++voiceIndex) {
-      VoiceState& voice = mVoices[static_cast<std::size_t>(voiceIndex)];
-      const VoiceSetup& setup = kVoiceSetups[static_cast<std::size_t>(voiceIndex)];
-      const double voiceLevel = parameters.voiceLevels[static_cast<std::size_t>(voiceIndex)];
+    for (std::size_t i = 0; i < mVoices.size(); ++i) {
+      VoiceState& voice = mVoices[i];
+      const VoiceSetup& setup = kVoiceSetups[i];
+      const double voiceLevel = parameters.voiceLevels[i];
       const double rateHz = setup.baseRateHz * parameters.rateScale;
       voice.modPosition += rateHz / mSampleRate;
       voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);

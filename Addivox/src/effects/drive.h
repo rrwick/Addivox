@@ -63,6 +63,7 @@ private:
 
   Parameters ComputeParameters(double amount) const;
   void AdvanceSilentBlock(int nFrames);
+  void DeactivateIfBypassed();
   static double EvaluateShaper(double input, const Parameters& parameters);
   static double EvaluateShaperAntiderivative(double input, const Parameters& parameters);
   static double EvaluateShaperAdaa(ChannelState& channel, double input, const Parameters& parameters);

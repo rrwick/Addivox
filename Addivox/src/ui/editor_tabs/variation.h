@@ -41,36 +41,17 @@ inline bool ApplyVariationAction(SimplePatch& patch, OscillatorParameter paramet
 }
 
 inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
-  descriptors.push_back({kOscillatorTabTitles[6],
-                         "Level variation amount",
-                         OscillatorParameter::level_variation_amplitude,
-                         {0.0, 10.0},
-                         help_text::oscillator_tabs::Get(OscillatorParameter::level_variation_amplitude)});
-  descriptors.push_back({kOscillatorTabTitles[7],
-                         "Level variation rate",
-                         OscillatorParameter::level_variation_rate,
-                         {0.0, 10.0},
-                         help_text::oscillator_tabs::Get(OscillatorParameter::level_variation_rate)});
-  descriptors.push_back({kOscillatorTabTitles[8],
-                         "Pitch variation amount",
-                         OscillatorParameter::pitch_variation_amplitude,
-                         {0.0, 10.0},
-                         help_text::oscillator_tabs::Get(OscillatorParameter::pitch_variation_amplitude)});
-  descriptors.push_back({kOscillatorTabTitles[9],
-                         "Pitch variation rate",
-                         OscillatorParameter::pitch_variation_rate,
-                         {0.0, 10.0},
-                         help_text::oscillator_tabs::Get(OscillatorParameter::pitch_variation_rate)});
-  descriptors.push_back({kOscillatorTabTitles[10],
-                         "Pan variation amount",
-                         OscillatorParameter::pan_variation_amplitude,
-                         {0.0, 10.0},
-                         help_text::oscillator_tabs::Get(OscillatorParameter::pan_variation_amplitude)});
-  descriptors.push_back({kOscillatorTabTitles[11],
-                         "Pan variation rate",
-                         OscillatorParameter::pan_variation_rate,
-                         {0.0, 10.0},
-                         help_text::oscillator_tabs::Get(OscillatorParameter::pan_variation_rate)});
+  static constexpr std::array<std::pair<const char*, OscillatorParameter>, 6> kEntries{{
+      {"Level variation amount", OscillatorParameter::level_variation_amplitude},
+      {"Level variation rate",   OscillatorParameter::level_variation_rate},
+      {"Pitch variation amount", OscillatorParameter::pitch_variation_amplitude},
+      {"Pitch variation rate",   OscillatorParameter::pitch_variation_rate},
+      {"Pan variation amount",   OscillatorParameter::pan_variation_amplitude},
+      {"Pan variation rate",     OscillatorParameter::pan_variation_rate},
+  }};
+  for (std::size_t i = 0; i < kEntries.size(); ++i)
+    descriptors.push_back({kOscillatorTabTitles[6 + i], kEntries[i].first, kEntries[i].second, {0.0, 10.0},
+                           help_text::oscillator_tabs::Get(kEntries[i].second)});
 }
 
 inline void AttachVariationTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,

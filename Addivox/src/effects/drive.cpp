@@ -156,6 +156,16 @@ double effects::Drive::ProcessOversampledSample(ChannelState& channel, double in
   return dsp::FlushDenormal(input + (parameters.blend * (processed - input)));
 }
 
+void effects::Drive::DeactivateIfBypassed() {
+  if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
+    mCurrentAmount = 0.0;
+    mCurrentActiveMix = 0.0;
+    mTargetActiveMix = 0.0;
+    mActive = false;
+    Clear();
+  }
+}
+
 void effects::Drive::AdvanceSilentBlock(int nFrames) {
   for (int frame = 0; frame < nFrames; ++frame) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
@@ -183,15 +193,7 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames) {
 
   if (inputBlockSilent && !mHasStoredSignal) {
     AdvanceSilentBlock(nFrames);
-
-    if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
-      mCurrentAmount = 0.0;
-      mCurrentActiveMix = 0.0;
-      mTargetActiveMix = 0.0;
-      mActive = false;
-      Clear();
-    }
-
+    DeactivateIfBypassed();
     return;
   }
 
@@ -224,11 +226,5 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames) {
     }
   }
 
-  if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
-    mCurrentAmount = 0.0;
-    mCurrentActiveMix = 0.0;
-    mTargetActiveMix = 0.0;
-    mActive = false;
-    Clear();
-  }
+  DeactivateIfBypassed();
 }
