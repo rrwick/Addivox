@@ -18,3 +18,12 @@ Perhaps, with some careful fine-tuning of the patches, but this is not what Addi
 ## Can Addivox produce breathy flute sounds?
 
 No, it cannot. Addivox's synthesis is based on summing harmonic sine waves, and it does not have the ability to create noise in its synthesised sound. If you are interested in breathy flute sounds, I have found [Respiro](https://www.kvraudio.com/product/respiro-by-imoxplus) (a physical-modelling synthesizer) to excel at this.
+
+
+## What are the system requirements for Addivox?
+
+* It runs fine on my 9th gen iPad from 2021, and doesn't max out the CPU.
+* So I predict it will do okay with iPads from about 2019 onward.
+* Need to test on an M1 Mac.
+* If your hardware is older, you can disable the visualization to reduce CPU usage.
+* Also, try before you buy! Get the demo version and make sure it works on your hardware before you purchase Addivox.
