@@ -6,8 +6,7 @@
 
 # Addivox documentation
 
-
-<p align="center"><img src="assets/main-ui.png" alt="Addivox main UI" style="width: 100%;"></p>
+<p align="center"><img src="assets/main-ui.png" alt="Addivox main UI" style="max-width: 100%; width: 700px;"></p>
 
 **Addivox** is an additive synthesizer for wind controllers. Key features include:
 

@@ -1,3 +1,24 @@
 [data-md-color-scheme="slate"] {
   --md-default-bg-color: #1a1a1d;
 }
+
+.float-left {
+  float: left;
+  height: auto;
+  margin: 0 1.25rem 0.75rem 0;
+}
+
+.float-right {
+  float: right;
+  height: auto;
+  margin: 0 0 0.75rem 1.25rem;
+}
+
+@media screen and (max-width: 600px) {
+  .float-left {
+    float: none;
+    display: block;
+    max-width: 100%;
+    margin: 0 auto 1rem;
+  }
+}

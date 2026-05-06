@@ -1,6 +1,6 @@
 # Demo version
 
-<p align="center"><img src="../assets/demo-ui.png" alt="Addivox demo-mode UI" style="width: 60%;"></p>
+<p align="center"><img src="../assets/demo-ui.png" alt="Addivox demo-mode UI" class="float-right" style="max-width: 50%; width: 300px;"></p>
 
 The demo version of Addivox is available for all of the same app and plugin formats as the full version of Addivox.
 

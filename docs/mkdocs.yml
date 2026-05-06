@@ -14,6 +14,8 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
+extra:
+  generator: false
 
 extra_css:
   - assets/custom.css

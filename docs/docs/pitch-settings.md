@@ -1,6 +1,6 @@
 # Pitch settings
 
-<p align="center"><img src="../assets/pitch.png" alt="Addivox pitch settings" style="width: 31%;"></p>
+<p align="center"><img src="../assets/pitch.png" alt="Addivox pitch settings" class="float-right" style="max-width: 50%; width: 197px;"></p>
 
 Addivox is a **monosynth** — it plays one note at a time.
 

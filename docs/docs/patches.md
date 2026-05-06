@@ -4,23 +4,35 @@
 
 Addivox ships with 15 factory patches:
 
-| # | Name | Description |
-|---|------|-------------|
-| 1 | Bright Brass | |
-| 2 | Warm Brass | |
-| 3 | Mellow Brass | |
-| 4 | Dark Brass | |
-| 5 | Bright Reed | |
-| 6 | Warm Reed | |
-| 7 | Hollow Reed | |
-| 8 | Tonewheel Organ 888 | |
-| 9 | Tonewheel Organ Full | |
-| 10 | Full Pipe Organ | |
-| 11 | Simple Saw | |
-| 12 | Simple Square | |
-| 13 | Simple Sine | |
-| 14 | Rough Saw | |
-| 15 | Rough Square | |
+**Bright Brass:** A clean bright brassy sound. Tuba-like in the low range, trombone-like in the mid range and trumpet-like in the higher range. Has a smoothly tapering Level curve, and for lower notes, the peak is at a higher harmonic number. No formants.
+
+**Warm Brass:** Similar to Bright Brass, except the Level curve peaks sooner and tapers faster, giving fewer high harmonics.
+
+**Mellow Brass:** Similar to Warm Brass, except the Level curve peaks sooner and tapers faster, giving even fewer high harmonics.
+
+**Dark Brass:** Similar to Mellow Brass, except the Level curve peaks sooner (first harmonic is always strongest) and tapers faster, giving even fewer high harmonics.
+
+**Bright Reed:**
+
+**Warm Reed:**
+
+**Hollow Reed:**
+
+**Tonewheel Organ 888:** Inspired by a Hammond organ with drawbars set to 888000000. Contains a generous amount of level, pan and pitch variation to make the notes sound more lively.
+
+**Tonewheel Organ Full:** Inspired by a Hammond organ with drawbars set to 888888888. Contains a generous amount of level, pan and pitch variation to make the notes sound more lively.
+
+**Full Pipe Organ:** Has harmonics at equal level across the octaves for a big full-spectrum sound. Contains a bit of level, pan and pitch variation.
+
+**Simple Saw:** Level curve follows a 1/_h_ shape, approximating a sawtooth wave. The top harmonics taper to zero to prevent a high-pitched whine sound at full breath for low notes.
+
+**Simple Square:** Level curve follows a 1/_h_ shape, odd harmonics only, approximating a square wave. The top harmonics taper to zero to prevent a high-pitched whine sound at full breath for low notes.
+
+**Simple Sine:** Just a single oscillator at harmonic 1. As simple as it gets!
+
+**Rough Saw:** Same as Simple Saw, but with level variation, pan variation, pitch variation, drive and chorus.
+
+**Rough Square:** Same as Simple Square, but with level variation, pan variation, pitch variation, drive and chorus.
 
 
 ## Custom Patches
