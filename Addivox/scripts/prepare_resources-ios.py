@@ -56,7 +56,7 @@ def main():
   config = parse_config(projectpath)
   resource_bundle_name = config['BUNDLE_NAME']
   if os.environ.get('ADDIVOX_DEMO', '').lower() in ('1', 'yes', 'true', 'on'):
-    config['PLUG_NAME'] = 'Addivox Demo'
+    config['PLUG_NAME'] = 'AddivoxDemo'
     config['BUNDLE_NAME'] = 'AddivoxDemo'
   xcconfig = parse_xcconfig(os.path.join(os.getcwd(), IPLUG2_ROOT +  '/common-ios.xcconfig'))
 

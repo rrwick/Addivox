@@ -86,7 +86,10 @@ bool IPlugAPPHost::Init() {
   return true;
 }
 
-bool IPlugAPPHost::OpenWindow(HWND pParent) { return mIPlug->OpenWindow(pParent) != nullptr; }
+bool IPlugAPPHost::OpenWindow(HWND pParent) {
+  if (pParent) SetWindowText(pParent, BUNDLE_NAME);
+  return mIPlug->OpenWindow(pParent) != nullptr;
+}
 
 void IPlugAPPHost::CloseWindow() { mIPlug->CloseWindow(); }
 

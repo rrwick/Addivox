@@ -3,7 +3,7 @@
 #endif
 
 #if ADDIVOX_DEMO
-#define PLUG_NAME "Addivox Demo"
+#define PLUG_NAME "AddivoxDemo"
 #else
 #define PLUG_NAME "Addivox"
 #endif
@@ -59,7 +59,7 @@
 #endif
 #define AAX_PLUG_MFR_STR "RWic"
 #if ADDIVOX_DEMO
-#define AAX_PLUG_NAME_STR "Addivox Demo\nIPIS"
+#define AAX_PLUG_NAME_STR "AddivoxDemo\nIPIS"
 #else
 #define AAX_PLUG_NAME_STR "Addivox\nIPIS"
 #endif

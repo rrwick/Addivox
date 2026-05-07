@@ -23,28 +23,22 @@ set -o pipefail
 #
 # Main outputs are copied into build/dist/full and build/dist/demo:
 #
-#   build/dist/macos/Addivox.app
+#   build/dist/full/macos/Addivox.app
 #     Standalone macOS app bundle.
 #
-#   build/dist/macos/Addivox.component
+#   build/dist/full/macos/Addivox.component
 #     Audio Unit v2 plugin bundle for macOS DAWs.
 #
-#   build/dist/macos/Addivox.appex
-#     Audio Unit v3 app extension bundle for macOS.
-#
-#   build/dist/macos/AUv3Framework.framework
-#     Shared framework used by the AUv3 app/extension targets.
-#
-#   build/dist/macos/Addivox.vst
+#   build/dist/full/macos/Addivox.vst
 #     VST2 plugin bundle for macOS hosts that still support VST2.
 #
-#   build/dist/macos/Addivox.vst3
+#   build/dist/full/macos/Addivox.vst3
 #     VST3 plugin bundle for macOS hosts.
 #
-#   build/dist/macos/Addivox.clap
+#   build/dist/full/macos/Addivox.clap
 #     CLAP plugin bundle for macOS hosts.
 #
-#   build/dist/macos/Addivox.aaxplugin
+#   build/dist/full/macos/Addivox.aaxplugin
 #     AAX plugin bundle for Pro Tools. This usually needs Avid-specific signing
 #     and packaging before it is useful for external distribution.
 #
@@ -67,11 +61,17 @@ set -o pipefail
 #   build/dist/cli/addivox
 #     Release CLI executable.
 #
+# Customer distribution zips are written to build/:
+#
+#   build/Addivox_v1.0.0_macOS.zip
+#   build/AddivoxDemo_v1.0.0_macOS.zip
+#
 # Optional local plugin install:
 #
 #   sudo ./build_mac.sh --install
 #
-# This copies macOS plugin bundles from build/dist/macos into the per-user plugin
+# This copies macOS plugin bundles from build/dist/full/macos and
+# build/dist/demo/macos into the per-user plugin
 # folders under ~/Library/Audio/Plug-Ins for local DAW testing. AAX is not copied
 # because it normally lives under /Library/Application Support/Avid and should be
 # installed through a dedicated signed installer.
@@ -102,6 +102,7 @@ LOG_ROOT="${WORK_ROOT}/logs"
 ARCHIVE_ROOT="${WORK_ROOT}/archives"
 XCODE_DERIVED_ROOT="${WORK_ROOT}/xcode-derived"
 CMAKE_BUILD_DIR="${WORK_ROOT}/cli-cmake"
+PACKAGE_ROOT="${WORK_ROOT}/packages"
 
 CONFIGURATION="Release"
 INSTALL_PLUGINS=0
@@ -110,6 +111,7 @@ BUILD_VARIANT="full"
 BUILD_BINARY_NAME="Addivox"
 BUILD_CLI_NAME="addivox"
 ADDIVOX_DEMO_VALUE=0
+PLUG_VERSION=""
 
 MAC_SCHEMES=(
   "All macOS"
@@ -141,6 +143,7 @@ ARCHIVE_SCHEMES_IOS=(
 OK_STEPS=()
 FAILED_STEPS=()
 COPIED_ARTIFACTS=()
+PACKAGED_ARTIFACTS=()
 
 usage() {
   cat <<EOF
@@ -213,6 +216,19 @@ require_tool() {
   fi
 }
 
+read_plug_version() {
+  local config_header="${PROJECT_DIR}/config.h"
+  local version
+
+  version="$(sed -E -n 's/^[[:space:]]*#define[[:space:]]+PLUG_VERSION_STR[[:space:]]+"([^"]+)".*$/\1/p' "${config_header}" | head -n 1)"
+  if [[ -z "${version}" ]]; then
+    echo "Could not read PLUG_VERSION_STR from ${config_header}" >&2
+    exit 1
+  fi
+
+  PLUG_VERSION="${version}"
+}
+
 copy_bundle() {
   local source_path="$1"
   local relative_path="$2"
@@ -263,6 +279,18 @@ record_copied_artifact() {
   COPIED_ARTIFACTS+=("${artifact}")
 }
 
+record_packaged_artifact() {
+  local artifact="$1"
+
+  if [[ "${#PACKAGED_ARTIFACTS[@]}" -gt 0 ]]; then
+    for existing in "${PACKAGED_ARTIFACTS[@]}"; do
+      [[ "${existing}" == "${artifact}" ]] && return 0
+    done
+  fi
+
+  PACKAGED_ARTIFACTS+=("${artifact}")
+}
+
 copy_named_artifacts_from_products() {
   local platform_label="$1"
   local products_dir="$2"
@@ -281,6 +309,34 @@ copy_named_artifacts_from_products() {
   done
 }
 
+normalize_embedded_macos_auv3() {
+  local app_path="${ACTIVE_DIST_ROOT}/macos/${BUILD_BINARY_NAME}.app"
+  local plugins_dir="${app_path}/Contents/PlugIns"
+  local source_appex="${plugins_dir}/Addivox.appex"
+  local destination_appex="${plugins_dir}/${BUILD_BINARY_NAME}.appex"
+  local source_executable="${destination_appex}/Contents/MacOS/Addivox"
+  local destination_executable="${destination_appex}/Contents/MacOS/${BUILD_BINARY_NAME}"
+
+  if [[ ! -d "${source_appex}" && ! -d "${destination_appex}" ]]; then
+    record_fail "Normalize embedded macOS AUv3 (${source_appex} not found)"
+    return 0
+  fi
+
+  if [[ -d "${source_appex}" && "${source_appex}" != "${destination_appex}" ]]; then
+    rm -rf "${destination_appex}"
+    mv "${source_appex}" "${destination_appex}"
+  fi
+
+  if [[ -f "${source_executable}" && "${source_executable}" != "${destination_executable}" ]]; then
+    rm -f "${destination_executable}"
+    mv "${source_executable}" "${destination_executable}"
+  fi
+
+  if [[ ! -f "${destination_executable}" ]]; then
+    record_fail "Normalize embedded macOS AUv3 (${destination_executable} not found)"
+  fi
+}
+
 copy_macos_scheme_artifacts() {
   local scheme="$1"
   local products_dir="$2"
@@ -290,17 +346,11 @@ copy_macos_scheme_artifacts() {
       copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.app"
       ;;
     "macOS-APP with AUv3")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.app" "AUv3Framework.framework"
-      copy_named_artifact_from_products_as "macos" "${products_dir}" "Addivox.appex" "${BUILD_BINARY_NAME}.appex"
+      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.app"
+      normalize_embedded_macos_auv3
       ;;
     "macOS-AUv2")
       copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.component"
-      ;;
-    "macOS-AUv3")
-      copy_named_artifact_from_products_as "macos" "${products_dir}" "Addivox.appex" "${BUILD_BINARY_NAME}.appex"
-      ;;
-    "macOS-AUv3Framework")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "AUv3Framework.framework"
       ;;
     "macOS-VST2")
       copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.vst"
@@ -593,6 +643,61 @@ build_variant() {
   build_cli
 }
 
+package_macos_variant() {
+  local variant="$1"
+  local binary_name="$2"
+  local source_dir="${DIST_ROOT}/${variant}/macos"
+  local package_name="${binary_name}_v${PLUG_VERSION}_macOS.zip"
+  local package_path="${BUILD_ROOT}/${package_name}"
+  local staging_dir="${PACKAGE_ROOT}/${binary_name}"
+  local artifact_names=(
+    "${binary_name}.app"
+    "${binary_name}.component"
+    "${binary_name}.vst"
+    "${binary_name}.vst3"
+    "${binary_name}.aaxplugin"
+    "${binary_name}.clap"
+  )
+
+  log "Packaging ${package_name}"
+  mkdir -p "${PACKAGE_ROOT}"
+  rm -rf "${staging_dir}" "${package_path}"
+  mkdir -p "${staging_dir}"
+
+  local missing=0
+  local artifact_name
+  for artifact_name in "${artifact_names[@]}"; do
+    local artifact_path="${source_dir}/${artifact_name}"
+    if [[ -e "${artifact_path}" ]]; then
+      cp -R "${artifact_path}" "${staging_dir}/${artifact_name}"
+    else
+      record_fail "Package ${package_name} (${artifact_path} not found)"
+      missing=1
+    fi
+  done
+
+  if [[ "${missing}" -ne 0 ]]; then
+    return 0
+  fi
+
+  (
+    cd "${staging_dir}" &&
+      zip -qry --symlinks "${package_path}" "${artifact_names[@]}"
+  )
+
+  if [[ -f "${package_path}" ]]; then
+    record_packaged_artifact "${package_path}"
+    record_ok "Package ${package_name}"
+  else
+    record_fail "Package ${package_name} (${package_path} not created)"
+  fi
+}
+
+package_macos_distributables() {
+  package_macos_variant "full" "Addivox"
+  package_macos_variant "demo" "AddivoxDemo"
+}
+
 print_summary() {
   printf '\n'
   printf '============================================================\n'
@@ -623,6 +728,13 @@ print_summary() {
     done
   fi
 
+  printf '\nPackaged artifacts: %d\n' "${#PACKAGED_ARTIFACTS[@]}"
+  if [[ "${#PACKAGED_ARTIFACTS[@]}" -gt 0 ]]; then
+    for item in "${PACKAGED_ARTIFACTS[@]}"; do
+      printf '  %s\n' "${item}"
+    done
+  fi
+
   if [[ "${INSTALL_PLUGINS}" -eq 1 ]]; then
     printf '\nPlugin install requested: yes\n'
   else
@@ -635,17 +747,21 @@ print_summary() {
 main() {
   require_tool xcodebuild
   require_tool cmake
+  require_tool zip
+  read_plug_version
 
   if [[ "${CLEAN}" -eq 1 ]]; then
     rm -rf "${BUILD_ROOT}"
   fi
 
-  rm -rf "${DIST_ROOT}" "${XCODE_DERIVED_ROOT}" "${ARCHIVE_ROOT}"
-  mkdir -p "${DIST_ROOT}" "${LOG_ROOT}" "${ARCHIVE_ROOT}"
+  rm -rf "${DIST_ROOT}" "${XCODE_DERIVED_ROOT}" "${ARCHIVE_ROOT}" "${PACKAGE_ROOT}"
+  rm -f "${BUILD_ROOT}"/Addivox_v*_macOS.zip "${BUILD_ROOT}"/AddivoxDemo_v*_macOS.zip
+  mkdir -p "${DIST_ROOT}" "${LOG_ROOT}" "${ARCHIVE_ROOT}" "${PACKAGE_ROOT}"
 
   build_variant "full" 0
   build_variant "demo" 1
   reset_generated_resource_metadata
+  package_macos_distributables
 
   if [[ "${INSTALL_PLUGINS}" -eq 1 ]]; then
     install_plugins

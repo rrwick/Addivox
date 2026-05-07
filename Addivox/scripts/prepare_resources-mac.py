@@ -85,7 +85,7 @@ def demo_build_enabled():
 
 def apply_demo_config(config):
   if demo_build_enabled():
-    config['PLUG_NAME'] = 'Addivox Demo'
+    config['PLUG_NAME'] = 'AddivoxDemo'
     config['BUNDLE_NAME'] = 'AddivoxDemo'
 
 def main():

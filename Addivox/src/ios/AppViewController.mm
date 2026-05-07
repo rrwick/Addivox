@@ -58,7 +58,7 @@
   auView.translatesAutoresizingMaskIntoConstraints = YES;
 
 #if PLUG_HAS_UI
-  NSString* storyBoardName = [NSString stringWithFormat:@"%s-iOS-MainInterface", PLUG_NAME];
+  NSString* storyBoardName = [NSString stringWithFormat:@"%s-iOS-MainInterface", BUNDLE_NAME];
   UIStoryboard* storyboard = [UIStoryboard storyboardWithName:storyBoardName bundle:nil];
   pluginVC = [storyboard instantiateViewControllerWithIdentifier:@"main"];
   [self addChildViewController:pluginVC];
