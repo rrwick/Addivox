@@ -11,6 +11,6 @@ Addivox includes a small set of effects for shaping the final sound:
 
 Unlike the rest of Addivox, which operates on a per-harmonic oscillator basis, these effects are applied to the final stereo waveform after synthesis. They are applied in the order listed above: drive first, then tone, then chorus, then reverb. Using effects (any setting other than 0) will increase Addivox's CPU usage.
 
-Drive, tone and chorus are saved in patches (see [Custom patches](custom-patches.md)). Reverb is a persistent control, so it holds its value when patches change.
+Drive, tone and chorus are saved in patches (see [Patches](patches.md)). Reverb is a persistent control, so it holds its value when patches change.
 
 These are simple one-knob effects, intended mainly to give the standalone versions of Addivox a finished sound. When using Addivox as a plugin in a DAW, you may prefer to leave them off and use dedicated effects plugins instead. For that reason, reverb defaults to 50% for standalone versions of Addivox and 0% for plugin versions of Addivox.

@@ -20,7 +20,7 @@ The large panel in the middle of the UI has two modes, switched with the **VIS /
 **EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the EQ curve:
 
 - **EQ** — draws a frequency-response curve applied to the final sound. See [EQ](eq.md).
-- **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See [Per-harmonic Settings](per-harmonic-settings.md).
+- **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See [Per-harmonic Settings](per-harmonic_settings.md).
 
 The keyboard at the bottom of the panel selects which key note you are editing in EDIT mode, and plays the corresponding note in VIS mode (see below).
 
@@ -29,10 +29,10 @@ The keyboard at the bottom of the panel selects which key note you are editing i
 
 Below the main panel are five rows of knobs and controls:
 
-- **[Pitch](pitch-settings.md)** — transpose, tuning, portamento.
-- **[Envelope](global-settings.md)** — global attack and release scales.
-- **[Variation](global-settings.md)** — global scales for level, pitch and pan variation depth and rate.
-- **[Output](global-settings.md)** — global level scale and pan offset.
+- **[Pitch](pitch_settings.md)** — transpose, tuning, portamento.
+- **[Envelope](global_settings.md)** — global attack and release scales.
+- **[Variation](global_settings.md)** — global scales for level, pitch and pan variation depth and rate.
+- **[Output](global_settings.md)** — global level scale and pan offset.
 - **[Effects](effects.md)** — drive, tone, chorus and reverb.
 
 
@@ -47,4 +47,4 @@ The **breath meter** on the top shows the current incoming breath/CC signal leve
 
 <p align="center"><img src="../assets/keyboard.png" alt="Addivox keyboard" style="max-width: 100%; width: 600px;"></p>
 
-The keyboard along the bottom of the UI highlights the note currently being played. In VIS mode you can click keys to play notes directly (at full breath). In EDIT mode, clicking a key selects which key note's settings are displayed in the editor; if no key note exists at that note, the editor shows the interpolated values for that pitch. See [Key Notes and Interpolation](key-notes-and-interpolation.md).
+The keyboard along the bottom of the UI highlights the note currently being played. In VIS mode you can click keys to play notes directly (at full breath). In EDIT mode, clicking a key selects which key note's settings are displayed in the editor; if no key note exists at that note, the editor shows the interpolated values for that pitch. See [Key Notes and Interpolation](key_notes_and_interpolation.md).

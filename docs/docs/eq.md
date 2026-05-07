@@ -12,4 +12,4 @@ A **formant** is a resonant peak in the frequency spectrum — a band of frequen
 
 In real instruments, formants arise from the physical resonances of the instrument. Because these shapes are fixed, the formants stay at roughly the same frequencies even as you play higher or lower notes. Addivox's EQ works the same way: keeping the curve fixed in frequency lets you shape formants that behave like those of a real instrument.
 
-Adding one or more EQ peaks can dramatically change the timbre of a patch. The **All notes** toggle (see [Key Notes and Interpolation](key-notes-and-interpolation.md)) is particularly useful here — it lets you set a single EQ curve that applies across all key notes at once, which is usually what you want for formants.
+Adding one or more EQ peaks can dramatically change the timbre of a patch. The **All notes** toggle (see [Key Notes and Interpolation](key_notes_and_interpolation.md)) is particularly useful here — it lets you set a single EQ curve that applies across all key notes at once, which is usually what you want for formants.

@@ -4,7 +4,7 @@ In EDIT mode, the main panel contains a row of tabs. Each tab shows a bar chart 
 
 The **X range** controls at the bottom let you zoom in on a subset of harmonics, making it easier to edit the higher harmonics where bars would otherwise be very narrow.
 
-The **All notes** toggle, when enabled, locks that parameter in sync across all key notes. See [Key Notes and Interpolation](key-notes-and-interpolation.md).
+The **All notes** toggle, when enabled, locks that parameter in sync across all key notes. See [Key Notes and Interpolation](key_notes_and_interpolation.md).
 
 ## Level
 
@@ -16,7 +16,7 @@ Controls per-harmonic breath sensitivity (the `breath_power` exponent). At a val
 
 ## Attack / Release
 
-Controls how quickly each harmonic can increase (**Attack**) or decrease (**Release**) in level in response to breath changes. Higher attack values make a harmonic bloom more slowly; higher release values make it fade more slowly. These are scaled globally by the [envelope controls](global-settings.md).
+Controls how quickly each harmonic can increase (**Attack**) or decrease (**Release**) in level in response to breath changes. Higher attack values make a harmonic bloom more slowly; higher release values make it fade more slowly. These are scaled globally by the [envelope controls](global_settings.md).
 
 ## Pitch
 
@@ -28,7 +28,7 @@ The stereo position of each harmonic, from −1 (fully left) to +1 (fully right)
 
 ## Variation tabs
 
-Six tabs control continuous slow modulation of level, pitch, and pan. Each has an **Amount** tab (depth of the modulation for that harmonic) and a **Rate** tab (speed of the modulation). These are scaled globally by the [variation controls](global-settings.md).
+Six tabs control continuous slow modulation of level, pitch, and pan. Each has an **Amount** tab (depth of the modulation for that harmonic) and a **Rate** tab (speed of the modulation). These are scaled globally by the [variation controls](global_settings.md).
 
 - **LvlVarAmt / LvlVarRate** — level variation (tremolo-like).
 - **PchVarAmt / PchVarRate** — pitch variation (vibrato-like).

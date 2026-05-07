@@ -2,6 +2,8 @@ site_name: Addivox
 
 theme:
   name: material
+  features:
+    - navigation.sections
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -26,19 +28,22 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Demo version: demo.md
-  - Purchasing: purchasing.md
+  - Getting Started:
+      - Demo version: demo.md
+      - Purchasing: purchasing.md
+      - Installation – macOS: installation_macos.md
+      - Installation – Windows: installation_windows.md
   - Using Addivox:
-      - Main UI: main-ui.md
+      - Main UI: main_ui.md
       - Patches: patches.md
       - EQ: eq.md
-      - Per-harmonic settings: per-harmonic-settings.md
-      - Key notes and interpolation: key-notes-and-interpolation.md
-      - Pitch settings: pitch-settings.md
-      - Global settings: global-settings.md
+      - Per-harmonic settings: per-harmonic_settings.md
+      - Key notes and interpolation: key_notes_and_interpolation.md
+      - Pitch settings: pitch_settings.md
+      - Global settings: global_settings.md
       - Effects: effects.md
   - Support:
       - Videos: videos.md
-      - FAQ and miscellaneous tips: faq-and-miscellaneous-tips.md
+      - FAQ and miscellaneous tips: faq_and_miscellaneous_tips.md
       - Support and feedback: support_and_feedback.md
       - License: license.md
