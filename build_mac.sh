@@ -93,6 +93,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${ROOT_DIR}/Addivox"
 MAC_PROJECT="${PROJECT_DIR}/projects/Addivox-macOS.xcodeproj"
 IOS_PROJECT="${PROJECT_DIR}/projects/Addivox-iOS.xcodeproj"
+MACOS_INSTALLATION_DOC="${ROOT_DIR}/docs/docs/installation_macos.md"
 
 BUILD_ROOT="${ROOT_DIR}/build"
 WORK_ROOT="${BUILD_ROOT}/mac-release"
@@ -289,6 +290,12 @@ record_packaged_artifact() {
   fi
 
   PACKAGED_ARTIFACTS+=("${artifact}")
+}
+
+copy_packaged_readme() {
+  local destination_path="$1"
+
+  sed -E 's/\[([^][]+)\]\([^)]+\)/\1/g' "${MACOS_INSTALLATION_DOC}" > "${destination_path}"
 }
 
 copy_named_artifacts_from_products() {
@@ -658,6 +665,7 @@ package_macos_variant() {
     "${binary_name}.aaxplugin"
     "${binary_name}.clap"
   )
+  local package_entries=("README.md" "${artifact_names[@]}")
 
   log "Packaging ${package_name}"
   mkdir -p "${PACKAGE_ROOT}"
@@ -665,6 +673,16 @@ package_macos_variant() {
   mkdir -p "${staging_dir}"
 
   local missing=0
+  if [[ -f "${MACOS_INSTALLATION_DOC}" ]]; then
+    if ! copy_packaged_readme "${staging_dir}/README.md"; then
+      record_fail "Package ${package_name} (could not create README.md from ${MACOS_INSTALLATION_DOC})"
+      missing=1
+    fi
+  else
+    record_fail "Package ${package_name} (${MACOS_INSTALLATION_DOC} not found)"
+    missing=1
+  fi
+
   local artifact_name
   for artifact_name in "${artifact_names[@]}"; do
     local artifact_path="${source_dir}/${artifact_name}"
@@ -682,7 +700,7 @@ package_macos_variant() {
 
   (
     cd "${staging_dir}" &&
-      zip -qry --symlinks "${package_path}" "${artifact_names[@]}"
+      zip -qry --symlinks "${package_path}" "${package_entries[@]}"
   )
 
   if [[ -f "${package_path}" ]]; then

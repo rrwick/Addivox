@@ -5,7 +5,7 @@ Addivox for macOS is delivered as a zip file with a name like `Addivox_v1.0.0_ma
 
 You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which are loaded inside a DAW such as GarageBand, Logic Pro, Ableton Live or Pro Tools.
 
-These instructions also apply to the Demo version of Addivox. For the Demo version, the filenames use `AddivoxDemo` instead of `Addivox`, for example `AddivoxDemo.app` and `AddivoxDemo.vst3`.
+These instructions also apply to the [Demo version](demo.md) of Addivox. For the Demo version, the filenames use `AddivoxDemo` instead of `Addivox`, for example `AddivoxDemo.app` and `AddivoxDemo.vst3`.
 
 
 ### Standalone app
