@@ -123,6 +123,20 @@ inline constexpr const char*   kActionShiftLeft = "shift left";
 inline constexpr const char*   kActionNormalize = "normalize";
 inline constexpr const char*      kActionInvert = "invert";
 
+#if defined OS_IOS
+inline constexpr const char*     kActionScaleUpMenuLabel = kActionScaleUp;
+inline constexpr const char*   kActionScaleDownMenuLabel = kActionScaleDown;
+inline constexpr const char*   kActionTowardMaxMenuLabel = kActionTowardMax;
+inline constexpr const char* kActionAwayFromMaxMenuLabel = kActionAwayFromMax;
+inline constexpr const char*      kActionBendUpMenuLabel = kActionBendUp;
+inline constexpr const char*    kActionBendDownMenuLabel = kActionBendDown;
+inline constexpr const char*     kActionShiftUpMenuLabel = kActionShiftUp;
+inline constexpr const char*   kActionShiftDownMenuLabel = kActionShiftDown;
+inline constexpr const char*  kActionShiftRightMenuLabel = kActionShiftRight;
+inline constexpr const char*   kActionShiftLeftMenuLabel = kActionShiftLeft;
+inline constexpr const char*   kActionNormalizeMenuLabel = kActionNormalize;
+inline constexpr const char*      kActionInvertMenuLabel = kActionInvert;
+#else
 inline constexpr const char*     kActionScaleUpMenuLabel = "scale up [Q]";
 inline constexpr const char*   kActionScaleDownMenuLabel = "scale down [A]";
 inline constexpr const char*   kActionTowardMaxMenuLabel = "toward max [W]";
@@ -135,6 +149,7 @@ inline constexpr const char*  kActionShiftRightMenuLabel = "shift right [E]";
 inline constexpr const char*   kActionShiftLeftMenuLabel = "shift left [D]";
 inline constexpr const char*   kActionNormalizeMenuLabel = "normalize [N]";
 inline constexpr const char*      kActionInvertMenuLabel = "invert [I]";
+#endif
 
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
 
