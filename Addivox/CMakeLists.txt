@@ -61,11 +61,12 @@ iplug_add_plugin(${PROJECT_NAME}
     resources/fonts/Roboto-Bold.ttf
     resources/fonts/Roboto-Black.ttf
     ${BUILTIN_PATCH_RESOURCES}
-    assets/knob.svg
-    assets/knob-fixed.svg
-    assets/knob-rotating.svg
-    assets/background.svg
-    assets/about-logo.svg
+    resources/img/knob.svg
+    resources/img/knob-fixed.svg
+    resources/img/knob-rotating.svg
+    resources/img/background.svg
+    resources/img/about-logo.svg
+    resources/img/gear.svg
 )
 
 if(APPLE AND NOT IOS)

@@ -70,9 +70,6 @@ SVG_PRELOAD_ARGS=""
 if [ -d ./resources/img ] && [ "$(ls -A ./resources/img/*.svg 2>/dev/null)" ]; then
   SVG_PRELOAD_ARGS="$SVG_PRELOAD_ARGS --preload ./resources/img/"
 fi
-if [ -d ./assets ] && [ "$(ls -A ./assets/*.svg 2>/dev/null)" ]; then
-  SVG_PRELOAD_ARGS="$SVG_PRELOAD_ARGS --preload ./assets@/resources/img/"
-fi
 if [ -n "$SVG_PRELOAD_ARGS" ]; then
   FOUND_SVGS=1
   echo "Packaging SVGs..."

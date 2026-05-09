@@ -72,9 +72,6 @@ SVG_PRELOAD_ARGS=""
 if [ -d ./resources/img ] && [ "$(ls -A ./resources/img/*.svg 2>/dev/null)" ]; then
   SVG_PRELOAD_ARGS="$SVG_PRELOAD_ARGS --preload ./resources/img/"
 fi
-if [ -d ./assets ] && [ "$(ls -A ./assets/*.svg 2>/dev/null)" ]; then
-  SVG_PRELOAD_ARGS="$SVG_PRELOAD_ARGS --preload ./assets@/resources/img/"
-fi
 if [ -n "$SVG_PRELOAD_ARGS" ]; then
   FOUND_SVGS=1
   eval "python3 $FILE_PACKAGER svgs.data $SVG_PRELOAD_ARGS --exclude *.png --exclude *DS_Store --js-output=./svgs.js"
@@ -82,14 +79,14 @@ fi
 
 #package @1x pngs
 FOUND_PNGS=0
-if [ "$(ls -A ./resources/img/*.png)" ]; then
+if [ -d ./resources/img ] && [ "$(ls -A ./resources/img/*.png 2>/dev/null | grep -v @2x)" ]; then
   FOUND_PNGS=1
   python3 $FILE_PACKAGER imgs.data --use-preload-plugins --preload ./resources/img/ --use-preload-cache --indexedDB-name="/$PROJECT_NAME_pkg" --exclude *DS_Store --exclude  *@2x.png --exclude  *.svg >> ./imgs.js
 fi
 
 # package @2x pngs into separate .data file
 FOUND_2XPNGS=0
-if [ "$(ls -A ./resources/img/*@2x*.png)" ]; then
+if [ -d ./resources/img ] && [ "$(ls -A ./resources/img/*@2x*.png 2>/dev/null)" ]; then
   FOUND_2XPNGS=1
   mkdir ./build-web/2x/
   cp ./resources/img/*@2x* ./build-web/2x

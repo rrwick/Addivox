@@ -43,11 +43,6 @@ def copy_resources_to_destination(projectpath, dst, label=""):
       os.remove(factory_patches_dst)
     shutil.copytree(projectpath + "/factory_patches/", factory_patches_dst)
 
-  if os.path.exists(projectpath + "/assets/"):
-    for asset in os.listdir(projectpath + "/assets/"):
-      print("copying " + asset + " to " + display_dst)
-      shutil.copy(projectpath + "/assets/" + asset, dst)
-
 def load_plist(plistpath):
   with open(plistpath, 'rb') as fp:
     return plistlib.load(fp)
