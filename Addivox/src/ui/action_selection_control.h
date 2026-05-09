@@ -15,8 +15,10 @@ public:
   using SelectionFunc = std::function<void(const char* selectedText)>;
 
   ActionSelectionControl(const IRECT& bounds, const char* defaultText, const std::initializer_list<const char*>& menuItems, const IText& text,
-                         const IColor& bgColor = COLOR_TRANSPARENT, bool persistentSelection = false)
-      : ICaptionControl(bounds, kNoParameter, text, bgColor, false), mMenu("", menuItems), mPersistentSelection(persistentSelection) {
+                         const IColor& bgColor = COLOR_TRANSPARENT, bool persistentSelection = false, const char* menuTitle = nullptr)
+      : ICaptionControl(bounds, kNoParameter, text, bgColor, false),
+        mMenu((menuTitle && menuTitle[0] != '\0') ? menuTitle : (defaultText ? defaultText : ""), menuItems),
+        mPersistentSelection(persistentSelection) {
     if (defaultText && defaultText[0] != '\0') mDefaultText.Set(defaultText);
     else if (defaultText == nullptr && mMenu.NItems() > 0)
       mDefaultText.Set(mMenu.GetItem(0)->GetText());

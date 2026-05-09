@@ -252,7 +252,7 @@ inline OscillatorParameterValues GetOscillatorParameterValues(const SimplePatch&
 inline ActionSelectionControl* CreateYTransformControl(const std::shared_ptr<EditorLevelTransform>& transform, OscillatorSliderControl* sliderControl,
                                                        const EditorStyles& styles) {
   auto* control = new ActionSelectionControl(IRECT(), GetLevelTransformLabel(*transform), {"linear", "square root", "pseudo-log"}, styles.utilityDropdownText,
-                                             styles.darkTab, true);
+                                             styles.darkTab, true, "Y transform");
   control->SetTooltip(help_text::oscillator_tabs::kYTransform);
   control->SetOnSelection([transform, sliderControl](const char* selectedText) {
     if (!selectedText) return;
@@ -274,7 +274,7 @@ inline ActionSelectionControl* CreateEditModeControl(const std::shared_ptr<std::
                                                      const OscillatorTabDescriptor& descriptor, const EditorStyles& styles) {
   const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
   auto* control = new ActionSelectionControl(IRECT(), GetOscillatorEditModeLabel((*editModes)[parameterIndex]), {"set", "nudge", "smooth", "draw line"},
-                                             styles.utilityDropdownText, styles.darkTab, true);
+                                             styles.utilityDropdownText, styles.darkTab, true, "Edit mode");
   control->SetTooltip(help_text::oscillator_tabs::kEditMode);
   control->SetOnSelection([editModes, parameterIndex](const char* selectedText) {
     if (!selectedText) return;
