@@ -9,14 +9,19 @@
 
 #import "IPlugAUPlayer.h"
 
+#import "IPlugAUAudioUnit.h"
 #import <CoreMIDI/CoreMIDI.h>
 #import <UIKit/UIKit.h>
 
+#include "IPlugAUv3.h"
 #include "audio_midi_settings_ios.h"
 #include "config.h"
 #include "../settings/params.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <objc/runtime.h>
 
 #if !__has_feature(objc_arc)
 #error This file must be compiled with Arc. Use -fobjc-arc flag
@@ -32,7 +37,7 @@ static bool isInstrument()
 }
 
 @interface IPlugAUPlayer ()
-- (void)applyStandaloneParameterDefaults;
+- (void)applyStandaloneParameterDefaultsPreservingCurrentValue:(BOOL)preserveCurrentValue;
 - (void)connectMIDISources;
 - (void)finishAudioUnitInstantiationWithError:(NSError*)error completion:(void (^)(void))completionBlock;
 - (void)handleMIDIPacketList:(const MIDIPacketList*)packetList;
@@ -49,6 +54,33 @@ NSString* const kStandaloneAUStateKey = @"auState";
 NSString* const kStandaloneStateFileName = @"ios_standalone_state.plist";
 constexpr AUValue kPluginDefaultReverb = 0.f;
 constexpr AUValue kIOSStandaloneDefaultReverb = 50.f;
+
+iplug::IPlugAUv3* GetIPlug(AUAudioUnit* audioUnit)
+{
+  Ivar plugIvar = class_getInstanceVariable(IPLUG_AUAUDIOUNIT.class, "mPlug");
+  if (audioUnit == nil || plugIvar == nil || ![audioUnit isKindOfClass:IPLUG_AUAUDIOUNIT.class])
+    return nullptr;
+
+  const ptrdiff_t offset = ivar_getOffset(plugIvar);
+  auto* objectBytes = reinterpret_cast<std::uint8_t*>((__bridge void*)audioUnit);
+  return *reinterpret_cast<iplug::IPlugAUv3**>(objectBytes + offset);
+}
+
+void SetIPlugParameterDefault(AUAudioUnit* audioUnit, int paramIdx, AUValue defaultValue, bool preserveCurrentValue)
+{
+  iplug::IPlugAUv3* plug = GetIPlug(audioUnit);
+  if (plug == nullptr || paramIdx < 0 || paramIdx >= plug->NParams())
+    return;
+
+  iplug::IParam* param = plug->GetParam(paramIdx);
+  if (param == nullptr)
+    return;
+
+  const double currentValue = param->Value();
+  param->SetDefault(defaultValue);
+  if (preserveCurrentValue)
+    param->Set(currentValue);
+}
 }
 
 static void MIDIReadCallback(const MIDIPacketList* packetList, void* readProcRefCon, void* srcConnRefCon)
@@ -119,8 +151,7 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 - (void)finishAudioUnitInstantiationWithError:(NSError*)error completion:(void (^)(void))completionBlock
 {
   const BOOL restoredState = [self restoreStandaloneState];
-  if (!restoredState)
-    [self applyStandaloneParameterDefaults];
+  [self applyStandaloneParameterDefaultsPreservingCurrentValue:restoredState];
   [self startMIDIInput];
 
   [self setupSession];
@@ -148,7 +179,7 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   completionBlock();
 }
 
-- (void)applyStandaloneParameterDefaults
+- (void)applyStandaloneParameterDefaultsPreservingCurrentValue:(BOOL)preserveCurrentValue
 {
   AUParameterTree* parameterTree = self.currentAudioUnit.parameterTree;
   if (parameterTree == nil)
@@ -158,7 +189,9 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   if (reverbParameter == nil)
     return;
 
-  if (std::fabs(reverbParameter.value - kPluginDefaultReverb) <= 0.001f)
+  SetIPlugParameterDefault(self.currentAudioUnit, kParamEffectsReverb, kIOSStandaloneDefaultReverb, preserveCurrentValue);
+
+  if (!preserveCurrentValue && std::fabs(reverbParameter.value - kPluginDefaultReverb) <= 0.001f)
     [reverbParameter setValue:kIOSStandaloneDefaultReverb originator:nil];
 }
 
