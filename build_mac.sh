@@ -11,6 +11,7 @@ set -o pipefail
 #   sudo ./build_mac.sh
 #   sudo ./build_mac.sh --clean
 #   sudo ./build_mac.sh --install
+#   sudo ./build_mac.sh --sign_and_notarize
 #
 # Use sudo because the Xcode archive action currently runs an install-style
 # postprocessing step that tries to set archived product ownership to root:admin.
@@ -76,18 +77,16 @@ set -o pipefail
 # because it normally lives under /Library/Application Support/Avid and should be
 # installed through a dedicated signed installer.
 #
-# This intentionally builds unsigned artifacts for now. Distribution TODOs once you have an
-# Apple Developer Program account:
+# Direct macOS distribution signing/notarization:
 #
-#   1. Set DEVELOPMENT_TEAM in Addivox/config/*.xcconfig or pass it through xcodebuild.
-#   2. Remove CODE_SIGNING_ALLOWED=NO for app/AUv3 archive/export steps.
-#   3. Add ExportOptions.plist files for:
-#        - macOS direct distribution / Developer ID
-#        - iOS App Store / TestFlight
-#   4. Run xcodebuild -exportArchive for app archives.
-#   5. Sign standalone plugin bundles with Developer ID Application.
-#   6. Notarize macOS app/plugin zips with notarytool, then staple tickets where supported.
-#   7. Package final customer downloads as signed/notarized .pkg or .zip files.
+#   sudo ./build_mac.sh --sign_and_notarize
+#
+# This signs and notarizes the full and demo macOS app/plugin bundles before
+# creating the customer zips. Signing credentials are intentionally not stored in
+# the repo. Defaults can be overridden in the environment:
+#
+#   DEVELOPER_ID_APPLICATION='Developer ID Application: Example (TEAMID)'
+#   NOTARY_PROFILE='addivox-notary'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${ROOT_DIR}/Addivox"
@@ -104,15 +103,19 @@ ARCHIVE_ROOT="${WORK_ROOT}/archives"
 XCODE_DERIVED_ROOT="${WORK_ROOT}/xcode-derived"
 CMAKE_BUILD_DIR="${WORK_ROOT}/cli-cmake"
 PACKAGE_ROOT="${WORK_ROOT}/packages"
+NOTARY_ROOT="${WORK_ROOT}/notary"
 
 CONFIGURATION="Release"
 INSTALL_PLUGINS=0
 CLEAN=0
+SIGN_AND_NOTARIZE=0
 BUILD_VARIANT="full"
 BUILD_BINARY_NAME="Addivox"
 BUILD_CLI_NAME="addivox"
 ADDIVOX_DEMO_VALUE=0
 PLUG_VERSION=""
+DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-Developer ID Application: RYAN ROBERT WICK (53B4QNBZK6)}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-addivox-notary}"
 
 MAC_SCHEMES=(
   "All macOS"
@@ -153,6 +156,9 @@ Usage: $0 [options]
 Options:
   --install        Copy built macOS plugin bundles to local user plugin folders for testing.
   --clean          Remove ${BUILD_ROOT} before building.
+  --sign_and_notarize
+                   Developer ID sign, notarize, and staple macOS app/plugin bundles
+                   before creating customer zips. Requires local Apple credentials.
   --help           Show this help.
 
 Archives are always built. Run this script with sudo because Xcode's archive
@@ -167,6 +173,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean)
       CLEAN=1
+      ;;
+    --sign_and_notarize)
+      SIGN_AND_NOTARIZE=1
       ;;
     --help|-h)
       usage
@@ -215,6 +224,217 @@ require_tool() {
     echo "Required tool not found: $1" >&2
     exit 1
   fi
+}
+
+safe_name() {
+  printf '%s' "$1" | tr '/ .' '___'
+}
+
+require_signing_prerequisites() {
+  require_tool codesign
+  require_tool security
+  require_tool ditto
+  require_tool xcrun
+  require_tool spctl
+
+  local identity_found=0
+  if security find-identity -v -p codesigning | grep -F "\"${DEVELOPER_ID_APPLICATION}\"" >/dev/null; then
+    identity_found=1
+  elif [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]] &&
+      sudo -u "${SUDO_USER}" security find-identity -v -p codesigning | grep -F "\"${DEVELOPER_ID_APPLICATION}\"" >/dev/null; then
+    identity_found=1
+  fi
+
+  if [[ "${identity_found}" -ne 1 ]]; then
+    echo "Developer ID signing identity not found: ${DEVELOPER_ID_APPLICATION}" >&2
+    echo "Override with DEVELOPER_ID_APPLICATION='Developer ID Application: Name (TEAMID)' if needed." >&2
+    exit 1
+  fi
+
+  if ! xcrun notarytool --help >/dev/null 2>&1; then
+    echo "xcrun notarytool is not available." >&2
+    exit 1
+  fi
+
+  if ! xcrun -f stapler >/dev/null 2>&1; then
+    echo "xcrun stapler is not available." >&2
+    exit 1
+  fi
+}
+
+run_notarytool_submit() {
+  local label="$1"
+  local log_file="$2"
+  local zip_path="$3"
+
+  if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    run_step "${label}" "${log_file}" \
+      sudo \
+        -u "${SUDO_USER}" \
+        xcrun \
+        notarytool \
+        submit \
+        "${zip_path}" \
+        --keychain-profile "${NOTARY_PROFILE}" \
+        --wait
+  else
+    run_step "${label}" "${log_file}" \
+      xcrun \
+        notarytool \
+        submit \
+        "${zip_path}" \
+        --keychain-profile "${NOTARY_PROFILE}" \
+        --wait
+  fi
+}
+
+sign_bundle() {
+  local bundle_path="$1"
+  local label="$2"
+  local safe_label
+  safe_label="$(safe_name "${label}")"
+
+  local nested_index=0
+  while IFS= read -r -d '' nested_bundle; do
+    [[ "${nested_bundle}" == "${bundle_path}" ]] && continue
+
+    nested_index=$((nested_index + 1))
+    run_step "Sign ${label} nested $(basename "${nested_bundle}")" "${LOG_ROOT}/sign-${safe_label}-nested-${nested_index}.log" \
+      codesign \
+        --force \
+        --timestamp \
+        --options runtime \
+        --sign "${DEVELOPER_ID_APPLICATION}" \
+        "${nested_bundle}" || return 1
+  done < <(find "${bundle_path}" -depth -type d \( -name "*.appex" -o -name "*.framework" \) -print0)
+
+  run_step "Sign ${label}" "${LOG_ROOT}/sign-${safe_label}.log" \
+    codesign \
+      --force \
+      --timestamp \
+      --options runtime \
+      --sign "${DEVELOPER_ID_APPLICATION}" \
+      "${bundle_path}" || return 1
+
+  run_step "Verify signature ${label}" "${LOG_ROOT}/verify-signature-${safe_label}.log" \
+    codesign \
+      --verify \
+      --deep \
+      --strict \
+      --verbose=2 \
+      "${bundle_path}"
+}
+
+notarize_zip() {
+  local label="$1"
+  local zip_path="$2"
+  local safe_label
+  safe_label="$(safe_name "${label}")"
+
+  run_notarytool_submit "Notarize ${label}" "${LOG_ROOT}/notarize-${safe_label}.log" "${zip_path}" || return 1
+}
+
+staple_bundle() {
+  local bundle_path="$1"
+  local label="$2"
+  local safe_label
+  safe_label="$(safe_name "${label}")"
+
+  run_step "Staple ${label}" "${LOG_ROOT}/staple-${safe_label}.log" \
+    xcrun \
+      stapler \
+      staple \
+      "${bundle_path}" || return 1
+
+  run_step "Validate staple ${label}" "${LOG_ROOT}/validate-staple-${safe_label}.log" \
+    xcrun \
+      stapler \
+      validate \
+      "${bundle_path}"
+}
+
+assess_app_bundle() {
+  local app_path="$1"
+  local label="$2"
+  local safe_label
+  safe_label="$(safe_name "${label}")"
+
+  run_step "Assess Gatekeeper ${label}" "${LOG_ROOT}/spctl-${safe_label}.log" \
+    spctl \
+      --assess \
+      --type execute \
+      --verbose=4 \
+      "${app_path}"
+}
+
+sign_and_notarize_macos_variant() {
+  local variant="$1"
+  local binary_name="$2"
+  local source_dir="${DIST_ROOT}/${variant}/macos"
+  local safe_variant
+  local notary_staging_dir
+  local notary_zip
+  local artifact_names=(
+    "${binary_name}.app"
+    "${binary_name}.component"
+    "${binary_name}.vst"
+    "${binary_name}.vst3"
+    "${binary_name}.clap"
+  )
+  safe_variant="$(safe_name "${variant}-${binary_name}")"
+  notary_staging_dir="${NOTARY_ROOT}/${safe_variant}"
+  notary_zip="${NOTARY_ROOT}/${safe_variant}.zip"
+
+  log "Signing and notarizing ${variant} macOS app/plugin bundles"
+  mkdir -p "${NOTARY_ROOT}"
+  rm -rf "${notary_staging_dir}" "${notary_zip}"
+  mkdir -p "${notary_staging_dir}"
+
+  local artifact_name
+  for artifact_name in "${artifact_names[@]}"; do
+    local artifact_path="${source_dir}/${artifact_name}"
+    local label="${variant} ${artifact_name}"
+
+    if [[ -e "${artifact_path}" ]]; then
+      sign_bundle "${artifact_path}" "${label}" || return 1
+      cp -R "${artifact_path}" "${notary_staging_dir}/${artifact_name}"
+    else
+      record_fail "Sign/notarize ${label} (${artifact_path} not found)"
+      return 1
+    fi
+  done
+
+  run_step "Create notarization zip ${variant} macOS bundles" "${LOG_ROOT}/notary-zip-${safe_variant}.log" \
+    ditto \
+      -c \
+      -k \
+      --keepParent \
+      "${notary_staging_dir}" \
+      "${notary_zip}" || return 1
+
+  notarize_zip "${variant} macOS bundles" "${notary_zip}" || return 1
+
+  for artifact_name in "${artifact_names[@]}"; do
+    local artifact_path="${source_dir}/${artifact_name}"
+    local label="${variant} ${artifact_name}"
+
+    staple_bundle "${artifact_path}" "${label}" || return 1
+
+    if [[ "${artifact_name}" == *.app ]]; then
+      assess_app_bundle "${artifact_path}" "${label}" || return 1
+    fi
+  done
+
+  local aax_path="${source_dir}/${binary_name}.aaxplugin"
+  if [[ -e "${aax_path}" ]]; then
+    echo "Skipping ${aax_path}; AAX normally requires Avid-specific signing/packaging."
+  fi
+}
+
+sign_and_notarize_macos_distributables() {
+  require_signing_prerequisites
+  sign_and_notarize_macos_variant "full" "Addivox" || return 1
+  sign_and_notarize_macos_variant "demo" "AddivoxDemo"
 }
 
 read_plug_version() {
@@ -759,7 +979,13 @@ print_summary() {
     printf '\nPlugin install requested: no. Use --install to copy macOS plugins to ~/Library/Audio/Plug-Ins for local testing.\n'
   fi
 
-  printf '\nSigning/export status: unsigned build artifacts only. See TODO notes at the top of build_mac.sh before customer distribution or App Store upload.\n'
+  if [[ "${SIGN_AND_NOTARIZE}" -eq 1 ]]; then
+    printf '\nSigning/export status: macOS app, AU/VST/CLAP bundles were Developer ID signed, notarized, and stapled where supported. AAX was skipped.\n'
+    printf 'Signing identity: %s\n' "${DEVELOPER_ID_APPLICATION}"
+    printf 'Notary profile:   %s\n' "${NOTARY_PROFILE}"
+  else
+    printf '\nSigning/export status: unsigned build artifacts only. Use --sign_and_notarize before customer distribution.\n'
+  fi
 }
 
 main() {
@@ -772,13 +998,21 @@ main() {
     rm -rf "${BUILD_ROOT}"
   fi
 
-  rm -rf "${DIST_ROOT}" "${XCODE_DERIVED_ROOT}" "${ARCHIVE_ROOT}" "${PACKAGE_ROOT}"
+  rm -rf "${DIST_ROOT}" "${XCODE_DERIVED_ROOT}" "${ARCHIVE_ROOT}" "${PACKAGE_ROOT}" "${NOTARY_ROOT}"
   rm -f "${BUILD_ROOT}"/Addivox_v*_macOS.zip "${BUILD_ROOT}"/AddivoxDemo_v*_macOS.zip
   mkdir -p "${DIST_ROOT}" "${LOG_ROOT}" "${ARCHIVE_ROOT}" "${PACKAGE_ROOT}"
 
   build_variant "full" 0
   build_variant "demo" 1
   reset_generated_resource_metadata
+
+  if [[ "${SIGN_AND_NOTARIZE}" -eq 1 ]]; then
+    if ! sign_and_notarize_macos_distributables; then
+      print_summary
+      exit 1
+    fi
+  fi
+
   package_macos_distributables
 
   if [[ "${INSTALL_PLUGINS}" -eq 1 ]]; then
