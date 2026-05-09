@@ -73,7 +73,7 @@
 			containerPortal = 91D3DA0C1B023C03008FFFBB /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 91236D761B08F59300734C5E;
-			remoteInfo = "FilterDemoAppExtension-iOS";
+			remoteInfo = AUv3;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -642,7 +642,7 @@
 				4FA61F7422E899B500A92C58 /* PBXTargetDependency */,
 			);
 			name = App;
-			productName = "FilterDemoApp-iOS";
+			productName = Addivox;
 			productReference = 91236D0D1B08F42B00734C5E /* Addivox.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -659,7 +659,7 @@
 			dependencies = (
 			);
 			name = AUv3;
-			productName = "FilterDemoAppExtension-iOS";
+			productName = AddivoxAppExtension;
 			productReference = 91236D771B08F59300734C5E /* AddivoxAppExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
