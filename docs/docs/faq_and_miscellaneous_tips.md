@@ -27,3 +27,10 @@ No, it cannot. Addivox's synthesis is based on summing harmonic sine waves, and 
 * Need to test on an M1 Mac.
 * If your hardware is older, you can disable the visualization to reduce CPU usage.
 * Also, try before you buy! Get the demo version and make sure it works on your hardware before you purchase Addivox.
+
+
+## Is a Pro Tools (AAX) plugin available?
+
+No, Addivox is not currently available as an AAX plugin for Pro Tools.
+
+iPlug2 can build AAX plugins, so this is possible in principle. However, public Pro Tools builds require AAX plugins to be signed through Avid/PACE's signing system before they can be loaded. I also do not own Pro Tools set up for proper testing, so I would not be able to test any AAX builds I made.

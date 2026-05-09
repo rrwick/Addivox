@@ -1,9 +1,9 @@
 # Installation – macOS
 
 Addivox for macOS is delivered as a zip file with a name like `Addivox_v1.0.0_macOS.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
-`Addivox.app`, `Addivox.component`, `Addivox.aaxplugin`, `Addivox.clap`, `Addivox.vst` and `Addivox.vst3`.
+`Addivox.app`, `Addivox.component`, `Addivox.clap`, `Addivox.vst` and `Addivox.vst3`.
 
-You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which are loaded inside a DAW such as GarageBand, Logic Pro, Ableton Live or Pro Tools.
+You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which are loaded inside a DAW such as GarageBand, Logic Pro or Ableton Live.
 
 These instructions also apply to the [Demo version](demo.md) of Addivox. For the Demo version, the filenames use `AddivoxDemo` instead of `Addivox`, for example `AddivoxDemo.app` and `AddivoxDemo.vst3`.
 
@@ -35,9 +35,8 @@ Copy the plugin files you need to the matching folder below. The `~` symbol mean
 | `Addivox.vst3`        | VST3          | `~/Library/Audio/Plug-Ins/VST3/`                    | Ableton Live, Cubase, Nuendo, Studio One, REAPER, FL Studio, Reason |
 | `Addivox.vst`         | VST2          | `~/Library/Audio/Plug-Ins/VST/`                     | Ableton Live, REAPER, Studio One                                    |
 | `Addivox.clap`        | CLAP          | `~/Library/Audio/Plug-Ins/CLAP/`                    | Bitwig Studio, REAPER                                               |
-| `Addivox.aaxplugin`   | AAX           | `/Library/Application Support/Avid/Audio/Plug-Ins/` | Pro Tools                                                           |
 
-If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, `Addivox.aaxplugin` for Pro Tools, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` and `Addivox.vst` are mainly useful for older DAWs.
+If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` and `Addivox.vst` are mainly useful for older DAWs.
 
 The `Library` folder inside your home folder is hidden by default. To open one of these folders in Finder:
 
@@ -46,8 +45,6 @@ The `Library` folder inside your home folder is hidden by default. To open one o
 3. Paste the install location from the table above.
 4. Press Return.
 5. Create the folder if it does not already exist, then copy the Addivox plugin file into it.
-
-The AAX folder is in the system-level `/Library` folder rather than your home folder, so macOS may ask for an administrator password when you copy `Addivox.aaxplugin`.
 
 After copying plugins, quit and reopen your DAW. Some DAWs scan new plugins automatically. Others have a plugin manager or preferences page where you can rescan plugins. If you installed more than one format, your DAW may show Addivox more than once, for example as both an Audio Unit and a VST3.
 
@@ -63,7 +60,6 @@ All of the included formats can be used on Intel or Apple Silicon Macs, provided
 - `Addivox.vst3`
 - `Addivox.vst`
 - `Addivox.clap`
-- `Addivox.aaxplugin`
 
 On an Intel Mac, use Addivox normally. On an Apple Silicon Mac, Addivox can run natively in Apple Silicon DAWs. It can also be used from Intel-only DAWs running under Rosetta, provided the DAW supports the plugin format you installed.
 

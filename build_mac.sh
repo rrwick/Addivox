@@ -39,10 +39,6 @@ set -o pipefail
 #   build/dist/full/macos/Addivox.clap
 #     CLAP plugin bundle for macOS hosts.
 #
-#   build/dist/full/macos/Addivox.aaxplugin
-#     AAX plugin bundle for Pro Tools. This usually needs Avid-specific signing
-#     and packaging before it is useful for external distribution.
-#
 #   build/dist/ios-device/
 #     iOS device Release products, including Addivox.app,
 #     AddivoxAppExtension.appex, and AUv3Framework.framework where produced by
@@ -73,9 +69,7 @@ set -o pipefail
 #
 # This copies macOS plugin bundles from build/dist/full/macos and
 # build/dist/demo/macos into the per-user plugin
-# folders under ~/Library/Audio/Plug-Ins for local DAW testing. AAX is not copied
-# because it normally lives under /Library/Application Support/Avid and should be
-# installed through a dedicated signed installer.
+# folders under ~/Library/Audio/Plug-Ins for local DAW testing.
 #
 # Direct macOS distribution signing/notarization:
 #
@@ -118,7 +112,6 @@ DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-Developer ID Application: 
 NOTARY_PROFILE="${NOTARY_PROFILE:-addivox-notary}"
 
 MAC_SCHEMES=(
-  "All macOS"
   "macOS-APP"
   "macOS-APP with AUv3"
   "macOS-AUv2"
@@ -127,7 +120,6 @@ MAC_SCHEMES=(
   "macOS-VST2"
   "macOS-VST3"
   "macOS-CLAP"
-  "macOS-AAX"
 )
 
 IOS_SCHEMES=(
@@ -425,10 +417,6 @@ sign_and_notarize_macos_variant() {
     fi
   done
 
-  local aax_path="${source_dir}/${binary_name}.aaxplugin"
-  if [[ -e "${aax_path}" ]]; then
-    echo "Skipping ${aax_path}; AAX normally requires Avid-specific signing/packaging."
-  fi
 }
 
 sign_and_notarize_macos_distributables() {
@@ -588,9 +576,6 @@ copy_macos_scheme_artifacts() {
     "macOS-CLAP")
       copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.clap"
       ;;
-    "macOS-AAX")
-      copy_named_artifacts_from_products "macos" "${products_dir}" "${BUILD_BINARY_NAME}.aaxplugin"
-      ;;
   esac
 }
 
@@ -631,9 +616,6 @@ install_plugin_bundle() {
     *.clap)
       install_bundle_to "${bundle_path}" "${HOME}/Library/Audio/Plug-Ins/CLAP/${bundle_name}"
       ;;
-    *.aaxplugin)
-      echo "Skipping AAX install for ${bundle_name}; AAX normally installs under /Library/Application Support/Avid/Audio/Plug-Ins and may require a dedicated signed installer."
-      ;;
   esac
 }
 
@@ -656,8 +638,7 @@ install_plugins() {
       -name "*.component" -o \
       -name "*.vst" -o \
       -name "*.vst3" -o \
-      -name "*.clap" -o \
-      -name "*.aaxplugin" \
+      -name "*.clap" \
     \) -prune -print0 2>/dev/null)
 }
 
@@ -882,7 +863,6 @@ package_macos_variant() {
     "${binary_name}.component"
     "${binary_name}.vst"
     "${binary_name}.vst3"
-    "${binary_name}.aaxplugin"
     "${binary_name}.clap"
   )
   local package_entries=("README.md" "${artifact_names[@]}")
@@ -980,7 +960,7 @@ print_summary() {
   fi
 
   if [[ "${SIGN_AND_NOTARIZE}" -eq 1 ]]; then
-    printf '\nSigning/export status: macOS app, AU/VST/CLAP bundles were Developer ID signed, notarized, and stapled where supported. AAX was skipped.\n'
+    printf '\nSigning/export status: macOS app, AU/VST/CLAP bundles were Developer ID signed, notarized, and stapled where supported.\n'
     printf 'Signing identity: %s\n' "${DEVELOPER_ID_APPLICATION}"
     printf 'Notary profile:   %s\n' "${NOTARY_PROFILE}"
   else
