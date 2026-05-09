@@ -57,6 +57,14 @@ public:
     SetDirty(false);
   }
 
+  void OnAttached() override {
+    IKnobControlBase::OnAttached();
+    if (mDoubleTapGestureAttached || !GetUI()) return;
+
+    AttachGestureRecognizer(EGestureType::DoubleTap, [this](IControl*, const IGestureInfo& info) { SetValueToDefault(GetValIdxForPos(info.x, info.y)); });
+    mDoubleTapGestureAttached = true;
+  }
+
 private:
   static constexpr float kArcRadiusRatio = 0.44f;
 
@@ -100,6 +108,7 @@ private:
   float mStartAngle = -135.f;
   float mEndAngle = 135.f;
   float mValueArcThickness = 4.8f;
+  bool mDoubleTapGestureAttached = false;
 };
 
 class KnobReadoutControl final : public ITextControl {
