@@ -11,6 +11,8 @@ IPLUG2_ROOT = ../../iPlug2
 
 // the basename of the vst, vst3, app, component, aaxplugin
 BINARY_NAME = Addivox
+ADDIVOX_DEVELOPMENT_TEAM =
+#include? "Addivox-local.xcconfig"
 
 // ------------------------------
 // HEADER AND LIBRARY SEARCH PATHS
