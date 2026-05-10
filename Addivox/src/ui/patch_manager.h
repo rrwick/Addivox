@@ -230,7 +230,7 @@ private:
     return rects[static_cast<int>(control)];
   }
 
-  IPopupMenu mPatchMenu;
+  IPopupMenu mPatchMenu{"Patches"};
   PatchMenuModel mModel;
   std::vector<ActionItem> mActionItems;
   IVButtonControl* mPatchNameButton = nullptr;
