@@ -50,6 +50,10 @@ struct PatchMenuModel {
   std::string label{"Choose Patch..."};
   std::string showInFileBrowserLabel{detail::DefaultShowInFileBrowserLabel()};
   bool canShowInFileBrowser{false};
+  bool canSavePatch{true};
+  bool canImportPatch{true};
+  bool canImportCollection{true};
+  bool canRefreshPatches{true};
 };
 
 class PatchManagerControl final : public IVBakedPresetManagerControl {
@@ -208,12 +212,14 @@ private:
     }
 
     mPatchMenu.AddSeparator();
-    AddCommandItem("Save...", editor_messages::PatchManagerAction::SavePatch);
-    AddCommandItem("Import Patch...", editor_messages::PatchManagerAction::ImportPatch);
-    AddCommandItem("Import Collection...", editor_messages::PatchManagerAction::ImportCollection);
+    AddCommandItem("Save...", editor_messages::PatchManagerAction::SavePatch, mModel.canSavePatch);
+    AddCommandItem("Import Patch...", editor_messages::PatchManagerAction::ImportPatch, mModel.canImportPatch);
+    AddCommandItem("Import Collection...", editor_messages::PatchManagerAction::ImportCollection, mModel.canImportCollection);
+#if !defined(OS_IOS)
     AddCommandItem(mModel.showInFileBrowserLabel.empty() ? detail::DefaultShowInFileBrowserLabel() : mModel.showInFileBrowserLabel.c_str(),
                    editor_messages::PatchManagerAction::ShowPatchInFileBrowser, mModel.canShowInFileBrowser);
-    AddCommandItem("Refresh", editor_messages::PatchManagerAction::RefreshPatches);
+#endif
+    AddCommandItem("Refresh", editor_messages::PatchManagerAction::RefreshPatches, mModel.canRefreshPatches);
   }
 
   IRECT GetSubControlBounds(ESubControl control) const {

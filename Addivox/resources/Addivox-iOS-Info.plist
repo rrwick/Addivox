@@ -26,6 +26,8 @@
 	<string>public.app-category.music</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Needs Bluetooth MIDI</string>
 	<key>UIApplicationSceneManifest</key>
@@ -51,6 +53,8 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>Addivox-iOS-launchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -17,7 +17,9 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 
 namespace {
@@ -310,11 +312,46 @@ std::string SanitizePatchFileName(std::string_view patchName) {
 }
 
 std::string GetDefaultUserPatchDirectory() {
+#if defined(OS_IOS)
+  if (IsOOPAuv3AppExtension()) {
+    WDL_String appGroupPath;
+    AppGroupContainerPath(appGroupPath, APP_GROUP_ID);
+    if (appGroupPath.GetLength() == 0) return {};
+
+    return patch_io::detail::JoinPath(patch_io::detail::JoinPath(appGroupPath.Get(), BUNDLE_NAME), "Patches");
+  }
+
+  const char* home = std::getenv("HOME");
+  if (!home || home[0] == '\0') return {};
+
+  return patch_io::detail::JoinPath(patch_io::detail::JoinPath(home, "Documents"), "Addivox Patches");
+#else
   WDL_String appSupportPath;
   AppSupportPath(appSupportPath, false);
   if (appSupportPath.GetLength() == 0) return {};
 
   return patch_io::detail::JoinPath(patch_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME), "Patches");
+#endif
+}
+
+std::string GetSharedUserPatchMirrorDirectory() {
+#if defined(OS_IOS)
+  WDL_String appGroupPath;
+  AppGroupContainerPath(appGroupPath, APP_GROUP_ID);
+  if (appGroupPath.GetLength() == 0) return {};
+
+  return patch_io::detail::JoinPath(patch_io::detail::JoinPath(appGroupPath.Get(), BUNDLE_NAME), "Patches");
+#else
+  return {};
+#endif
+}
+
+bool IsReadOnlyUserPatchLibrary() {
+#if defined(OS_IOS)
+  return IsOOPAuv3AppExtension();
+#else
+  return false;
+#endif
 }
 
 std::string EnsureDefaultUserPatchDirectory() {
@@ -589,6 +626,64 @@ bool CopyFileBytes(const std::string& sourcePath, const std::string& destination
   return !input.bad() && output.good();
 }
 
+bool RemoveDirectoryTree(std::string_view path) {
+  if (!patch_io::detail::PathExists(path)) return true;
+  if (!patch_io::detail::IsDirectory(path)) return patch_io::detail::DeleteFile(path);
+
+  WDL_DirScan scan;
+  if (scan.First(std::string{path}.c_str()) == 0) {
+    do {
+      const char* entryName = scan.GetCurrentFN();
+      if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
+
+      WDL_FastString childPath;
+      scan.GetCurrentFullFN(&childPath);
+      const int directoryState = scan.GetCurrentIsDirectory();
+      const bool removed = (directoryState != 0 && directoryState != 4) ? RemoveDirectoryTree(childPath.Get()) : patch_io::detail::DeleteFile(childPath.Get());
+      if (!removed) return false;
+    } while (scan.Next() == 0);
+  }
+
+  return std::remove(std::string{path}.c_str()) == 0;
+}
+
+bool CopyDirectoryTree(std::string_view sourceDirectory, std::string_view destinationDirectory) {
+  if (!patch_io::detail::IsDirectory(sourceDirectory)) return false;
+  if (!patch_io::detail::EnsureDirectoryExists(destinationDirectory)) return false;
+
+  WDL_DirScan scan;
+  if (scan.First(std::string{sourceDirectory}.c_str()) != 0) return true;
+
+  do {
+    const char* entryName = scan.GetCurrentFN();
+    if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
+
+    WDL_FastString childPath;
+    scan.GetCurrentFullFN(&childPath);
+    const std::string destinationPath = patch_io::detail::JoinPath(destinationDirectory, RelativePathFromDirectory(sourceDirectory, childPath.Get()));
+    const int directoryState = scan.GetCurrentIsDirectory();
+    const bool copied = (directoryState != 0 && directoryState != 4) ? CopyDirectoryTree(childPath.Get(), destinationPath) : CopyFileBytes(childPath.Get(), destinationPath);
+    if (!copied) return false;
+  } while (scan.Next() == 0);
+
+  return true;
+}
+
+bool SyncUserPatchDirectoryToSharedMirror() {
+#if defined(OS_IOS)
+  if (IsReadOnlyUserPatchLibrary()) return true;
+
+  const std::string userPatchDirectory = GetDefaultUserPatchDirectory();
+  const std::string mirrorDirectory = GetSharedUserPatchMirrorDirectory();
+  if (userPatchDirectory.empty() || mirrorDirectory.empty()) return false;
+  if (!patch_io::detail::EnsureDirectoryExists(userPatchDirectory)) return false;
+  if (!RemoveDirectoryTree(mirrorDirectory)) return false;
+  return CopyDirectoryTree(userPatchDirectory, mirrorDirectory);
+#else
+  return true;
+#endif
+}
+
 bool CopyPatchCollection(std::string_view sourceDirectory, std::string_view destinationDirectory, std::string* errorMessage = nullptr) {
   const std::vector<std::string> patchPaths = patch_io::FindPatchFiles(sourceDirectory);
   if (patchPaths.empty()) {
@@ -606,6 +701,14 @@ bool CopyPatchCollection(std::string_view sourceDirectory, std::string_view dest
   }
 
   return true;
+}
+
+bool IsPathInDirectory(std::string_view directory, std::string_view path) {
+  const std::string base = TrimTrailingSeparators(std::string{directory});
+  const std::string full{path};
+  if (base.empty() || full.size() < base.size()) return false;
+  if (full.compare(0, base.size(), base) != 0) return false;
+  return full.size() == base.size() || full[base.size()] == '/' || full[base.size()] == '\\';
 }
 
 bool ShouldTrackPatchDirtyForParamSource(EParamSource source) {
@@ -1067,13 +1170,27 @@ void Addivox::PromptSavePatchToFile() {
 
   fileName.Set(defaultFileName.c_str());
   directory.Set(exportPath.c_str());
-  ui->PromptForFile(fileName, directory, EFileAction::Save, "toml", [this, exportPath](const WDL_String& selectedFileName, const WDL_String&) {
+  ui->PromptForFile(fileName, directory, EFileAction::Save, "toml", [this, exportPath, document](const WDL_String& selectedFileName, const WDL_String&) {
     patch_io::detail::DeleteFile(exportPath);
 
-    const std::string destinationPath = GetFullFileDialogPath(selectedFileName);
+    std::string destinationPath = GetFullFileDialogPath(selectedFileName);
     if (destinationPath.empty()) return;
+    destinationPath = EnsureTomlExtension(std::move(destinationPath));
 
     mUserPatchDirectory = patch_io::detail::ParentPath(destinationPath);
+
+    const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+    if (IsPathInDirectory(userPatchDirectory, destinationPath)) {
+      mActivePatchSource = PatchSource::User;
+      mActiveFactoryPatchIdx = -1;
+      mActivePatchPath = destinationPath;
+      mActivePatchDisplayName = patch_io::detail::FileStem(destinationPath);
+      mActivePatchGroupKey = UserPatchGroupKeyForPath(userPatchDirectory, destinationPath);
+      SetActivePatchCleanSnapshotFromCurrentState();
+    }
+
+    RebuildPatchCatalog();
+    RefreshEditorUI();
   });
 #else
   fileName.Set(defaultFileName.c_str());
@@ -1569,16 +1686,17 @@ void Addivox::RebuildPatchCatalog() {
   }
 
   const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+  SyncUserPatchDirectoryToSharedMirror();
   const std::vector<std::string> userPatchPaths = patch_io::FindPatchFiles(userPatchDirectory);
   for (const auto& patchPath : userPatchPaths) {
     patch_io::PatchDocument document;
-    const bool loaded = patch_io::LoadPatchFromFile(patchPath, document);
+    patch_io::LoadPatchFromFile(patchPath, document);
 
     PatchCatalogEntry entry;
     entry.id = nextId++;
     entry.source = PatchSource::User;
     entry.path = patchPath;
-    entry.name = loaded && !document.name.empty() ? document.name : patch_io::detail::FileStem(patchPath);
+    entry.name = patch_io::detail::FileStem(patchPath);
 
     entry.menuPath = {"User"};
     const std::string relativeDirectory = DirectoryRelativeToRoot(userPatchDirectory, patchPath);
@@ -1817,9 +1935,15 @@ void Addivox::HandlePatchManagerAction(int action, int patchId) {
   case editor_messages::PatchManagerAction::SelectPatch:            LoadPatchById(patchId); break;
   case editor_messages::PatchManagerAction::PreviousPatch:          CyclePatchInCurrentGroup(-1); break;
   case editor_messages::PatchManagerAction::NextPatch:              CyclePatchInCurrentGroup(1); break;
-  case editor_messages::PatchManagerAction::SavePatch:              PromptSavePatchToFile(); break;
-  case editor_messages::PatchManagerAction::ImportPatch:            PromptImportPatchFromFile(); break;
-  case editor_messages::PatchManagerAction::ImportCollection:       PromptImportPatchCollection(); break;
+  case editor_messages::PatchManagerAction::SavePatch:
+    if (!IsReadOnlyUserPatchLibrary()) PromptSavePatchToFile();
+    break;
+  case editor_messages::PatchManagerAction::ImportPatch:
+    if (!IsReadOnlyUserPatchLibrary()) PromptImportPatchFromFile();
+    break;
+  case editor_messages::PatchManagerAction::ImportCollection:
+    if (!IsReadOnlyUserPatchLibrary()) PromptImportPatchCollection();
+    break;
   case editor_messages::PatchManagerAction::ShowPatchInFileBrowser: ShowActivePatchInFileBrowser(); break;
   case editor_messages::PatchManagerAction::RefreshPatches:
     RebuildPatchCatalog();
@@ -1914,6 +2038,11 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates) {
 
       plugin_ui::layout::PatchMenuModel model;
       model.label = label;
+      if (IsReadOnlyUserPatchLibrary()) {
+        model.canSavePatch = false;
+        model.canImportPatch = false;
+        model.canImportCollection = false;
+      }
       const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
       model.canShowInFileBrowser = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty() && patch_io::detail::PathExists(mActivePatchPath)) ||
                                    (!userPatchDirectory.empty() && patch_io::detail::IsDirectory(userPatchDirectory));

@@ -29,6 +29,9 @@
 #endif
 #define BUNDLE_MFR "rrwick"
 #define BUNDLE_DOMAIN "com"
+#if defined(OS_IOS)
+#define APP_GROUP_ID "group.com.rrwick.Addivox"
+#endif
 
 #define PLUG_CHANNEL_IO "0-2"
 #define SHARED_RESOURCES_SUBPATH "Addivox"
