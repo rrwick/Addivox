@@ -1,6 +1,6 @@
 # License
 
-Addivox's source code is available [on GitHub](https://github.com/rrwick/Addivox), but Addivox is not open-source software. It is source-available under a [custom license](https://github.com/rrwick/Addivox/blob/main/LICENSE), which aims to let curious users and developers inspect, build and privately modify Addivox while I retain redistribution rights for Addivox. The license does not restrict music, recordings or patches made with Addivox.
+Addivox is available [on GitHub](https://github.com/rrwick/Addivox), but Addivox is not open-source software. It is source-available under a [custom license](https://github.com/rrwick/Addivox/blob/main/LICENSE), which aims to let curious users and developers inspect, build and privately modify Addivox while I retain redistribution rights. The license does not restrict music, recordings or patches made with Addivox.
 
 
 ### Plain-language summary of the license terms

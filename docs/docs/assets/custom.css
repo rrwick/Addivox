@@ -2,6 +2,12 @@
   --md-default-bg-color: #1a1a1d;
 }
 
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary .md-nav--primary > .md-nav__title {
+    display: none;
+  }
+}
+
 .float-left {
   float: left;
   height: auto;

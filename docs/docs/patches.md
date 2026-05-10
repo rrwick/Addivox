@@ -80,13 +80,9 @@ You can create and save your own patches from within Addivox. Custom patches are
 
 - **macOS:** `~/Library/Application Support/Addivox/Patches/`
 - **Windows:** `%LOCALAPPDATA%\Addivox\Patches\`
-- **iOS standalone app:** `On My iPad/Addivox/Addivox Patches/`
+- **iOS:** `On My iPad/Addivox/Addivox Patches/`
 
 Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which is a convenient way to organise larger collections.
-
-Some notes for iOS:
-- The AUv3 plugin can load custom patches saved by the standalone app, but patch saving and importing are handled by the standalone app.
-- The first time you save a custom patch, the file save popup may default to the "On My iPad" folder. You will need to navigate to `Addivox/` and then `Addivox Patches/` to save your patch in the correct place.
 
 
 ### Patch file format
