@@ -12,6 +12,9 @@ constexpr double kBreathCurveScale = 2.0;
 
 const double kBreathCurveLog = std::log1p(kBreathCurveScale);
 
+// Set the seed to ensure that oscillator variation is deterministic.
+constexpr uint32_t kVoiceSeed = 0x6D2B79F5u;
+
 double EvaluateBreathLevel(double poweredBreath) {
   if (poweredBreath <= 0.0) return 0.0;
 
@@ -20,9 +23,8 @@ double EvaluateBreathLevel(double poweredBreath) {
 } // namespace
 
 SynthVoice::SynthVoice() {
-  const uint32_t voiceSeed = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
-    const uint32_t harmonicSeed = voiceSeed ^ (0x9E3779B9u * static_cast<uint32_t>(harmonic + 1));
+    const uint32_t harmonicSeed = kVoiceSeed ^ (0x9E3779B9u * static_cast<uint32_t>(harmonic + 1));
     mOscs[harmonic].SetVariationSeed(harmonicSeed);
   }
 
