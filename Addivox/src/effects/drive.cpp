@@ -197,10 +197,15 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames) {
     return;
   }
 
+  Parameters parameters{};
+  double prevAmount = -1.0;
   for (int frame = 0; frame < nFrames; ++frame) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
     mCurrentActiveMix = dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
-    const Parameters parameters = ComputeParameters(mCurrentAmount);
+    if (mCurrentAmount != prevAmount) {
+      parameters = ComputeParameters(mCurrentAmount);
+      prevAmount = mCurrentAmount;
+    }
     const double activeMix = mCurrentActiveMix;
 
     for (std::size_t channelIndex = 0; channelIndex < mChannels.size(); ++channelIndex) {

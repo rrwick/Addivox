@@ -98,6 +98,7 @@ void effects::Chorus::InitializeVoiceStates() {
     const VoiceSetup& setup = kVoiceSetups[i];
     voice.modSeed = setup.seed;
     voice.modPosition = (dsp::HashToSignedUnitFloat(voice.modSeed ^ 0xB8C9F52Du) + 1.0) * 100.0 + (17.0 * static_cast<double>(i));
+    voice.modLattice = -1;
   }
 }
 
@@ -192,9 +193,29 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
     return;
   }
 
+  ChorusParameters parameters{};
+  double prevAmount = -1.0;
+  std::array<double, kNumVoices> voiceScaleLeft{};
+  std::array<double, kNumVoices> voiceScaleRight{};
+  std::array<double, kNumVoices> voicePhaseIncrement{};
+  std::array<double, kNumVoices> voiceBaseDelaySamples{};
+  for (std::size_t i = 0; i < kNumVoices; ++i) {
+    voiceBaseDelaySamples[i] = dsp::MillisecondsToSamples(kVoiceSetups[i].delayOffsetMs, mSampleRate);
+  }
   for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
-    const ChorusParameters parameters = ComputeParameters(mCurrentAmount, mSampleRate);
+    if (mCurrentAmount != prevAmount) {
+      parameters = ComputeParameters(mCurrentAmount, mSampleRate);
+      prevAmount = mCurrentAmount;
+      for (std::size_t i = 0; i < kNumVoices; ++i) {
+        const auto panGains = dsp::PanToGains(kVoiceSetups[i].panPosition * parameters.width);
+        const double voiceMix = parameters.voiceLevels[i] * parameters.voiceMixScale;
+        voiceScaleLeft[i] = panGains[0] * voiceMix;
+        voiceScaleRight[i] = panGains[1] * voiceMix;
+        voicePhaseIncrement[i] = kVoiceSetups[i].baseRateHz * parameters.rateScale / mSampleRate;
+        voiceBaseDelaySamples[i] = parameters.baseDelaySamples + dsp::MillisecondsToSamples(kVoiceSetups[i].delayOffsetMs, mSampleRate);
+      }
+    }
     const double monoInput = mInputHighpass.Process(0.5 * (outputs[0][sampleIndex] + outputs[1][sampleIndex]));
 
     double wetLeft = 0.0;
@@ -202,21 +223,28 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
 
     for (std::size_t i = 0; i < mVoices.size(); ++i) {
       VoiceState& voice = mVoices[i];
-      const VoiceSetup& setup = kVoiceSetups[i];
-      const double voiceLevel = parameters.voiceLevels[i];
-      const double rateHz = setup.baseRateHz * parameters.rateScale;
-      voice.modPosition += rateHz / mSampleRate;
+      voice.modPosition += voicePhaseIncrement[i];
       voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
 
-      const double noise = dsp::GradientNoise1D(voice.modPosition, voice.modSeed);
-      const double delaySamples =
-          std::max(1.0, parameters.baseDelaySamples + dsp::MillisecondsToSamples(setup.delayOffsetMs, mSampleRate) + (parameters.depthSamples * noise));
+      const int lattice = static_cast<int>(voice.modPosition);
+      if (lattice != voice.modLattice) {
+        if (lattice == voice.modLattice + 1) {
+          voice.modGradient0 = voice.modGradient1;
+          voice.modGradient1 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(lattice + 1) ^ voice.modSeed));
+        } else {
+          voice.modGradient0 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(lattice) ^ voice.modSeed));
+          voice.modGradient1 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(lattice + 1) ^ voice.modSeed));
+        }
+        voice.modLattice = lattice;
+      }
+      const double t = voice.modPosition - static_cast<double>(voice.modLattice);
+      const double fade = dsp::Quintic(t);
+      const double noise = std::clamp((voice.modGradient0 * t + (voice.modGradient1 * (t - 1.0) - voice.modGradient0 * t) * fade) * 1.8, -1.0, 1.0);
+      const double delaySamples = std::max(1.0, voiceBaseDelaySamples[i] + (parameters.depthSamples * noise));
       const double delayed = voice.toneFilter.Process(voice.delay.Read(delaySamples));
-      const auto panGains = dsp::PanToGains(setup.panPosition * parameters.width);
-      const double voiceMix = voiceLevel * parameters.voiceMixScale;
 
-      wetLeft += delayed * panGains[0] * voiceMix;
-      wetRight += delayed * panGains[1] * voiceMix;
+      wetLeft += delayed * voiceScaleLeft[i];
+      wetRight += delayed * voiceScaleRight[i];
       voice.delay.Write(monoInput);
     }
 

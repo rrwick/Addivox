@@ -26,6 +26,9 @@ private:
     OnePoleLowpass toneFilter;
     double modPosition{0.0};
     uint32_t modSeed{0u};
+    int modLattice{-1};
+    double modGradient0{0.0};
+    double modGradient1{0.0};
   };
 
   void InitializeVoiceStates();
