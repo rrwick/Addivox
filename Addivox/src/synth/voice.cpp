@@ -252,7 +252,7 @@ void SynthVoice::UpdateLevels(const CompoundPatch::ResolvedNoteSpan& noteSpan) {
     const OscillatorSettings settings = mCompoundPatch.InterpolateOscillatorSettings(noteSpan, harmonic);
     const double frequencyHz = PitchSemitonesToFrequencyHz(mOscs[harmonic].GetCurrentPitchSemitones());
     const double eqGain = mCompoundPatch.EvaluateEqGain(noteSpan, frequencyHz);
-    const double breathLevel = EvaluateBreathLevel(std::pow(breath, settings.breath_power));
+    const double breathLevel = (breath <= 0.0) ? 0.0 : EvaluateBreathLevel(std::pow(breath, settings.breath_power));
     const double level = settings.level * breathLevel * eqGain * levelScale;
     mOscs[harmonic].SetLevel(level);
   }
