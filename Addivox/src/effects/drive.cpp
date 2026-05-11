@@ -223,5 +223,13 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames) {
     }
   }
 
+  if (inputBlockSilent) {
+    bool outputSilent = true;
+    for (int frame = 0; frame < nFrames && outputSilent; ++frame) {
+      outputSilent = (outputs[0][frame] == 0.0 && outputs[1][frame] == 0.0);
+    }
+    if (outputSilent) mHasStoredSignal = false;
+  }
+
   DeactivateIfBypassed();
 }
