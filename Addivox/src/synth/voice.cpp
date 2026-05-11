@@ -39,15 +39,15 @@ bool SynthVoice::IsActive() const {
 }
 
 void SynthVoice::Start(double pitch, double pitchBend, double breath) {
-  const bool retrigger = !IsActive();
+  const bool freshStart = !IsActive();
   mNotePitch = pitch;
   mPitchBend = pitchBend;
   mTargetMidiPitch = GetTargetMidiPitch();
-  if (retrigger) mRenderedMidiPitch = mTargetMidiPitch;
+  if (freshStart) mRenderedMidiPitch = mTargetMidiPitch;
   mBreath = SmoothBreath(breath);
   UpdatePitch();
 
-  if (retrigger) {
+  if (freshStart) {
     for (auto& osc : mOscs) osc.Reset();
 
     UpdateLevels();

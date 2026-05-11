@@ -374,6 +374,11 @@ bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* error
     return false;
   }
 
+  if (division == 0) {
+    SetErrorMessage(errorMessage, "MIDI file has zero ticks per quarter note");
+    return false;
+  }
+
   std::vector<RawEvent> rawEvents;
   std::vector<TempoEvent> tempoEvents;
   uint64_t nextSequence = 0;
