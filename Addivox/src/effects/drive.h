@@ -58,7 +58,6 @@ private:
     double toneCoefficient{1.0};
   };
 
-  static double DCBlockerCoefficient(double sampleRate, double cutoffHz);
   static double StableLogCosh(double value);
 
   Parameters ComputeParameters(double amount) const;

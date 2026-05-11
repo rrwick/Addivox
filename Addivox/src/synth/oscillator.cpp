@@ -125,7 +125,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mHasLevelVariation) {
     SmoothVariationParameters(mLevelVariation);
     if (IsVariationActiveNow(mLevelVariation)) {
-      const double levelNoise = VariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor);
+      const double levelNoise = mLevelVariation.noiseCache.evaluate(mLevelVariation.position, mVariationSeed ^ kLevelVariationSeedXor);
       mLevelVariation.position += mLevelVariation.positionIncrement;
       UpdateLevelTarget(levelNoise);
     } else
@@ -135,7 +135,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mHasPanVariation) {
     SmoothVariationParameters(mPanVariation);
     if (IsVariationActiveNow(mPanVariation)) {
-      const double panNoise = VariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor);
+      const double panNoise = mPanVariation.noiseCache.evaluate(mPanVariation.position, mVariationSeed ^ kPanVariationSeedXor);
       mPanVariation.position += mPanVariation.positionIncrement;
       UpdatePanTargetGains(panNoise);
     } else
@@ -145,7 +145,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mHasPitchVariation) {
     SmoothVariationParameters(mPitchVariation);
     if (IsVariationActiveNow(mPitchVariation)) {
-      const double pitchNoise = VariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor);
+      const double pitchNoise = mPitchVariation.noiseCache.evaluate(mPitchVariation.position, mVariationSeed ^ kPitchVariationSeedXor);
       mPitchVariation.position += mPitchVariation.positionIncrement;
       UpdatePitchTarget(pitchNoise);
     } else
@@ -155,17 +155,9 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
 
-  const double panLeftDelta = mTargetPanLeftGain - mPanLeftGain;
-  const double panLeftStep = std::min(std::abs(panLeftDelta), mPanSlewPerSample);
-  mPanLeftGain += std::copysign(panLeftStep, panLeftDelta);
-
-  const double panRightDelta = mTargetPanRightGain - mPanRightGain;
-  const double panRightStep = std::min(std::abs(panRightDelta), mPanSlewPerSample);
-  mPanRightGain += std::copysign(panRightStep, panRightDelta);
-
-  const double pitchDelta = mTargetPitch - mPitch;
-  const double pitchStep = std::min(std::abs(pitchDelta), mPitchRatePerSample);
-  mPitch += std::copysign(pitchStep, pitchDelta);
+  mPanLeftGain += std::clamp(mTargetPanLeftGain - mPanLeftGain, -mPanSlewPerSample, mPanSlewPerSample);
+  mPanRightGain += std::clamp(mTargetPanRightGain - mPanRightGain, -mPanSlewPerSample, mPanSlewPerSample);
+  mPitch += std::clamp(mTargetPitch - mPitch, -mPitchRatePerSample, mPitchRatePerSample);
   const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
   mPhaseIncrement = frequencyHz * mInverseSampleRate; // inlined UpdatePhaseIncrement
 
@@ -173,7 +165,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
 
   const double phase = mPhase;
   mPhase += mPhaseIncrement;
-  if (mPhase >= 1.0) mPhase -= std::floor(mPhase);
+  if (mPhase >= 1.0) mPhase -= 1.0;
 
   if (mLevel == 0.0) return {0.0, 0.0};
 
@@ -242,13 +234,11 @@ void Oscillator::RefreshVariationTargets() {
 }
 
 void Oscillator::UpdatePitchTarget(double pitchNoise) {
-  const double pitchSemitones = mBasePitch + (mPitchVariation.amplitude * pitchNoise);
-  mTargetPitch = std::max(mMinPitchSemitones, pitchSemitones);
+  mTargetPitch = std::max(mMinPitchSemitones, mBasePitch + (mPitchVariation.amplitude * pitchNoise));
 }
 
 void Oscillator::UpdateLevelTarget(double levelNoise) {
-  const double levelScale = std::max(0.0, 1.0 + (mLevelVariation.amplitude * levelNoise));
-  mTargetLevel = mBaseLevel * levelScale;
+  mTargetLevel = mBaseLevel * std::max(0.0, 1.0 + (mLevelVariation.amplitude * levelNoise));
 }
 
 void Oscillator::UpdatePanTargetGains(double panNoise) {
@@ -258,11 +248,7 @@ void Oscillator::UpdatePanTargetGains(double panNoise) {
     return;
   }
 
-  double modulatedPan = mBasePan + (mPanVariation.amplitude * panNoise);
-  if (modulatedPan < -1.0) modulatedPan = -1.0;
-  else if (modulatedPan > 1.0)
-    modulatedPan = 1.0;
-  dsp::PanToGains(modulatedPan, mTargetPanLeftGain, mTargetPanRightGain);
+  dsp::PanToGains(mBasePan + (mPanVariation.amplitude * panNoise), mTargetPanLeftGain, mTargetPanRightGain);
 }
 
 void Oscillator::SmoothVariationParameters(VariationState& variation) {
@@ -284,28 +270,5 @@ bool Oscillator::IsVariationActiveNow(const VariationState& variation) {
 double Oscillator::CurrentVariationNoise(VariationState& variation, uint32_t seed) {
   if (!IsVariationActiveNow(variation)) return 0.0;
 
-  return VariationNoise(variation, seed);
-}
-
-double Oscillator::VariationNoise(VariationState& variation, uint32_t seed) {
-  const int lattice = static_cast<int>(variation.position);
-  if (!variation.noiseCacheValid || lattice < variation.noiseLattice || lattice > (variation.noiseLattice + 1)) {
-    variation.noiseLattice = lattice;
-    variation.noiseGradient0 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(variation.noiseLattice) ^ seed));
-    variation.noiseGradient1 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(variation.noiseLattice + 1) ^ seed));
-    variation.noiseCacheValid = true;
-  } else if (lattice == (variation.noiseLattice + 1)) {
-    variation.noiseLattice = lattice;
-    variation.noiseGradient0 = variation.noiseGradient1;
-    variation.noiseGradient1 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(variation.noiseLattice + 1) ^ seed));
-  }
-
-  const double t = variation.position - static_cast<double>(variation.noiseLattice);
-  const double fade = dsp::Quintic(t);
-  const double value0 = variation.noiseGradient0 * t;
-  const double value1 = variation.noiseGradient1 * (t - 1.0);
-  const double scaled = (value0 + ((value1 - value0) * fade)) * 1.8;
-  if (scaled < -1.0) return -1.0;
-  if (scaled > 1.0) return 1.0;
-  return scaled;
+  return variation.noiseCache.evaluate(variation.position, seed);
 }

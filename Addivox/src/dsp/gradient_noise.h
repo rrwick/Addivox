@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace dsp {
 inline double Quintic(double t) {
@@ -33,4 +34,26 @@ inline double GradientNoise1D(double position, uint32_t seed) {
   const double blended = value0 + ((value1 - value0) * fade);
   return std::clamp(blended * 1.8, -1.0, 1.0);
 }
+struct CachedNoise1D {
+  double evaluate(double position, uint32_t seed) {
+    const int lattice = static_cast<int>(position);
+    if (lattice != cachedLattice) {
+      if (lattice == cachedLattice + 1)
+        gradient0 = gradient1;
+      else
+        gradient0 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice) ^ seed));
+      cachedLattice = lattice;
+      gradient1 = HashToSignedUnitFloat(HashUint32(static_cast<uint32_t>(lattice + 1) ^ seed));
+    }
+    const double t = position - static_cast<double>(cachedLattice);
+    const double fade = Quintic(t);
+    return std::clamp((gradient0 * t + (gradient1 * (t - 1.0) - gradient0 * t) * fade) * 1.8, -1.0, 1.0);
+  }
+
+  void reset() { cachedLattice = std::numeric_limits<int>::min(); }
+
+  int cachedLattice{std::numeric_limits<int>::min()};
+  double gradient0{0.0};
+  double gradient1{0.0};
+};
 } // namespace dsp

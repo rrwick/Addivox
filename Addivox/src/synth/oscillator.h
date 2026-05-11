@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "../dsp/gradient_noise.h"
 #include "../visualizer/harmonic_visualizer_frame.h"
 #include "IPlugConstants.h"
 
@@ -141,12 +142,9 @@ private:
     std::atomic<double> pendingTargetRateHz{0.0};
     double position{0.0};
     double positionIncrement{0.0};
-    int noiseLattice{0};
-    double noiseGradient0{0.0};
-    double noiseGradient1{0.0};
-    bool noiseCacheValid{false};
+    dsp::CachedNoise1D noiseCache;
 
-    void InvalidateNoiseCache() { noiseCacheValid = false; }
+    void InvalidateNoiseCache() { noiseCache.reset(); }
   };
 
   // Variation controls and state.
@@ -169,7 +167,6 @@ private:
   void SmoothVariationParameters(VariationState& variation);
   static bool IsVariationActiveNow(const VariationState& variation);
   static double CurrentVariationNoise(VariationState& variation, uint32_t seed);
-  static double VariationNoise(VariationState& variation, uint32_t seed);
   double mVariationParameterSmoothingCoefficient = 1.0;
   int mVariationTargetRefreshCountdown = 0;
 

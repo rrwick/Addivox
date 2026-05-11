@@ -7,8 +7,6 @@ namespace {
 constexpr double kBypassThreshold = 1.0e-6;
 constexpr double kAdaaDeltaThreshold = 1.0e-4;
 constexpr double kLogTwo = 0.69314718055994530942;
-constexpr double kMinimumCutoffHz = 1.0;
-constexpr double kMaximumCutoffScale = 0.49;
 constexpr double kAmountSmoothingTimeSeconds = 0.028;
 constexpr double kActivationSmoothingTimeSeconds = 0.012;
 constexpr double kInputDcCutoffHz = 12.0;
@@ -20,12 +18,6 @@ constexpr std::array<double, 12> kOversamplingCoefs2x{
 };
 constexpr std::array<double, 4> kOversamplingCoefs4x{0.041893991997656171, 0.16890348243995201, 0.39056077292116603, 0.74389574826847926};
 } // namespace
-
-double effects::Drive::DCBlockerCoefficient(double sampleRate, double cutoffHz) {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
-  const double safeCutoff = std::clamp(cutoffHz, kMinimumCutoffHz, kMaximumCutoffScale * safeSampleRate);
-  return std::exp((-2.0 * dsp::kPi * safeCutoff) / safeSampleRate);
-}
 
 double effects::Drive::StableLogCosh(double value) {
   const double magnitude = std::abs(value);
@@ -71,9 +63,9 @@ void effects::Drive::Reset(double sampleRate, int blockSize) {
 void effects::Drive::Clear() {
   mHasStoredSignal = false;
   for (auto& channel : mChannels) {
-    channel.inputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, kInputDcCutoffHz);
+    channel.inputDcBlocker.coefficient = std::exp((-2.0 * dsp::kPi * kInputDcCutoffHz) / mOversampledRate);
     channel.inputDcBlocker.Clear();
-    channel.outputDcBlocker.coefficient = DCBlockerCoefficient(mOversampledRate, kOutputDcCutoffHz);
+    channel.outputDcBlocker.coefficient = std::exp((-2.0 * dsp::kPi * kOutputDcCutoffHz) / mOversampledRate);
     channel.outputDcBlocker.Clear();
     channel.toneFilter.coefficient = dsp::CutoffHzToCoefficient(mOversampledRate, kInitialToneCutoffHz);
     channel.toneFilter.Clear();

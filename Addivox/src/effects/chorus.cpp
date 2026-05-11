@@ -98,7 +98,7 @@ void effects::Chorus::InitializeVoiceStates() {
     const VoiceSetup& setup = kVoiceSetups[i];
     voice.modSeed = setup.seed;
     voice.modPosition = (dsp::HashToSignedUnitFloat(voice.modSeed ^ 0xB8C9F52Du) + 1.0) * 100.0 + (17.0 * static_cast<double>(i));
-    voice.modLattice = -1;
+    voice.noiseCache.reset();
   }
 }
 
@@ -226,20 +226,7 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
       voice.modPosition += voicePhaseIncrement[i];
       voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
 
-      const int lattice = static_cast<int>(voice.modPosition);
-      if (lattice != voice.modLattice) {
-        if (lattice == voice.modLattice + 1) {
-          voice.modGradient0 = voice.modGradient1;
-          voice.modGradient1 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(lattice + 1) ^ voice.modSeed));
-        } else {
-          voice.modGradient0 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(lattice) ^ voice.modSeed));
-          voice.modGradient1 = dsp::HashToSignedUnitFloat(dsp::HashUint32(static_cast<uint32_t>(lattice + 1) ^ voice.modSeed));
-        }
-        voice.modLattice = lattice;
-      }
-      const double t = voice.modPosition - static_cast<double>(voice.modLattice);
-      const double fade = dsp::Quintic(t);
-      const double noise = std::clamp((voice.modGradient0 * t + (voice.modGradient1 * (t - 1.0) - voice.modGradient0 * t) * fade) * 1.8, -1.0, 1.0);
+      const double noise = voice.noiseCache.evaluate(voice.modPosition, voice.modSeed);
       const double delaySamples = std::max(1.0, voiceBaseDelaySamples[i] + (parameters.depthSamples * noise));
       const double delayed = voice.toneFilter.Process(voice.delay.Read(delaySamples));
 

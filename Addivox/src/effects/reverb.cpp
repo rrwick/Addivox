@@ -171,10 +171,9 @@ void effects::Reverb::Clear() {
 }
 
 void effects::Reverb::SetAmount(double amount) {
-  const double sanitizedAmount = std::clamp(amount, 0.0, 100.0);
-  mAmount = sanitizedAmount;
+  mAmount = std::clamp(amount, 0.0, 100.0);
 
-  if (sanitizedAmount <= kBypassThreshold) {
+  if (mAmount <= kBypassThreshold) {
     mTargetWetMix = 0.0;
     mTargetEarlyMix = 0.0;
     mTargetLateMix = 0.0;
@@ -330,7 +329,6 @@ effects::Reverb::StereoPair effects::Reverb::ProcessEarlyReflections(double cond
 
 effects::Reverb::StereoPair effects::Reverb::ProcessLateReverb(double diffused, double side) {
   DelayValueArray feedbackOutputs{};
-  DelayValueArray lateOutputs{};
   DelayValueArray ambientOutputs{};
 
   for (std::size_t i = 0; i < mDelayLines.size(); ++i) {
@@ -341,7 +339,6 @@ effects::Reverb::StereoPair effects::Reverb::ProcessLateReverb(double diffused, 
     const double delayOutput = mDelayLines[i].Read(delaySamples);
     const double dampedOutput = mLoopDampingFilters[i].Process(delayOutput);
     feedbackOutputs[i] = dampedOutput;
-    lateOutputs[i] = dampedOutput;
 
     double ambientOutput = dampedOutput;
     if (mAmbientBloom > kAmbientClearThreshold) {
@@ -359,7 +356,7 @@ effects::Reverb::StereoPair effects::Reverb::ProcessLateReverb(double diffused, 
     mDelayLines[i].Write(inputInjection + (mFeedbackGains[i] * mixedFeedback[i]));
   }
 
-  const auto lateStereo = DecodeStereo(lateOutputs);
+  const auto lateStereo = DecodeStereo(feedbackOutputs);
   const auto ambientStereo = DecodeStereo(ambientOutputs);
   const double ambientMix = kAmbientMixScale * mAmbientBloom * mLateMix;
   return {
