@@ -157,9 +157,14 @@ std::array<iplug::sample, 2> Oscillator::Process() {
 
   mPanLeftGain += std::clamp(mTargetPanLeftGain - mPanLeftGain, -mPanSlewPerSample, mPanSlewPerSample);
   mPanRightGain += std::clamp(mTargetPanRightGain - mPanRightGain, -mPanSlewPerSample, mPanSlewPerSample);
-  mPitch += std::clamp(mTargetPitch - mPitch, -mPitchRatePerSample, mPitchRatePerSample);
-  const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
-  mPhaseIncrement = frequencyHz * mInverseSampleRate; // inlined UpdatePhaseIncrement
+  if (mPitch != mTargetPitch) {
+    const double previousPitch = mPitch;
+    mPitch += std::clamp(mTargetPitch - mPitch, -mPitchRatePerSample, mPitchRatePerSample);
+    if (mPitch != previousPitch) {
+      const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
+      UpdatePhaseIncrement(frequencyHz);
+    }
+  }
 
   if (mTargetLevel <= kLevelEpsilon && mLevel < kLevelEpsilon) mLevel = 0.0;
 
@@ -170,7 +175,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   if (mLevel == 0.0) return {0.0, 0.0};
 
   // Deactivate oscillator if frequency is out of range - prevents aliasing
-  if (frequencyHz > mSampleRate * 0.5) return {0.0, 0.0};
+  if (mFrequencyHz > mSampleRate * 0.5) return {0.0, 0.0};
 
   const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * phase) * mLevel);
 
@@ -190,7 +195,10 @@ HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const {
                                       static_cast<float>(mPanRightGain)};
 }
 
-void Oscillator::UpdatePhaseIncrement(double frequencyHz) { mPhaseIncrement = frequencyHz * mInverseSampleRate; }
+void Oscillator::UpdatePhaseIncrement(double frequencyHz) {
+  mFrequencyHz = frequencyHz;
+  mPhaseIncrement = frequencyHz * mInverseSampleRate;
+}
 
 void Oscillator::UpdatePitchRate() {
   if (mPitchTimeSec <= 0.0 || mSampleRate <= 0.0) {

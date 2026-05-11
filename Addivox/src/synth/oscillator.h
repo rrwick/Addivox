@@ -95,6 +95,7 @@ private:
   // current pitch) each sample. If no pitch variation is used, then all
   // harmonics will remain in phase with each other.
   double mPhase = 0.0;                           // 0 to 1, where 1 = full cycle
+  double mFrequencyHz = kA4FrequencyHz;          // current frequency matching mPitch
   double mPhaseIncrement = 440.0 / 44100.0;      // how much phase advances each sample
   void UpdatePhaseIncrement(double frequencyHz); // called every time a sample is rendered
 
