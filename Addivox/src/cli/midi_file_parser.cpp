@@ -244,7 +244,7 @@ bool ParseTrack(ByteReader& reader, std::size_t trackEndPosition, std::vector<Ra
       continue;
     }
 
-    if (statusByte < 0x80u || statusByte > 0xEFu) {
+    if (statusByte > 0xEFu) {
       SetErrorMessage(errorMessage, "Malformed MIDI track: unsupported status byte");
       return false;
     }

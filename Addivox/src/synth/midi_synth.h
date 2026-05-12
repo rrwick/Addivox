@@ -92,8 +92,6 @@ public:
         if (!mMidiQueue.Empty()) renderEnd = Clip(static_cast<int>(mMidiQueue.Peek().mOffset), startIndex, nFrames);
 
         const int numFrames = renderEnd - startIndex;
-        if (numFrames <= 0) continue;
-
         if (mVoice.IsActive()) mVoice.ProcessSamplesAccumulating(outputs, startIndex, numFrames);
         startIndex = renderEnd;
       }

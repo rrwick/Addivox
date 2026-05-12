@@ -199,9 +199,6 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
   std::array<double, kNumVoices> voiceScaleRight{};
   std::array<double, kNumVoices> voicePhaseIncrement{};
   std::array<double, kNumVoices> voiceBaseDelaySamples{};
-  for (std::size_t i = 0; i < kNumVoices; ++i) {
-    voiceBaseDelaySamples[i] = dsp::MillisecondsToSamples(kVoiceSetups[i].delayOffsetMs, mSampleRate);
-  }
   for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
     if (mCurrentAmount != prevAmount) {

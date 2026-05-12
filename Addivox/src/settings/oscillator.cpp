@@ -82,8 +82,6 @@ double ScaleNormalizedBoundedValue(double normalizedValue, double scale) {
   if (!std::isfinite(scale) || scale <= 0.0 || clampedValue <= 0.0 || clampedValue >= 1.0) return clampedValue;
 
   const double denominator = 1.0 + ((scale - 1.0) * clampedValue);
-  if (denominator <= 0.0) return (scale >= 1.0) ? 1.0 : 0.0;
-
   return std::clamp((clampedValue * scale) / denominator, 0.0, 1.0);
 }
 
@@ -316,7 +314,6 @@ CompoundPatch::ResolvedNoteSpan CompoundPatch::ResolveNoteSpan(double midiNote) 
 
   auto lower = std::prev(upper);
   const double interval = static_cast<double>(upper->first - lower->first);
-  if (interval <= 0.0) return makeExactSpan(lower);
 
   const EqCurve& lowerEqCurve = GetKeyNoteEqCurveOrDefault(lower->first);
   const EqCurve& upperEqCurve = GetKeyNoteEqCurveOrDefault(upper->first);
