@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <utility>
 
 template <typename TFrame, int QUEUE_SIZE = 128> class HarmonicVisualizerSender : public iplug::ISender<1, QUEUE_SIZE, TFrame> {
@@ -13,6 +14,7 @@ public:
     const double safeFPS = (targetFPS > 0.0) ? targetFPS : 60.0;
     mSamplesPerUpdate = std::max(1, static_cast<int>(std::lround(safeSampleRate / safeFPS)));
     mSamplesUntilNextUpdate = 0;
+    mLastFrame = TFrame{};
   }
 
   template <typename FillFrameFunc> void ProcessBlock(int nFrames, int ctrlTag, FillFrameFunc&& fillFrame) {
@@ -22,7 +24,10 @@ public:
       if (mSamplesUntilNextUpdate <= 0) {
         iplug::ISenderData<1, TFrame> data{ctrlTag, 1, 0};
         fillFrame(data.vals[0]);
-        this->PushData(data);
+        if (std::memcmp(&data.vals[0], &mLastFrame, sizeof(TFrame)) != 0) {
+          this->PushData(data);
+          mLastFrame = data.vals[0];
+        }
         mSamplesUntilNextUpdate = mSamplesPerUpdate;
       }
 
@@ -36,6 +41,7 @@ public:
     iplug::ISenderData<1, TFrame> discarded;
     while (this->mQueue.Pop(discarded)) {
     }
+    mLastFrame = TFrame{}; // Reset so the next frame after re-enable is always sent.
   }
 
   void PushFrame(int ctrlTag, const TFrame& frame) {
@@ -47,4 +53,5 @@ public:
 private:
   int mSamplesPerUpdate{735}; // 44.1 kHz / 60 Hz
   int mSamplesUntilNextUpdate{0};
+  TFrame mLastFrame{};
 };

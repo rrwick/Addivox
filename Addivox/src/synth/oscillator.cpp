@@ -190,8 +190,7 @@ bool Oscillator::IsActive() const {
 }
 
 HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const {
-  const double frequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
-  return HarmonicVisualizerOscillator{static_cast<float>(frequencyHz), static_cast<float>(mLevel), static_cast<float>(mPanLeftGain),
+  return HarmonicVisualizerOscillator{static_cast<float>(mFrequencyHz), static_cast<float>(mLevel), static_cast<float>(mPanLeftGain),
                                       static_cast<float>(mPanRightGain)};
 }
 
