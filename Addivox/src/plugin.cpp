@@ -1420,6 +1420,7 @@ void Addivox::OnRestoreState() {
 
 void Addivox::OnUIOpen() {
   EnsureStandaloneStateInitialized();
+  mLastSentBreathLevel = -1.;
   mSuppressPatchDirtyTracking = true;
   IEditorDelegate::OnUIOpen();
   mSuppressPatchDirtyTracking = false;
@@ -1509,7 +1510,7 @@ void Addivox::OnReset() {
   mQwertyMidiBaseNote = 48;
   mWasQwertyKeyboardInEditMode = false;
   mLastQwertyMIDINote = -1;
-  mBreathLevel.store(1.0, std::memory_order_relaxed);
+  mBreathLevel.store(0.0, std::memory_order_relaxed);
   mLastSentBreathLevel = -1.;
 }
 

@@ -163,7 +163,7 @@ private:
   IPeakAvgSender<2> mMeterSender;
   HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
   BreathCCInputTracker mBreathCCInputTracker;
-  std::atomic<double> mBreathLevel{1.0};
+  std::atomic<double> mBreathLevel{0.0};
   double mLastSentBreathLevel{-1.};
 #endif
 };
