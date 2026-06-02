@@ -1,5 +1,7 @@
 site_name: Addivox
 
+site_url: https://rrwick.github.io/Addivox/
+
 theme:
   name: material
   features:
