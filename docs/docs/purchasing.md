@@ -1,6 +1,6 @@
 # Purchasing
 
-TODO: encourage users to try the [Demo version](demo_version.md) before purchasing. But to see if they like the sound but also to make sure it works on their system.
+TODO: encourage users to try the [Demo version](demo.md) before purchasing. But to see if they like the sound but also to make sure it works on their system.
 
 TODO: describe how purchasing works and link to a store.
 
