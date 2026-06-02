@@ -1,0 +1,30 @@
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #1a1a1d;
+}
+
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary .md-nav--primary > .md-nav__title {
+    display: none;
+  }
+}
+
+.float-left {
+  float: left;
+  height: auto;
+  margin: 0 1.25rem 0.75rem 0;
+}
+
+.float-right {
+  float: right;
+  height: auto;
+  margin: 0 0 0.75rem 1.25rem;
+}
+
+@media screen and (max-width: 600px) {
+  .float-left {
+    float: none;
+    display: block;
+    max-width: 100%;
+    margin: 0 auto 1rem;
+  }
+}
