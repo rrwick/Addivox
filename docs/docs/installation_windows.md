@@ -1,3 +1,3 @@
 # Installation – Windows
 
-TODO: write Windows installation instructions
+**Windows installation instructions coming soon!**
