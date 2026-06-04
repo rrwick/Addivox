@@ -7,14 +7,16 @@ Addivox is available [on GitHub](https://github.com/rrwick/Addivox), but Addivox
 
 You may:
 
-- read, download and change the Addivox source code for your own use
-- build Addivox for yourself
+- if you have purchased Addivox, install and use it on all devices that you personally own or control
 - use Addivox, including your own private builds and modifications, to make music and other output, including commercial work
 - create, share and sell patches for Addivox
+- read, download and change the Addivox source code for your own use
+- build Addivox for yourself
 
 You may not:
 
 - share the Addivox source code or builds with others
+- let other people use your purchase, download access or copy of Addivox
 - share modified versions of Addivox
 - sell or redistribute Addivox itself
 
