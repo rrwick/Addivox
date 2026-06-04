@@ -4,6 +4,8 @@ site_url: https://rrwick.github.io/Addivox/
 
 theme:
   name: material
+  logo: assets/icon.png
+  favicon: assets/icon.png
   features:
     - navigation.sections
   palette:
