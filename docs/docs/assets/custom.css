@@ -26,6 +26,23 @@
   margin: 0 0 0.75rem 1.25rem;
 }
 
+.addivox-purchase-button {
+  display: inline-block;
+  padding: 0.7rem 1rem;
+  border-radius: 0.2rem;
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color) !important;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.addivox-purchase-button:hover,
+.addivox-purchase-button:focus {
+  background: var(--md-accent-fg-color);
+  color: var(--md-primary-bg-color) !important;
+}
+
 @media screen and (max-width: 600px) {
   .float-left {
     float: none;
