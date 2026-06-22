@@ -1987,7 +1987,11 @@ void Addivox::LoadBuiltInPatches() {
   mFactoryPatchPaths.clear();
 
   WDL_String resourcePath;
+#ifdef OS_WIN
+  BundleResourcePath(resourcePath);
+#else
   BundleResourcePath(resourcePath, GetBundleID());
+#endif
 
   int numLoadedPatches = 0;
   if (resourcePath.GetLength() > 0) {
