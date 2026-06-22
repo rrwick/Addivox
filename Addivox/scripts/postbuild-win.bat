@@ -103,6 +103,12 @@ if %PLATFORM% == "ARM64EC" (
     echo copying ARM64EC binary to VST3 BUNDLE ..
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\arm64ec-win
+    echo copying factory patches to VST3 bundle ...
+    for %%D in (%BUILD_DIR%) do (
+      for %%N in (%NAME%) do (
+        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\%%~N.vst3\Contents\Resources\factory_patches"
+      )
+    )
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.vst3\Contents\arm64ec-win
     )
@@ -183,6 +189,12 @@ if %PLATFORM% == "x64" (
     echo copying 64bit binary to VST3 BUNDLE ...
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
+    echo copying factory patches to VST3 bundle ...
+    for %%D in (%BUILD_DIR%) do (
+      for %%N in (%NAME%) do (
+        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\%%~N.vst3\Contents\Resources\factory_patches"
+      )
+    )
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
     )

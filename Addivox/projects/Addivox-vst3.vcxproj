@@ -389,8 +389,12 @@
     <ClCompile Include="..\..\iPlug2\IGraphics\IControl.cpp" />
     <ClCompile Include="..\..\iPlug2\IGraphics\IGraphics.cpp" />
     <ClCompile Include="..\..\iPlug2\IGraphics\Platforms\IGraphicsWin.cpp" />
-    <ClCompile Include="..\src\synth\oscillator.cpp" />
-    <ClCompile Include="..\src\settings\oscillator.cpp" />
+    <ClCompile Include="..\src\synth\oscillator.cpp">
+      <ObjectFileName>$(IntDir)synth_oscillator.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\src\settings\oscillator.cpp">
+      <ObjectFileName>$(IntDir)settings_oscillator.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\src\settings\global.cpp" />
     <ClCompile Include="..\src\settings\effects.cpp" />
     <ClCompile Include="..\src\effects\drive.cpp" />
@@ -398,6 +402,7 @@
     <ClCompile Include="..\src\effects\reverb.cpp" />
     <ClCompile Include="..\src\effects\chorus.cpp" />
     <ClCompile Include="..\src\synth\voice.cpp" />
+    <ClCompile Include="..\src\ui\transformations.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugAPIBase.cpp" />
     <ClCompile Include="..\..\iPlug2\IGraphics\IGraphicsEditorDelegate.cpp" />
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugParameter.cpp" />

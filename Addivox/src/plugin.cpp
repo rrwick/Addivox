@@ -1990,7 +1990,7 @@ void Addivox::LoadBuiltInPatches() {
 #if defined OS_WIN && defined APP_API
   HostPath(resourcePath);
 #elif defined OS_WIN
-  BundleResourcePath(resourcePath);
+  BundleResourcePath(resourcePath, gHINSTANCE);
 #else
   BundleResourcePath(resourcePath, GetBundleID());
 #endif
