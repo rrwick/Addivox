@@ -1989,8 +1989,10 @@ void Addivox::LoadBuiltInPatches() {
   WDL_String resourcePath;
 #if defined OS_WIN && defined APP_API
   HostPath(resourcePath);
-#elif defined OS_WIN
+#elif defined OS_WIN && defined VST3_API
   BundleResourcePath(resourcePath, gHINSTANCE);
+#elif defined OS_WIN
+  PluginPath(resourcePath, gHINSTANCE);
 #else
   BundleResourcePath(resourcePath, GetBundleID());
 #endif

@@ -57,6 +57,9 @@
     <ClCompile Include="..\src\settings\oscillator.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ui\transformations.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\settings\global.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>

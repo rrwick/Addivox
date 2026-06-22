@@ -50,6 +50,13 @@ echo CREATE_BUNDLE_SCRIPT %CREATE_BUNDLE_SCRIPT%
 echo ICUDAT_PATH %ICUDAT_PATH%
 echo END POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
 
+if %FORMAT% == ".clap" (
+  echo copying factory patches next to built CLAP plugin ...
+  for %%F in (%BUILT_BINARY%) do (
+    xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~dpFfactory_patches"
+  )
+)
+
 if %FORMAT% == ".exe" (
   echo copying factory patches next to built executable ...
   for %%F in (%BUILT_BINARY%) do (
@@ -135,6 +142,9 @@ if %PLATFORM% == "ARM64EC" (
     echo copying ARM64EC binary to CLAP Plugins folder ...
     if exist %CLAP_ARM64EC_PATH% (
       copy /y %BUILT_BINARY% %CLAP_ARM64EC_PATH%
+      for %%D in (%CLAP_ARM64EC_PATH%) do (
+        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\factory_patches"
+      )
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %CLAP_ARM64EC_PATH%
       )
@@ -221,6 +231,9 @@ if %PLATFORM% == "x64" (
     echo copying x64 binary to CLAP Plugins folder ...
     if exist %CLAP_X64_PATH% (
       copy /y %BUILT_BINARY% %CLAP_X64_PATH%
+      for %%D in (%CLAP_X64_PATH%) do (
+        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\factory_patches"
+      )
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %CLAP_X64_PATH%
       )
