@@ -2,6 +2,7 @@
 
 REM - CALL "$(SolutionDir)scripts\postbuild-win.bat" "$(TargetExt)" "$(BINARY_NAME)" "$(Platform)" "$(COPY_VST2)" "$(TargetPath)" "$(VST2_ARM64EC_PATH)" "$(VST2_X64_PATH)" "$(VST3_ARM64EC_PATH)" "$(VST3_X64_PATH)" "$(AAX_ARM64EC_PATH)" "$(AAX_X64_PATH)" "$(CLAP_ARM64EC_PATH)" "$(CLAP_X64_PATH)" "$(BUILD_DIR)" "$(VST_ICON)" "$(AAX_ICON)" "$(CREATE_BUNDLE_SCRIPT)" "$(ICUDAT_PATH)"
 
+set SCRIPT_DIR=%~dp0
 set FORMAT=%1
 set NAME=%2
 set PLATFORM=%3
@@ -48,6 +49,17 @@ echo AAX_ICON %AAX_ICON%
 echo CREATE_BUNDLE_SCRIPT %CREATE_BUNDLE_SCRIPT%
 echo ICUDAT_PATH %ICUDAT_PATH%
 echo END POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
+
+if %FORMAT% == ".exe" (
+  echo copying factory patches next to built executable ...
+  for %%F in (%BUILT_BINARY%) do (
+    xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~dpFfactory_patches"
+  )
+  echo copying factory patches to build dir ...
+  for %%D in (%BUILD_DIR%) do (
+    xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\factory_patches"
+  )
+)
 
 if %PLATFORM% == "ARM64EC" (
   if exist "%ICUDAT_PATH%" (

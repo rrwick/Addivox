@@ -1987,7 +1987,9 @@ void Addivox::LoadBuiltInPatches() {
   mFactoryPatchPaths.clear();
 
   WDL_String resourcePath;
-#ifdef OS_WIN
+#if defined OS_WIN && defined APP_API
+  HostPath(resourcePath);
+#elif defined OS_WIN
   BundleResourcePath(resourcePath);
 #else
   BundleResourcePath(resourcePath, GetBundleID());
