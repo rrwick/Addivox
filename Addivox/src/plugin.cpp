@@ -28,6 +28,13 @@ constexpr int kDefaultPitchBendRange = 2;
 constexpr int kMaxPitchBendRange = 96;
 constexpr bool kDefaultHarmonicVisualizerEnabled = true;
 constexpr int64_t kStandaloneStateSaveDebounceMs = 250;
+#if defined OS_WIN
+constexpr const char* kEmbeddedFactoryPatchNames[] = {
+    "FACTORY_PATCH_01", "FACTORY_PATCH_02", "FACTORY_PATCH_03", "FACTORY_PATCH_04", "FACTORY_PATCH_05",
+    "FACTORY_PATCH_06", "FACTORY_PATCH_07", "FACTORY_PATCH_08", "FACTORY_PATCH_09", "FACTORY_PATCH_10",
+    "FACTORY_PATCH_11", "FACTORY_PATCH_12", "FACTORY_PATCH_13", "FACTORY_PATCH_14", "FACTORY_PATCH_15",
+};
+#endif
 #if defined(OS_IOS)
 constexpr double kIOSStandaloneDefaultReverb = 50.0;
 #endif
@@ -1986,35 +1993,44 @@ void Addivox::ClearActivePatchDirty() { SetActivePatchCleanSnapshotFromCurrentSt
 void Addivox::LoadBuiltInPatches() {
   mFactoryPatchPaths.clear();
 
-  WDL_String resourcePath;
-#if defined OS_WIN && defined APP_API
-  HostPath(resourcePath);
-#elif defined OS_WIN && defined VST3_API
-  BundleResourcePath(resourcePath, gHINSTANCE);
-#elif defined OS_WIN
-  PluginPath(resourcePath, gHINSTANCE);
-#else
-  BundleResourcePath(resourcePath, GetBundleID());
-#endif
+  const auto addPatch = [this](const patch_io::PatchDocument& document, const std::string& path) {
+    IByteChunk chunk;
+    if (!BuildPatchChunk(document, chunk)) return false;
+
+    const std::string patchName = document.name.empty() ? patch_io::detail::FileStem(path) : document.name;
+    MakePresetFromChunk(patchName.c_str(), chunk);
+    mFactoryPatchPaths.push_back(path);
+    return true;
+  };
 
   int numLoadedPatches = 0;
+#if defined OS_WIN
+  for (const char* resourceName : kEmbeddedFactoryPatchNames) {
+    int resourceSize = 0;
+    const void* resourceData = LoadWinResource(resourceName, "toml", resourceSize, gHINSTANCE);
+    if (!resourceData || resourceSize <= 0) continue;
+
+    patch_io::PatchDocument document;
+    const std::string toml(static_cast<const char*>(resourceData), static_cast<std::size_t>(resourceSize));
+    if (!patch_io::ParsePatchToml(toml, document) || !addPatch(document, {})) continue;
+
+    ++numLoadedPatches;
+    if (numLoadedPatches >= kMaxFactoryPatches) break;
+  }
+#else
+  WDL_String resourcePath;
+  BundleResourcePath(resourcePath, GetBundleID());
   if (resourcePath.GetLength() > 0) {
     const auto patchPaths = patch_io::FindPatchFiles(patch_io::detail::JoinPath(resourcePath.Get(), "factory_patches"));
     for (const auto& patchPath : patchPaths) {
       patch_io::PatchDocument document;
-      if (!patch_io::LoadPatchFromFile(patchPath, document)) continue;
-
-      IByteChunk chunk;
-      if (!BuildPatchChunk(document, chunk)) continue;
-
-      const std::string patchName = document.name.empty() ? patch_io::detail::FileStem(patchPath) : document.name;
-      MakePresetFromChunk(patchName.c_str(), chunk);
-      mFactoryPatchPaths.push_back(patchPath);
+      if (!patch_io::LoadPatchFromFile(patchPath, document) || !addPatch(document, patchPath)) continue;
       ++numLoadedPatches;
 
       if (numLoadedPatches >= kMaxFactoryPatches) break;
     }
   }
+#endif
 
   if (numLoadedPatches == 0) {
     patch_io::PatchDocument fallbackDocument;

@@ -50,23 +50,7 @@ echo CREATE_BUNDLE_SCRIPT %CREATE_BUNDLE_SCRIPT%
 echo ICUDAT_PATH %ICUDAT_PATH%
 echo END POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
 
-if %FORMAT% == ".clap" (
-  echo copying factory patches next to built CLAP plugin ...
-  for %%F in (%BUILT_BINARY%) do (
-    xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~dpFfactory_patches"
-  )
-)
-
-if %FORMAT% == ".exe" (
-  echo copying factory patches next to built executable ...
-  for %%F in (%BUILT_BINARY%) do (
-    xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~dpFfactory_patches"
-  )
-  echo copying factory patches to build dir ...
-  for %%D in (%BUILD_DIR%) do (
-    xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\factory_patches"
-  )
-)
+if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
 if %PLATFORM% == "ARM64EC" (
   if exist "%ICUDAT_PATH%" (
@@ -110,12 +94,6 @@ if %PLATFORM% == "ARM64EC" (
     echo copying ARM64EC binary to VST3 BUNDLE ..
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\arm64ec-win
-    echo copying factory patches to VST3 bundle ...
-    for %%D in (%BUILD_DIR%) do (
-      for %%N in (%NAME%) do (
-        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\%%~N.vst3\Contents\Resources\factory_patches"
-      )
-    )
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.vst3\Contents\arm64ec-win
     )
@@ -142,9 +120,6 @@ if %PLATFORM% == "ARM64EC" (
     echo copying ARM64EC binary to CLAP Plugins folder ...
     if exist %CLAP_ARM64EC_PATH% (
       copy /y %BUILT_BINARY% %CLAP_ARM64EC_PATH%
-      for %%D in (%CLAP_ARM64EC_PATH%) do (
-        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\factory_patches"
-      )
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %CLAP_ARM64EC_PATH%
       )
@@ -199,12 +174,6 @@ if %PLATFORM% == "x64" (
     echo copying 64bit binary to VST3 BUNDLE ...
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
-    echo copying factory patches to VST3 bundle ...
-    for %%D in (%BUILD_DIR%) do (
-      for %%N in (%NAME%) do (
-        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\%%~N.vst3\Contents\Resources\factory_patches"
-      )
-    )
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
     )
@@ -231,9 +200,6 @@ if %PLATFORM% == "x64" (
     echo copying x64 binary to CLAP Plugins folder ...
     if exist %CLAP_X64_PATH% (
       copy /y %BUILT_BINARY% %CLAP_X64_PATH%
-      for %%D in (%CLAP_X64_PATH%) do (
-        xcopy /E /I /Y "%SCRIPT_DIR%..\factory_patches" "%%~fD\factory_patches"
-      )
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %CLAP_X64_PATH%
       )

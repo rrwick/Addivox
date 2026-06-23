@@ -251,5 +251,20 @@ KNOB_FIXED_FN SVG KNOB_FIXED_FN
 KNOB_ROTATING_FN SVG KNOB_ROTATING_FN
 ABOUT_LOGO_FN SVG ABOUT_LOGO_FN
 GEAR_FN SVG GEAR_FN
+FACTORY_PATCH_01 TOML "..\\factory_patches\\01_bright_brass.toml"
+FACTORY_PATCH_02 TOML "..\\factory_patches\\02_warm_brass.toml"
+FACTORY_PATCH_03 TOML "..\\factory_patches\\03_mellow_brass.toml"
+FACTORY_PATCH_04 TOML "..\\factory_patches\\04_dark_brass.toml"
+FACTORY_PATCH_05 TOML "..\\factory_patches\\05_bright_reed.toml"
+FACTORY_PATCH_06 TOML "..\\factory_patches\\06_warm_reed.toml"
+FACTORY_PATCH_07 TOML "..\\factory_patches\\07_hollow_reed.toml"
+FACTORY_PATCH_08 TOML "..\\factory_patches\\08_tonewheel_organ_888.toml"
+FACTORY_PATCH_09 TOML "..\\factory_patches\\09_tonewheel_organ_full.toml"
+FACTORY_PATCH_10 TOML "..\\factory_patches\\10_full_pipe_organ.toml"
+FACTORY_PATCH_11 TOML "..\\factory_patches\\11_simple_saw.toml"
+FACTORY_PATCH_12 TOML "..\\factory_patches\\12_simple_square.toml"
+FACTORY_PATCH_13 TOML "..\\factory_patches\\13_simple_sine.toml"
+FACTORY_PATCH_14 TOML "..\\factory_patches\\14_rough_saw.toml"
+FACTORY_PATCH_15 TOML "..\\factory_patches\\15_rough_square.toml"
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

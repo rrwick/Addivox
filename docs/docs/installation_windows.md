@@ -1,10 +1,10 @@
 # Installation – Windows
 
-The Windows archive contains the standalone application, VST3 plugin, CLAP plugin and factory patches.
+The Windows archive contains the standalone application, VST3 plugin and CLAP plugin. Factory patches and interface resources are embedded in the binaries.
 
 ## Standalone application
 
-Keep `Addivox.exe` (or `AddivoxDemo.exe`) and the `factory_patches` directory together. You may move that directory anywhere convenient and create a shortcut to the executable.
+`Addivox.exe` (or `AddivoxDemo.exe`) is self-contained. Move it anywhere convenient and optionally create a shortcut to it.
 
 ## VST3 plugin
 
@@ -17,8 +17,8 @@ Restart your DAW or ask it to rescan VST3 plugins.
 
 ## CLAP plugin
 
-Copy `Addivox.clap` (or `AddivoxDemo.clap`) and the `factory_patches` directory into:
+Copy `Addivox.clap` (or `AddivoxDemo.clap`) into:
 
 `%LOCALAPPDATA%\Programs\Common\CLAP`
 
-Keep the CLAP plugin and `factory_patches` directory together. Restart your DAW or ask it to rescan CLAP plugins.
+Restart your DAW or ask it to rescan CLAP plugins.
