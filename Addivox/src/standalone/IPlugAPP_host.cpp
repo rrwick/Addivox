@@ -32,6 +32,7 @@ UINT gSCROLLMSG;
 
 namespace {
 std::optional<IPlugAPPHost::AppState> gLastWorkingAudioState;
+std::unique_ptr<RtAudio>               gPreservedAudio;
 
 void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::AppState& source) {
   destination.mAudioInDev.Set(source.mAudioInDev.Get());
@@ -67,6 +68,8 @@ IPlugAPPHost::IPlugAPPHost() : mIPlug(MakePlug(InstanceInfo{this})) {}
 
 IPlugAPPHost::~IPlugAPPHost() {
   mExiting = true;
+
+  if (gPreservedAudio) mDAC = std::move(gPreservedAudio);
 
   CloseAudio();
 
@@ -379,16 +382,13 @@ bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns) {
 }
 
 bool IPlugAPPHost::TryToChangeAudioDriverType() {
-  const bool stoppedRunningStream = mDAC && mDAC->isStreamRunning();
-  CloseAudio();
+  if (mDAC && mDAC->isStreamRunning()) gPreservedAudio = std::move(mDAC);
+  else
+    mDAC.reset();
 
-  // Driver selection closes the current stream before the dialog is applied.
-  // Invalidate the active state so returning to the original driver still
-  // causes IDOK to restart the stream.
-  if (stoppedRunningStream) mActiveState.mAudioDriverType = std::numeric_limits<uint32_t>::max();
-
-  if (mDAC) {
-    mDAC = nullptr;
+  if (gPreservedAudio && gLastWorkingAudioState && mState.mAudioDriverType == gLastWorkingAudioState->mAudioDriverType) {
+    mDAC = std::move(gPreservedAudio);
+    return true;
   }
 
   // Skip RtAudio initialization in no-I/O mode or screenshot mode
@@ -419,6 +419,8 @@ bool IPlugAPPHost::TryToChangeAudio() {
   if (mNoIO || IsScreenshotMode()) return true;
 
   auto tryCurrentAudioSettings = [this]() {
+    if (gLastWorkingAudioState && AudioSettingsInStateAreEqual(mState, *gLastWorkingAudioState)) return true;
+
 #if defined OS_WIN
     // ASIO exposes one device for both directions, so use its output name for
     // the input ID as well.
@@ -566,6 +568,13 @@ void IPlugAPPHost::CloseAudio() {
 }
 
 bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_t iovs) {
+  if (gPreservedAudio) {
+    auto pendingAudio = std::move(mDAC);
+    mDAC = std::move(gPreservedAudio);
+    CloseAudio();
+    mDAC = std::move(pendingAudio);
+  }
+
   CloseAudio();
 
   RtAudio::StreamParameters iParams, oParams;
@@ -619,6 +628,9 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
   for (int i = 0; i < oParams.nChannels; i++) {
     mOutputBufPtrs.Add(nullptr); // will be set in callback
   }
+
+  IMidiMsg pendingMidiMessage;
+  while (mIPlug->mMidiMsgsFromCallback.Pop(pendingMidiMessage)) {}
 
   if (mDAC->startStream() != RTAUDIO_NO_ERROR) {
     DBGMSG("Error starting stream: %s\n", mDAC->getErrorText().c_str());

@@ -35,6 +35,7 @@ public:
   MidiSynth& operator=(const MidiSynth&) = delete;
 
   void Reset() {
+    mMidiQueue.Clear();
     mMidiState.currentPitchBend = 0.0;
     mMidiState.currentBreath = 1.0;
     mMidiState.currentPortamento = 0.0;
