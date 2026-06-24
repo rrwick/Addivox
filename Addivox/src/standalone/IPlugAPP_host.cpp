@@ -625,6 +625,16 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
     return false;
   }
 
+  mState.mBufferSize = mBufferSize;
+
+  if (HWND settingsDialog = GetActiveWindow(); settingsDialog && GetDlgItem(settingsDialog, IDC_COMBO_AUDIO_BUF_SIZE)) {
+    WDL_String bufferSizeText;
+    bufferSizeText.SetFormatted(32, "%u", mBufferSize);
+    const LRESULT index =
+        SendDlgItemMessage(settingsDialog, IDC_COMBO_AUDIO_BUF_SIZE, CB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(bufferSizeText.Get()));
+    if (index != CB_ERR) SendDlgItemMessage(settingsDialog, IDC_COMBO_AUDIO_BUF_SIZE, CB_SETCURSEL, index, 0);
+  }
+
   mActiveState = mState;
   gLastWorkingAudioState = mState;
 
