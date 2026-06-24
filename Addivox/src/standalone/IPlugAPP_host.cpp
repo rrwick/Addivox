@@ -19,6 +19,10 @@
 
 #include "IPlugLogger.h"
 
+#if defined OS_WIN
+#include <atomic>
+#endif
+
 using namespace iplug;
 
 #ifndef MAX_PATH_LEN
@@ -33,6 +37,22 @@ UINT gSCROLLMSG;
 namespace {
 std::optional<IPlugAPPHost::AppState> gLastWorkingAudioState;
 std::unique_ptr<RtAudio>               gPreservedAudio;
+
+#if defined OS_WIN
+constexpr UINT_PTR kAudioRecoveryTimerID = 0xADD1;
+std::atomic<bool>  gAudioRecoveryPending{false};
+
+void CALLBACK RecoverAudioAfterDriverReset(HWND window, UINT, UINT_PTR timerID, DWORD) {
+  KillTimer(window, timerID);
+  if (!gAudioRecoveryPending.exchange(false)) return;
+
+  if (auto* appHost = IPlugAPPHost::sInstance.get()) appHost->TryToChangeAudio();
+}
+
+void ScheduleAudioRecovery() {
+  if (gHWND && gAudioRecoveryPending.load()) SetTimer(gHWND, kAudioRecoveryTimerID, 1, RecoverAudioAfterDriverReset);
+}
+#endif
 
 void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::AppState& source) {
   destination.mAudioInDev.Set(source.mAudioInDev.Get());
@@ -68,6 +88,11 @@ IPlugAPPHost::IPlugAPPHost() : mIPlug(MakePlug(InstanceInfo{this})) {}
 
 IPlugAPPHost::~IPlugAPPHost() {
   mExiting = true;
+
+#if defined OS_WIN
+  gAudioRecoveryPending = false;
+  if (gHWND) KillTimer(gHWND, kAudioRecoveryTimerID);
+#endif
 
   if (gPreservedAudio) mDAC = std::move(gPreservedAudio);
 
@@ -107,7 +132,13 @@ bool IPlugAPPHost::Init() {
 
 bool IPlugAPPHost::OpenWindow(HWND pParent) {
   if (pParent) SetWindowText(pParent, BUNDLE_NAME);
-  return mIPlug->OpenWindow(pParent) != nullptr;
+  const bool opened = mIPlug->OpenWindow(pParent) != nullptr;
+
+#if defined OS_WIN
+  if (opened) ScheduleAudioRecovery();
+#endif
+
+  return opened;
 }
 
 void IPlugAPPHost::CloseWindow() { mIPlug->CloseWindow(); }
@@ -763,4 +794,15 @@ void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, vo
 }
 
 // static
-void IPlugAPPHost::ErrorCallback(RtAudioErrorType type, const std::string& errorText) { std::cerr << "\nerrorCallback: " << errorText << "\n\n"; }
+void IPlugAPPHost::ErrorCallback(RtAudioErrorType type, const std::string& errorText) {
+#if defined OS_WIN
+  if (type == RTAUDIO_DEVICE_DISCONNECT) {
+    if (auto* appHost = sInstance.get(); appHost && !appHost->mExiting) {
+      gAudioRecoveryPending = true;
+      ScheduleAudioRecovery();
+    }
+  }
+#endif
+
+  std::cerr << "\nerrorCallback: " << errorText << "\n\n";
+}
