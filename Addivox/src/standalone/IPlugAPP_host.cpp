@@ -30,6 +30,22 @@ using namespace iplug;
 std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
 
+namespace {
+std::optional<IPlugAPPHost::AppState> gLastWorkingAudioState;
+
+void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::AppState& source) {
+  destination.mAudioInDev.Set(source.mAudioInDev.Get());
+  destination.mAudioOutDev.Set(source.mAudioOutDev.Get());
+  destination.mAudioDriverType = source.mAudioDriverType;
+  destination.mAudioSR = source.mAudioSR;
+  destination.mBufferSize = source.mBufferSize;
+  destination.mAudioInChanL = source.mAudioInChanL;
+  destination.mAudioInChanR = source.mAudioInChanR;
+  destination.mAudioOutChanL = source.mAudioOutChanL;
+  destination.mAudioOutChanR = source.mAudioOutChanR;
+}
+} // namespace
+
 namespace addivox_standalone {
 bool OpenAudioMidiSettingsDialog() {
   auto* appHost = IPlugAPPHost::sInstance.get();
@@ -271,6 +287,8 @@ int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) co
 void IPlugAPPHost::ProbeAudioIO() {
   mAudioInputDevIDs.clear();
   mAudioOutputDevIDs.clear();
+  mDefaultInputDev.reset();
+  mDefaultOutputDev.reset();
 
   if (!mDAC) return;
 
@@ -332,6 +350,11 @@ void IPlugAPPHost::ProbeMidiIO() {
 }
 
 bool IPlugAPPHost::AudioSettingsInStateAreEqual(AppState& os, AppState& ns) {
+  // Equal settings are not an equal runtime state if a failed or abandoned
+  // driver change left audio stopped. This also makes Cancel restore audio
+  // after selecting another driver and then returning to the original choice.
+  if (!mDAC || !mDAC->isStreamRunning()) return false;
+
   if (os.mAudioDriverType != ns.mAudioDriverType) return false;
   if (std::string_view(os.mAudioInDev.Get()) != ns.mAudioInDev.Get()) return false;
   if (std::string_view(os.mAudioOutDev.Get()) != ns.mAudioOutDev.Get()) return false;
@@ -356,7 +379,13 @@ bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& os, AppState& ns) {
 }
 
 bool IPlugAPPHost::TryToChangeAudioDriverType() {
+  const bool stoppedRunningStream = mDAC && mDAC->isStreamRunning();
   CloseAudio();
+
+  // Driver selection closes the current stream before the dialog is applied.
+  // Invalidate the active state so returning to the original driver still
+  // causes IDOK to restart the stream.
+  if (stoppedRunningStream) mActiveState.mAudioDriverType = std::numeric_limits<uint32_t>::max();
 
   if (mDAC) {
     mDAC = nullptr;
@@ -389,50 +418,64 @@ bool IPlugAPPHost::TryToChangeAudio() {
   // Skip audio initialization in no-I/O mode or screenshot mode
   if (mNoIO || IsScreenshotMode()) return true;
 
+  auto tryCurrentAudioSettings = [this]() {
 #if defined OS_WIN
-  // ASIO has one device, use the output for the input ID
-  auto inputID = GetAudioDeviceID(mState.mAudioDriverType == kDeviceASIO ? mState.mAudioOutDev.Get() : mState.mAudioInDev.Get());
+    // ASIO exposes one device for both directions, so use its output name for
+    // the input ID as well.
+    auto inputID = GetAudioDeviceID(mState.mAudioDriverType == kDeviceASIO ? mState.mAudioOutDev.Get() : mState.mAudioInDev.Get());
 #elif defined OS_MAC
-  auto inputID = GetAudioDeviceID(mState.mAudioInDev.Get());
+    auto inputID = GetAudioDeviceID(mState.mAudioInDev.Get());
 #else
 #error NOT IMPLEMENTED
 #endif
-  auto outputID = GetAudioDeviceID(mState.mAudioOutDev.Get());
+    auto outputID = GetAudioDeviceID(mState.mAudioOutDev.Get());
+    bool resetToDefault = false;
 
-  bool failedToFindDevice = false;
-  bool resetToDefault = false;
-
-  if (!inputID) {
-    if (mDefaultInputDev) {
+    if (!inputID && mDefaultInputDev) {
       resetToDefault = true;
       inputID = mDefaultInputDev;
+      if (!mAudioInputDevIDs.empty()) mState.mAudioInDev.Set(GetAudioDeviceName(*inputID).c_str());
+    }
 
-      if (mAudioInputDevIDs.size()) mState.mAudioInDev.Set(GetAudioDeviceName(inputID.value()).c_str());
-    } else
-      failedToFindDevice = true;
-  }
-
-  if (!outputID) {
-    if (mDefaultOutputDev) {
+    if (!outputID && mDefaultOutputDev) {
       resetToDefault = true;
       outputID = mDefaultOutputDev;
+      if (!mAudioOutputDevIDs.empty()) mState.mAudioOutDev.Set(GetAudioDeviceName(*outputID).c_str());
+    }
 
-      if (mAudioOutputDevIDs.size()) mState.mAudioOutDev.Set(GetAudioDeviceName(outputID.value()).c_str());
-    } else
-      failedToFindDevice = true;
+    if (!inputID || !outputID) return false;
+
+    if (resetToDefault) DBGMSG("Couldn't find the selected audio device; using the default device\n");
+    return InitAudio(*inputID, *outputID, mState.mAudioSR, mState.mBufferSize);
+  };
+
+  const AppState requestedState = mState;
+  if (tryCurrentAudioSettings()) return true;
+
+  if (gLastWorkingAudioState) {
+    CopyAudioSettings(mState, *gLastWorkingAudioState);
+
+    bool restored = false;
+    if (TryToChangeAudioDriverType()) {
+      ProbeAudioIO();
+      restored = tryCurrentAudioSettings();
+    }
+
+    if (restored) {
+      MessageBox(gHWND, "The requested audio configuration could not be started. Addivox restored the previous working configuration.", "Audio Settings",
+                 MB_OK);
+      return false;
+    }
   }
 
-  if (resetToDefault) {
-    DBGMSG("Couldn't find previous audio device, reseting to default\n");
-    UpdateINI();
-  }
+  // Keep the last known-good configuration in the settings file even if the
+  // device has disappeared and cannot currently be restarted.
+  if (gLastWorkingAudioState) CopyAudioSettings(mState, *gLastWorkingAudioState);
+  else
+    mState = requestedState;
 
-  if (failedToFindDevice) MessageBox(gHWND, "Please check the audio settings", "Error", MB_OK);
-
-  if (inputID && outputID) {
-    return InitAudio(inputID.value(), outputID.value(), mState.mAudioSR, mState.mBufferSize);
-  }
-
+  MessageBox(gHWND, "The requested audio configuration could not be started, and the previous configuration could not be restored.", "Audio Settings",
+             MB_OK);
   return false;
 }
 
@@ -566,6 +609,9 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
   mIPlug->SetSampleRate(mSampleRate);
   mIPlug->OnReset();
 
+  mInputBufPtrs.Empty();
+  mOutputBufPtrs.Empty();
+
   for (int i = 0; i < iParams.nChannels; i++) {
     mInputBufPtrs.Add(nullptr); // will be set in callback
   }
@@ -580,6 +626,7 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
   }
 
   mActiveState = mState;
+  gLastWorkingAudioState = mState;
 
   return true;
 }
