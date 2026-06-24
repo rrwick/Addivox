@@ -40,6 +40,7 @@ std::unique_ptr<RtAudio>               gPreservedAudio;
 
 #if defined OS_WIN
 constexpr UINT_PTR kAudioRecoveryTimerID = 0xADD1;
+constexpr UINT     kAudioRecoveryDelayMilliseconds = 100;
 std::atomic<bool>  gAudioRecoveryPending{false};
 
 void CALLBACK RecoverAudioAfterDriverReset(HWND window, UINT, UINT_PTR timerID, DWORD) {
@@ -50,7 +51,7 @@ void CALLBACK RecoverAudioAfterDriverReset(HWND window, UINT, UINT_PTR timerID, 
 }
 
 void ScheduleAudioRecovery() {
-  if (gHWND && gAudioRecoveryPending.load()) SetTimer(gHWND, kAudioRecoveryTimerID, 1, RecoverAudioAfterDriverReset);
+  if (gHWND && gAudioRecoveryPending.load()) SetTimer(gHWND, kAudioRecoveryTimerID, kAudioRecoveryDelayMilliseconds, RecoverAudioAfterDriverReset);
 }
 #endif
 
