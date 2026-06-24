@@ -36,7 +36,7 @@
     <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP.cpp">
       <Filter>IPlug\APP</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\iPlug2\IPlug\APP\IPlugAPP_dialog.cpp">
+    <ClCompile Include="..\src\standalone\IPlugAPP_dialog.cpp">
       <Filter>IPlug\APP</Filter>
     </ClCompile>
     <ClCompile Include="..\src\standalone\IPlugAPP_host.cpp">
