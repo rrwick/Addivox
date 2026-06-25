@@ -16,6 +16,8 @@
   </ImportGroup>
   <PropertyGroup>
     <TargetName>$(BINARY_NAME)</TargetName>
+    <APP_DEFS>$(APP_DEFS);__WINDOWS_WASAPI__</APP_DEFS>
+    <APP_LIBS>$(APP_LIBS);ksuser.lib;mfplat.lib;mfuuid.lib;wmcodecdspuuid.lib</APP_LIBS>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
