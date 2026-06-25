@@ -946,6 +946,8 @@
 
 
 <h1 id="known-issues">Known issues</h1>
+<h2 id="wasapi-exclusive-is-not-available-on-windows">WASAPI Exclusive is not available on Windows</h2>
+<p>The Windows standalone application supports DirectSound, ASIO and WASAPI shared mode, but it does not currently support WASAPI Exclusive mode. For low-latency real-time playing on Windows, ASIO is recommended when available. See <a href="../faq_and_miscellaneous_tips/#which-windows-audio-driver-type-should-i-use">Which Windows audio driver type should I use?</a>.</p>
 <h2 id="ios-custom-patch-saving">iOS custom patch saving</h2>
 <p>In the iOS standalone app, the correct place to save custom patches is <code>On My iPad/Addivox/Addivox Patches/</code>. The save dialog may not always open there automatically, so you may need to navigate to that folder yourself. Patches saved elsewhere are still exported, but they will not appear under <strong>User Patches</strong> unless they are placed in <code>Addivox Patches/</code>. This limitation comes from the iOS file picker. Addivox can export a patch file, but iOS does not give the app the same Finder-style control over the initial save location that macOS and Windows provide.</p>
 <h2 id="ios-auv3-custom-patches">iOS AUv3 custom patches</h2>

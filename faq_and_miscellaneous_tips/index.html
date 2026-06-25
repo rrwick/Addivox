@@ -962,6 +962,12 @@
 <li>If your hardware is older, you can disable the visualization to reduce CPU usage.</li>
 <li>Also, try before you buy! Get the demo version and make sure it works on your hardware before you purchase Addivox.</li>
 </ul>
+<h2 id="which-windows-audio-driver-type-should-i-use">Which Windows audio driver type should I use?</h2>
+<p>This only applies to the standalone Windows application. If you use Addivox as a VST3 or CLAP plugin, your DAW handles the audio driver.</p>
+<p>On a new Windows installation, Addivox starts with DirectSound unless you choose something else. You can change the driver type in the standalone app's Audio &amp; MIDI Settings.</p>
+<p>For real-time playing, <strong>ASIO</strong> is usually the best choice. If your audio interface has a native ASIO driver from its manufacturer, use that. Native ASIO drivers usually give the lowest latency and most reliable performance. If you do not have a native ASIO driver, <a href="https://asio4all.org/">ASIO4ALL</a> can be worth trying.</p>
+<p><strong>DirectSound</strong> is the basic Windows option. It is useful as a fallback and often works without extra setup, but it may have too much latency for live playing.</p>
+<p><strong>WASAPI</strong> is another built-in Windows option. Addivox supports WASAPI shared mode, which allows other applications to keep using the audio device at the same time. On some systems it may work well, but it is not always lower-latency than DirectSound.</p>
 <h2 id="is-a-pro-tools-aax-plugin-available">Is a Pro Tools (AAX) plugin available?</h2>
 <p>No, Addivox is not currently available as an AAX plugin for Pro Tools.</p>
 <p>iPlug2 can build AAX plugins, so this is possible in principle. However, public Pro Tools builds require AAX plugins to be signed through Avid/PACE's signing system before they can be loaded. I also do not own Pro Tools set up for proper testing, so I would not be able to test any AAX builds I made.</p>
