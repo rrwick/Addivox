@@ -499,6 +499,10 @@ bool IPlugAPPHost::TryToChangeAudio() {
     }
 
     if (restored) {
+      if (HWND settingsDialog = GetActiveWindow(); settingsDialog && GetDlgItem(settingsDialog, IDC_COMBO_AUDIO_DRIVER)) {
+        SendDlgItemMessage(settingsDialog, IDC_COMBO_AUDIO_DRIVER, CB_SETCURSEL, mState.mAudioDriverType, 0);
+      }
+
       MessageBox(gHWND, "The requested audio configuration could not be started. Addivox restored the previous working configuration.", "Audio Settings",
                  MB_OK);
       return false;
