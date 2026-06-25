@@ -951,6 +951,7 @@
 <p>The <strong>All notes</strong> toggle, when enabled, locks that parameter in sync across all key notes. See <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>.</p>
 <h2 id="level">Level</h2>
 <p>Controls the amplitude of each harmonic at full breath. This is the primary control for shaping the tonal character of a patch — setting the relative strength of each harmonic determines whether the sound is bright or mellow, thin or full.</p>
+<p>The Level tab's <strong>Normalize</strong> action scales the current key note's harmonic levels so the waveform peaks close to full scale at full breath. Patches with strong <strong>Level variation</strong> may need extra headroom, because variation can temporarily push harmonics above their base levels. <strong>Pan variation</strong> can also concentrate harmonics in one channel at some moments, so moving stereo patches may need slightly lower levels than static centered patches.</p>
 <h2 id="breath">Breath</h2>
 <p>Controls per-harmonic breath sensitivity (the <code>breath_power</code> exponent). At a value of 1, a harmonic's level scales linearly with breath. Higher values make the harmonic require proportionally more breath before it becomes prominent — effectively hiding quieter harmonics until the player blows harder. Lower values make a harmonic appear at low breath levels.</p>
 <h2 id="attack-release">Attack / Release</h2>
