@@ -29,6 +29,19 @@ No, it cannot. Addivox's synthesis is based on summing harmonic sine waves, and 
 * Also, try before you buy! Get the demo version and make sure it works on your hardware before you purchase Addivox.
 
 
+## Which Windows audio driver type should I use?
+
+This only applies to the standalone Windows application. If you use Addivox as a VST3 or CLAP plugin, your DAW handles the audio driver.
+
+On a new Windows installation, Addivox starts with DirectSound unless you choose something else. You can change the driver type in the standalone app's Audio & MIDI Settings.
+
+For real-time playing, **ASIO** is usually the best choice. If your audio interface has a native ASIO driver from its manufacturer, use that. Native ASIO drivers usually give the lowest latency and most reliable performance. If you do not have a native ASIO driver, [ASIO4ALL](https://asio4all.org/) can be worth trying.
+
+**DirectSound** is the basic Windows option. It is useful as a fallback and often works without extra setup, but it may have too much latency for live playing.
+
+**WASAPI** is another built-in Windows option. Addivox supports WASAPI shared mode, which allows other applications to keep using the audio device at the same time. On some systems it may work well, but it is not always lower-latency than DirectSound.
+
+
 ## Is a Pro Tools (AAX) plugin available?
 
 No, Addivox is not currently available as an AAX plugin for Pro Tools.
