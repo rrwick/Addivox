@@ -327,6 +327,7 @@
     <ClInclude Include="..\..\iPlug2\IPlug\IPlug_include_in_plug_hdr.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\IPlug_include_in_plug_src.h" />
     <ClInclude Include="..\..\iPlug2\IPlug\ISender.h" />
+    <ClInclude Include="..\src\standalone\audio_driver_ids.h" />
     <ClInclude Include="..\src\plugin.h" />
     <ClInclude Include="..\src\synth\oscillator.h" />
     <ClInclude Include="..\resources\resource.h" />
