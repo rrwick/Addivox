@@ -9,6 +9,7 @@
 */
 
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
+#include "audio_driver_ids.h"
 #include "audio_midi_settings.h"
 #include "resource.h"
 
@@ -428,6 +429,8 @@ bool IPlugAPPHost::TryToChangeAudioDriverType() {
 
 #if defined OS_WIN
   if (mState.mAudioDriverType == kDeviceASIO) mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_ASIO);
+  else if (mState.mAudioDriverType == addivox_standalone::kDeviceWASAPI)
+    mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_WASAPI);
   else if (mState.mAudioDriverType == kDeviceDS)
     mDAC = std::make_unique<RtAudio>(RtAudio::WINDOWS_DS);
 #elif defined OS_MAC
