@@ -5,7 +5,7 @@ There are two ways to purchase Addivox: full version and iOS version.
 
 ### Before purchasing
 
-Before purchasing, try the [Demo version of Addivox](demo.md) to make sure you like the sound and that Addivox works well on your system.
+Before purchasing, try the [demo version of Addivox](demo.md) to make sure you like the sound and that Addivox works well on your system.
 
 
 ### Full version

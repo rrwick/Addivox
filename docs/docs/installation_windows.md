@@ -22,8 +22,9 @@ Restart your DAW or ask it to rescan VST3 plugins.
 
 ## CLAP plugin
 
-Copy `Addivox.clap` (or `AddivoxDemo.clap`) into:
+Copy `Addivox.clap` (or `AddivoxDemo.clap`) into either location:
 
-`%LOCALAPPDATA%\Programs\Common\CLAP`
+- Per-user: `%LOCALAPPDATA%\Programs\Common\CLAP`
+- All users: `C:\Program Files\Common Files\CLAP`
 
 Restart your DAW or ask it to rescan CLAP plugins.
