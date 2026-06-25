@@ -10,6 +10,7 @@
 #include "knob.h"
 #include "number_box_control.h"
 #include "patch_manager.h"
+#include "peak_led_meter_control.h"
 #include "pitch_bend_wheel.h"
 #include "positions.h"
 #include "settings_menu_button.h"
@@ -127,7 +128,7 @@ inline void AttachOutputMeterControls(IGraphics* pGraphics, const PanelResources
   auto* breathMeter = new IVMeterControl<1>(positions::kBreathMeter, "", breathMeterStyle, EDirection::Horizontal);
   breathMeter->SetTooltip(help_text::main_ui::kBreathMeter);
   pGraphics->AttachControl(breathMeter, breathMeterTag);
-  auto* outMeter = new IVLEDMeterControl<2>(positions::kOutputMeter, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
+  auto* outMeter = new PeakLEDMeterControl(positions::kOutputMeter, "", resources.meterStyle, EDirection::Horizontal, {}, 26, MakeOutputMeterLEDRanges());
   outMeter->SetResponse(IVMeterControl<2>::EResponse::Linear);
   outMeter->SetTooltip(help_text::main_ui::kMainOutputMeter);
   pGraphics->AttachControl(outMeter, outMeterTag);
