@@ -3,14 +3,14 @@
 
 ## What was the inspiration for Addivox?
 
-Like many who play wind controllers, I enjoyed the brassy sounds of the [EVI-NER](https://www.davidsonaudioandmultimedia.com/products/evi-ner) synthesizer. However, I had a couple issues with EVI-NER. First of all, its sound was a bit too synthesizery, especially in the low end. I wanted something more similar to a brass sound over the full range, from tuba-like in the low range to trombone-like in the mid range to trumpet-like in the upper range. Second, while I was able to register my copy of EVI-NER and get my serial number, I have seen many reports online of people who could not, so it seems that EVI-NER may not be a reliable option for the windsynth community.
+Like many who play wind controllers, I enjoyed the brassy sounds of the [EVI-NER](https://www.davidsonaudioandmultimedia.com/products/evi-ner) synthesizer. However, I had a couple issues with EVI-NER. First of all, its sound was a bit too synthesizery, especially in the low end. I wanted something similar to a brass sound over the full range, from tuba-like in the low range to trombone-like in the mid range to trumpet-like in the upper range. Second, while I was able to register my copy of EVI-NER and get my serial number, I have seen many reports online of people who could not, so it seems that EVI-NER may not be a reliable option for the windsynth community.
 
 Addivox solves the first issue by allowing for multiple key notes in its patches. This allows you to define different sounds in different registers, creating patches that smoothly span many octaves. And Addivox solves the second issue by being source-available (see [License](license.md)) and not containing any DRM like serial numbers or activation codes.
 
 Finally, while I did not start developing Addivox with formants in mind, during development I learned how important they can be for shaping the timbre of a sound. So I now consider the ability to apply formant EQ filters to be one of Addivox's key features (see [EQ](eq.md)).
 
 
-## Can Addivox mimic real instruments sounds?
+## Can Addivox mimic real instrument sounds?
 
 Perhaps, with some careful fine-tuning of the patches, but this is not what Addivox was designed for. If your goal is to mimic a real instrument with your wind controller, then something like the [SWAM instruments](https://audiomodeling.com) would be a better choice.
 
@@ -25,6 +25,7 @@ No, it cannot. Addivox's synthesis is based on summing harmonic sine waves, and 
 * It runs fine on my 9th gen iPad from 2021, and doesn't max out the CPU.
 * So I predict it will do okay with iPads from about 2019 onward.
 * Need to test on an M1 Mac.
+* Runs fine on an Intel i3-8109U CPU from 2018.
 * If your hardware is older, you can disable the visualization to reduce CPU usage.
 * Also, try before you buy! Get the demo version and make sure it works on your hardware before you purchase Addivox.
 
@@ -40,6 +41,15 @@ For real-time playing, **ASIO** is usually the best choice. If your audio interf
 **DirectSound** is the basic Windows option. It is useful as a fallback and often works without extra setup, but it may have too much latency for live playing.
 
 **WASAPI** is another built-in Windows option. Addivox supports WASAPI shared mode, which allows other applications to keep using the audio device at the same time. On some systems it may work well, but it is not always lower-latency than DirectSound.
+
+
+## Clipping audio on macOS and Windows
+
+Addivox can produce floating-point audio above 0 dBFS, especially if a patch has high per-harmonic levels, is played at full breath, uses **Level variation** or if the global **Level** knob is turned up. The **Main Out** meter shows peak output level; if it reaches the red range, the signal is at or above 0 dBFS and may clip somewhere after Addivox.
+
+Whether or not an output level > 0 dBFS will cause clipping distortion seems to depend on the platform and audio driver. In my experience, macOS (Core Audio) and Windows WASAPI are tolerant of high levels, and I do not hear distortion when Addivox exceeds 0 dBFS. But with Windows DirectSound and Windows ASIO, I do hear clipping distortion.
+
+The safest habit is to watch the **Main Out** meter during playing, and if you see it reach the red range, reduce the overall level, either via the [per-harmonic](per-harmonic_settings.md) Level tab or the global Level knob.
 
 
 ## Is a Pro Tools (AAX) plugin available?
