@@ -1102,9 +1102,7 @@ void Addivox::SendBreathControlFromUI(double value, int channel, int offset) {
   IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), GetSevenBitControllerValue(value), channel, offset));
 }
 
-void Addivox::ApplyPatchDocument(const patch_io::PatchDocument& document) {
-  mSuppressPatchDirtyTracking = true;
-
+void Addivox::ApplyPatchDocumentToState(const patch_io::PatchDocument& document) {
   mEditorState->compoundPatch = document.compoundPatch;
   mEditorState->selectedMidiNote = patch_io::detail::ChooseDefaultSelectedMidiNote(document.compoundPatch, mEditorState->selectedMidiNote);
 
@@ -1114,17 +1112,12 @@ void Addivox::ApplyPatchDocument(const patch_io::PatchDocument& document) {
 
   SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
   SetEffectsSettingsParams(*this, document.effectsSettings, false);
+}
+
+void Addivox::FinalizePatchRecall(bool syncControlValues) {
   OnParamReset(kPresetRecall);
   SyncPatchOwnedParamDefaultsToCurrentValues(*this);
-
-  if (!document.name.empty()) mActivePatchDisplayName = document.name;
-  else if (mActivePatchDisplayName.empty())
-    mActivePatchDisplayName = "Patch";
-
-  mSuppressPatchDirtyTracking = false;
-  SetActivePatchCleanSnapshotFromCurrentState();
-  RefreshEditorUI(true);
-  MarkStandaloneStateDirty();
+  if (syncControlValues) SendCurrentParamValuesFromDelegate();
 }
 
 void Addivox::PromptLoadPatchFromFile() {
@@ -1300,21 +1293,13 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
   if (!patch_io::ParsePatchToml(patchToml.Get(), document)) return -1;
 
   mSuppressPatchDirtyTracking = true;
-  mEditorState->compoundPatch = document.compoundPatch;
-  mEditorState->selectedMidiNote = patch_io::detail::ChooseDefaultSelectedMidiNote(document.compoundPatch, mEditorState->selectedMidiNote);
+  ApplyPatchDocumentToState(document);
   mPendingRestoredStatePatchName = document.name;
-  SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
-  SetEffectsSettingsParams(*this, document.effectsSettings, false);
-
-#if IPLUG_DSP
-  mDSP.SetCompoundPatch(document.compoundPatch);
-#endif
 
   int pos = position;
   ENTER_PARAMS_MUTEX
   pos = RestoreStateParamsFromChunk(*this, chunk, pos);
-  OnParamReset(kPresetRecall);
-  SyncPatchOwnedParamDefaultsToCurrentValues(*this);
+  FinalizePatchRecall(false);
   LEAVE_PARAMS_MUTEX
   mSuppressPatchDirtyTracking = false;
 
@@ -1786,15 +1771,22 @@ void Addivox::LoadUserPatchByPath(const std::string& path) {
   }
 
   mUserPatchDirectory = patch_io::detail::ParentPath(path);
-  ApplyPatchDocument(document);
+  mSuppressPatchDirtyTracking = true;
+  ApplyPatchDocumentToState(document);
+  FinalizePatchRecall(true);
+  if (!document.name.empty()) mActivePatchDisplayName = document.name;
+  else if (mActivePatchDisplayName.empty())
+    mActivePatchDisplayName = "Patch";
+  mSuppressPatchDirtyTracking = false;
+
   mActivePatchSource = PatchSource::User;
   mActiveFactoryPatchIdx = -1;
   mActivePatchPath = path;
-
   mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), path);
   SetActivePatchCleanSnapshotFromCurrentState();
   RebuildPatchCatalog();
   RefreshEditorUI(true);
+  MarkStandaloneStateDirty();
 }
 
 void Addivox::PromptImportPatchFromFile() {

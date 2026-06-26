@@ -81,7 +81,8 @@ private:
     std::vector<std::string> menuPath;
   };
 
-  void ApplyPatchDocument(const patch_io::PatchDocument& document);
+  void ApplyPatchDocumentToState(const patch_io::PatchDocument& document);
+  void FinalizePatchRecall(bool syncControlValues);
   void EnsureStandaloneStateInitialized();
   bool LoadStandaloneState();
   bool SaveStandaloneState() const;
