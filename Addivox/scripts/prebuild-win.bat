@@ -4,3 +4,6 @@ REM set FORMAT=%1
 REM set NAME=%2
 REM set PLATFORM=%3
 REM set BUILT_BINARY=%4
+
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0prepare_resources-win.ps1"
+if errorlevel 1 exit /b %errorlevel%

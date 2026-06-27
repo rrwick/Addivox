@@ -29,11 +29,7 @@ constexpr int kMaxPitchBendRange = 96;
 constexpr bool kDefaultHarmonicVisualizerEnabled = true;
 constexpr int64_t kStandaloneStateSaveDebounceMs = 250;
 #if defined OS_WIN
-constexpr const char* kEmbeddedFactoryPatchNames[] = {
-    "FACTORY_PATCH_01", "FACTORY_PATCH_02", "FACTORY_PATCH_03", "FACTORY_PATCH_04", "FACTORY_PATCH_05",
-    "FACTORY_PATCH_06", "FACTORY_PATCH_07", "FACTORY_PATCH_08", "FACTORY_PATCH_09", "FACTORY_PATCH_10",
-    "FACTORY_PATCH_11", "FACTORY_PATCH_12", "FACTORY_PATCH_13", "FACTORY_PATCH_14", "FACTORY_PATCH_15",
-};
+constexpr const char* kFactoryPatchResourcePrefix = "FACTORY_PATCH_";
 #endif
 #if defined(OS_IOS)
 constexpr double kIOSStandaloneDefaultReverb = 50.0;
@@ -45,6 +41,24 @@ int64_t GetMonotonicMilliseconds() {
   using namespace std::chrono;
   return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
+
+#if defined OS_WIN
+BOOL CALLBACK AddFactoryPatchResourceName(HMODULE, LPCWSTR, LPWSTR resourceName, LONG_PTR userData) {
+  if (IS_INTRESOURCE(resourceName)) return TRUE;
+
+  std::vector<std::string>& resourceNames = *reinterpret_cast<std::vector<std::string>*>(userData);
+  const std::string name = UTF16AsUTF8(resourceName).Get();
+  if (name.rfind(kFactoryPatchResourcePrefix, 0) == 0) resourceNames.push_back(name);
+  return TRUE;
+}
+
+std::vector<std::string> FindEmbeddedFactoryPatchNames() {
+  std::vector<std::string> resourceNames;
+  EnumResourceNamesW(static_cast<HMODULE>(gHINSTANCE), L"TOML", AddFactoryPatchResourceName, reinterpret_cast<LONG_PTR>(&resourceNames));
+  std::sort(resourceNames.begin(), resourceNames.end());
+  return resourceNames;
+}
+#endif
 
 GlobalVoiceSettings GetGlobalVoiceSettingsFromParams(const Addivox& plugin) {
   GlobalVoiceSettings settings{};
@@ -1997,9 +2011,9 @@ void Addivox::LoadBuiltInPatches() {
 
   int numLoadedPatches = 0;
 #if defined OS_WIN
-  for (const char* resourceName : kEmbeddedFactoryPatchNames) {
+  for (const std::string& resourceName : FindEmbeddedFactoryPatchNames()) {
     int resourceSize = 0;
-    const void* resourceData = LoadWinResource(resourceName, "toml", resourceSize, gHINSTANCE);
+    const void* resourceData = LoadWinResource(resourceName.c_str(), "toml", resourceSize, gHINSTANCE);
     if (!resourceData || resourceSize <= 0) continue;
 
     patch_io::PatchDocument document;
