@@ -19,6 +19,3 @@ What are you trying to do with Addivox?
 - Format: [Standalone / AU / VST3 / CLAP / AAX / iOS AUv3]
 - DAW and version:
 - Wind controller:
-
-**Files, if relevant**
-Attach screenshots, audio examples or patch TOML files if they help.
