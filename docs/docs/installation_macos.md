@@ -28,13 +28,14 @@ Do not remove `Addivox.app` after the AUv3 plugin appears in your DAW. If you mo
 
 Copy the plugin files you need to the matching folder below. The `~` symbol means your home folder.
 
-| File                  | Format        | Install location                                    | Compatible DAWs                                                     |
-| --------------------- | ------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
-| `Addivox.app`         | Audio Unit v3 | `/Applications`                                     | Logic Pro, GarageBand, MainStage, Ableton Live                      |
-| `Addivox.component`   | Audio Unit v2 | `~/Library/Audio/Plug-Ins/Components/`              | Logic Pro, GarageBand, MainStage, Ableton Live, Studio One, REAPER  |
-| `Addivox.vst3`        | VST3          | `~/Library/Audio/Plug-Ins/VST3/`                    | Ableton Live, Cubase, Nuendo, Studio One, REAPER, FL Studio, Reason |
-| `Addivox.vst`         | VST2          | `~/Library/Audio/Plug-Ins/VST/`                     | Ableton Live, REAPER, Studio One                                    |
-| `Addivox.clap`        | CLAP          | `~/Library/Audio/Plug-Ins/CLAP/`                    | Bitwig Studio, REAPER                                               |
+| File                  | Format        | Install location                                    | Example DAWs                                |
+| --------------------- | ------------- | --------------------------------------------------- | ------------------------------------------- |
+| `Addivox.app`         | Audio Unit v3 | `/Applications`                                     | Logic Pro, GarageBand, MainStage            |
+| `Addivox.component`   | Audio Unit v2 | `~/Library/Audio/Plug-Ins/Components/`              | Logic Pro, GarageBand, Ableton Live, REAPER |
+| `Addivox.vst3`        | VST3          | `~/Library/Audio/Plug-Ins/VST3/`                    | Ableton Live, Cubase, REAPER, Studio One    |
+| `Addivox.vst`         | VST2          | `~/Library/Audio/Plug-Ins/VST/`                     | Ableton Live, REAPER                        |
+| `Addivox.clap`        | CLAP          | `~/Library/Audio/Plug-Ins/CLAP/`                    | Bitwig Studio, REAPER                       |
+
 
 If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` and `Addivox.vst` are mainly useful for older DAWs.
 

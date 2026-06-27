@@ -19,10 +19,11 @@ For live playing, the standalone application may need a low-latency Windows audi
 
 Copy the plugin files you need to the matching folder below.
 
-| File            | Format | Per-user install location             | All-users install location              | Compatible DAWs                                                     |
-| --------------- | ------ | ------------------------------------- | --------------------------------------- | ------------------------------------------------------------------- |
-| `Addivox.vst3`  | VST3   | `%LOCALAPPDATA%\Programs\Common\VST3` | `C:\Program Files\Common Files\VST3`    | Ableton Live, Cubase, Nuendo, Studio One, REAPER, FL Studio, Reason |
-| `Addivox.clap`  | CLAP   | `%LOCALAPPDATA%\Programs\Common\CLAP` | `C:\Program Files\Common Files\CLAP`    | Bitwig Studio, REAPER                                               |
+| File            | Format | Per-user install location             | All-users install location              | Example DAWs                             |
+| --------------- | ------ | ------------------------------------- | --------------------------------------- | ---------------------------------------- |
+| `Addivox.vst3`  | VST3   | `%LOCALAPPDATA%\Programs\Common\VST3` | `C:\Program Files\Common Files\VST3`    | Ableton Live, Cubase, REAPER, Studio One |
+| `Addivox.clap`  | CLAP   | `%LOCALAPPDATA%\Programs\Common\CLAP` | `C:\Program Files\Common Files\CLAP`    | Bitwig Studio, REAPER                    |
+
 
 For VST3, copy the complete `Addivox.vst3` directory, not just the file inside it. For CLAP, copy the `Addivox.clap` file.
 
