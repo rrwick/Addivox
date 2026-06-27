@@ -31,6 +31,7 @@ struct VoiceSetup {
 };
 
 struct ChorusParameters {
+  double dryMix{1.0};
   double wetMix{0.0};
   double baseDelaySamples{0.0};
   double depthSamples{0.0};
@@ -77,7 +78,8 @@ ChorusParameters ComputeParameters(double amount, double sampleRate) {
   const double sqrtKnob = std::sqrt(knob);
 
   ChorusParameters parameters;
-  parameters.wetMix = 1.5 * knob;
+  parameters.dryMix = 1.0 - (0.50 * knob);
+  parameters.wetMix = 1.0 * knob;
   parameters.baseDelaySamples = dsp::MillisecondsToSamples(10.0 + (20.0 * knob), sampleRate);
   parameters.depthSamples = dsp::MillisecondsToSamples(10.0 * sqrtKnob, sampleRate);
   parameters.width = 1.5 * knob;
@@ -232,8 +234,10 @@ void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
       voice.delay.Write(monoInput);
     }
 
-    outputs[0][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal(outputs[0][sampleIndex] + (wetLeft * parameters.wetMix)));
-    outputs[1][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal(outputs[1][sampleIndex] + (wetRight * parameters.wetMix)));
+    outputs[0][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal((outputs[0][sampleIndex] * parameters.dryMix) +
+                                                                            (wetLeft * parameters.wetMix)));
+    outputs[1][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal((outputs[1][sampleIndex] * parameters.dryMix) +
+                                                                            (wetRight * parameters.wetMix)));
   }
 
   if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold) {
