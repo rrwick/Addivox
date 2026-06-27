@@ -24,7 +24,6 @@ Copy the plugin files you need to the matching folder below.
 | `Addivox.vst3`  | VST3   | `%LOCALAPPDATA%\Programs\Common\VST3` | `C:\Program Files\Common Files\VST3`    | Ableton Live, Cubase, REAPER, Studio One |
 | `Addivox.clap`  | CLAP   | `%LOCALAPPDATA%\Programs\Common\CLAP` | `C:\Program Files\Common Files\CLAP`    | Bitwig Studio, REAPER                    |
 
-
 For VST3, copy the complete `Addivox.vst3` directory, not just the file inside it. For CLAP, copy the `Addivox.clap` file.
 
 If you are not sure which plugin format to install, start with `Addivox.vst3` for most modern DAWs. Use `Addivox.clap` if your DAW supports CLAP and you prefer that format.

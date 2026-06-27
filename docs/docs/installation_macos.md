@@ -36,7 +36,6 @@ Copy the plugin files you need to the matching folder below. The `~` symbol mean
 | `Addivox.vst`         | VST2          | `~/Library/Audio/Plug-Ins/VST/`                     | Ableton Live, REAPER                        |
 | `Addivox.clap`        | CLAP          | `~/Library/Audio/Plug-Ins/CLAP/`                    | Bitwig Studio, REAPER                       |
 
-
 If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` and `Addivox.vst` are mainly useful for older DAWs.
 
 The `Library` folder inside your home folder is hidden by default. To open one of these folders in Finder:
