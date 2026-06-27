@@ -30,9 +30,9 @@ The stereo position of each harmonic, from −1 (fully left) to +1 (fully right)
 
 Six tabs control continuous slow modulation of level, pitch, and pan. Each has an **Amount** tab (depth of the modulation for that harmonic) and a **Rate** tab (speed of the modulation). These are scaled globally by the [variation controls](global_settings.md).
 
-- **LvlVarAmt / LvlVarRate** — level variation (tremolo-like).
-- **PchVarAmt / PchVarRate** — pitch variation (vibrato-like).
-- **PanVarAmt / PanVarRate** — pan variation (slow stereo movement).
+- **LvlVarAmt / LvlVarRate** — level variation
+- **PchVarAmt / PchVarRate** — pitch variation
+- **PanVarAmt / PanVarRate** — pan variation
 
 
 

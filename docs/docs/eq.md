@@ -4,7 +4,10 @@ The EQ tab in the editor lets you draw a frequency-response curve that is applie
 
 Unlike the per-harmonic settings, the EQ curve is anchored to absolute frequencies rather than to the pitch of the note. This means a peak at 800 Hz stays at 800 Hz regardless of whether you are playing a low note or a high note.
 
-*(Screenshot placeholder: the EQ editor with an example formant curve)*
+<div style="display: flex; justify-content: center; gap: 10px; width: 100%;">
+  <img src="../assets/eq_edit.png" alt="Addivox EQ editor" style="width: calc(50% - 5px);">
+  <img src="../assets/eq_vis.png" alt="Addivox EQ visualised" style="width: calc(50% - 5px);">
+</div>
 
 ## Formants
 
