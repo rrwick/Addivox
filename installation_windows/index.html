@@ -946,24 +946,48 @@
 
 
 <h1 id="installation-windows">Installation – Windows</h1>
-<p>The Windows archive contains the standalone application, VST3 plugin and CLAP plugin. Factory patches and interface resources are embedded in the binaries.</p>
-<h2 id="standalone-application">Standalone application</h2>
-<p><code>Addivox.exe</code> (or <code>AddivoxDemo.exe</code>) is self-contained. Move it anywhere convenient and optionally create a shortcut to it.</p>
+<p>Addivox for Windows is delivered as a zip file with a name like <code>Addivox_v1.0.0_Windows.zip</code>. After downloading it, double-click to unzip it. You should see several Addivox files:
+<code>Addivox.exe</code>, <code>Addivox.clap</code> and <code>Addivox.vst3</code>.</p>
+<p>You do not need to install every file. <code>Addivox.exe</code> is the standalone version, which runs by itself. The other files are plugin formats, which are loaded inside a DAW such as Ableton Live, Cubase or REAPER.</p>
+<p>These instructions also apply to the <a href="../demo/">Demo version</a> of Addivox. For the Demo version, the filenames use <code>AddivoxDemo</code> instead of <code>Addivox</code>, for example <code>AddivoxDemo.exe</code> and <code>AddivoxDemo.vst3</code>.</p>
+<h3 id="standalone-app">Standalone app</h3>
+<p><code>Addivox.exe</code> is self-contained. Move it anywhere convenient and optionally create a shortcut to it. You can then open Addivox by double-clicking the executable or shortcut.</p>
 <p>For live playing, the standalone application may need a low-latency Windows audio driver. ASIO is usually recommended when available. See <a href="../faq_and_miscellaneous_tips/#which-windows-audio-driver-type-should-i-use">Which Windows audio driver type should I use?</a> for more details.</p>
-<h2 id="vst3-plugin">VST3 plugin</h2>
-<p>Copy the complete <code>Addivox.vst3</code> (or <code>AddivoxDemo.vst3</code>) directory into either location:</p>
-<ul>
-<li>Per-user: <code>%LOCALAPPDATA%\Programs\Common\VST3</code></li>
-<li>All users: <code>C:\Program Files\Common Files\VST3</code></li>
-</ul>
-<p>Restart your DAW or ask it to rescan VST3 plugins.</p>
-<h2 id="clap-plugin">CLAP plugin</h2>
-<p>Copy <code>Addivox.clap</code> (or <code>AddivoxDemo.clap</code>) into either location:</p>
-<ul>
-<li>Per-user: <code>%LOCALAPPDATA%\Programs\Common\CLAP</code></li>
-<li>All users: <code>C:\Program Files\Common Files\CLAP</code></li>
-</ul>
-<p>Restart your DAW or ask it to rescan CLAP plugins.</p>
+<h3 id="plugins">Plugins</h3>
+<p>Copy the plugin files you need to the matching folder below.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Format</th>
+<th>Per-user install location</th>
+<th>All-users install location</th>
+<th>Example DAWs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Addivox.vst3</code></td>
+<td>VST3</td>
+<td><code>%LOCALAPPDATA%\Programs\Common\VST3</code></td>
+<td><code>C:\Program Files\Common Files\VST3</code></td>
+<td>Ableton Live, Cubase, REAPER, Studio One</td>
+</tr>
+<tr>
+<td><code>Addivox.clap</code></td>
+<td>CLAP</td>
+<td><code>%LOCALAPPDATA%\Programs\Common\CLAP</code></td>
+<td><code>C:\Program Files\Common Files\CLAP</code></td>
+<td>Bitwig Studio, REAPER</td>
+</tr>
+</tbody>
+</table>
+<p>For VST3, copy the complete <code>Addivox.vst3</code> directory, not just the file inside it. For CLAP, copy the <code>Addivox.clap</code> file.</p>
+<p>If you are not sure which plugin format to install, start with <code>Addivox.vst3</code> for most modern DAWs. Use <code>Addivox.clap</code> if your DAW supports CLAP and you prefer that format.</p>
+<p>After copying plugins, quit and reopen your DAW. Some DAWs scan new plugins automatically. Others have a plugin manager or preferences page where you can rescan plugins. If you installed more than one format, your DAW may show Addivox more than once, for example as both a VST3 and a CLAP plugin.</p>
+<h3 id="windows-compatibility">Windows compatibility</h3>
+<p>Addivox is built as a 64-bit Windows app/plugin. It is developed and tested on Windows 11 but should also work on Windows 10. Please try the <a href="../demo/">Demo version</a> before buying Addivox to ensure that it runs on your system.</p>
+<p>Very old versions of Windows, 32-bit DAWs and 32-bit plugin formats are not supported.</p>
 
 
 
