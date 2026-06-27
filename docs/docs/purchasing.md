@@ -1,8 +1,5 @@
 # Purchasing
 
-There are two ways to purchase Addivox: full version and iOS version.
-
-
 ### Before purchasing
 
 Before purchasing, try the [demo version of Addivox](demo.md) to make sure you like the sound and that Addivox works well on your system.
@@ -23,11 +20,7 @@ Please do not share the paid download files with others. Addivox is a small inde
 
 ### iOS version
 
-Addivox for iOS is sold separately through the Apple App Store. It includes the iOS standalone app and the included AUv3 plugin for use in compatible iOS music apps.
-
-The iOS version is US$25.
-
-**Addivox in the iOS App Store coming soon!**
+Addivox for rhw iPad is coming soon. Stay tuned!
 
 
 ### Supporting iPlug2

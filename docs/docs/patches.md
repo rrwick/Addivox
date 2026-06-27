@@ -62,14 +62,6 @@ Addivox ships with 15 factory patches:
       <td><img src="../assets/patch_13_simple_sine.png" alt="Simple Sine" style="width: 300px; max-width: 100%;"></td>
       <td><strong>Simple Sine</strong><br>Just a single oscillator at the fundamental. As simple as it gets!</td>
     </tr>
-    <tr>
-      <td><img src="../assets/patch_14_rough_saw.png" alt="Rough Saw" style="width: 300px; max-width: 100%;"></td>
-      <td><strong>Rough Saw</strong><br>Same as Simple Saw, but with level variation, pan variation, pitch variation, drive and chorus.</td>
-    </tr>
-    <tr>
-      <td><img src="../assets/patch_15_rough_square.png" alt="Rough Square" style="width: 300px; max-width: 100%;"></td>
-      <td><strong>Rough Square</strong><br>Same as Simple Square, but with level variation, pan variation, pitch variation, drive and chorus.</td>
-    </tr>
   </tbody>
 </table>
 

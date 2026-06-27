@@ -11,4 +11,4 @@ It has full functionality except:
 
 Before purchasing Addivox, I would encourage you to try the demo version. This will let you test whether it works on your computer and DAW, and whether you like the sound.
 
-**Demo builds coming soon!**
+You can download the demo version of Addivox from the [GitHub releases page](https://github.com/rrwick/Addivox/releases/latest.
