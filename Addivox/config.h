@@ -73,9 +73,9 @@
 #define CLAP_MANUAL_URL "https://rrwick.github.io/Addivox"
 #define CLAP_SUPPORT_URL "https://rrwick.github.io/Addivox"
 #if ADDIVOX_DEMO
-#define CLAP_DESCRIPTION "Addivox"
+#define CLAP_DESCRIPTION "Addivox Demo"
 #else
-#define CLAP_DESCRIPTION "AddivoxDemo"
+#define CLAP_DESCRIPTION "Addivox"
 #endif
 #define CLAP_FEATURES "instrument"//, "synth"
 
