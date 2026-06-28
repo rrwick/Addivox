@@ -72,7 +72,7 @@ You can create and save your own patches from within Addivox. Custom patches are
 
 - **macOS:** `~/Library/Application Support/Addivox/Patches/`
 - **Windows:** `%LOCALAPPDATA%\Addivox\Patches\`
-- **iOS:** `On My iPad/Addivox/Addivox Patches/`
+<!-- - **iOS:** `On My iPad/Addivox/Addivox Patches/` -->
 
 Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which is a convenient way to organise larger collections.
 

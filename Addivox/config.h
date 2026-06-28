@@ -71,7 +71,7 @@
 
 #define VST3_SUBCATEGORY "Instrument|Synth"
 #define CLAP_MANUAL_URL "https://rrwick.github.io/Addivox"
-#define CLAP_SUPPORT_URL "https://rrwick.github.io/Addivox"
+#define CLAP_SUPPORT_URL "https://rrwick.github.io/Addivox/support_and_feedback"
 #if ADDIVOX_DEMO
 #define CLAP_DESCRIPTION "Addivox Demo"
 #else

@@ -22,7 +22,7 @@ What did you expect to happen?
 **System**
 - OS:
 - Addivox version:
-- Format: [Standalone / AU / VST3 / CLAP / AAX / iOS AUv3]
+- Format: [Standalone / AU / VST3 / CLAP]
 - DAW and version, if using Addivox as a plugin:
 - Audio/MIDI device, if relevant:
 - Wind controller, if relevant:
