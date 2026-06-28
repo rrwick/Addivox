@@ -1,7 +1,7 @@
 # Installation – macOS
 
 Addivox for macOS is delivered as a zip file with a name like `Addivox_v1.0.0_macOS.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
-`Addivox.app`, `Addivox.component`, `Addivox.clap`, `Addivox.vst` and `Addivox.vst3`.
+`Addivox.app`, `Addivox.component`, `Addivox.clap` and `Addivox.vst3`.
 
 You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which are loaded inside a DAW such as Logic Pro, GarageBand or Ableton Live.
 
@@ -33,10 +33,9 @@ Copy the plugin files you need to the matching folder below. The `~` symbol mean
 | `Addivox.app`         | Audio Unit v3 | `/Applications`                                     | Logic Pro, GarageBand, MainStage            |
 | `Addivox.component`   | Audio Unit v2 | `~/Library/Audio/Plug-Ins/Components/`              | Logic Pro, GarageBand, Ableton Live, REAPER |
 | `Addivox.vst3`        | VST3          | `~/Library/Audio/Plug-Ins/VST3/`                    | Ableton Live, Cubase, REAPER, Studio One    |
-| `Addivox.vst`         | VST2          | `~/Library/Audio/Plug-Ins/VST/`                     | Ableton Live, REAPER                        |
 | `Addivox.clap`        | CLAP          | `~/Library/Audio/Plug-Ins/CLAP/`                    | Bitwig Studio, REAPER                       |
 
-If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` and `Addivox.vst` are mainly useful for older DAWs.
+If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` is mainly useful for older DAWs.
 
 The `Library` folder inside your home folder is hidden by default. To open one of these folders in Finder:
 
@@ -58,7 +57,6 @@ All of the included formats can be used on Intel or Apple Silicon Macs, provided
 - `Addivox.app`
 - `Addivox.component`
 - `Addivox.vst3`
-- `Addivox.vst`
 - `Addivox.clap`
 
 On an Intel Mac, use Addivox normally. On an Apple Silicon Mac, Addivox can run natively in Apple Silicon DAWs. It can also be used from Intel-only DAWs running under Rosetta, provided the DAW supports the plugin format you installed.
