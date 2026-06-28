@@ -11,7 +11,7 @@ Unlike the per-harmonic settings, the EQ curve is anchored to absolute frequenci
 
 ## Formants
 
-A **formant** is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and a oboe comes in part from where their formants sit in the frequency spectrum.
+A **formant** is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and an oboe comes in part from where their formants sit in the frequency spectrum.
 
 In real instruments, formants arise from the physical resonances of the instrument. Because these shapes are fixed, the formants stay at roughly the same frequencies even as you play higher or lower notes. Addivox's EQ works the same way: keeping the curve fixed in frequency lets you shape formants that behave like those of a real instrument.
 

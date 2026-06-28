@@ -2,7 +2,7 @@
 
 ## Factory Patches
 
-Addivox ships with 15 factory patches:
+Addivox ships with 13 factory patches:
 
 <table>
   <colgroup>
