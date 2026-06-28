@@ -10,7 +10,7 @@ These instructions also apply to the [Demo version](demo.md) of Addivox. For the
 
 ### Standalone app
 
-`Addivox.exe` is self-contained. Move it anywhere convenient and optionally create a shortcut to it. You can then open Addivox by double-clicking the executable or shortcut.
+`Addivox.exe` is self-contained. Move it anywhere convenient and optionally create a shortcut to it. You can then open Addivox by double-clicking the executable or shortcut. Addivox for Windows is not code-signed, so Windows SmartScreen or antivirus software may warn you the first time you open it.
 
 For live playing, the standalone application may need a low-latency Windows audio driver. ASIO is usually recommended when available. See [Which Windows audio driver type should I use?](faq_and_miscellaneous_tips.md#which-windows-audio-driver-type-should-i-use) for more details.
 
