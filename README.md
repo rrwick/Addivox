@@ -4,6 +4,6 @@ Addivox is an additive monosynth designed for wind controllers. It is built with
 
 The official documentation is at [rrwick.github.io/Addivox](https://rrwick.github.io/Addivox).
 
-For bugs, feature requests, questions or discussion, please use the [Addivox issues page](https://github.com/rrwick/Addivox/issues).
+For bugs, feature requests, questions or discussion, please email [addivox.support@gmail.com](mailto:addivox.support@gmail.com) or use the [Addivox issues page](https://github.com/rrwick/Addivox/issues).
 
 Addivox is source-available, but it is not open-source software. You may inspect, build and privately modify the source for your own use, and you may use Addivox to create music, recordings and patches, including commercial work. You may not redistribute Addivox itself, modified versions, source code or builds. See [LICENSE](LICENSE) for the full license text.
