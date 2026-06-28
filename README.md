@@ -1,6 +1,6 @@
 <p align="center"><picture><source srcset="docs/docs/assets/logo_dark.png" media="(prefers-color-scheme: dark)"><img src="docs/docs/assets/logo_light.png" alt="Addivox logo" width="60%"></picture></p>
 
-Addivox is an additive monosynth designed for wind controllers. It is built with [iPlug2](https://github.com/iPlug2/iPlug2) and is available for macOS, iOS and Windows, and can run as a standalone instrument or as a DAW plugin.
+Addivox is an additive monosynth designed for wind controllers. It is built with [iPlug2](https://github.com/iPlug2/iPlug2) and is available for macOS and Windows, with an iOS version coming soon. It can run as a standalone instrument or as a DAW plugin.
 
 The official documentation is at [rrwick.github.io/Addivox](https://rrwick.github.io/Addivox).
 

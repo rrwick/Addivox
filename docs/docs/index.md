@@ -16,7 +16,7 @@
 - Designed specifically for wind controllers.
 - EQ shaping to create formants.
 - Built-in effects.
-- Available for macOS, iOS and Windows.
+- Available for macOS and Windows (iOS version coming soon).
 - Can run as a standalone instrument or as a plugin in a DAW.
 - Built using the [iPlug2](https://iplug2.github.io/) framework.
 

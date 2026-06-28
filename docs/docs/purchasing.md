@@ -20,7 +20,7 @@ Please do not share the paid download files with others. Addivox is a small inde
 
 ### iOS version
 
-Addivox for rhw iPad is coming soon. Stay tuned!
+Addivox for the iPad is coming soon. Stay tuned!
 
 
 ### Supporting iPlug2
