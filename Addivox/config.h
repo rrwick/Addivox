@@ -56,15 +56,15 @@
 #define AUV2_VIEW_CLASS_STR "Addivox_View"
 
 #if ADDIVOX_DEMO
-#define AAX_TYPE_IDS 'IPD1', 'IPD2'
+#define AAX_TYPE_IDS 'AvD1', 'AvD2'
 #else
-#define AAX_TYPE_IDS 'IPI1', 'IPI2'
+#define AAX_TYPE_IDS 'Avx1', 'Avx2'
 #endif
 #define AAX_PLUG_MFR_STR "RWic"
 #if ADDIVOX_DEMO
-#define AAX_PLUG_NAME_STR "AddivoxDemo\nIPIS"
+#define AAX_PLUG_NAME_STR "AddivoxDemo\nAdvD"
 #else
-#define AAX_PLUG_NAME_STR "Addivox\nIPIS"
+#define AAX_PLUG_NAME_STR "Addivox\nAdvx"
 #endif
 #define AAX_DOES_AUDIOSUITE 0
 #define AAX_PLUG_CATEGORY_STR "Synth"
