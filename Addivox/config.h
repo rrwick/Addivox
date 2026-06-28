@@ -16,9 +16,9 @@
 #define PLUG_UNIQUE_ID 'Advx'
 #endif
 #define PLUG_MFR_ID 'RWic'
-#define PLUG_URL_STR "https://github.com/rrwick/Addivox/wiki"
-#define PLUG_URL_DISPLAY_STR "github.com/rrwick/Addivox/wiki"
-#define PLUG_EMAIL_STR "rrwick@gmail.com"
+#define PLUG_URL_STR "https://rrwick.github.io/Addivox"
+#define PLUG_URL_DISPLAY_STR "rrwick.github.io/Addivox"
+#define PLUG_EMAIL_STR "addivox.support@gmail.com"
 #define PLUG_COPYRIGHT_STR "copyright 2026 Ryan Wick"
 #define PLUG_CLASS_NAME Addivox
 
@@ -70,9 +70,13 @@
 #define AAX_PLUG_CATEGORY_STR "Synth"
 
 #define VST3_SUBCATEGORY "Instrument|Synth"
-#define CLAP_MANUAL_URL "https://github.com/rrwick/Addivox/wiki"
-#define CLAP_SUPPORT_URL "https://github.com/rrwick/Addivox/wiki"
-#define CLAP_DESCRIPTION "iPlug2 instrument example"
+#define CLAP_MANUAL_URL "https://rrwick.github.io/Addivox"
+#define CLAP_SUPPORT_URL "https://rrwick.github.io/Addivox"
+#if ADDIVOX_DEMO
+#define CLAP_DESCRIPTION "Addivox"
+#else
+#define CLAP_DESCRIPTION "AddivoxDemo"
+#endif
 #define CLAP_FEATURES "instrument"//, "synth"
 
 #define APP_NUM_CHANNELS 2
