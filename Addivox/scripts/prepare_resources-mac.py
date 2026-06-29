@@ -82,6 +82,9 @@ def apply_demo_config(config):
   if demo_build_enabled():
     config['PLUG_NAME'] = 'AddivoxDemo'
     config['BUNDLE_NAME'] = 'AddivoxDemo'
+    config['PLUG_UNIQUE_ID'] = 'AdvD'
+    config['AUV2_VIEW_CLASS'] = 'AddivoxDemo_View'
+    config['AUV2_VIEW_CLASS_STR'] = 'AddivoxDemo_View'
 
 def main():
   config = parse_config(projectpath)
@@ -186,6 +189,7 @@ def main():
   auv2['CFBundlePackageType'] = CFBundlePackageType
   auv2['CFBundleSignature'] = config['PLUG_UNIQUE_ID']
   auv2['CSResourcesFileMapped'] = CSResourcesFileMapped
+  auv2['NSPrincipalClass'] = config['AUV2_VIEW_CLASS_STR']
 
   if config['PLUG_TYPE'] == 0:
     if config['PLUG_DOES_MIDI_IN']:

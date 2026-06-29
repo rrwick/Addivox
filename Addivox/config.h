@@ -62,8 +62,13 @@
 #define AUV2_ENTRY Addivox_Entry
 #define AUV2_ENTRY_STR "Addivox_Entry"
 #define AUV2_FACTORY Addivox_Factory
+#if ADDIVOX_DEMO
+#define AUV2_VIEW_CLASS AddivoxDemo_View
+#define AUV2_VIEW_CLASS_STR "AddivoxDemo_View"
+#else
 #define AUV2_VIEW_CLASS Addivox_View
 #define AUV2_VIEW_CLASS_STR "Addivox_View"
+#endif
 
 #if ADDIVOX_DEMO
 #define AAX_TYPE_IDS 'AvD1', 'AvD2'
