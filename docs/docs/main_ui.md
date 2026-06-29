@@ -1,13 +1,13 @@
 # Main UI
 
-## Patch selector
+### Patch selector
 
 <p align="center"><img src="../assets/patches.png" alt="Addivox patch selector" style="max-width: 100%; width: 324px;"></p>
 
 The top bar shows the name of the currently loaded patch and provides controls to navigate between patches. The left and right arrows step through patches in the current group, and the menu button opens the full patch browser where you can choose any factory or custom patch, save your work, or import and export patch files. See [Patches](patches.md) for more detail.
 
 
-## VIS / EDIT panel
+### VIS / EDIT panel
 
 The large panel in the middle of the UI has two modes, switched with the **VIS / EDIT** toggle in its bottom-right corner.
 
@@ -25,7 +25,7 @@ The large panel in the middle of the UI has two modes, switched with the **VIS /
 The keyboard at the bottom of the panel selects which key note you are editing in EDIT mode, and plays the corresponding note in VIS mode (see below).
 
 
-## Settings panels
+### Settings panels
 
 Below the main panel are five rows of knobs and controls:
 
@@ -36,14 +36,14 @@ Below the main panel are five rows of knobs and controls:
 - **[Effects](effects.md)** — drive, tone, chorus and reverb.
 
 
-## Meters
+### Meters
 
 <p align="center"><img src="../assets/meters.png" alt="Addivox meters" class="float-right" style="max-width: 50%; width: 224px;"></p>
 
 The **breath meter** on the top shows the current incoming breath/CC signal level. The **output meter** on the bottom shows the stereo output level; red indicators at the top warn that the signal is above 0 dB and may clip when rendered or passed to later processing.
 
 
-## Keyboard
+### Keyboard
 
 <p align="center"><img src="../assets/keyboard.png" alt="Addivox keyboard" style="max-width: 100%; width: 600px;"></p>
 

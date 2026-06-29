@@ -12,3 +12,9 @@ It has full functionality except:
 Before purchasing Addivox, I would encourage you to try the demo version. This will let you test whether it works on your computer and DAW, and whether you like the sound.
 
 You can download the demo version of Addivox from the [GitHub releases page](https://github.com/rrwick/Addivox/releases/latest).
+
+### After purchasing
+
+The demo version is named `AddivoxDemo`, so it can be installed alongside the full version of `Addivox` without the two conflicting. After buying the full version, however, most users will probably want to uninstall the demo version.
+
+If you created custom patches in the demo version, copy them from the demo patch folder to the full-version patch folder. See [Patches](patches.md#custom-patches) for the patch folder locations.

@@ -1,6 +1,6 @@
 # Global settings
 
-## Envelope
+### Envelope
 
 <p align="center"><img src="../assets/envelope.png" alt="Addivox envelope settings" class="float-right" style="max-width: 50%; width: 117px;"></p>
 
@@ -10,7 +10,7 @@
 - **Release** — higher values let harmonics ring out longer after a note ends.
 
 
-## Variation
+### Variation
 
 <p align="center"><img src="../assets/variation.png" alt="Addivox variation settings" class="float-right" style="max-width: 50%; width: 259px;"></p>
 
@@ -22,7 +22,7 @@ Variation adds continuous slow modulation to the sound, giving it movement and l
 The per-harmonic variation depths and rates (set in the [per-harmonic editor](per-harmonic_settings.md)) are multiplied by these global scales, so setting an Amount to 0 silences that variation entirely. Level variation gives a subtle tremolo-like effect; pitch variation adds vibrato; pan variation slowly moves harmonics left and right in the stereo field.
 
 
-## Output
+### Output
 
 <p align="center"><img src="../assets/output.png" alt="Addivox output settings" class="float-right" style="max-width: 50%; width: 118px;"></p>
 

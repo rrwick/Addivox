@@ -1,6 +1,6 @@
 # Patches
 
-## Factory Patches
+### Factory patches
 
 Addivox ships with 13 factory patches:
 
@@ -66,7 +66,7 @@ Addivox ships with 13 factory patches:
 </table>
 
 
-## Custom Patches
+### Custom patches
 
 You can create and save your own patches from within Addivox. Custom patches are stored as TOML text files in the **Addivox Patches** folder:
 
@@ -74,7 +74,9 @@ You can create and save your own patches from within Addivox. Custom patches are
 - **Windows:** `%LOCALAPPDATA%\Addivox\Patches\`
 <!-- - **iOS:** `On My iPad/Addivox/Addivox Patches/` -->
 
-Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which is a convenient way to organise larger collections.
+For the demo version, these folders are named `AddivoxDemo` instead of `Addivox`.
+
+Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which you can use to organise larger collections.
 
 
 ### Patch file format

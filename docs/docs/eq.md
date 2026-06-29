@@ -9,7 +9,7 @@ Unlike the per-harmonic settings, the EQ curve is anchored to absolute frequenci
   <img src="../assets/eq_vis.png" alt="Addivox EQ visualised" style="width: calc(50% - 5px);">
 </div>
 
-## Formants
+### Formants
 
 A **formant** is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and an oboe comes in part from where their formants sit in the frequency spectrum.
 
