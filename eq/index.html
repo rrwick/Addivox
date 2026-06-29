@@ -856,6 +856,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../release_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../known_issues/" class="md-nav__link">
         
   
@@ -948,9 +976,13 @@
 <h1 id="eq">EQ</h1>
 <p>The EQ tab in the editor lets you draw a frequency-response curve that is applied to the synthesised sound. The curve is defined by a set of control points — you can add a point by clicking on the curve, drag existing points to reshape it, and remove a point by right-clicking it. The curve is smoothly interpolated between points using a monotone spline, and it is flat (0 dB) outside the leftmost and rightmost points.</p>
 <p>Unlike the per-harmonic settings, the EQ curve is anchored to absolute frequencies rather than to the pitch of the note. This means a peak at 800 Hz stays at 800 Hz regardless of whether you are playing a low note or a high note.</p>
-<p><em>(Screenshot placeholder: the EQ editor with an example formant curve)</em></p>
+<div style="display: flex; justify-content: center; gap: 10px; width: 100%;">
+  <img src="../assets/eq_edit.png" alt="Addivox EQ editor" style="width: calc(50% - 5px);">
+  <img src="../assets/eq_vis.png" alt="Addivox EQ visualised" style="width: calc(50% - 5px);">
+</div>
+
 <h2 id="formants">Formants</h2>
-<p>A <strong>formant</strong> is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and a oboe comes in part from where their formants sit in the frequency spectrum.</p>
+<p>A <strong>formant</strong> is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and an oboe comes in part from where their formants sit in the frequency spectrum.</p>
 <p>In real instruments, formants arise from the physical resonances of the instrument. Because these shapes are fixed, the formants stay at roughly the same frequencies even as you play higher or lower notes. Addivox's EQ works the same way: keeping the curve fixed in frequency lets you shape formants that behave like those of a real instrument.</p>
 <p>Adding one or more EQ peaks can dramatically change the timbre of a patch. The <strong>All notes</strong> toggle (see <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>) is particularly useful here — it lets you set a single EQ curve that applies across all key notes at once, which is usually what you want for formants.</p>
 
