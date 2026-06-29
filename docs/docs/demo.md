@@ -11,7 +11,12 @@ It has full functionality except:
 
 Before purchasing Addivox, I would encourage you to try the demo version. This will let you test whether it works on your computer and DAW, and whether you like the sound.
 
-You can download the demo version of Addivox from the [GitHub releases page](https://github.com/rrwick/Addivox/releases/latest).
+You can download the demo version of Addivox from the [GitHub releases page](https://github.com/rrwick/Addivox/releases/latest), and here are direct links to the zip files:<br>
+[`AddivoxDemo_v1.0.0_macOS.zip`](https://github.com/rrwick/Addivox/releases/download/v1.0.0/AddivoxDemo_v1.0.0_macOS.zip)<br>
+[`AddivoxDemo_v1.0.0_Windows.zip`](https://github.com/rrwick/Addivox/releases/download/v1.0.0/AddivoxDemo_v1.0.0_Windows.zip)
+
+After downloading, see the [Installation – macOS](installation_macos.md) or [Installation – Windows](installation_windows.md) page for instructions on how to install the demo version of Addivox.
+
 
 ### After purchasing
 
