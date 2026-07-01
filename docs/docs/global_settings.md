@@ -26,6 +26,5 @@ The per-harmonic variation depths and rates (set in the [per-harmonic editor](pe
 
 <p align="center"><img src="../assets/output.png" alt="Addivox output settings" class="float-right" style="max-width: 50%; width: 118px;"></p>
 
+- **Pan** — shifts all harmonics left or right in the stereo field. Unlike most controls, this is not tied to the current patch and will keep its value when you switch patches.
 - **Level** — sets the overall output volume of the synth.
-- **Tuning** — applies a global pitch offset in cents to all harmonics. Unlike most controls, this is not tied to the current patch and will keep its value when you switch patches.
-- **Pan** — shifts all harmonics left or right in the stereo field. Also not patch-tied.
