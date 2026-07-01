@@ -36,7 +36,7 @@ inline double GradientNoise1D(double position, uint32_t seed) {
 }
 struct CachedNoise1D {
   double evaluate(double position, uint32_t seed) {
-    const int lattice = static_cast<int>(position);
+    const int lattice = static_cast<int>(std::floor(position));
     if (lattice != cachedLattice) {
       if (lattice == cachedLattice + 1)
         gradient0 = gradient1;

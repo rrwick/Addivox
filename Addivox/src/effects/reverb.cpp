@@ -416,8 +416,8 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames) {
     const double wetRight = mOutputLowpassRight.Process((mEarlyMix * early[1]) + late[1]);
     if (wetLeft != 0.0 || wetRight != 0.0) wetBlockSilent = false;
 
-    outputs[0][sampleIndex] = static_cast<iplug::sample>(dryLeft + wetLeft);
-    outputs[1][sampleIndex] = static_cast<iplug::sample>(dryRight + wetRight);
+    outputs[0][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal(dryLeft + wetLeft));
+    outputs[1][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal(dryRight + wetRight));
   }
 
   if (mTargetWetMix <= kBypassThreshold && mWetMix <= 1.0e-4) {
