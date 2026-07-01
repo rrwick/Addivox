@@ -376,12 +376,15 @@ bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillato
   const int clampedNote = RoundAndClampMidiNote(midiNote);
   if (mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end()) return false;
 
+  // SimplePatch::SetOscillatorParameter() clamps internally, but mAllKeyNotesValues below is indexed directly, so clamp here too.
+  const int clampedOscillatorIndex = std::clamp(oscillatorIndex, 0, SimplePatch::kNumOscillators - 1);
+
   if (IsAllKeyNotesEnabled(parameter)) {
     auto& sharedValues = mAllKeyNotesValues[ParameterIndex(parameter)];
-    sharedValues[static_cast<std::size_t>(oscillatorIndex)] = OscillatorSettings::SanitizeParameter(parameter, value);
-    for (auto& [_, patch] : mKeyNotePatches) patch.SetOscillatorParameter(oscillatorIndex, parameter, value);
+    sharedValues[static_cast<std::size_t>(clampedOscillatorIndex)] = OscillatorSettings::SanitizeParameter(parameter, value);
+    for (auto& [_, patch] : mKeyNotePatches) patch.SetOscillatorParameter(clampedOscillatorIndex, parameter, value);
   } else
-    mKeyNotePatches[clampedNote].SetOscillatorParameter(oscillatorIndex, parameter, value);
+    mKeyNotePatches[clampedNote].SetOscillatorParameter(clampedOscillatorIndex, parameter, value);
 
   return true;
 }
