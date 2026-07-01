@@ -265,40 +265,7 @@ bool SetParamFromChunkValue(Addivox& plugin, const IByteChunk& chunk, int paramI
 }
 
 int RestoreStateParamsFromChunk(Addivox& plugin, const IByteChunk& chunk, int startPos) {
-  const int remainingBytes = chunk.Size() - startPos;
-  if (remainingBytes <= 0) return startPos;
-
-  const int bytesPerValue = static_cast<int>(sizeof(double));
-  const bool hasWholeDoublePayload = (remainingBytes % bytesPerValue) == 0;
-  const int remainingValues = hasWholeDoublePayload ? (remainingBytes / bytesPerValue) : -1;
   int position = startPos;
-
-  if (remainingValues == kNumParams) {
-    for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx) {
-      if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position)) break;
-    }
-    return position;
-  }
-
-  constexpr int kPatchChunkParamCountWithReverb = kParamEffectsTone + 1;
-  constexpr int kPatchChunkParamCountWithoutReverb = kPatchChunkParamCountWithReverb - 1;
-  if (remainingValues == kPatchChunkParamCountWithReverb || remainingValues == kPatchChunkParamCountWithoutReverb) {
-    for (int paramIdx = 0; paramIdx <= kParamPortamentoAtCC5Max; ++paramIdx) {
-      const bool applyValue = (paramIdx != kParamGlobalTuning) && (paramIdx != kParamGlobalPanShift);
-      if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position, applyValue)) return position;
-    }
-
-    if (remainingValues == kPatchChunkParamCountWithReverb) {
-      if (!SetParamFromChunkValue(plugin, chunk, kParamEffectsReverb, position, false)) return position;
-    }
-
-    for (int paramIdx = kParamEffectsDrive; paramIdx <= kParamEffectsTone; ++paramIdx) {
-      if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position)) break;
-    }
-
-    return position;
-  }
-
   for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx) {
     if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position)) break;
   }
