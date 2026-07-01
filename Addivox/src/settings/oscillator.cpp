@@ -12,21 +12,25 @@ struct ParameterDescriptor {
   const char* name;
   const char* unit;
   MemberPtr member;
+  double min;
+  double max;
 };
 
+// Bounds mirror the ranges the UI sliders for these parameters allow (see
+// ui/editor_tabs/{level,breath,attack_release,pitch,pan,variation}.h).
 constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{
-    {{"Level", "", &OscillatorSettings::level},
-     {"Breath power", "", &OscillatorSettings::breath_power},
-     {"Attack", "s", &OscillatorSettings::attack},
-     {"Release", "s", &OscillatorSettings::release},
-     {"Pitch", "cents", &OscillatorSettings::pitch},
-     {"Pan", "", &OscillatorSettings::pan},
-     {"Level variation amount", "", &OscillatorSettings::level_variation_amplitude},
-     {"Level variation rate", "Hz", &OscillatorSettings::level_variation_rate},
-     {"Pitch variation amount", "cents", &OscillatorSettings::pitch_variation_amplitude},
-     {"Pitch variation rate", "Hz", &OscillatorSettings::pitch_variation_rate},
-     {"Pan variation amount", "", &OscillatorSettings::pan_variation_amplitude},
-     {"Pan variation rate", "Hz", &OscillatorSettings::pan_variation_rate}}};
+    {{"Level", "", &OscillatorSettings::level, 0.0, 1.0},
+     {"Breath power", "", &OscillatorSettings::breath_power, 0.0, 100.0},
+     {"Attack", "s", &OscillatorSettings::attack, 0.0, 1.0},
+     {"Release", "s", &OscillatorSettings::release, 0.0, 0.1},
+     {"Pitch", "cents", &OscillatorSettings::pitch, -100.0, 100.0},
+     {"Pan", "", &OscillatorSettings::pan, -1.0, 1.0},
+     {"Level variation amount", "", &OscillatorSettings::level_variation_amplitude, 0.0, 10.0},
+     {"Level variation rate", "Hz", &OscillatorSettings::level_variation_rate, 0.0, 10.0},
+     {"Pitch variation amount", "cents", &OscillatorSettings::pitch_variation_amplitude, 0.0, 10.0},
+     {"Pitch variation rate", "Hz", &OscillatorSettings::pitch_variation_rate, 0.0, 10.0},
+     {"Pan variation amount", "", &OscillatorSettings::pan_variation_amplitude, 0.0, 10.0},
+     {"Pan variation rate", "Hz", &OscillatorSettings::pan_variation_rate, 0.0, 10.0}}};
 
 const ParameterDescriptor* GetDescriptor(Parameter parameter) {
   const int index = static_cast<int>(parameter);
@@ -46,6 +50,15 @@ OscillatorParameterValues GetParameterValues(const SimplePatch& patch, Parameter
   }
 
   return values;
+}
+
+// Sanitizes values destined for the "all key notes" shared-value cache, which is stored and
+// read back (including on patch save) without going through OscillatorSettings::SetParameter.
+OscillatorParameterValues SanitizeParameterValues(Parameter parameter, const OscillatorParameterValues& values) {
+  OscillatorParameterValues sanitized{};
+  for (std::size_t i = 0; i < values.size(); ++i) sanitized[i] = OscillatorSettings::SanitizeParameter(parameter, values[i]);
+
+  return sanitized;
 }
 
 // Existing patches are normalized so the sum of squared harmonic levels is 1.
@@ -152,7 +165,16 @@ double OscillatorSettings::GetParameter(Parameter parameter) const {
 
 void OscillatorSettings::SetParameter(Parameter parameter, double value) {
   const auto* descriptor = GetDescriptor(parameter);
-  if (descriptor) this->*(descriptor->member) = value;
+  if (descriptor) this->*(descriptor->member) = SanitizeParameter(parameter, value);
+}
+
+double OscillatorSettings::SanitizeParameter(Parameter parameter, double value) {
+  const auto* descriptor = GetDescriptor(parameter);
+  if (!descriptor) return 0.0;
+
+  if (!std::isfinite(value)) return 0.0;
+
+  return std::clamp(value, descriptor->min, descriptor->max);
 }
 
 OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t) {
@@ -356,7 +378,7 @@ bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillato
 
   if (IsAllKeyNotesEnabled(parameter)) {
     auto& sharedValues = mAllKeyNotesValues[ParameterIndex(parameter)];
-    sharedValues[static_cast<std::size_t>(oscillatorIndex)] = value;
+    sharedValues[static_cast<std::size_t>(oscillatorIndex)] = OscillatorSettings::SanitizeParameter(parameter, value);
     for (auto& [_, patch] : mKeyNotePatches) patch.SetOscillatorParameter(oscillatorIndex, parameter, value);
   } else
     mKeyNotePatches[clampedNote].SetOscillatorParameter(oscillatorIndex, parameter, value);
@@ -370,7 +392,7 @@ bool CompoundPatch::SetKeyNoteOscillatorParameterValues(double midiNote, Oscilla
   if (mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end()) return false;
 
   if (IsAllKeyNotesEnabled(parameter)) {
-    mAllKeyNotesValues[ParameterIndex(parameter)] = values;
+    mAllKeyNotesValues[ParameterIndex(parameter)] = SanitizeParameterValues(parameter, values);
     for (auto& [_, patch] : mKeyNotePatches) ApplyAllKeyNotesValues(patch, parameter, values);
   } else
     ApplyAllKeyNotesValues(mKeyNotePatches[clampedNote], parameter, values);
@@ -392,7 +414,7 @@ bool CompoundPatch::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve) {
 
 void CompoundPatch::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) {
   const auto parameterIndex = ParameterIndex(parameter);
-  mAllKeyNotesValues[parameterIndex] = values;
+  mAllKeyNotesValues[parameterIndex] = SanitizeParameterValues(parameter, values);
   mAllKeyNotesEnabled[parameterIndex] = true;
 
   for (auto& [_, patch] : mKeyNotePatches) ApplyAllKeyNotesValues(patch, parameter, values);

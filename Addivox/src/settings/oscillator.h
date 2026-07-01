@@ -68,6 +68,11 @@ public:
   double GetParameter(Parameter parameter) const;
   void SetParameter(Parameter parameter, double value);
 
+  // Clamps value to the valid range for parameter, and replaces non-finite input with 0.0
+  // (which is in range for every parameter). Applied by SetParameter, so it covers every
+  // write path: patch loading, "all key notes" values, and live UI/host edits alike.
+  static double SanitizeParameter(Parameter parameter, double value);
+
   static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t);
 };
 
