@@ -1468,7 +1468,9 @@ bool Addivox::OpenOnlineDocs() {
 #if IPLUG_DSP
 void Addivox::ProcessBlock(sample** inputs, sample** outputs, int nFrames) {
   (void)inputs;
+  ENTER_PARAMS_MUTEX
   mDSP.ProcessBlock(outputs, nFrames);
+  LEAVE_PARAMS_MUTEX
   mMeterSender.ProcessBlock(outputs, nFrames, kCtrlTagMeter);
   if (mHarmonicVisualizerEnabled.load(std::memory_order_relaxed)) {
     mHarmonicVisualizerSender.ProcessBlock(nFrames, kCtrlTagHarmonicVisualizer, [this](VisualizerFrame& frame) { mDSP.GetVisualizerFrame(frame); });
@@ -1584,7 +1586,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
@@ -1598,7 +1602,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
@@ -1611,7 +1617,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     EqCurve curve;
     if (!editor_messages::DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve)) return false;
 
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
@@ -1625,7 +1633,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
@@ -1636,7 +1646,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEqEnabled &&
       dataSize == sizeof(editor_messages::SetAllKeyNotesEqEnabledPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
@@ -1646,7 +1658,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagAddKeyNotePatch && dataSize == sizeof(editor_messages::KeyNotePatchPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().AddKeyNotePatch(payload->midiNote);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
@@ -1657,7 +1671,9 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagRemoveKeyNotePatch && dataSize == sizeof(editor_messages::KeyNotePatchPayload) &&
       pData) {
     const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+    ENTER_PARAMS_MUTEX
     const bool updated = mDSP.mSynth.GetVoice().RemoveKeyNotePatch(payload->midiNote);
+    LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
