@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <utility>
 
 namespace {
 // Set to higher levels to make the curve more exponential (greater difference
@@ -118,22 +119,26 @@ void SynthVoice::SetCompoundPatch(const CompoundPatch& patch) {
   UpdatePitch();
 }
 
-bool SynthVoice::AddKeyNotePatch(double midiNote) {
-  if (mCompoundPatch.HasKeyNotePatch(midiNote)) return false;
+std::optional<CompoundPatch> SynthVoice::BuildCompoundPatchWithKeyNoteAdded(double midiNote) const {
+  if (mCompoundPatch.HasKeyNotePatch(midiNote)) return std::nullopt;
 
   const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
-  mCompoundPatch.SetKeyNotePatch(roundedMidiNote, mCompoundPatch.GetPatchForMidiNote(midiNote));
-  UpdatePitch();
-  return true;
+  CompoundPatch updated = mCompoundPatch;
+  updated.SetKeyNotePatch(roundedMidiNote, mCompoundPatch.GetPatchForMidiNote(midiNote));
+  return updated;
 }
 
-bool SynthVoice::RemoveKeyNotePatch(double midiNote) {
+std::optional<CompoundPatch> SynthVoice::BuildCompoundPatchWithKeyNoteRemoved(double midiNote) const {
   const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
-  const bool removed = mCompoundPatch.RemoveKeyNotePatch(roundedMidiNote);
-  if (!removed) return false;
+  CompoundPatch updated = mCompoundPatch;
+  if (!updated.RemoveKeyNotePatch(roundedMidiNote)) return std::nullopt;
 
+  return updated;
+}
+
+void SynthVoice::CommitCompoundPatch(CompoundPatch newCompoundPatch) {
+  mCompoundPatch = std::move(newCompoundPatch);
   UpdatePitch();
-  return true;
 }
 
 bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {

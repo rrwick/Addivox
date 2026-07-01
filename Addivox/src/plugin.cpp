@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <utility>
 
 namespace {
 constexpr uint32_t kPluginStateSettingsMagic = 0x42524343u; // Legacy plugin-state settings block magic.
@@ -1658,27 +1659,30 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagAddKeyNotePatch && dataSize == sizeof(editor_messages::KeyNotePatchPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+    // Build the updated patch off the real-time lock (it allocates a map entry), then commit it with a cheap move under the lock.
+    auto updatedCompoundPatch = mDSP.mSynth.GetVoice().BuildCompoundPatchWithKeyNoteAdded(payload->midiNote);
+    if (!updatedCompoundPatch) return false;
+
     ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().AddKeyNotePatch(payload->midiNote);
+    mDSP.mSynth.GetVoice().CommitCompoundPatch(std::move(*updatedCompoundPatch));
     LEAVE_PARAMS_MUTEX
-    if (updated) {
-      MarkActivePatchDirty();
-      MarkStandaloneStateDirty();
-    }
-    return updated;
+    MarkActivePatchDirty();
+    MarkStandaloneStateDirty();
+    return true;
   }
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagRemoveKeyNotePatch && dataSize == sizeof(editor_messages::KeyNotePatchPayload) &&
       pData) {
     const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+    auto updatedCompoundPatch = mDSP.mSynth.GetVoice().BuildCompoundPatchWithKeyNoteRemoved(payload->midiNote);
+    if (!updatedCompoundPatch) return false;
+
     ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().RemoveKeyNotePatch(payload->midiNote);
+    mDSP.mSynth.GetVoice().CommitCompoundPatch(std::move(*updatedCompoundPatch));
     LEAVE_PARAMS_MUTEX
-    if (updated) {
-      MarkActivePatchDirty();
-      MarkStandaloneStateDirty();
-    }
-    return updated;
+    MarkActivePatchDirty();
+    MarkStandaloneStateDirty();
+    return true;
   }
 
   if (ctrlTag == kCtrlTagBender && msgTag == plugin_ui::layout::PitchBendWheelControl::kMessageTagSetPitchBendRange) {
