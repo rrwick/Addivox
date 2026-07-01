@@ -72,6 +72,9 @@
     <ClCompile Include="..\src\synth\voice.cpp">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ui\transformations.cpp">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\iPlug2\IPlug\IPlugPaths.cpp">
       <Filter>IPlug</Filter>
     </ClCompile>
