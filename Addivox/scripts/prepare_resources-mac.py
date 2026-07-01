@@ -254,6 +254,14 @@ def main():
     auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'][0]['tags'][0] = "Effects"
 
   dump_plist_atomic(plistpath, auv3)
+# AUDIOUNIT v3 FRAMEWORK
+
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-macOS-AUv3Framework-Info.plist"
+  auv3framework = load_plist(plistpath)
+  auv3framework['CFBundleVersion'] = CFBundleVersion
+  auv3framework['CFBundleShortVersionString'] = CFBundleVersion
+
+  dump_plist_atomic(plistpath, auv3framework)
 # AAX
 
   plistpath = projectpath + "/resources/" + resource_bundle_name + "-AAX-Info.plist"

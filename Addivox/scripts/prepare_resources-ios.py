@@ -121,6 +121,16 @@ def main():
 
   with open(plistpath, 'wb') as fp:
     plistlib.dump(auv3, fp)
+# AUDIOUNIT v3 FRAMEWORK
+
+  plistpath = projectpath + "/resources/" + resource_bundle_name + "-iOS-AUv3Framework-Info.plist"
+  with open(plistpath, 'rb') as fp:
+    auv3framework = plistlib.load(fp)
+  auv3framework['CFBundleVersion'] = CFBundleVersion
+  auv3framework['CFBundleShortVersionString'] = CFBundleVersion
+
+  with open(plistpath, 'wb') as fp:
+    plistlib.dump(auv3framework, fp)
 # Standalone APP
 
   plistpath = projectpath + "/resources/" + resource_bundle_name + "-iOS-Info.plist"
