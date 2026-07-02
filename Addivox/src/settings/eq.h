@@ -114,7 +114,12 @@ private:
 
   static double Lerp(double lo, double hi, double t) { return lo + ((hi - lo) * t); }
 
-  static double ClampFrequencyHz(double frequencyHz) { return std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz); }
+  static double ClampFrequencyHz(double frequencyHz) {
+    if (std::isnan(frequencyHz)) return kMinFrequencyHz;
+    if (!std::isfinite(frequencyHz)) return frequencyHz < 0.0 ? kMinFrequencyHz : kMaxFrequencyHz;
+
+    return std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
+  }
 
   static double LogFrequency(double frequencyHz) { return std::log(ClampFrequencyHz(frequencyHz)); }
 
@@ -134,14 +139,17 @@ private:
   static PointList SanitizePoints(PointList points) {
     if (points.empty()) return {};
 
+    for (auto& point : points) {
+      point.frequencyHz = ClampFrequencyHz(point.frequencyHz);
+      point.gainDb = ClampGainDb(point.gainDb);
+    }
+
+    // Points are clamped to finite values above before sorting, since NaN would violate strict-weak-ordering here.
     std::stable_sort(points.begin(), points.end(), [](const EqPoint& lhs, const EqPoint& rhs) { return lhs.frequencyHz < rhs.frequencyHz; });
 
     PointList sanitized;
     sanitized.reserve(points.size());
-    for (auto point : points) {
-      point.frequencyHz = ClampFrequencyHz(point.frequencyHz);
-      point.gainDb = ClampGainDb(point.gainDb);
-
+    for (const auto& point : points) {
       if (!sanitized.empty() && std::abs(sanitized.back().frequencyHz - point.frequencyHz) <= kFrequencyEpsilonHz) {
         sanitized.back().gainDb = point.gainDb;
       } else
