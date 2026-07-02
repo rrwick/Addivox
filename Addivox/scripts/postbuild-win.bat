@@ -51,12 +51,14 @@ echo ICUDAT_PATH %ICUDAT_PATH%
 echo END POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
 
 if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
+if errorlevel 1 exit /b %errorlevel%
 
 if %PLATFORM% == "ARM64EC" (
   if exist "%ICUDAT_PATH%" (
     echo copying icudtl.dat file next to built binary: %BUILT_BINARY%
     for %%F in (%BUILT_BINARY%) do (
       copy /y %ICUDAT_PATH% "%%~dpF"
+      if errorlevel 1 exit /b %errorlevel%
     )
   ) else (
     echo icudtl.dat not found at %ICUDAT_PATH%, skipping...
@@ -65,16 +67,20 @@ if %PLATFORM% == "ARM64EC" (
   if %FORMAT% == ".exe" (
     echo copying exe to build dir: %BUILD_DIR%\%NAME%_%PLATFORM%.exe
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.exe
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       echo copying dat file to build dir: %BUILD_DIR%
       copy /y %ICUDAT_PATH% %BUILD_DIR%
+      if errorlevel 1 exit /b %errorlevel%
     )
   )
 
   if %FORMAT% == ".dll" (
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.dll
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%
+      if errorlevel 1 exit /b %errorlevel%
     )
   )
   
@@ -82,8 +88,10 @@ if %PLATFORM% == "ARM64EC" (
     if %COPY_VST2% == "1" (
       echo copying ARM64EC binary to ARM64EC VST2 Plugins folder ... 
       copy /y %BUILT_BINARY% %VST2_ARM64EC_PATH%
+      if errorlevel 1 exit /b %errorlevel%
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %VST2_ARM64EC_PATH%
+        if errorlevel 1 exit /b %errorlevel%
       )
     ) else (
       echo not copying ARM64EC VST2 binary
@@ -93,35 +101,47 @@ if %PLATFORM% == "ARM64EC" (
   if %FORMAT% == ".vst3" (
     echo copying ARM64EC binary to VST3 BUNDLE ..
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
+    if errorlevel 1 exit /b %errorlevel%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\arm64ec-win
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.vst3\Contents\arm64ec-win
+      if errorlevel 1 exit /b %errorlevel%
     )
     if exist %VST3_ARM64EC_PATH% ( 
       echo copying VST3 bundle to ARM64EC VST3 Plugins folder ...
       call %CREATE_BUNDLE_SCRIPT% %VST3_ARM64EC_PATH%\%NAME%.vst3 %VST_ICON% %FORMAT%
+      if errorlevel 1 exit /b %errorlevel%
       xcopy /E /H /Y %BUILD_DIR%\%NAME%.vst3\Contents\*  %VST3_ARM64EC_PATH%\%NAME%.vst3\Contents\
+      if errorlevel 1 exit /b %errorlevel%
     )
   )
   
   if %FORMAT% == ".aaxplugin" (
     echo copying ARM64EC binary to AAX BUNDLE ..
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+    if errorlevel 1 exit /b %errorlevel%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.aaxplugin\Contents\Arm64ec
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.aaxplugin\Contents\Arm64ec
+      if errorlevel 1 exit /b %errorlevel%
     )
     echo copying ARM64EC bundle to ARM64EC AAX Plugins folder ...
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+    if errorlevel 1 exit /b %errorlevel%
     xcopy /E /H /Y %BUILD_DIR%\%NAME%.aaxplugin\Contents\* %AAX_ARM64EC_PATH%\%NAME%.aaxplugin\Contents\
+    if errorlevel 1 exit /b %errorlevel%
   )
 
   if %FORMAT% == ".clap" (
     echo copying ARM64EC binary to CLAP Plugins folder ...
     if exist %CLAP_ARM64EC_PATH% (
       copy /y %BUILT_BINARY% %CLAP_ARM64EC_PATH%
+      if errorlevel 1 exit /b %errorlevel%
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %CLAP_ARM64EC_PATH%
+        if errorlevel 1 exit /b %errorlevel%
       )
     )
   )
@@ -133,28 +153,34 @@ if %PLATFORM% == "x64" (
     echo copying icudtl.dat file next to built binary: %BUILT_BINARY%
     for %%F in (%BUILT_BINARY%) do (
       copy /y %ICUDAT_PATH% "%%~dpF"
+      if errorlevel 1 exit /b %errorlevel%
     )
   ) else (
     echo icudtl.dat not found at %ICUDAT_PATH%, skipping...
   )
 
   if not exist "%ProgramFiles(x86)%" (
-    echo "This batch script fails on 32 bit windows... edit accordingly"
+    echo ERROR: This batch script does not support 32-bit Windows - edit accordingly.
+    exit /b 1
   )
 
   if %FORMAT% == ".exe" (
     echo copying exe to build dir: %BUILD_DIR%\%NAME%_%PLATFORM%.exe
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.exe
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       echo copying dat file to build dir: %BUILD_DIR%
       copy /y %ICUDAT_PATH% %BUILD_DIR%
+      if errorlevel 1 exit /b %errorlevel%
     )
   )
 
   if %FORMAT% == ".dll" (
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.dll
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%
+      if errorlevel 1 exit /b %errorlevel%
     )
   )
   
@@ -162,8 +188,10 @@ if %PLATFORM% == "x64" (
     if %COPY_VST2% == "1" (
       echo copying 64bit binary to 64bit VST2 Plugins folder ... 
       copy /y %BUILT_BINARY% %VST2_X64_PATH%
+      if errorlevel 1 exit /b %errorlevel%
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %VST2_X64_PATH%
+        if errorlevel 1 exit /b %errorlevel%
       )
     ) else (
       echo not copying 64bit VST2 binary
@@ -173,35 +201,47 @@ if %PLATFORM% == "x64" (
   if %FORMAT% == ".vst3" (
     echo copying 64bit binary to VST3 BUNDLE ...
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
+    if errorlevel 1 exit /b %errorlevel%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
+      if errorlevel 1 exit /b %errorlevel%
     )
     if exist %VST3_X64_PATH% (
       echo copying VST3 bundle to 64bit VST3 Plugins folder ...
       call %CREATE_BUNDLE_SCRIPT% %VST3_X64_PATH%\%NAME%.vst3 %VST_ICON% %FORMAT%
+      if errorlevel 1 exit /b %errorlevel%
       xcopy /E /H /Y %BUILD_DIR%\%NAME%.vst3\Contents\*  %VST3_X64_PATH%\%NAME%.vst3\Contents\
+      if errorlevel 1 exit /b %errorlevel%
     )
   )
   
   if %FORMAT% == ".aaxplugin" (
     echo copying 64bit binary to AAX BUNDLE ...
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+    if errorlevel 1 exit /b %errorlevel%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.aaxplugin\Contents\x64
+    if errorlevel 1 exit /b %errorlevel%
     if exist "%ICUDAT_PATH%" (
       copy /y %ICUDAT_PATH% %BUILD_DIR%\%NAME%.aaxplugin\Contents\x64
+      if errorlevel 1 exit /b %errorlevel%
     )
     echo copying 64bit bundle to 64bit AAX Plugins folder ... 
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.aaxplugin %AAX_ICON% %FORMAT%
+    if errorlevel 1 exit /b %errorlevel%
     xcopy /E /H /Y %BUILD_DIR%\%NAME%.aaxplugin\Contents\* %AAX_X64_PATH%\%NAME%.aaxplugin\Contents\
+    if errorlevel 1 exit /b %errorlevel%
   )
   
   if %FORMAT% == ".clap" (
     echo copying x64 binary to CLAP Plugins folder ...
     if exist %CLAP_X64_PATH% (
       copy /y %BUILT_BINARY% %CLAP_X64_PATH%
+      if errorlevel 1 exit /b %errorlevel%
       if exist "%ICUDAT_PATH%" (
         copy /y %ICUDAT_PATH% %CLAP_X64_PATH%
+        if errorlevel 1 exit /b %errorlevel%
       )
     )
   )
