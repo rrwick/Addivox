@@ -214,9 +214,6 @@
     <ClInclude Include="..\..\iPlug2\IPlug\APP\IPlugAPP_host.h">
       <Filter>IPlug\APP</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\standalone\audio_driver_ids.h">
-      <Filter>IPlug\APP</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\iPlug2\Dependencies\IPlug\RTAudio\RtAudio.h">
       <Filter>IPlug\APP\RTAudioMidi</Filter>
     </ClInclude>

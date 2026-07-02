@@ -9,7 +9,6 @@
 */
 
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
-#include "audio_driver_ids.h"
 #include "audio_midi_settings.h"
 #include "resource.h"
 
@@ -22,6 +21,7 @@
 
 #if defined OS_WIN
 #include <atomic>
+#include <cstdint>
 #endif
 
 using namespace iplug;
@@ -70,6 +70,10 @@ void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::
 } // namespace
 
 namespace addivox_standalone {
+#if defined OS_WIN
+constexpr uint32_t kDeviceWASAPI = 2;
+#endif
+
 bool OpenAudioMidiSettingsDialog() {
   auto* appHost = IPlugAPPHost::sInstance.get();
   if (!appHost || !gHWND) return false;
