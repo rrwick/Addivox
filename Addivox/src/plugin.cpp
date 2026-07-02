@@ -542,12 +542,21 @@ std::string MakeGroupKey(const std::vector<std::string>& menuPath) {
   return key.empty() ? "Factory" : key;
 }
 
+// Windows paths are case-insensitive, so a prefix match must be too; other platforms keep exact case matching.
+bool PathPrefixMatches(const std::string& full, const std::string& base) {
+#if defined(OS_WIN)
+  return _strnicmp(full.data(), base.data(), base.size()) == 0;
+#else
+  return full.compare(0, base.size(), base) == 0;
+#endif
+}
+
 std::string RelativePathFromDirectory(std::string_view directory, std::string_view path) {
   const std::string base = TrimTrailingSeparators(std::string{directory});
   const std::string full{path};
   if (base.empty() || full.size() <= base.size()) return full;
 
-  if (full.compare(0, base.size(), base) != 0) return full;
+  if (!PathPrefixMatches(full, base)) return full;
 
   std::size_t offset = base.size();
   while (offset < full.size() && (full[offset] == '/' || full[offset] == '\\')) ++offset;
@@ -696,7 +705,7 @@ bool IsPathInDirectory(std::string_view directory, std::string_view path) {
   const std::string base = TrimTrailingSeparators(std::string{directory});
   const std::string full{path};
   if (base.empty() || full.size() < base.size()) return false;
-  if (full.compare(0, base.size(), base) != 0) return false;
+  if (!PathPrefixMatches(full, base)) return false;
   return full.size() == base.size() || full[base.size()] == '/' || full[base.size()] == '\\';
 }
 
