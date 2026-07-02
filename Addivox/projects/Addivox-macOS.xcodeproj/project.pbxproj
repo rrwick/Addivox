@@ -863,6 +863,46 @@
 		B8E22A0A220268C4007CBF4C /* IPlugVST3_ProcessorBase.cpp */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = IPlugVST3_ProcessorBase.cpp; path = ../../iPlug2/IPlug/VST3/IPlugVST3_ProcessorBase.cpp; sourceTree = "<group>"; tabWidth = 2; };
 		B8E22A0B220268C4007CBF4C /* IPlugVST3_ProcessorBase.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugVST3_ProcessorBase.h; path = ../../iPlug2/IPlug/VST3/IPlugVST3_ProcessorBase.h; sourceTree = "<group>"; tabWidth = 2; };
 		B8EA6B932203868500D23A86 /* IPlugVST3_Common.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = IPlugVST3_Common.h; path = ../../iPlug2/IPlug/VST3/IPlugVST3_Common.h; sourceTree = "<group>"; tabWidth = 2; };
+		1DA9449C4C6061A0F64EF6B5 /* demo_mode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = demo_mode.h; path = ../src/demo_mode.h; sourceTree = SOURCE_ROOT; };
+		7E32395B83990261A190F11F /* gradient_noise.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gradient_noise.h; path = ../src/dsp/gradient_noise.h; sourceTree = SOURCE_ROOT; };
+		15F1AFEFCB6416EBACECEEA6 /* shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = shared.h; path = ../src/dsp/shared.h; sourceTree = SOURCE_ROOT; };
+		3D4BB8B30A6E2ED66FD77BD0 /* breath_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = breath_control.h; path = ../src/midi/breath_control.h; sourceTree = SOURCE_ROOT; };
+		0A13D96AD5A34FECA19F5339 /* eq.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = eq.h; path = ../src/settings/eq.h; sourceTree = SOURCE_ROOT; };
+		DC633CD4E6EC8766A51DF539 /* params.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = params.h; path = ../src/settings/params.h; sourceTree = SOURCE_ROOT; };
+		B648C9053F7E07451F992777 /* patch_io.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = patch_io.h; path = ../src/settings/patch_io.h; sourceTree = SOURCE_ROOT; };
+		5F37684B267D5254949D048C /* audio_midi_settings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = audio_midi_settings.h; path = ../src/standalone/audio_midi_settings.h; sourceTree = SOURCE_ROOT; };
+		F659727ABEDD0C045FB2BF00 /* synth_engine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = synth_engine.h; path = ../src/synth/synth_engine.h; sourceTree = SOURCE_ROOT; };
+		F2D27DA1E951AF7253204841 /* about_built_with_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = about_built_with_control.h; path = ../src/ui/about_built_with_control.h; sourceTree = SOURCE_ROOT; };
+		140845351B9542610EE95B94 /* action_selection_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = action_selection_control.h; path = ../src/ui/action_selection_control.h; sourceTree = SOURCE_ROOT; };
+		4BFBA44337AA2ABB386600AB /* colour.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = colour.h; path = ../src/ui/colour.h; sourceTree = SOURCE_ROOT; };
+		B7D74EEB329F53372347D048 /* control_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = control_utils.h; path = ../src/ui/control_utils.h; sourceTree = SOURCE_ROOT; };
+		50BA4A0BD3B6D8CDC3007753 /* editor_messages.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = editor_messages.h; path = ../src/ui/editor_messages.h; sourceTree = SOURCE_ROOT; };
+		DF3EFEC591B8CCAD50E4FD65 /* editor_panel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = editor_panel.h; path = ../src/ui/editor_panel.h; sourceTree = SOURCE_ROOT; };
+		36876F2F5C28D796BC993E60 /* editor_state.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = editor_state.h; path = ../src/ui/editor_state.h; sourceTree = SOURCE_ROOT; };
+		5D517486A92A79D9298AF9C5 /* attack_release.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = attack_release.h; path = ../src/ui/editor_tabs/attack_release.h; sourceTree = SOURCE_ROOT; };
+		3B23E2FA6454491155E87887 /* breath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = breath.h; path = ../src/ui/editor_tabs/breath.h; sourceTree = SOURCE_ROOT; };
+		822FE98B875C90A7C2041393 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = common.h; path = ../src/ui/editor_tabs/common.h; sourceTree = SOURCE_ROOT; };
+		1DF8CAE922449BA6163A7757 /* eq.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = eq.h; path = ../src/ui/editor_tabs/eq.h; sourceTree = SOURCE_ROOT; };
+		5A1A6D9776CFDC2F2DE73043 /* level.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = level.h; path = ../src/ui/editor_tabs/level.h; sourceTree = SOURCE_ROOT; };
+		DF14A1CEED809FDBAE4C8E5B /* pan.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pan.h; path = ../src/ui/editor_tabs/pan.h; sourceTree = SOURCE_ROOT; };
+		01BBFB1AED4183963C59DDDF /* pitch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pitch.h; path = ../src/ui/editor_tabs/pitch.h; sourceTree = SOURCE_ROOT; };
+		5F5C6140B6A6D3FA0588953F /* variation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = variation.h; path = ../src/ui/editor_tabs/variation.h; sourceTree = SOURCE_ROOT; };
+		BE8D86E1B2D9A89AF2388582 /* eq_editor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = eq_editor.h; path = ../src/ui/eq_editor.h; sourceTree = SOURCE_ROOT; };
+		8F2138BE810BAEA5C9A15F26 /* help_text.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = help_text.h; path = ../src/ui/help_text.h; sourceTree = SOURCE_ROOT; };
+		01F084FBE3D6D8C5086EE73A /* keyboard_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = keyboard_control.h; path = ../src/ui/keyboard_control.h; sourceTree = SOURCE_ROOT; };
+		CD69AEA1C3E3432F954F9DE0 /* layout.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = layout.h; path = ../src/ui/layout.h; sourceTree = SOURCE_ROOT; };
+		247B3FF617112D8C7638E7AD /* number_box_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = number_box_control.h; path = ../src/ui/number_box_control.h; sourceTree = SOURCE_ROOT; };
+		2BFCC0640E52EEC13C9A94FA /* oscillator_slider_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = oscillator_slider_control.h; path = ../src/ui/oscillator_slider_control.h; sourceTree = SOURCE_ROOT; };
+		E1242E478063EEA72C3A2301 /* patch_manager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = patch_manager.h; path = ../src/ui/patch_manager.h; sourceTree = SOURCE_ROOT; };
+		635BF6B2948C64499E4E3BA1 /* peak_led_meter_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = peak_led_meter_control.h; path = ../src/ui/peak_led_meter_control.h; sourceTree = SOURCE_ROOT; };
+		7E2C4FEBA8085AB5FC47EC4C /* pitch_bend_wheel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pitch_bend_wheel.h; path = ../src/ui/pitch_bend_wheel.h; sourceTree = SOURCE_ROOT; };
+		46440055B94652073C3046BC /* positions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = positions.h; path = ../src/ui/positions.h; sourceTree = SOURCE_ROOT; };
+		AEE0AC53F836E5184BBF0FE4 /* settings_menu_button.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settings_menu_button.h; path = ../src/ui/settings_menu_button.h; sourceTree = SOURCE_ROOT; };
+		B11FEF2360DA670D30D8579F /* theme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = theme.h; path = ../src/ui/theme.h; sourceTree = SOURCE_ROOT; };
+		C61DF94AC87C38FB5F5FD96F /* touch_range_slider_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = touch_range_slider_control.h; path = ../src/ui/touch_range_slider_control.h; sourceTree = SOURCE_ROOT; };
+		396D9C5DBCADCF009F92317C /* harmonic_visualizer_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = harmonic_visualizer_control.h; path = ../src/visualizer/harmonic_visualizer_control.h; sourceTree = SOURCE_ROOT; };
+		616F65AD40DC535E8A470591 /* harmonic_visualizer_frame.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = harmonic_visualizer_frame.h; path = ../src/visualizer/harmonic_visualizer_frame.h; sourceTree = SOURCE_ROOT; };
+		52BBFC908261587FC54EFEE4 /* harmonic_visualizer_sender.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = harmonic_visualizer_sender.h; path = ../src/visualizer/harmonic_visualizer_sender.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1229,6 +1269,46 @@
 					4F6E674621C5614C005991A9 /* transformations.h */,
 					A1B2C3013C7F0001000000F1 /* knob.h */,
 				4F6E674721C5614C005991A9 /* transformations.cpp */,
+				1DA9449C4C6061A0F64EF6B5 /* demo_mode.h */,
+				7E32395B83990261A190F11F /* gradient_noise.h */,
+				15F1AFEFCB6416EBACECEEA6 /* shared.h */,
+				3D4BB8B30A6E2ED66FD77BD0 /* breath_control.h */,
+				0A13D96AD5A34FECA19F5339 /* eq.h */,
+				DC633CD4E6EC8766A51DF539 /* params.h */,
+				B648C9053F7E07451F992777 /* patch_io.h */,
+				5F37684B267D5254949D048C /* audio_midi_settings.h */,
+				F659727ABEDD0C045FB2BF00 /* synth_engine.h */,
+				F2D27DA1E951AF7253204841 /* about_built_with_control.h */,
+				140845351B9542610EE95B94 /* action_selection_control.h */,
+				4BFBA44337AA2ABB386600AB /* colour.h */,
+				B7D74EEB329F53372347D048 /* control_utils.h */,
+				50BA4A0BD3B6D8CDC3007753 /* editor_messages.h */,
+				DF3EFEC591B8CCAD50E4FD65 /* editor_panel.h */,
+				36876F2F5C28D796BC993E60 /* editor_state.h */,
+				5D517486A92A79D9298AF9C5 /* attack_release.h */,
+				3B23E2FA6454491155E87887 /* breath.h */,
+				822FE98B875C90A7C2041393 /* common.h */,
+				1DF8CAE922449BA6163A7757 /* eq.h */,
+				5A1A6D9776CFDC2F2DE73043 /* level.h */,
+				DF14A1CEED809FDBAE4C8E5B /* pan.h */,
+				01BBFB1AED4183963C59DDDF /* pitch.h */,
+				5F5C6140B6A6D3FA0588953F /* variation.h */,
+				BE8D86E1B2D9A89AF2388582 /* eq_editor.h */,
+				8F2138BE810BAEA5C9A15F26 /* help_text.h */,
+				01F084FBE3D6D8C5086EE73A /* keyboard_control.h */,
+				CD69AEA1C3E3432F954F9DE0 /* layout.h */,
+				247B3FF617112D8C7638E7AD /* number_box_control.h */,
+				2BFCC0640E52EEC13C9A94FA /* oscillator_slider_control.h */,
+				E1242E478063EEA72C3A2301 /* patch_manager.h */,
+				635BF6B2948C64499E4E3BA1 /* peak_led_meter_control.h */,
+				7E2C4FEBA8085AB5FC47EC4C /* pitch_bend_wheel.h */,
+				46440055B94652073C3046BC /* positions.h */,
+				AEE0AC53F836E5184BBF0FE4 /* settings_menu_button.h */,
+				B11FEF2360DA670D30D8579F /* theme.h */,
+				C61DF94AC87C38FB5F5FD96F /* touch_range_slider_control.h */,
+				396D9C5DBCADCF009F92317C /* harmonic_visualizer_control.h */,
+				616F65AD40DC535E8A470591 /* harmonic_visualizer_frame.h */,
+				52BBFC908261587FC54EFEE4 /* harmonic_visualizer_sender.h */,
 			);
 			path = Synth;
 			sourceTree = "<group>";

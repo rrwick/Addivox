@@ -41,6 +41,9 @@ set(ADDIVOX_COMMON_SOURCES
   src/synth/midi_synth.h
   src/synth/synth_engine.h
   src/settings/patch_io.h
+  src/settings/eq.h
+  src/settings/params.h
+  src/midi/breath_control.h
 )
 
 iplug_add_plugin(${PROJECT_NAME}
@@ -55,6 +58,30 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/patch_manager.h
     src/ui/layout.h
     src/ui/theme.h
+    src/ui/about_built_with_control.h
+    src/ui/action_selection_control.h
+    src/ui/colour.h
+    src/ui/control_utils.h
+    src/ui/editor_messages.h
+    src/ui/editor_panel.h
+    src/ui/editor_state.h
+    src/ui/editor_tabs/attack_release.h
+    src/ui/editor_tabs/breath.h
+    src/ui/editor_tabs/common.h
+    src/ui/editor_tabs/eq.h
+    src/ui/editor_tabs/level.h
+    src/ui/editor_tabs/pan.h
+    src/ui/editor_tabs/pitch.h
+    src/ui/editor_tabs/variation.h
+    src/ui/eq_editor.h
+    src/ui/help_text.h
+    src/ui/keyboard_control.h
+    src/ui/knob.h
+    src/ui/peak_led_meter_control.h
+    src/ui/pitch_bend_wheel.h
+    src/ui/positions.h
+    src/ui/settings_menu_button.h
+    src/ui/touch_range_slider_control.h
     resources/resource.h
   RESOURCES
     resources/fonts/Roboto-Regular.ttf
