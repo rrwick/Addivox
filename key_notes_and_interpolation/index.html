@@ -975,12 +975,12 @@
 
 <h1 id="key-notes-and-interpolation">Key Notes and Interpolation</h1>
 <p>A <strong>key note</strong> is a MIDI note at which you define an explicit set of per-harmonic values. Addivox uses key notes to let a patch sound different in different registers.</p>
-<h2 id="single-key-note">Single key note</h2>
+<h3 id="single-key-note">Single key note</h3>
 <p>If a patch has only one key note, all played notes share the same per-harmonic settings. The patch sounds the same regardless of octave, except for the fundamental pitch of each harmonic (which always scales with the played note).</p>
-<h2 id="multiple-key-notes">Multiple key notes</h2>
+<h3 id="multiple-key-notes">Multiple key notes</h3>
 <p>If a patch has two or more key notes, Addivox interpolates smoothly between them. When you play a note that falls between two key notes, each per-harmonic value is a weighted blend of the two neighbouring key notes based on how close the played note is to each one. Notes below the lowest key note use the lowest key note's settings; notes above the highest use the highest.</p>
 <p>This allows a single patch to have a heavy, lower-harmonic timbre in the bass register and a brighter, thinner timbre in the upper register — matching how real acoustic instruments change character across their range. The factory brass patches use key notes at each octave (C1 through C8) for exactly this reason.</p>
-<h2 id="all-notes-toggle">"All notes" toggle</h2>
+<h3 id="all-notes-toggle">"All notes" toggle</h3>
 <p>Each per-harmonic parameter and the EQ curve have an <strong>All notes</strong> toggle in the editor. When enabled, that parameter is kept in sync across every key note: editing it on one key note instantly updates all others. This is useful for settings that should not vary with register — formant EQ curves are the primary example, since real instrument formants stay fixed in frequency regardless of which note is played.</p>
 
 

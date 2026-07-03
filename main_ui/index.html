@@ -974,11 +974,20 @@
 
 
 <h1 id="main-ui">Main UI</h1>
-<h2 id="patch-selector">Patch selector</h2>
+<h3 id="patch-selector">Patch selector</h3>
 <p align="center"><img src="../assets/patches.png" alt="Addivox patch selector" style="max-width: 100%; width: 324px;"></p>
 
 <p>The top bar shows the name of the currently loaded patch and provides controls to navigate between patches. The left and right arrows step through patches in the current group, and the menu button opens the full patch browser where you can choose any factory or custom patch, save your work, or import and export patch files. See <a href="../patches/">Patches</a> for more detail.</p>
-<h2 id="vis-edit-panel">VIS / EDIT panel</h2>
+<h3 id="settings-menu">Settings menu</h3>
+<p>The gear icon in the top-right corner of the top bar opens the settings menu:</p>
+<ul>
+<li><strong>Visualizer Enabled</strong> — toggles the harmonic visualizer in VIS mode; disabling it can reduce CPU usage on older hardware.</li>
+<li><strong>Breath CC</strong> — selects the MIDI CC(s) used for breath/level control: CC 1 (Mod Wheel), CC 2 (Breath), CC 2 + CC 34 (High-Res Breath), CC 7 (Volume), CC 7 + CC 39 (High-Res Volume), CC 11 (Expression) or CC 11 + CC 43 (High-Res Expression).</li>
+<li><strong>Pitch Bend Range</strong> — sets the pitch bend range to 1 semitone, 2 semitones, a fifth or an octave. This can also be set by right-clicking the pitch bend wheel.</li>
+<li><strong>Audio &amp; MIDI Settings...</strong> <em>(standalone app only)</em> — opens the system audio and MIDI device settings.</li>
+<li><strong>Reset Synth Settings to Defaults</strong> — restores the first factory patch and resets transpose, tuning, pan shift, reverb, breath CC source, pitch bend range and the visualizer toggle to their defaults. Does not affect the Audio &amp; MIDI Settings.</li>
+</ul>
+<h3 id="vis-edit-panel">VIS / EDIT panel</h3>
 <p>The large panel in the middle of the UI has two modes, switched with the <strong>VIS / EDIT</strong> toggle in its bottom-right corner.</p>
 <p align="center"><img src="../assets/vis_mode.png" alt="Addivox VIS mode" style="max-width: 100%; width: 600px;"></p>
 
@@ -988,10 +997,10 @@
 <p><strong>EDIT mode</strong> is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the EQ curve:</p>
 <ul>
 <li><strong>EQ</strong> — draws a frequency-response curve applied to the final sound. See <a href="../eq/">EQ</a>.</li>
-<li><strong>Level</strong>, <strong>Breath</strong>, <strong>Attack</strong>, <strong>Release</strong>, <strong>Pitch</strong>, <strong>Pan</strong>, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See <a href="../per-harmonic_settings/">Per-harmonic Settings</a>.</li>
+<li><strong>Level</strong>, <strong>Breath</strong>, <strong>Attack</strong>, <strong>Release</strong>, <strong>Pitch</strong>, <strong>Pan</strong>, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See <a href="../per-harmonic_settings/">Per-harmonic settings</a>.</li>
 </ul>
 <p>The keyboard at the bottom of the panel selects which key note you are editing in EDIT mode, and plays the corresponding note in VIS mode (see below).</p>
-<h2 id="settings-panels">Settings panels</h2>
+<h3 id="control-panels">Control panels</h3>
 <p>Below the main panel are five rows of knobs and controls:</p>
 <ul>
 <li><strong><a href="../pitch_settings/">Pitch</a></strong> — transpose, tuning, portamento.</li>
@@ -1000,14 +1009,15 @@
 <li><strong><a href="../global_settings/">Output</a></strong> — global level scale and pan offset.</li>
 <li><strong><a href="../effects/">Effects</a></strong> — drive, tone, chorus and reverb.</li>
 </ul>
-<h2 id="meters">Meters</h2>
+<h3 id="meters">Meters</h3>
 <p align="center"><img src="../assets/meters.png" alt="Addivox meters" class="float-right" style="max-width: 50%; width: 224px;"></p>
 
 <p>The <strong>breath meter</strong> on the top shows the current incoming breath/CC signal level. The <strong>output meter</strong> on the bottom shows the stereo output level; red indicators at the top warn that the signal is above 0 dB and may clip when rendered or passed to later processing.</p>
-<h2 id="keyboard">Keyboard</h2>
+<h3 id="keyboard">Keyboard</h3>
 <p align="center"><img src="../assets/keyboard.png" alt="Addivox keyboard" style="max-width: 100%; width: 600px;"></p>
 
 <p>The keyboard along the bottom of the UI highlights the note currently being played. In VIS mode you can click keys to play notes directly (at full breath). In EDIT mode, clicking a key selects which key note's settings are displayed in the editor; if no key note exists at that note, the editor shows the interpolated values for that pitch. See <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>.</p>
+<p>The pitch bend wheel to the left of the keyboard bends the pitch of the currently held note. It follows pitch bend messages sent from the wind controller. Right-click the wheel to set the pitch bend range.</p>
 
 
 
