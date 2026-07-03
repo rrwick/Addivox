@@ -78,10 +78,12 @@ bool OpenAudioMidiSettingsDialog() {
   auto* appHost = IPlugAPPHost::sInstance.get();
   if (!appHost || !gHWND) return false;
 
-#if defined OS_MAC
+#if defined OS_WIN
+  const INT_PTR result = DialogBox(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_PREF), gHWND, IPlugAPPHost::PreferencesDlgProc);
+#elif defined OS_MAC
   const INT_PTR result = DialogBox(nullptr, MAKEINTRESOURCE(IDD_DIALOG_PREF), gHWND, IPlugAPPHost::PreferencesDlgProc);
 #else
-  const INT_PTR result = DialogBox(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_PREF), gHWND, IPlugAPPHost::PreferencesDlgProc);
+#error NOT IMPLEMENTED
 #endif
 
   if (result == IDOK) appHost->UpdateINI();
