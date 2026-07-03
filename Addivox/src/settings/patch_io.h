@@ -631,7 +631,7 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
       if (key == "format_version") {
         int formatVersion = 0;
         if (!detail::ParseInteger(value, formatVersion)) return fail("Invalid format_version on line " + std::to_string(assignmentLine));
-        if (formatVersion != kFormatVersion) return fail("Unsupported format_version on line " + std::to_string(assignmentLine));
+        if (formatVersion > kFormatVersion) return fail("Unsupported format_version on line " + std::to_string(assignmentLine));
         sawFormatVersion = true;
       } else if (key == "name") {
         if (!detail::ParseQuotedString(value, document.name)) return fail("Invalid patch name on line " + std::to_string(assignmentLine));
