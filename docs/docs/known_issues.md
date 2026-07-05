@@ -4,6 +4,11 @@
 
 The Windows standalone application supports DirectSound, ASIO and WASAPI shared mode, but it does not currently support WASAPI Exclusive mode. For low-latency real-time playing on Windows, ASIO is recommended when available. See [Which Windows audio driver type should I use?](faq_and_miscellaneous_tips.md#which-windows-audio-driver-type-should-i-use).
 
+
+### Non-ASCII audio device names display as mangled text
+
+Audio device names containing non-ASCII characters (e.g. curly apostrophes, accented letters) can be corrupted in the Audio and MIDI settings dialog. Example: `Ryan’s iPhone Microphone` → `RyanÕs iPhone Microphone`. This bug is cosmetic only – a device with a mangled name still works correctly for audio I/O.
+
 <!--
 ### iOS custom patch saving
 
