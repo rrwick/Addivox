@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "dsp/peak_envelope_sender.h"
 #include "midi/breath_control.h"
 #include "settings/oscillator.h"
 #include "ui/editor_state.h"
@@ -161,7 +162,7 @@ private:
   using VisualizerFrame = SynthEngine::VisualizerFrame;
 
   SynthEngine mDSP;
-  IPeakAvgSender<2> mMeterSender;
+  plugin_dsp::PeakEnvelopeSender<2> mMeterSender;
   HarmonicVisualizerSender<VisualizerFrame> mHarmonicVisualizerSender;
   BreathCCInputTracker mBreathCCInputTracker;
   std::atomic<double> mBreathLevel{0.0};

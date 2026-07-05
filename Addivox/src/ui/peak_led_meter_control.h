@@ -4,8 +4,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <tuple>
-#include <utility>
 
 namespace plugin_ui {
 using namespace iplug;
@@ -19,7 +17,7 @@ public:
     if (IsDisabled() || msgTag != ISender<>::kUpdateMessage) return;
 
     IByteStream stream(pData, dataSize);
-    ISenderData<2, std::pair<float, float>> data;
+    ISenderData<2, float> data;
     stream.Get(&data, 0);
 
     const double lowRangeDb = static_cast<double>(mLowRangeDB);
@@ -28,7 +26,7 @@ public:
     if (rangeDb <= 0.0) return;
 
     for (int channel = data.chanOffset; channel < (data.chanOffset + data.nChans); ++channel) {
-      const double peak = static_cast<double>(std::get<0>(data.vals[channel]));
+      const double peak = static_cast<double>(data.vals[channel]);
       double meterValue = 0.0;
       if (peak > 0.0) {
         const double peakDb = AmpToDB(peak);

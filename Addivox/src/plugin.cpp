@@ -1482,10 +1482,7 @@ void Addivox::OnReset() {
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();
 
-  // Make the meter respond more quickly to changes in level.
   mMeterSender.Reset(GetSampleRate());
-  mMeterSender.SetDecayTimeMs(50.0, GetSampleRate());
-  mMeterSender.SetPeakHoldTimeMs(250.0, GetSampleRate());
 
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
   if (!mHarmonicVisualizerEnabled.load(std::memory_order_relaxed)) mHarmonicVisualizerBlankPending.store(true, std::memory_order_relaxed);
