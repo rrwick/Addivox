@@ -20,45 +20,39 @@ public:
     const double samples = std::max(1.0, fallTimeMs * 0.001 * safeSampleRate);
     mDecayPerSample = static_cast<float>(std::pow(kFallTargetRatio, 1.0 / samples));
     mEnvelope.fill(0.0f);
-    mLastPushed.fill(0.0f);
+    mLastPushed.fill(-1.0f); // Impossible level, so the first block after a reset always pushes.
   }
 
   void ProcessBlock(iplug::sample** inputs, int nFrames, int ctrlTag, int nChans = MAXNC, int chanOffset = 0) {
-    std::array<float, MAXNC> peakInBlock{};
+    iplug::ISenderData<MAXNC, float> data{ctrlTag, nChans, chanOffset};
     bool changed = false;
 
     for (int c = chanOffset; c < chanOffset + nChans; ++c) {
       float envelope = mEnvelope[c];
+
+      // Report the highest level reached at any point in the block rather than the envelope's
+      // end-of-block value, so a brief peak early in a large block cannot decay away unseen.
       float blockPeak = envelope;
 
       for (int s = 0; s < nFrames; ++s) {
         const float absVal = std::fabs(static_cast<float>(inputs[c][s]));
         envelope = (absVal > envelope) ? absVal : (envelope * mDecayPerSample);
-        if (envelope > blockPeak) blockPeak = envelope;
+        if (absVal > blockPeak) blockPeak = absVal;
       }
 
       // Snap to exact silence below an inaudible floor rather than letting the exponential
       // decay approach zero forever, which would eventually multiply denormal floats every
-      // sample (slow on many CPUs) and never let this dedup check settle.
+      // sample (slow on many CPUs) and never let the changed check settle.
       if (envelope < kFloorLevel) envelope = 0.0f;
       if (blockPeak < kFloorLevel) blockPeak = 0.0f;
 
-      // Reported separately from the carried-forward envelope: a peak near the start of a
-      // large block could otherwise decay away before the end of that same block, and never
-      // get reported at all.
       mEnvelope[c] = envelope;
-      peakInBlock[c] = blockPeak;
       if (blockPeak != mLastPushed[c]) changed = true;
+      data.vals[c] = blockPeak;
+      mLastPushed[c] = blockPeak;
     }
 
-    if (!changed) return;
-
-    iplug::ISenderData<MAXNC, float> data{ctrlTag, nChans, chanOffset};
-    for (int c = chanOffset; c < chanOffset + nChans; ++c) {
-      data.vals[c] = peakInBlock[c];
-      mLastPushed[c] = peakInBlock[c];
-    }
-    this->PushData(data);
+    if (changed) this->PushData(data);
   }
 
 private:
