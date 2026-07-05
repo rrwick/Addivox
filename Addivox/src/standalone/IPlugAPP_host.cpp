@@ -19,9 +19,12 @@
 
 #include "IPlugLogger.h"
 
-#if defined OS_WIN
 #include <atomic>
+
+#if defined OS_WIN
 #include <cstdint>
+#elif defined OS_MAC
+#include <dispatch/dispatch.h>
 #endif
 
 using namespace iplug;
@@ -39,10 +42,15 @@ namespace {
 std::optional<IPlugAPPHost::AppState> gLastWorkingAudioState;
 std::unique_ptr<RtAudio>               gPreservedAudio;
 
+constexpr UINT    kAudioRecoveryDelayMilliseconds = 100;
+std::atomic<bool> gAudioRecoveryPending{false};
+
+// Generous upper bound for one callback-driven fade-out; the longest buffer
+// option (8192 frames at 44.1 kHz) takes under 200 ms.
+constexpr int kCloseAudioTimeoutMilliseconds = 500;
+
 #if defined OS_WIN
 constexpr UINT_PTR kAudioRecoveryTimerID = 0xADD1;
-constexpr UINT     kAudioRecoveryDelayMilliseconds = 100;
-std::atomic<bool>  gAudioRecoveryPending{false};
 
 void CALLBACK RecoverAudioAfterDriverReset(HWND window, UINT, UINT_PTR timerID, DWORD) {
   KillTimer(window, timerID);
@@ -53,6 +61,18 @@ void CALLBACK RecoverAudioAfterDriverReset(HWND window, UINT, UINT_PTR timerID, 
 
 void ScheduleAudioRecovery() {
   if (gHWND && gAudioRecoveryPending.load()) SetTimer(gHWND, kAudioRecoveryTimerID, kAudioRecoveryDelayMilliseconds, RecoverAudioAfterDriverReset);
+}
+#elif defined OS_MAC
+void ScheduleAudioRecovery() {
+  // RtAudio reports device disconnection from a CoreAudio notification thread,
+  // so hop to the main thread (after a short delay, giving the device topology
+  // time to settle) before restarting audio.
+  const dispatch_time_t when = dispatch_time(DISPATCH_TIME_NOW, kAudioRecoveryDelayMilliseconds * static_cast<int64_t>(NSEC_PER_MSEC));
+  dispatch_after_f(when, dispatch_get_main_queue(), nullptr, [](void*) {
+    if (!gAudioRecoveryPending.exchange(false)) return;
+
+    if (auto* appHost = IPlugAPPHost::sInstance.get()) appHost->TryToChangeAudio();
+  });
 }
 #endif
 
@@ -97,8 +117,8 @@ IPlugAPPHost::IPlugAPPHost() : mIPlug(MakePlug(InstanceInfo{this})) {}
 IPlugAPPHost::~IPlugAPPHost() {
   mExiting = true;
 
-#if defined OS_WIN
   gAudioRecoveryPending = false;
+#if defined OS_WIN
   if (gHWND) KillTimer(gHWND, kAudioRecoveryTimerID);
 #endif
 
@@ -362,6 +382,9 @@ void IPlugAPPHost::ProbeAudioIO() {
 }
 
 void IPlugAPPHost::ProbeMidiIO() {
+  mMidiInputDevNames.clear();
+  mMidiOutputDevNames.clear();
+
   if (!mMidiIn || !mMidiOut) return;
   else {
     int nInputPorts = mMidiIn->getPortCount();
@@ -459,6 +482,11 @@ bool IPlugAPPHost::TryToChangeAudio() {
   // Skip audio initialization in no-I/O mode or screenshot mode
   if (mNoIO || IsScreenshotMode()) return true;
 
+  // Re-scan the hardware first: devices may have been plugged in or unplugged
+  // since the last probe, and the default-device fallback below must not
+  // resolve stale device IDs.
+  ProbeAudioIO();
+
   auto tryCurrentAudioSettings = [this]() {
     if (gLastWorkingAudioState && AudioSettingsInStateAreEqual(mState, *gLastWorkingAudioState)) return true;
 
@@ -477,13 +505,15 @@ bool IPlugAPPHost::TryToChangeAudio() {
     if (!inputID && mDefaultInputDev) {
       resetToDefault = true;
       inputID = mDefaultInputDev;
-      if (!mAudioInputDevIDs.empty()) mState.mAudioInDev.Set(GetAudioDeviceName(*inputID).c_str());
+      const std::string inputName = GetAudioDeviceName(*inputID);
+      if (!inputName.empty()) mState.mAudioInDev.Set(inputName.c_str());
     }
 
     if (!outputID && mDefaultOutputDev) {
       resetToDefault = true;
       outputID = mDefaultOutputDev;
-      if (!mAudioOutputDevIDs.empty()) mState.mAudioOutDev.Set(GetAudioDeviceName(*outputID).c_str());
+      const std::string outputName = GetAudioDeviceName(*outputID);
+      if (!outputName.empty()) mState.mAudioOutDev.Set(outputName.c_str());
     }
 
     if (!inputID || !outputID) return false;
@@ -603,7 +633,13 @@ void IPlugAPPHost::CloseAudio() {
     if (mDAC->isStreamRunning()) {
       mAudioEnding = true;
 
-      while (!mAudioDone) Sleep(10);
+      // Wait for the audio callback to fade out and set mAudioDone, but only
+      // for a bounded time: if the device has just been unplugged the callback
+      // never fires again, and waiting on it forever would freeze the app.
+      for (int waitedMs = 0; !mAudioDone && waitedMs < kCloseAudioTimeoutMilliseconds; waitedMs += 10) {
+        if (!mDAC->isStreamRunning()) break; // RtAudio closed the stream (device disconnect)
+        Sleep(10);
+      }
 
       mDAC->abortStream();
     }
@@ -809,14 +845,12 @@ void IPlugAPPHost::MIDICallback(double deltatime, std::vector<uint8_t>* pMsg, vo
 
 // static
 void IPlugAPPHost::ErrorCallback(RtAudioErrorType type, const std::string& errorText) {
-#if defined OS_WIN
   if (type == RTAUDIO_DEVICE_DISCONNECT) {
     if (auto* appHost = sInstance.get(); appHost && !appHost->mExiting) {
       gAudioRecoveryPending = true;
       ScheduleAudioRecovery();
     }
   }
-#endif
 
   std::cerr << "\nerrorCallback: " << errorText << "\n\n";
 }

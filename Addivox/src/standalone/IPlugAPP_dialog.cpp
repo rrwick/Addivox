@@ -14,6 +14,16 @@
 
 namespace {
 LRESULT SendAddivoxDlgItemMessage(HWND dialog, int controlID, UINT message, WPARAM wParam, LPARAM lParam) {
+  // The preferences dialog starts by populating the (empty) driver combo box.
+  // Hook that moment to re-probe the hardware, so devices plugged in or
+  // unplugged while the app is running appear correctly in the device lists.
+  if (controlID == IDC_COMBO_AUDIO_DRIVER && message == CB_ADDSTRING && SendDlgItemMessage(dialog, controlID, CB_GETCOUNT, 0, 0) == 0) {
+    if (auto* appHost = iplug::IPlugAPPHost::sInstance.get()) {
+      appHost->ProbeAudioIO();
+      appHost->ProbeMidiIO();
+    }
+  }
+
   if (controlID == IDC_COMBO_AUDIO_DRIVER && message == CB_ADDSTRING && std::strcmp(reinterpret_cast<const char*>(lParam), "ASIO") == 0) {
     const LRESULT result = SendDlgItemMessage(dialog, controlID, message, wParam, lParam);
     if (result == iplug::kDeviceASIO) {
