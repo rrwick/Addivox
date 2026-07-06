@@ -25,7 +25,7 @@ public:
 
 public:
   MidiSynth(int blockSize = kDefaultBlockSize) : mMidiQueue(blockSize) {
-    mMidiState = MonoMidiState{0, 0, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.0, 0.0};
+    mMidiState = MonoMidiState{0x7F, 0x7F, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.0, 0.0};
     mBreathCCSources.fill(kDefaultBreathCCSource);
     mBreathCCInputTracker.Reset();
     ClearVoiceControls();
@@ -121,7 +121,7 @@ private:
     if (msg.StatusMsg() != IMidiMsg::kControlChange) return false;
 
     const int cc = msg.mData1;
-    return (cc == 0x64) || (cc == 0x65) || (cc == 0x26) || (cc == 0x06);
+    return (cc == 0x62) || (cc == 0x63) || (cc == 0x64) || (cc == 0x65) || (cc == 0x26) || (cc == 0x06);
   }
 
   void HandlePerformanceMessage(const IMidiMsg& msg) {
@@ -191,6 +191,11 @@ private:
     int value = 0;
 
     switch (msg.mData1) {
+    case 0x62: // Selecting an NRPN deselects any RPN, so NRPN data entry is not misapplied as RPN data.
+    case 0x63:
+      state.paramMSB = state.paramLSB = 0x7F;
+      state.valueMSB = state.valueLSB = 0xFF;
+      break;
     case 0x64:
       state.paramLSB = valueByte;
       state.valueMSB = state.valueLSB = 0xFF;
