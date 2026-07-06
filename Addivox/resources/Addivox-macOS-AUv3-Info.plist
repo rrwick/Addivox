@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Addivox</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Addivox v1.0.0 copyright 2026 Ryan Wick</string>
+	<string>Addivox v1.0.0 Copyright 2026 Ryan Wick</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.rrwick.app.Addivox.AUv3</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>1.0.0</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.12.0</string>
+	<string>10.13.0</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

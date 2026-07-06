@@ -29,7 +29,7 @@
 #define PLUG_URL_STR "https://rrwick.github.io/Addivox"
 #define PLUG_URL_DISPLAY_STR "rrwick.github.io/Addivox"
 #define PLUG_EMAIL_STR "addivox.support@gmail.com"
-#define PLUG_COPYRIGHT_STR "copyright 2026 Ryan Wick"
+#define PLUG_COPYRIGHT_STR "Copyright 2026 Ryan Wick"
 #define PLUG_CLASS_NAME Addivox
 
 #if ADDIVOX_DEMO
