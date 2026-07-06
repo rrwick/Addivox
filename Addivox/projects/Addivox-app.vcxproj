@@ -193,7 +193,7 @@
       <SubSystem>Windows</SubSystem>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>SA_API</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SA_API;$(EXTRA_RELEASE_DEFS)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -214,7 +214,7 @@
       <SubSystem>Windows</SubSystem>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>SA_API</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SA_API;$(EXTRA_RELEASE_DEFS)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Tracer|ARM64EC'">

@@ -218,9 +218,9 @@ BEGIN
         BEGIN
             VALUE "FileVersion", PLUG_VERSION_STR
             VALUE "ProductVersion", PLUG_VERSION_STR
-            VALUE "FileDescription", "Addivox"
-            VALUE "InternalName", "Addivox"
-            VALUE "ProductName", "Addivox"
+            VALUE "FileDescription", PLUG_NAME
+            VALUE "InternalName", PLUG_NAME
+            VALUE "ProductName", PLUG_NAME
             VALUE "CompanyName", "rrwick"
             VALUE "LegalCopyright", "Copyright 2026 Ryan Wick"
             VALUE "LegalTrademarks", "VST is a trademark of Steinberg Media Technologies GmbH, Audio Unit is a trademark of Apple, Inc."
