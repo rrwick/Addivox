@@ -4,7 +4,7 @@ project(Addivox VERSION 1.0.0)
 option(ADDIVOX_DEMO "Build the Addivox demo version" OFF)
 
 if(NOT DEFINED IPLUG2_DIR)
-  set(IPLUG2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." CACHE PATH "iPlug2 root directory")
+  set(IPLUG2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../iPlug2" CACHE PATH "iPlug2 root directory")
 endif()
 
 include(${IPLUG2_DIR}/iPlug2.cmake)
