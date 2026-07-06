@@ -190,7 +190,6 @@ private:
 
     const uint8_t valueByte = msg.mData2;
     int param = 0;
-    int value = 0;
 
     switch (msg.mData1) {
     case 0x62: // Selecting an NRPN deselects any RPN, so NRPN data entry is not misapplied as RPN data.
@@ -208,15 +207,12 @@ private:
       break;
     case 0x26: state.valueLSB = valueByte; break;
     case 0x06: {
-      // When value MSB arrives we construct and apply the RPN value.
+      // When value MSB arrives we apply the RPN value.
       state.valueMSB = valueByte;
       param = ((state.paramMSB & 0xFF) << 7) + (state.paramLSB & 0xFF);
-      if (state.valueLSB != 0xFF) value = ((state.valueMSB & 0xFF) << 7) + (state.valueLSB & 0xFF);
-      else
-        value = state.valueMSB & 0xFF;
 
-      if (param == 0) // RPN 0 : pitch bend range
-        mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(value, 0, 96));
+      if (param == 0) // RPN 0 : pitch bend range (MSB is semitones; the LSB is cents, which Addivox ignores)
+        mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(state.valueMSB & 0x7F, 0, 96));
 
       break;
     }
