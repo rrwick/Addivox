@@ -1,6 +1,6 @@
 # Per-harmonic Settings
 
-In EDIT mode, the main panel contains a row of tabs. Each tab shows a bar chart with one bar per harmonic (up to 100). You can drag bars up and down to set values, use the **Set shape** dropdown to apply a preset curve, or use the **Run action** dropdown to apply transformations like scaling or normalising.
+In EDIT mode, the main panel contains a row of tabs. Each tab shows a bar chart with one bar per harmonic (up to 100). You can drag bars up and down to set values, use the **Set shape** dropdown to apply a preset curve, or use the **Run action** dropdown to apply transformations like scaling or normalising. Many actions in these dropdowns have a keyboard shortcut, shown as a letter in brackets next to the action name.
 
 The **X range** controls at the bottom let you zoom in on a subset of harmonics, making it easier to edit the higher harmonics where bars would otherwise be very narrow.
 

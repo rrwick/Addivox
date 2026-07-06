@@ -4,7 +4,7 @@
 
 <p align="center"><img src="../assets/patches.png" alt="Addivox patch selector" style="max-width: 100%; width: 324px;"></p>
 
-The top bar shows the name of the currently loaded patch and provides controls to navigate between patches. The left and right arrows step through patches in the current group, and the menu button opens the full patch browser where you can choose any factory or custom patch, save your work, or import and export patch files. See [Patches](patches.md) for more detail.
+The top bar shows the name of the currently loaded patch and provides controls to navigate between patches. The left and right arrows step through patches in the current group (you can also use your computer keyboard's left and right arrow keys), and the menu button opens the full patch browser where you can choose any factory or custom patch, save your work, or import and export patch files. See [Patches](patches.md) for more detail.
 
 
 ### Settings menu

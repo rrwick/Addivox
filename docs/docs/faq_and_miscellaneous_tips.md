@@ -61,7 +61,7 @@ Additive synthesis also makes it easy to implement [formants](https://en.wikiped
 
 Since Addivox always knows the exact frequency of every harmonic, it can simply skip rendering any harmonic above the [Nyquist frequency](https://en.wikipedia.org/wiki/Nyquist_frequency), which solves aliasing. The same certainty is what makes the visualization possible too: it shows the exact level of all 100 harmonics in real time, without the smearing of an FFT-based spectrum analyser.
 
-The main cost is CPU usage: 100 explicit oscillators per note more expensive than a typical synth voice. But Addivox is a monosynth (one note at a time), so that cost doesn't scale with polyphony.
+The main cost is CPU usage: 100 explicit oscillators per note is more expensive than a typical synth voice. But Addivox is a monosynth (one note at a time), so that cost doesn't scale with polyphony.
 
 
 ### What was the inspiration for Addivox?
