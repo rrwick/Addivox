@@ -169,6 +169,8 @@ private:
         break;
       }
 
+      if (msg.mData1 == 120) { StopVoice(); break; }  // CC 120 = All Sound Off
+
       switch (msg.ControlChangeIdx()) {
       case IMidiMsg::kPortamentoTime: Portamento(channel, static_cast<double>(msg.ControlChange(IMidiMsg::kPortamentoTime))); break;
       case IMidiMsg::kAllNotesOff:    StopVoice(); break;
