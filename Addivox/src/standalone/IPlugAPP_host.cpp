@@ -24,7 +24,10 @@
 #if defined OS_WIN
 #include <cstdint>
 #elif defined OS_MAC
+#include <CoreAudio/CoreAudio.h>
 #include <dispatch/dispatch.h>
+
+#include <cmath>
 #endif
 
 using namespace iplug;
@@ -76,6 +79,120 @@ void ScheduleAudioRecovery() {
 }
 #endif
 
+#if defined OS_MAC
+// RtAudio's CoreAudio backend never watches kAudioDevicePropertyNominalSampleRate,
+// so if another application (a DAW, another Addivox instance, Audio MIDI Setup)
+// changes the device rate while our stream is open, CoreAudio keeps the stream
+// running at the new hardware rate while the plugin still renders for the old
+// one — shifting every pitch by the rate ratio (48k -> 44.1k sounds ~147 cents
+// flat). Watch the device ourselves and restart audio at the rate the hardware
+// is actually running.
+#if defined(MAC_OS_VERSION_12_0) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_12_0)
+constexpr AudioObjectPropertyElement kAudioPropertyElement = kAudioObjectPropertyElementMain;
+#else
+constexpr AudioObjectPropertyElement kAudioPropertyElement = kAudioObjectPropertyElementMaster;
+#endif
+
+constexpr AudioObjectPropertyAddress kNominalRateAddress = {kAudioDevicePropertyNominalSampleRate, kAudioObjectPropertyScopeGlobal,
+                                                            kAudioPropertyElement};
+
+// Only gRateCheckPending crosses threads (set from CoreAudio's notification
+// thread); everything else is touched on the main thread only.
+std::atomic<bool>       gRateCheckPending{false};
+AudioObjectID           gRateListenerDevice = kAudioObjectUnknown;
+double                  gActiveDeviceSampleRate = 0.0;
+std::optional<uint32_t> gDeviceRateToAdopt;
+
+double GetDeviceNominalSampleRate(AudioObjectID device) {
+  Float64 rate = 0.0;
+  UInt32 size = sizeof(rate);
+  if (AudioObjectGetPropertyData(device, &kNominalRateAddress, 0, nullptr, &size, &rate) != noErr) return 0.0;
+  return rate;
+}
+
+void HandleDeviceRateChangeOnMainThread(void*) {
+  if (!gRateCheckPending.exchange(false)) return;
+
+  auto* appHost = IPlugAPPHost::sInstance.get();
+  if (!appHost || gRateListenerDevice == kAudioObjectUnknown) return;
+
+  const double deviceRate = GetDeviceNominalSampleRate(gRateListenerDevice);
+  if (deviceRate <= 0.0 || std::fabs(deviceRate - gActiveDeviceSampleRate) < 1.0) return;
+
+  DBGMSG("Device sample rate changed externally to %f; restarting audio\n", deviceRate);
+  gDeviceRateToAdopt = static_cast<uint32_t>(std::llround(deviceRate));
+  appHost->TryToChangeAudio();
+}
+
+void ScheduleDeviceRateCheck() {
+  if (gRateCheckPending.exchange(true)) return;
+
+  // Like ScheduleAudioRecovery: rate changes are reported off the main thread
+  // and often settle in bursts, so hop to the main thread after a short delay.
+  const dispatch_time_t when = dispatch_time(DISPATCH_TIME_NOW, kAudioRecoveryDelayMilliseconds * static_cast<int64_t>(NSEC_PER_MSEC));
+  dispatch_after_f(when, dispatch_get_main_queue(), nullptr, HandleDeviceRateChangeOnMainThread);
+}
+
+OSStatus DeviceNominalRateChanged(AudioObjectID, UInt32, const AudioObjectPropertyAddress*, void*) {
+  ScheduleDeviceRateCheck();
+  return noErr;
+}
+
+void RemoveDeviceRateListener() {
+  if (gRateListenerDevice == kAudioObjectUnknown) return;
+
+  AudioObjectRemovePropertyListener(gRateListenerDevice, &kNominalRateAddress, DeviceNominalRateChanged, nullptr);
+  gRateListenerDevice = kAudioObjectUnknown;
+}
+
+AudioObjectID FindCoreAudioDeviceByRtAudioName(const std::string& rtAudioName) {
+  AudioObjectPropertyAddress address = {kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioPropertyElement};
+  UInt32 dataSize = 0;
+  if (AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &address, 0, nullptr, &dataSize) != noErr) return kAudioObjectUnknown;
+
+  std::vector<AudioObjectID> devices(dataSize / sizeof(AudioObjectID));
+  if (devices.empty() || AudioObjectGetPropertyData(kAudioObjectSystemObject, &address, 0, nullptr, &dataSize, devices.data()) != noErr)
+    return kAudioObjectUnknown;
+
+  auto stringProperty = [](AudioObjectID device, AudioObjectPropertySelector selector) -> std::string {
+    CFStringRef cfString = nullptr;
+    UInt32 size = sizeof(cfString);
+    AudioObjectPropertyAddress propertyAddress = {selector, kAudioObjectPropertyScopeGlobal, kAudioPropertyElement};
+    if (AudioObjectGetPropertyData(device, &propertyAddress, 0, nullptr, &size, &cfString) != noErr || !cfString) return {};
+    char buffer[256] = {};
+    CFStringGetCString(cfString, buffer, sizeof(buffer), CFStringGetSystemEncoding());
+    CFRelease(cfString);
+    return buffer;
+  };
+
+  for (AudioObjectID device : devices) {
+    // Match the exact "Manufacturer: Name" string RtApiCore::probeDeviceInfo builds.
+    if (stringProperty(device, kAudioObjectPropertyManufacturer) + ": " + stringProperty(device, kAudioObjectPropertyName) == rtAudioName)
+      return device;
+  }
+
+  return kAudioObjectUnknown;
+}
+
+void InstallDeviceRateListener(const std::string& rtAudioDeviceName, double streamSampleRate) {
+  RemoveDeviceRateListener();
+
+  const AudioObjectID device = FindCoreAudioDeviceByRtAudioName(rtAudioDeviceName);
+  if (device == kAudioObjectUnknown) return;
+
+  gActiveDeviceSampleRate = streamSampleRate;
+
+  if (AudioObjectAddPropertyListener(device, &kNominalRateAddress, DeviceNominalRateChanged, nullptr) != noErr) return;
+  gRateListenerDevice = device;
+
+  // The device may already be running at a different rate than the stream was
+  // opened for (it can change between RtAudio's rate check and now, or revert
+  // an unsupported request without RtAudio noticing); verify once immediately.
+  const double deviceRate = GetDeviceNominalSampleRate(device);
+  if (deviceRate > 0.0 && std::fabs(deviceRate - streamSampleRate) >= 1.0) ScheduleDeviceRateCheck();
+}
+#endif // OS_MAC
+
 void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::AppState& source) {
   destination.mAudioInDev.Set(source.mAudioInDev.Get());
   destination.mAudioOutDev.Set(source.mAudioOutDev.Get());
@@ -120,6 +237,8 @@ IPlugAPPHost::~IPlugAPPHost() {
   gAudioRecoveryPending = false;
 #if defined OS_WIN
   if (gHWND) KillTimer(gHWND, kAudioRecoveryTimerID);
+#elif defined OS_MAC
+  gRateCheckPending = false;
 #endif
 
   if (gPreservedAudio) mDAC = std::move(gPreservedAudio);
@@ -482,6 +601,16 @@ bool IPlugAPPHost::TryToChangeAudio() {
   // Skip audio initialization in no-I/O mode or screenshot mode
   if (mNoIO || IsScreenshotMode()) return true;
 
+#if defined OS_MAC
+  // Another application changed the device's sample rate under our running
+  // stream (see the rate listener above). Follow the hardware rather than
+  // fight over the device: restart at the rate it is actually running.
+  if (gDeviceRateToAdopt) {
+    mState.mAudioSR = *gDeviceRateToAdopt;
+    gDeviceRateToAdopt.reset();
+  }
+#endif
+
   // Re-scan the hardware first: devices may have been plugged in or unplugged
   // since the last probe, and the default-device fallback below must not
   // resolve stale device IDs.
@@ -629,6 +758,10 @@ bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName) {
 }
 
 void IPlugAPPHost::CloseAudio() {
+#if defined OS_MAC
+  RemoveDeviceRateListener();
+#endif
+
   if (mDAC && mDAC->isStreamOpen()) {
     if (mDAC->isStreamRunning()) {
       mAudioEnding = true;
@@ -727,6 +860,10 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
         SendDlgItemMessage(settingsDialog, IDC_COMBO_AUDIO_BUF_SIZE, CB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(bufferSizeText.Get()));
     if (index != CB_ERR) SendDlgItemMessage(settingsDialog, IDC_COMBO_AUDIO_BUF_SIZE, CB_SETCURSEL, index, 0);
   }
+
+#if defined OS_MAC
+  InstallDeviceRateListener(mDAC->getDeviceInfo(outID).name, mSampleRate);
+#endif
 
   mActiveState = mState;
   gLastWorkingAudioState = mState;
