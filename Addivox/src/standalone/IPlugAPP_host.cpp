@@ -411,12 +411,14 @@ std::string IPlugAPPHost::GetAudioDeviceName(uint32_t deviceID) const {
   auto str = mDAC->getDeviceInfo(deviceID).name;
   std::size_t pos = str.find(':');
 
-  if (pos != std::string::npos) {
-    std::string subStr = str.substr(pos + 1);
-    return subStr;
-  } else {
-    return str;
-  }
+  if (pos == std::string::npos) return str;
+
+  // RtAudio builds CoreAudio device names as "Manufacturer: Name". Drop the
+  // whitespace along with the prefix: a leading space would end up in
+  // settings.ini device names, where anything else writing the natural
+  // spelling could never match.
+  pos = str.find_first_not_of(" \t", pos + 1);
+  return pos == std::string::npos ? std::string() : str.substr(pos);
 }
 
 std::optional<uint32_t> IPlugAPPHost::GetAudioDeviceID(const char* deviceNameToTest) const {
