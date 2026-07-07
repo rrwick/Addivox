@@ -976,6 +976,8 @@
 <h1 id="known-issues">Known issues</h1>
 <h3 id="wasapi-exclusive-is-not-available-on-windows">WASAPI Exclusive is not available on Windows</h3>
 <p>The Windows standalone application supports DirectSound, ASIO and WASAPI shared mode, but it does not currently support WASAPI Exclusive mode. For low-latency real-time playing on Windows, ASIO is recommended when available. See <a href="../faq_and_miscellaneous_tips/#which-windows-audio-driver-type-should-i-use">Which Windows audio driver type should I use?</a>.</p>
+<h3 id="non-ascii-audio-device-names-display-as-mangled-text">Non-ASCII audio device names display as mangled text</h3>
+<p>Audio device names containing non-ASCII characters (e.g. curly apostrophes, accented letters) can be corrupted in the Audio and MIDI settings dialog. Example: <code>Ryan’s iPhone Microphone</code> → <code>RyanÕs iPhone Microphone</code>. This bug is cosmetic only – a device with a mangled name still works correctly for audio I/O.</p>
 <!--
 ### iOS custom patch saving
 
