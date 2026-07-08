@@ -151,7 +151,12 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
   if (!caller || !context->HasValidSelectedMidiNote()) return;
 
   const int midiNote = context->SelectedMidiNote();
-  if (!context->Patch().SetKeyNoteEqCurve(midiNote, curve)) return;
+  bool updated = false;
+  {
+    const auto patchLock = context->LockPatch();
+    updated = context->Patch().SetKeyNoteEqCurve(midiNote, curve);
+  }
+  if (!updated) return;
 
   context->SendEqCurveToDSP(caller, midiNote, curve);
   if (refreshOscillatorTabs) context->RefreshOscillatorTabs();
@@ -215,21 +220,28 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
         if (!toggle || !context->HasValidSelectedMidiNote()) return;
 
         const int midiNote = context->SelectedMidiNote();
-        const EqCurve* keyNoteEqCurve = context->Patch().GetKeyNoteEqCurve(midiNote);
-        if (!keyNoteEqCurve) {
+        const bool enable = toggle->GetValue() > 0.5;
+        bool haveKeyNoteEqCurve = false;
+        EqCurve curveCopy;
+        {
+          const auto patchLock = context->LockPatch();
+          if (const EqCurve* keyNoteEqCurve = context->Patch().GetKeyNoteEqCurve(midiNote)) {
+            haveKeyNoteEqCurve = true;
+            curveCopy = *keyNoteEqCurve;
+            if (enable) context->Patch().EnableAllKeyNotesEq(curveCopy);
+            else
+              context->Patch().SetAllKeyNotesEqEnabled(false);
+          }
+        }
+
+        if (!haveKeyNoteEqCurve) {
           toggle->SetValue(context->IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
           toggle->SetDirty(false);
           return;
         }
 
-        if (toggle->GetValue() > 0.5) {
-          context->Patch().EnableAllKeyNotesEq(*keyNoteEqCurve);
-          context->SendAllKeyNotesEqEnabledToDSP(toggle, true);
-          context->SendEqCurveToDSP(toggle, midiNote, *keyNoteEqCurve);
-        } else {
-          context->Patch().SetAllKeyNotesEqEnabled(false);
-          context->SendAllKeyNotesEqEnabledToDSP(toggle, false);
-        }
+        context->SendAllKeyNotesEqEnabledToDSP(toggle, enable);
+        if (enable) context->SendEqCurveToDSP(toggle, midiNote, curveCopy);
 
         context->RefreshOscillatorTabs();
       },
@@ -249,7 +261,10 @@ inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IC
   if (!caller || !context->HasValidSelectedMidiNote()) return;
 
   const int midiNote = context->SelectedMidiNote();
-  if (!context->Patch().HasKeyNotePatch(midiNote)) return;
+  {
+    const auto patchLock = context->LockPatch();
+    if (!context->Patch().HasKeyNotePatch(midiNote)) return;
+  }
 
   auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
   if (!control || !control->HasRestoreStateForMidiNote(midiNote)) return;

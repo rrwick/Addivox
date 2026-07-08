@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <mutex>
 #include <utility>
 
 namespace {
@@ -1094,8 +1095,11 @@ void Addivox::SendBreathControlFromUI(double value, int channel, int offset) {
 }
 
 void Addivox::ApplyPatchDocumentToState(const patch_io::PatchDocument& document) {
-  mEditorState->compoundPatch = document.compoundPatch;
-  mEditorState->selectedMidiNote = patch_io::detail::ChooseDefaultSelectedMidiNote(document.compoundPatch, mEditorState->selectedMidiNote);
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    mEditorState->compoundPatch = document.compoundPatch;
+    mEditorState->selectedMidiNote = patch_io::detail::ChooseDefaultSelectedMidiNote(document.compoundPatch, mEditorState->selectedMidiNote);
+  }
 
 #if IPLUG_DSP
   mDSP.SetCompoundPatch(document.compoundPatch);
@@ -1136,19 +1140,24 @@ void Addivox::PromptSavePatchToFile() {
   if (!ui) return;
 
   patch_io::PatchDocument document;
-  document.name = mActivePatchDisplayName.empty() ? "Patch" : mActivePatchDisplayName;
-  document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
-  document.effectsSettings = GetEffectsSettingsFromParams(*this);
-  document.compoundPatch = mEditorState->compoundPatch;
+  std::string defaultFileName;
+  std::string initialDirectory;
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    document.name = mActivePatchDisplayName.empty() ? "Patch" : mActivePatchDisplayName;
+    document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
+    document.effectsSettings = GetEffectsSettingsFromParams(*this);
+    document.compoundPatch = mEditorState->compoundPatch;
+
+    defaultFileName = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty()) ? std::string{patch_io::detail::FileNameView(mActivePatchPath)}
+                                                                                             : SanitizePatchFileName(document.name);
+    initialDirectory = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty())
+                           ? patch_io::detail::ParentPath(mActivePatchPath)
+                           : (mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory);
+  }
 
   WDL_String fileName;
   WDL_String directory;
-  const std::string defaultFileName = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty())
-                                          ? std::string{patch_io::detail::FileNameView(mActivePatchPath)}
-                                          : SanitizePatchFileName(document.name);
-  const std::string initialDirectory = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty())
-                                           ? patch_io::detail::ParentPath(mActivePatchPath)
-                                           : (mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory);
   if (!initialDirectory.empty()) patch_io::detail::EnsureDirectoryExists(initialDirectory);
 
 #if defined(OS_IOS)
@@ -1172,6 +1181,7 @@ void Addivox::PromptSavePatchToFile() {
 
     const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
     if (IsPathInDirectory(userPatchDirectory, destinationPath)) {
+      const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
       mActivePatchSource = PatchSource::User;
       mActiveFactoryPatchIdx = -1;
       mActivePatchPath = destinationPath;
@@ -1200,12 +1210,15 @@ void Addivox::PromptSavePatchToFile() {
     }
 
     mUserPatchDirectory = patch_io::detail::ParentPath(fullPath);
-    mActivePatchSource = PatchSource::User;
-    mActiveFactoryPatchIdx = -1;
-    mActivePatchPath = fullPath;
-    mActivePatchDisplayName = patch_io::detail::FileStem(fullPath);
-    mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), fullPath);
-    SetActivePatchCleanSnapshotFromCurrentState();
+    {
+      const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+      mActivePatchSource = PatchSource::User;
+      mActiveFactoryPatchIdx = -1;
+      mActivePatchPath = fullPath;
+      mActivePatchDisplayName = patch_io::detail::FileStem(fullPath);
+      mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), fullPath);
+      SetActivePatchCleanSnapshotFromCurrentState();
+    }
     RebuildPatchCatalog();
     RefreshEditorUI();
   });
@@ -1256,23 +1269,39 @@ void Addivox::SendMidiMsgFromUI(const IMidiMsg& msg) {
 }
 
 bool Addivox::SerializeState(IByteChunk& chunk) const {
+  // Hosts may call this from any thread (AUv3 XPC, VST3), so snapshot the patch state under the lock, then
+  // serialize from the locals. SerializeParams can take iPlug2's params mutex and must stay outside the lock.
   patch_io::PatchDocument document;
-  document.name =
-      mActivePatchDisplayName.empty() ? GetPresetName(mActiveFactoryPatchIdx >= 0 ? mActiveFactoryPatchIdx : GetCurrentPresetIdx()) : mActivePatchDisplayName;
-  document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
-  document.effectsSettings = GetEffectsSettingsFromParams(*this);
-  document.compoundPatch = mEditorState->compoundPatch;
+  std::string statePatchPath;
+  bool activePatchDirty = false;
+  std::string activePatchCleanSnapshot;
+  int activePatchSource = static_cast<int>(PatchSource::Unknown);
+  int activeFactoryPatchIdx = -1;
+  std::string activePatchGroupKey;
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    document.name =
+        mActivePatchDisplayName.empty() ? GetPresetName(mActiveFactoryPatchIdx >= 0 ? mActiveFactoryPatchIdx : GetCurrentPresetIdx()) : mActivePatchDisplayName;
+    document.voiceSettings = GetGlobalVoiceSettingsFromParams(*this);
+    document.effectsSettings = GetEffectsSettingsFromParams(*this);
+    document.compoundPatch = mEditorState->compoundPatch;
 
-  std::string statePatchPath = mActivePatchPath;
-  if (mActivePatchSource == PatchSource::User) {
-    const std::string userPatchDirectory = GetDefaultUserPatchDirectory();
-    if (!userPatchDirectory.empty()) statePatchPath = RelativePathFromDirectory(userPatchDirectory, mActivePatchPath);
+    statePatchPath = mActivePatchPath;
+    if (mActivePatchSource == PatchSource::User) {
+      const std::string userPatchDirectory = GetDefaultUserPatchDirectory();
+      if (!userPatchDirectory.empty()) statePatchPath = RelativePathFromDirectory(userPatchDirectory, mActivePatchPath);
+    }
+
+    activePatchDirty = mActivePatchDirty;
+    activePatchCleanSnapshot = mActivePatchCleanSnapshot;
+    activePatchSource = static_cast<int>(mActivePatchSource);
+    activeFactoryPatchIdx = mActiveFactoryPatchIdx;
+    activePatchGroupKey = mActivePatchGroupKey;
   }
 
   return chunk.PutStr(patch_io::SerializePatchToToml(document).c_str()) > 0 && SerializeParams(chunk) &&
-         AppendPluginStateSettingsChunk(chunk, mBreathCCSource, mHarmonicVisualizerEnabled.load(std::memory_order_relaxed), mPitchBendRange, mActivePatchDirty,
-                                        mActivePatchCleanSnapshot, static_cast<int>(mActivePatchSource), mActiveFactoryPatchIdx, statePatchPath,
-                                        mActivePatchGroupKey);
+         AppendPluginStateSettingsChunk(chunk, mBreathCCSource, mHarmonicVisualizerEnabled.load(std::memory_order_relaxed), mPitchBendRange, activePatchDirty,
+                                        activePatchCleanSnapshot, activePatchSource, activeFactoryPatchIdx, statePatchPath, activePatchGroupKey);
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
@@ -1308,6 +1337,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
     SetPitchBendRange(restoredPitchBendRange);
     SetBreathCCSource(restoredBreathCCSource);
     SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
     mPendingRestoredPatchDirty = restoredPatchDirty;
     mPendingRestoredPatchHasDirtyState = true;
     mPendingRestoredPatchSource =
@@ -1317,17 +1347,23 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
     mPendingRestoredPatchGroupKey = std::move(restoredPatchGroupKey);
     mPendingRestoredPatchHasIdentity = mPendingRestoredPatchSource != PatchSource::Unknown;
   }
-  mPendingRestoredPatchCleanSnapshot = std::move(restoredPatchCleanSnapshot);
-  mPendingRestoredPatchHasCleanSnapshot = !mPendingRestoredPatchCleanSnapshot.empty();
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    mPendingRestoredPatchCleanSnapshot = std::move(restoredPatchCleanSnapshot);
+    mPendingRestoredPatchHasCleanSnapshot = !mPendingRestoredPatchCleanSnapshot.empty();
+  }
 
   return pos;
 }
 
 bool Addivox::HasPendingRestoredState() const {
+  const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
   return !mPendingRestoredStatePatchName.empty() || mPendingRestoredPatchHasIdentity || mPendingRestoredPatchHasCleanSnapshot || mRestoringFactoryPatchIdx >= 0;
 }
 
 void Addivox::ApplyPendingRestoredState() {
+  const std::unique_lock<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+
   if (!mPendingRestoredStatePatchName.empty()) {
     mActivePatchDisplayName = mPendingRestoredStatePatchName;
     mPendingRestoredStatePatchName.clear();
@@ -1669,6 +1705,8 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 #endif
 
 void Addivox::RebuildPatchCatalog() {
+  const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+
   mPatchCatalog.clear();
   int nextId = 0;
 
@@ -1710,6 +1748,8 @@ void Addivox::RebuildPatchCatalog() {
 }
 
 void Addivox::ReconcileActivePatchIdentity() {
+  const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+
   if (mActivePatchSource == PatchSource::Factory) {
     if (mActiveFactoryPatchIdx >= 0 && mActiveFactoryPatchIdx < NPresets()) {
       mActivePatchPath = (mActiveFactoryPatchIdx < static_cast<int>(mFactoryPatchPaths.size()))
@@ -1760,12 +1800,15 @@ void Addivox::RestoreFactoryPatch(int patchIdx) {
     return;
   }
 
-  mActivePatchSource = PatchSource::Factory;
-  mActiveFactoryPatchIdx = patchIdx;
-  mActivePatchPath = (patchIdx < static_cast<int>(mFactoryPatchPaths.size())) ? mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)] : std::string{};
-  mActivePatchGroupKey = "Factory";
-  mActivePatchDisplayName = GetPresetName(patchIdx);
-  SetActivePatchCleanSnapshotFromCurrentState();
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    mActivePatchSource = PatchSource::Factory;
+    mActiveFactoryPatchIdx = patchIdx;
+    mActivePatchPath = (patchIdx < static_cast<int>(mFactoryPatchPaths.size())) ? mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)] : std::string{};
+    mActivePatchGroupKey = "Factory";
+    mActivePatchDisplayName = GetPresetName(patchIdx);
+    SetActivePatchCleanSnapshotFromCurrentState();
+  }
   RefreshEditorUI(true);
 }
 
@@ -1781,16 +1824,22 @@ void Addivox::LoadUserPatchByPath(const std::string& path) {
   mSuppressPatchDirtyTracking = true;
   ApplyPatchDocumentToState(document);
   FinalizePatchRecall(true);
-  if (!document.name.empty()) mActivePatchDisplayName = document.name;
-  else if (mActivePatchDisplayName.empty())
-    mActivePatchDisplayName = "Patch";
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    if (!document.name.empty()) mActivePatchDisplayName = document.name;
+    else if (mActivePatchDisplayName.empty())
+      mActivePatchDisplayName = "Patch";
+  }
   mSuppressPatchDirtyTracking = false;
 
-  mActivePatchSource = PatchSource::User;
-  mActiveFactoryPatchIdx = -1;
-  mActivePatchPath = path;
-  mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), path);
-  SetActivePatchCleanSnapshotFromCurrentState();
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    mActivePatchSource = PatchSource::User;
+    mActiveFactoryPatchIdx = -1;
+    mActivePatchPath = path;
+    mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), path);
+    SetActivePatchCleanSnapshotFromCurrentState();
+  }
   RebuildPatchCatalog();
   RefreshEditorUI(true);
   MarkStandaloneStateDirty();
@@ -1837,49 +1886,68 @@ void Addivox::PromptImportPatchFromFile() {
 }
 
 void Addivox::LoadPatchById(int patchId) {
-  const auto entryIt = std::find_if(mPatchCatalog.begin(), mPatchCatalog.end(), [patchId](const PatchCatalogEntry& entry) { return entry.id == patchId; });
-  if (entryIt == mPatchCatalog.end()) return;
+  // Copy the entry under the lock; the load/restore calls below take iPlug2's params mutex and must run unlocked.
+  PatchSource source = PatchSource::Unknown;
+  int factoryIndex = -1;
+  std::string path;
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    const auto entryIt = std::find_if(mPatchCatalog.begin(), mPatchCatalog.end(), [patchId](const PatchCatalogEntry& entry) { return entry.id == patchId; });
+    if (entryIt == mPatchCatalog.end()) return;
 
-  if (entryIt->source == PatchSource::Factory) RestoreFactoryPatch(entryIt->factoryIndex);
-  else if (entryIt->source == PatchSource::User)
-    LoadUserPatchByPath(entryIt->path);
+    source = entryIt->source;
+    factoryIndex = entryIt->factoryIndex;
+    path = entryIt->path;
+  }
+
+  if (source == PatchSource::Factory) RestoreFactoryPatch(factoryIndex);
+  else if (source == PatchSource::User)
+    LoadUserPatchByPath(path);
 }
 
 void Addivox::CyclePatchInCurrentGroup(int direction) {
   if (mPatchCatalog.empty()) RebuildPatchCatalog();
 
-  std::vector<const PatchCatalogEntry*> groupEntries;
-  for (const auto& entry : mPatchCatalog) {
-    if (entry.groupKey == mActivePatchGroupKey) groupEntries.push_back(&entry);
-  }
+  // Resolve the next patch id under the lock; LoadPatchById re-finds by id and must run unlocked (see LoadPatchById).
+  int nextPatchId = -1;
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
 
-  if (groupEntries.empty()) {
+    std::vector<const PatchCatalogEntry*> groupEntries;
     for (const auto& entry : mPatchCatalog) {
-      if (entry.groupKey == "Factory") groupEntries.push_back(&entry);
+      if (entry.groupKey == mActivePatchGroupKey) groupEntries.push_back(&entry);
     }
+
+    if (groupEntries.empty()) {
+      for (const auto& entry : mPatchCatalog) {
+        if (entry.groupKey == "Factory") groupEntries.push_back(&entry);
+      }
+    }
+
+    if (groupEntries.empty()) return;
+
+    int currentIndex = -1;
+    for (int i = 0; i < static_cast<int>(groupEntries.size()); ++i) {
+      const PatchCatalogEntry* entry = groupEntries[static_cast<std::size_t>(i)];
+      const bool matches =
+          (entry->source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry->factoryIndex == mActiveFactoryPatchIdx) ||
+          (entry->source == PatchSource::User && mActivePatchSource == PatchSource::User && entry->path == mActivePatchPath);
+      if (matches) {
+        currentIndex = i;
+        break;
+      }
+    }
+
+    if (currentIndex < 0) currentIndex = direction >= 0 ? -1 : 0;
+
+    int nextIndex = currentIndex + (direction >= 0 ? 1 : -1);
+    if (nextIndex < 0) nextIndex = static_cast<int>(groupEntries.size()) - 1;
+    if (nextIndex >= static_cast<int>(groupEntries.size())) nextIndex = 0;
+
+    nextPatchId = groupEntries[static_cast<std::size_t>(nextIndex)]->id;
   }
 
-  if (groupEntries.empty()) return;
-
-  int currentIndex = -1;
-  for (int i = 0; i < static_cast<int>(groupEntries.size()); ++i) {
-    const PatchCatalogEntry* entry = groupEntries[static_cast<std::size_t>(i)];
-    const bool matches =
-        (entry->source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry->factoryIndex == mActiveFactoryPatchIdx) ||
-        (entry->source == PatchSource::User && mActivePatchSource == PatchSource::User && entry->path == mActivePatchPath);
-    if (matches) {
-      currentIndex = i;
-      break;
-    }
-  }
-
-  if (currentIndex < 0) currentIndex = direction >= 0 ? -1 : 0;
-
-  int nextIndex = currentIndex + (direction >= 0 ? 1 : -1);
-  if (nextIndex < 0) nextIndex = static_cast<int>(groupEntries.size()) - 1;
-  if (nextIndex >= static_cast<int>(groupEntries.size())) nextIndex = 0;
-
-  LoadPatchById(groupEntries[static_cast<std::size_t>(nextIndex)]->id);
+  LoadPatchById(nextPatchId);
 }
 
 void Addivox::PromptImportPatchCollection() {
@@ -1921,9 +1989,15 @@ void Addivox::ShowActivePatchInFileBrowser() {
   IGraphics* ui = GetUI();
   if (!ui) return;
 
+  std::string activePatchPath;
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    if (mActivePatchSource == PatchSource::User) activePatchPath = mActivePatchPath;
+  }
+
   WDL_String path;
-  if (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty() && patch_io::detail::PathExists(mActivePatchPath)) {
-    path.Set(mActivePatchPath.c_str());
+  if (!activePatchPath.empty() && patch_io::detail::PathExists(activePatchPath)) {
+    path.Set(activePatchPath.c_str());
     ui->RevealPathInExplorerOrFinder(path, true);
     return;
   }
@@ -1960,6 +2034,8 @@ void Addivox::HandlePatchManagerAction(int action, int patchId) {
 }
 
 std::string Addivox::SerializeCurrentPatchSnapshot() const {
+  const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+
   patch_io::PatchDocument document;
   document.name =
       mActivePatchDisplayName.empty()
@@ -1972,18 +2048,22 @@ std::string Addivox::SerializeCurrentPatchSnapshot() const {
 }
 
 void Addivox::SetActivePatchCleanSnapshotFromCurrentState() {
+  const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
   mActivePatchCleanSnapshot = SerializeCurrentPatchSnapshot();
   mActivePatchDirty = false;
 }
 
 void Addivox::MarkActivePatchDirty() {
-  if (mSuppressPatchDirtyTracking || mActivePatchDirty) return;
+  {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+    if (mSuppressPatchDirtyTracking || mActivePatchDirty) return;
 
-  if (!mActivePatchCleanSnapshot.empty() &&
-      CanonicalizePatchDirtySnapshotToml(SerializeCurrentPatchSnapshot()) == CanonicalizePatchDirtySnapshotToml(mActivePatchCleanSnapshot))
-    return;
+    if (!mActivePatchCleanSnapshot.empty() &&
+        CanonicalizePatchDirtySnapshotToml(SerializeCurrentPatchSnapshot()) == CanonicalizePatchDirtySnapshotToml(mActivePatchCleanSnapshot))
+      return;
 
-  mActivePatchDirty = true;
+    mActivePatchDirty = true;
+  }
   RefreshEditorUI();
 }
 
@@ -2054,32 +2134,35 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates) {
 
   if (mEditorContext->title.patchManagerControl && *mEditorContext->title.patchManagerControl) {
     if (auto* patchManager = dynamic_cast<plugin_ui::layout::PatchManagerControl*>(*mEditorContext->title.patchManagerControl)) {
-      std::string label = mActivePatchDisplayName.empty()
-                              ? (NPresets() > 0 ? std::string{GetPresetName(mActiveFactoryPatchIdx >= 0 ? mActiveFactoryPatchIdx : GetCurrentPresetIdx())}
-                                                : std::string{"Choose Patch..."})
-                              : mActivePatchDisplayName;
-      if (mActivePatchDirty) label += "*";
-
       plugin_ui::layout::PatchMenuModel model;
-      model.label = label;
-      if (IsReadOnlyUserPatchLibrary()) {
-        model.canSavePatch = false;
-        model.canImportPatch = false;
-        model.canImportCollection = false;
-      }
-      const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
-      model.canShowInFileBrowser = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty() && patch_io::detail::PathExists(mActivePatchPath)) ||
-                                   (!userPatchDirectory.empty() && patch_io::detail::IsDirectory(userPatchDirectory));
+      {
+        const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
+        std::string label = mActivePatchDisplayName.empty()
+                                ? (NPresets() > 0 ? std::string{GetPresetName(mActiveFactoryPatchIdx >= 0 ? mActiveFactoryPatchIdx : GetCurrentPresetIdx())}
+                                                  : std::string{"Choose Patch..."})
+                                : mActivePatchDisplayName;
+        if (mActivePatchDirty) label += "*";
 
-      for (const auto& entry : mPatchCatalog) {
-        plugin_ui::layout::PatchMenuEntry menuEntry;
-        menuEntry.id = entry.id;
-        menuEntry.name = entry.name;
-        menuEntry.groupPath = entry.menuPath;
-        menuEntry.checked =
-            (entry.source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry.factoryIndex == mActiveFactoryPatchIdx) ||
-            (entry.source == PatchSource::User && mActivePatchSource == PatchSource::User && entry.path == mActivePatchPath);
-        model.entries.push_back(std::move(menuEntry));
+        model.label = label;
+        if (IsReadOnlyUserPatchLibrary()) {
+          model.canSavePatch = false;
+          model.canImportPatch = false;
+          model.canImportCollection = false;
+        }
+        const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
+        model.canShowInFileBrowser = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty() && patch_io::detail::PathExists(mActivePatchPath)) ||
+                                     (!userPatchDirectory.empty() && patch_io::detail::IsDirectory(userPatchDirectory));
+
+        for (const auto& entry : mPatchCatalog) {
+          plugin_ui::layout::PatchMenuEntry menuEntry;
+          menuEntry.id = entry.id;
+          menuEntry.name = entry.name;
+          menuEntry.groupPath = entry.menuPath;
+          menuEntry.checked =
+              (entry.source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry.factoryIndex == mActiveFactoryPatchIdx) ||
+              (entry.source == PatchSource::User && mActivePatchSource == PatchSource::User && entry.path == mActivePatchPath);
+          model.entries.push_back(std::move(menuEntry));
+        }
       }
 
       patchManager->SetPatchMenuModel(std::move(model));
@@ -2087,6 +2170,7 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates) {
   }
 
   if (auto* keyboard = plugin_ui::layout::GetKeyboardControl(GetUI(), kCtrlTagKeyboard)) {
+    const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
     plugin_ui::layout::RefreshKeyboardKeyNoteHighlights(keyboard, mEditorState->compoundPatch);
     keyboard->SetSelectedMidiNote(mEditorState->selectedMidiNote);
   }

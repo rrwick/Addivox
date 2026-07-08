@@ -409,6 +409,7 @@ inline void RestoreSelectedTab(IContainerBase* editorTabsControl, const std::sha
 inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<EditorState>& editorState, int editorTabsTag) {
   auto context = std::make_shared<EditorContext>();
   context->editorTabsTag = editorTabsTag;
+  context->model.patchMutex = std::shared_ptr<std::recursive_mutex>(editorState, &editorState->patchMutex);
   context->model.compoundPatch = std::shared_ptr<CompoundPatch>(editorState, &editorState->compoundPatch);
   context->model.breathCCSource = std::shared_ptr<BreathCCSource>(editorState, &editorState->breathCCSource);
   context->model.pitchBendRange = std::shared_ptr<int>(editorState, &editorState->pitchBendRange);

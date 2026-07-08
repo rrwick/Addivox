@@ -18,6 +18,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -585,6 +586,7 @@ inline std::size_t GetVariationTabIndex(OscillatorParameter parameter) {
 }
 
 struct EditorModelRefs {
+  std::shared_ptr<std::recursive_mutex> patchMutex;
   std::shared_ptr<CompoundPatch> compoundPatch;
   std::shared_ptr<BreathCCSource> breathCCSource;
   std::shared_ptr<int> pitchBendRange;
@@ -679,6 +681,9 @@ struct EditorContext {
 
   CompoundPatch& Patch() const { return *model.compoundPatch; }
 
+  // Hold this while touching Patch(): hosts serialize/restore plugin state from arbitrary threads (see EditorState::patchMutex).
+  std::unique_lock<std::recursive_mutex> LockPatch() const { return std::unique_lock<std::recursive_mutex>{*model.patchMutex}; }
+
   int SelectedMidiNote() const { return *model.selectedMidiNote; }
 
   int SelectedTabIndex() const { return *model.selectedTabIndex; }
@@ -771,17 +776,29 @@ struct EditorContext {
     if (eqTab.editorControl && *eqTab.editorControl) (*eqTab.editorControl)->ClearRestoreState();
   }
 
-  bool IsAllKeyNotesEnabled(OscillatorParameter parameter) const { return Patch().IsAllKeyNotesEnabled(parameter); }
+  bool IsAllKeyNotesEnabled(OscillatorParameter parameter) const {
+    const auto patchLock = LockPatch();
+    return Patch().IsAllKeyNotesEnabled(parameter);
+  }
 
-  bool IsAllKeyNotesEqEnabled() const { return Patch().IsAllKeyNotesEqEnabled(); }
+  bool IsAllKeyNotesEqEnabled() const {
+    const auto patchLock = LockPatch();
+    return Patch().IsAllKeyNotesEqEnabled();
+  }
 
   template <typename Action> void ForEachTargetKeyNote(OscillatorParameter parameter, int midiNote, Action&& action) const {
-    if (IsAllKeyNotesEnabled(parameter)) {
-      for (const auto& [keyNoteMidi, _] : Patch().GetKeyNotePatches()) std::forward<Action>(action)(keyNoteMidi);
-      return;
+    // Collect targets under the lock, run the action outside it (actions may send DSP messages).
+    std::vector<int> targetMidiNotes;
+    {
+      const auto patchLock = LockPatch();
+      if (Patch().IsAllKeyNotesEnabled(parameter)) {
+        for (const auto& [keyNoteMidi, _] : Patch().GetKeyNotePatches()) targetMidiNotes.push_back(keyNoteMidi);
+      } else {
+        targetMidiNotes.push_back(midiNote);
+      }
     }
 
-    std::forward<Action>(action)(midiNote);
+    for (const int targetMidiNote : targetMidiNotes) std::forward<Action>(action)(targetMidiNote);
   }
 
   void SendOscillatorParameterToDSP(IControl* sourceControl, int midiNote, int oscillatorIndex, OscillatorParameter parameter, double value) const {
@@ -859,12 +876,14 @@ struct EditorContext {
   bool CanAddSelectedKeyNote() const {
     const int midiNote = SelectedMidiNote();
     const bool midiNoteValid = midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
+    const auto patchLock = LockPatch();
     return IsEditMode() && midiNoteValid && !Patch().HasKeyNotePatch(midiNote);
   }
 
   bool CanDeleteSelectedKeyNote() const {
     const int midiNote = SelectedMidiNote();
     const bool midiNoteValid = midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
+    const auto patchLock = LockPatch();
     return IsEditMode() && midiNoteValid && Patch().HasKeyNotePatch(midiNote) && Patch().GetNumKeyNotePatches() > 1;
   }
 
@@ -872,7 +891,10 @@ struct EditorContext {
     if (!caller || !CanAddSelectedKeyNote()) return;
 
     const int midiNote = SelectedMidiNote();
-    Patch().SetKeyNotePatch(midiNote, Patch().GetPatchForMidiNote(midiNote));
+    {
+      const auto patchLock = LockPatch();
+      Patch().SetKeyNotePatch(midiNote, Patch().GetPatchForMidiNote(midiNote));
+    }
     SendKeyNotePatchEditToDSP(caller, editor_messages::kMsgTagAddKeyNotePatch, midiNote);
     SetKeyboardKeyNoteHighlight(midiNote, true);
     RefreshOscillatorTabs();
@@ -883,7 +905,12 @@ struct EditorContext {
     if (!caller || !CanDeleteSelectedKeyNote()) return;
 
     const int midiNote = SelectedMidiNote();
-    if (!Patch().RemoveKeyNotePatch(midiNote)) return;
+    bool removed = false;
+    {
+      const auto patchLock = LockPatch();
+      removed = Patch().RemoveKeyNotePatch(midiNote);
+    }
+    if (!removed) return;
 
     SendKeyNotePatchEditToDSP(caller, editor_messages::kMsgTagRemoveKeyNotePatch, midiNote);
     SetKeyboardKeyNoteHighlight(midiNote, false);
@@ -919,6 +946,9 @@ struct EditorContext {
   }
 
   void RefreshOscillatorTabs() const {
+    // Whole-body lock is safe here: this only reads the patch and updates controls, never the params mutex.
+    const auto patchLock = LockPatch();
+
     ApplyVisibleOscillatorRangeToSliders();
     SyncXRangeNumberBoxes();
 
@@ -1009,20 +1039,31 @@ struct EditorContext {
   void ApplyOscillatorParameterActionToSelectedKeyNote(OscillatorSliderControl* control, OscillatorParameter parameter, Action&& action,
                                                        bool applyEditScope = true) const {
     const int midiNote = SelectedMidiNote();
-    const SimplePatch* keyNotePatch = Patch().GetKeyNotePatch(midiNote);
-    if (!keyNotePatch) return;
+    SimplePatch updatedPatch;
+    OscillatorParameterValues originalValues{};
+    {
+      const auto patchLock = LockPatch();
+      const SimplePatch* keyNotePatch = Patch().GetKeyNotePatch(midiNote);
+      if (!keyNotePatch) return;
 
-    SimplePatch updatedPatch = *keyNotePatch;
+      updatedPatch = *keyNotePatch;
+      originalValues = GetOscillatorParameterValues(*keyNotePatch, parameter);
+    }
+
     if (!std::forward<Action>(action)(updatedPatch)) return;
 
-    const auto originalValues = GetOscillatorParameterValues(*keyNotePatch, parameter);
     OscillatorParameterValues values{};
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
       values[static_cast<std::size_t>(oscillatorIndex)] = updatedPatch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
     }
     if (applyEditScope) ApplyOscillatorEditScopeToValues(parameter, originalValues, values);
 
-    if (!Patch().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values)) return;
+    bool updated = false;
+    {
+      const auto patchLock = LockPatch();
+      updated = Patch().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
+    }
+    if (!updated) return;
 
     SendOscillatorParameterValuesToDSP(control, midiNote, parameter, values);
     RefreshOscillatorTabs();
@@ -1030,13 +1071,23 @@ struct EditorContext {
 
   template <typename Action> void ApplyEqCurveActionToSelectedKeyNote(EqEditorControl* control, Action&& action) const {
     const int midiNote = SelectedMidiNote();
-    const EqCurve* keyNoteEqCurve = Patch().GetKeyNoteEqCurve(midiNote);
-    if (!keyNoteEqCurve) return;
+    EqCurve updatedCurve;
+    {
+      const auto patchLock = LockPatch();
+      const EqCurve* keyNoteEqCurve = Patch().GetKeyNoteEqCurve(midiNote);
+      if (!keyNoteEqCurve) return;
 
-    EqCurve updatedCurve = *keyNoteEqCurve;
+      updatedCurve = *keyNoteEqCurve;
+    }
+
     if (!std::forward<Action>(action)(updatedCurve)) return;
 
-    if (!Patch().SetKeyNoteEqCurve(midiNote, updatedCurve)) return;
+    bool updated = false;
+    {
+      const auto patchLock = LockPatch();
+      updated = Patch().SetKeyNoteEqCurve(midiNote, updatedCurve);
+    }
+    if (!updated) return;
 
     SendEqCurveToDSP(control, midiNote, updatedCurve);
     RefreshOscillatorTabs();
@@ -1079,21 +1130,24 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
         if (!toggle || !context->HasValidSelectedMidiNote()) return;
 
         const int midiNote = context->SelectedMidiNote();
-        const SimplePatch* keyNotePatch = context->Patch().GetKeyNotePatch(midiNote);
-        if (!keyNotePatch) {
+        const bool enable = toggle->GetValue() > 0.5;
+        bool haveKeyNotePatch = false;
+        {
+          const auto patchLock = context->LockPatch();
+          if (const SimplePatch* keyNotePatch = context->Patch().GetKeyNotePatch(midiNote)) {
+            haveKeyNotePatch = true;
+            if (enable) context->Patch().EnableAllKeyNotes(parameter, GetOscillatorParameterValues(*keyNotePatch, parameter));
+            else
+              context->Patch().SetAllKeyNotesEnabled(parameter, false);
+          }
+        }
+
+        if (!haveKeyNotePatch) {
           SetControlValueSilently(toggle, context->IsAllKeyNotesEnabled(parameter) ? 1.0 : 0.0);
           return;
         }
 
-        if (toggle->GetValue() > 0.5) {
-          const auto values = GetOscillatorParameterValues(*keyNotePatch, parameter);
-          context->Patch().EnableAllKeyNotes(parameter, values);
-          context->SendAllKeyNotesEnabledToDSP(toggle, parameter, true, midiNote);
-        } else {
-          context->Patch().SetAllKeyNotesEnabled(parameter, false);
-          context->SendAllKeyNotesEnabledToDSP(toggle, parameter, false, midiNote);
-        }
-
+        context->SendAllKeyNotesEnabledToDSP(toggle, parameter, enable, midiNote);
         context->RefreshOscillatorTabs();
       },
       "", styles.utilityToggleStyle, "", "X", context->IsAllKeyNotesEnabled(descriptor.parameter));
@@ -1272,9 +1326,6 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
   if (!caller || !context->HasValidSelectedMidiNote()) return;
 
   const int midiNote = context->SelectedMidiNote();
-  const SimplePatch* keyNotePatch = context->Patch().GetKeyNotePatch(midiNote);
-  if (!keyNotePatch) return;
-
   auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
   if (!control || !control->HasRestoreStateForMidiNote(midiNote)) return;
 
@@ -1285,7 +1336,13 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
         std::clamp(restoreState[static_cast<std::size_t>(oscillatorIndex)], descriptor.range.min, descriptor.range.max);
   }
 
-  if (!context->Patch().SetKeyNoteOscillatorParameterValues(midiNote, descriptor.parameter, values)) return;
+  bool updated = false;
+  {
+    const auto patchLock = context->LockPatch();
+    if (!context->Patch().GetKeyNotePatch(midiNote)) return;
+    updated = context->Patch().SetKeyNoteOscillatorParameterValues(midiNote, descriptor.parameter, values);
+  }
+  if (!updated) return;
 
   context->SendOscillatorParameterValuesToDSP(caller, midiNote, descriptor.parameter, values);
 
@@ -1322,7 +1379,11 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
     if (!context->IsOscillatorEditable(descriptor.parameter, oscillatorIndex)) return;
 
     const double clampedValue = std::clamp(value, descriptor.range.min, descriptor.range.max);
-    const bool updated = context->Patch().SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, descriptor.parameter, clampedValue);
+    bool updated = false;
+    {
+      const auto patchLock = context->LockPatch();
+      updated = context->Patch().SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, descriptor.parameter, clampedValue);
+    }
     if (!updated) return;
 
     context->SendOscillatorParameterToDSP(control, midiNote, oscillatorIndex, descriptor.parameter, clampedValue);

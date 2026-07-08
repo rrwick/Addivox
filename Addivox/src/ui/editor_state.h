@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <mutex>
 
 #include "../midi/breath_control.h"
 #include "../settings/oscillator.h"
@@ -14,6 +15,12 @@ enum class EditorOscillatorEditMode { Set, Nudge, Smooth, DrawLine };
 enum class EditorOscillatorEditScope { All, Even, Odd };
 
 struct EditorState {
+  // Guards compoundPatch and the plugin's active-patch metadata. Hosts may call SerializeState/UnserializeState
+  // from any thread (AUv3 XPC, VST3), racing main-thread UI edits — copying or iterating compoundPatch while
+  // another thread reassigns it crashes. Recursive because locked helpers call each other. This must stay a leaf
+  // lock: never call anything that can take iPlug2's params mutex (SerializeParams, RestorePreset, Send*ToDSP,
+  // FinalizePatchRecall) while holding it, since iPlug2 calls back into patch-locking code under that mutex.
+  std::recursive_mutex patchMutex{};
   CompoundPatch compoundPatch{};
   BreathCCSource breathCCSource{kDefaultBreathCCSource};
   int pitchBendRange{2};
