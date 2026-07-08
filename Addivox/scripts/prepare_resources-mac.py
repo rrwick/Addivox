@@ -258,6 +258,8 @@ def main():
 
   plistpath = projectpath + "/resources/" + resource_bundle_name + "-macOS-AUv3Framework-Info.plist"
   auv3framework = load_plist(plistpath)
+  # Must match the appex's NSExtensionAttributes/AudioComponentBundle above, or AUv3 instantiation fails.
+  auv3framework['CFBundleIdentifier'] = config['BUNDLE_DOMAIN'] + "." + config['BUNDLE_MFR'] + ".app." + config['BUNDLE_NAME'] + ".AUv3Framework"
   auv3framework['CFBundleVersion'] = CFBundleVersion
   auv3framework['CFBundleShortVersionString'] = CFBundleVersion
 

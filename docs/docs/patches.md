@@ -76,6 +76,8 @@ You can create and save your own patches from within Addivox. Custom patches are
 
 For the demo version, these folders are named `AddivoxDemo` instead of `Addivox`.
 
+Some plugin formats run in a sandbox (for example, AUv3 on macOS). A sandboxed plugin keeps its own separate patches folder, so patches saved there won't automatically appear in the standalone app or in other plugin formats. If a patch seems to be missing, this is the most likely reason — use the "Show User Patches in Finder" command in the patch menu to see exactly which folder that instance of Addivox is using, and copy patch files between folders as needed.
+
 Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which you can use to organise larger collections.
 
 
