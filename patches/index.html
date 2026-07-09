@@ -1046,6 +1046,7 @@
 <!-- - **iOS:** `On My iPad/Addivox/Addivox Patches/` -->
 
 <p>For the demo version, these folders are named <code>AddivoxDemo</code> instead of <code>Addivox</code>.</p>
+<p>Some plugin formats run in a sandbox (for example, AUv3 on macOS). A sandboxed plugin keeps its own separate patches folder, so patches saved there won't automatically appear in the standalone app or in other plugin formats. If a patch seems to be missing, this is the most likely reason — use the "Show User Patches in Finder" command in the patch menu to see exactly which folder that instance of Addivox is using, and copy patch files between folders as needed.</p>
 <p>Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which you can use to organise larger collections.</p>
 <h3 id="patch-file-format">Patch file format</h3>
 <p>Patches are plain-text <a href="https://toml.io">TOML</a> files. Here is a minimal example of a single-key-note patch:</p>
