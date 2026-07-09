@@ -1,0 +1,14 @@
+diff --git a/IPlug/VST3/IPlugVST3_ProcessorBase.cpp b/IPlug/VST3/IPlugVST3_ProcessorBase.cpp
+index b02539a87..b346881f7 100644
+--- a/IPlug/VST3/IPlugVST3_ProcessorBase.cpp
++++ b/IPlug/VST3/IPlugVST3_ProcessorBase.cpp
+@@ -178,7 +178,8 @@ void IPlugVST3ProcessorBase::ProcessMidiOut(IPlugQueue<SysExData>& sysExQueue, S
+         toAdd.midiCCOut.channel = msg.Channel();
+         toAdd.sampleOffset = msg.mOffset;
+         toAdd.midiCCOut.controlNumber = ControllerNumbers::kPitchBend;
+-        int16 tmp = static_cast<int16> (msg.PitchWheel() * 0x3FFF);
++        // PitchWheel() is [-1, 1] but the wire format is unsigned 14-bit with no-bend at 8192
++        int16 tmp = static_cast<int16> (Clip(static_cast<int> (msg.PitchWheel() * 8192.) + 8192, 0, 16383));
+         toAdd.midiCCOut.value = (tmp & 0x7F);
+         toAdd.midiCCOut.value2 = ((tmp >> 7) & 0x7F);
+         pOutputEvents->addEvent(toAdd);

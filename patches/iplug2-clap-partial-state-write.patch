@@ -1,0 +1,30 @@
+diff --git a/IPlug/CLAP/IPlugCLAP.cpp b/IPlug/CLAP/IPlugCLAP.cpp
+index aee3e57a1..d5fd54310 100644
+--- a/IPlug/CLAP/IPlugCLAP.cpp
++++ b/IPlug/CLAP/IPlugCLAP.cpp
+@@ -414,8 +414,23 @@ bool IPlugCLAP::stateSave(const clap_ostream* pStream) noexcept
+   
+   if (!SerializeState(chunk))
+     return false;
+-  
+-  return pStream->write(pStream, chunk.GetData(), chunk.Size()) == chunk.Size();
++
++  const uint8_t* pData = chunk.GetData();
++  int64_t bytesRemaining = chunk.Size();
++
++  // The host may accept fewer bytes per call than requested, so loop until all is written
++  while (bytesRemaining > 0)
++  {
++    const int64_t bytesWritten = pStream->write(pStream, pData, bytesRemaining);
++
++    if (bytesWritten <= 0) // -1 is an IO error; 0 would loop forever
++      return false;
++
++    pData += bytesWritten;
++    bytesRemaining -= bytesWritten;
++  }
++
++  return true;
+ }
+ 
+ bool IPlugCLAP::stateLoad(const clap_istream* pStream) noexcept

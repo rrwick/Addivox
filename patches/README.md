@@ -1,3 +1,7 @@
 This directory contains patches to apply to the iPlug2 submodule before building Addivox.
 
+`iplug2-clap-partial-state-write`: fixes CLAP state saving when the host accepts only part of the data per write call. The CLAP spec allows a host to write fewer bytes than requested (the plugin is expected to keep calling write until everything is saved), but iPlug2 wrote the whole state in one call and treated a partial write as failure. Real hosts normally take everything in one go, so this only showed up in clap-validator's `state-buffered-streams` test, but a spec-conforming host could hit it and fail to save user settings.
+
 `iplug2-popup-uaf`: fixes a crash that can happen when a popup menu (e.g. a dropdown) is open and the plugin window is closed at the same time. Closing the window destroys the plugin's UI, but the popup menu was still in the middle of doing something, so it ends up trying to use UI pieces that no longer exist, which crashes.
+
+`iplug2-vst3-pitch-bend-out`: fixes pitch bend messages sent out of a VST3 plugin (Addivox forwards all incoming MIDI to plugins after it in the FX chain). iPlug2 converted the internal pitch bend value (-1 to +1, 0 = no bend) to the MIDI wire format (0 to 16383, 8192 = no bend) without adding the 8192 centre offset, so a resting pitch wheel was sent as a full downward bend. Symptom: any instrument placed below Addivox on the same track played with its pitch bend stuck at the bottom.
