@@ -1,0 +1,59 @@
+diff --git a/IGraphics/Platforms/IGraphicsMac.h b/IGraphics/Platforms/IGraphicsMac.h
+index 63eb1ab14..06d3e5e38 100644
+--- a/IGraphics/Platforms/IGraphicsMac.h
++++ b/IGraphics/Platforms/IGraphicsMac.h
+@@ -12,6 +12,8 @@
+ 
+ #include <CoreGraphics/CoreGraphics.h>
+ 
++#include <memory>
++
+ #include "IGraphics_select.h"
+ #include "IGraphicsCoreText.h"
+ 
+@@ -95,6 +97,9 @@ private:
+   void StoreCursorPosition();
+   
+   void* mView = nullptr;
++  // Expires when this IGraphicsMac is destroyed; async blocks that capture `this` must
++  // hold a weak_ptr to it and bail out if expired (the host can tear down the UI first)
++  std::shared_ptr<int> mLivenessToken = std::make_shared<int>(0);
+   CGPoint mCursorLockPosition;
+   WDL_String mBundleID, mAppGroupID;
+   friend int GetMouseOver(IGraphicsMac* pGraphics);
+diff --git a/IGraphics/Platforms/IGraphicsMac.mm b/IGraphics/Platforms/IGraphicsMac.mm
+index 00cc520b4..4c08d5ee0 100644
+--- a/IGraphics/Platforms/IGraphicsMac.mm
++++ b/IGraphics/Platforms/IGraphicsMac.mm
+@@ -598,8 +598,13 @@ static int GetSystemVersion()
+ IPopupMenu* IGraphicsMac::CreatePlatformPopupMenu(IPopupMenu& menu, const IRECT bounds, bool& isAsync)
+ {
+   isAsync = true;
+-  
++
++  std::weak_ptr<int> weakToken = mLivenessToken;
++
+   dispatch_async(dispatch_get_main_queue(), ^{
++    if (weakToken.expired()) // the UI (and the control that requested the menu) was destroyed before this block ran
++      return;
++
+     IPopupMenu* pReturnMenu = nullptr;
+ 
+     if (mView)
+@@ -608,9 +613,15 @@ static int GetSystemVersion()
+       pReturnMenu = [(IGRAPHICS_VIEW*) mView createPopupMenu: menu: areaRect];
+     }
+ 
++    if (weakToken.expired()) // the UI was destroyed while the menu was tracking (nested runloop) - pReturnMenu is dangling too
++      return;
++
+     if (pReturnMenu && pReturnMenu->GetFunction())
+       pReturnMenu->ExecFunction();
+-    
++
++    if (weakToken.expired()) // ExecFunction is arbitrary user code that may also have destroyed the UI
++      return;
++
+     this->SetControlValueAfterPopupMenu(pReturnMenu);
+   });
+ 
