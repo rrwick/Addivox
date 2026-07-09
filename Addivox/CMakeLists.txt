@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(Addivox VERSION 1.0.0)
+project(Addivox VERSION 1.0.1)
 
 option(ADDIVOX_DEMO "Build the Addivox demo version" OFF)
 
