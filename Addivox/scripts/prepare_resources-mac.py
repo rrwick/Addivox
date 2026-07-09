@@ -78,6 +78,11 @@ def dump_plist_atomic(plistpath, plist):
 def demo_build_enabled():
   return os.environ.get('ADDIVOX_DEMO', '').lower() in ('1', 'yes', 'true', 'on')
 
+def objc_prefix():
+  # Xcode exports build settings to run-script phases, so this tracks the
+  # ADDIVOX_OBJC_PREFIX the Objective-C classes are actually compiled with.
+  return os.environ.get('ADDIVOX_OBJC_PREFIX', 'vAddivox')
+
 def apply_demo_config(config):
   if demo_build_enabled():
     config['PLUG_NAME'] = 'AddivoxDemo'
@@ -236,7 +241,7 @@ def main():
                                AudioComponents = [{}]),
 #                               NSExtensionServiceRoleType = "NSExtensionServiceRoleTypeEditor",
   NSExtensionPointIdentifier = NSEXTENSIONPOINTIDENTIFIER,
-  NSExtensionPrincipalClass = "IPlugAUViewController_vAddivox"
+  NSExtensionPrincipalClass = "IPlugAUViewController_" + objc_prefix()
                              )
   auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'] = [{}]
   auv3['NSExtension']['NSExtensionAttributes']['AudioComponents'][0]['description'] = config['PLUG_NAME']
