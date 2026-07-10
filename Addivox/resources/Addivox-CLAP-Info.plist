@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Addivox</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Addivox v1.0.0 Copyright 2026 Ryan Wick</string>
+	<string>Addivox v1.0.1 Copyright 2026 Ryan Wick</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.rrwick.clap.Addivox</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -17,11 +17,11 @@
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.0.1</string>
 	<key>CFBundleSignature</key>
 	<string>Advx</string>
 	<key>CFBundleVersion</key>
-	<string>1.0.0</string>
+	<string>1.0.1</string>
 	<key>CSResourcesFileMapped</key>
 	<true/>
 	<key>LSMinimumSystemVersion</key>
