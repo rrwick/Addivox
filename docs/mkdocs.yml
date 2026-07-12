@@ -34,6 +34,16 @@ markdown_extensions:
   - toc:
       toc_depth: 0
 
+hooks:
+  - pdf_fixes.py
+
+plugins:
+  - search
+  - with-pdf:
+      output_path: addivox-docs.pdf
+      cover_title: Addivox
+      cover_subtitle: Documentation
+
 nav:
   - Home: index.md
   - Getting Started:

@@ -37,5 +37,6 @@ Addivox/config/Addivox-local.xcconfig
 
 venv/
 site/
+__pycache__/
 
 .claude/

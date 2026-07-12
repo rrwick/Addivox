@@ -4,7 +4,7 @@
 }
 </style>
 
-# Addivox documentation
+# Introduction
 
 <p align="center"><img src="assets/main-ui.png" alt="Addivox main UI" style="max-width: 100%; width: 700px;"></p>
 
