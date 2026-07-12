@@ -64,3 +64,60 @@
     margin: 0 auto 1rem;
   }
 }
+
+/* mkdocs-with-pdf's default "min-height: 100vh" on every article/section
+   triggers a WeasyPrint layout bug that silently truncates the PDF. */
+@media print {
+  article,
+  section + section {
+    min-height: 0 !important;
+  }
+
+  /* Bump up the default print body text size. Most pages are rendered as
+     <section class="md-typeset">, not <article>, so target the class
+     directly rather than the element (Material's .md-typeset font-size
+     otherwise wins on those nested pages despite !important). */
+  .md-typeset {
+    font-size: 0.8rem !important;
+  }
+
+  /* Material's default 0.5em bullet spacing is too loose for print. */
+  .md-typeset ol li,
+  .md-typeset ul li {
+    margin-bottom: 0.15em !important;
+  }
+
+  /* Material sets table font-size to .64rem, making it too small on top
+     of the already-reduced base .md-typeset font-size above. */
+  .md-typeset table {
+    font-size: 0.75rem !important;
+  }
+
+  /* Material sets ol/ul to "display: flow-root" (a browser clearfix
+     trick), which makes WeasyPrint push the list below any floated
+     image instead of wrapping it alongside, like a paragraph would. */
+  .md-typeset ol,
+  .md-typeset ul {
+    display: block !important;
+  }
+
+  /* No author/copyright are configured, so mkdocs-with-pdf's cover
+     template renders the literal text "None" for each. */
+  #doc-cover #author,
+  #doc-cover #copyright {
+    display: none !important;
+  }
+
+  /* WeasyPrint doesn't apply the legacy align="center" HTML attribute
+     the way browsers do, so centred images end up left-aligned. */
+  p[align="center"] {
+    text-align: center !important;
+  }
+}
+
+/* Turn off the running section-title header in the top-right corner. */
+@page {
+  @top-right {
+    content: '' !important;
+  }
+}
