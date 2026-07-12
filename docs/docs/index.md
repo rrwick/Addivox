@@ -21,3 +21,7 @@
 - Built using the [iPlug2](https://iplug2.github.io/) framework.
 
 Check out the [Videos](videos.md) page for some demonstrations and tutorials. You can also download a [Demo version](demo.md) of Addivox to try. If you like it, head over to [Purchasing](purchasing.md) to buy Addivox.
+
+<p id="pdf-notice">A PDF version of this documentation is available <a href="https://github.com/rrwick/Addivox/releases">here</a>.</p>
+
+<p id="web-notice">The online version of this documentation is available at <a href="https://rrwick.github.io/Addivox/">https://rrwick.github.io/Addivox/</a>.</p>
