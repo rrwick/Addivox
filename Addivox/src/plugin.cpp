@@ -265,10 +265,11 @@ bool SetParamFromChunkValue(Addivox& plugin, const IByteChunk& chunk, int paramI
   return true;
 }
 
-int RestoreStateParamsFromChunk(Addivox& plugin, const IByteChunk& chunk, int startPos) {
+int RestoreStateParamsFromChunk(Addivox& plugin, const IByteChunk& chunk, int startPos, bool applyNonPatchOwnedParams) {
   int position = startPos;
   for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx) {
-    if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position)) break;
+    const bool applyValue = applyNonPatchOwnedParams || IsPatchOwnedParam(paramIdx);
+    if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position, applyValue)) break;
   }
 
   return position;
@@ -1318,7 +1319,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
 
   int pos = position;
   ENTER_PARAMS_MUTEX
-  pos = RestoreStateParamsFromChunk(*this, chunk, pos);
+  pos = RestoreStateParamsFromChunk(*this, chunk, pos, mRestoringFactoryPatchIdx < 0);
   FinalizePatchRecall(false);
   LEAVE_PARAMS_MUTEX
   mSuppressPatchDirtyTracking = false;
