@@ -52,7 +52,8 @@ private:
   double PredictRenderedMidiPitch(int numSamples) const;
   double GetPortamentoTimeSec() const;
   double SmoothBreath(double breath);
-  static double AdvancePitchTowards(double currentPitch, double targetPitch, double maxDeltaSemitones);
+  void SnapBreath(double breath);
+  static double AdvanceTowards(double current, double target, double maxDelta);
   static double GetOscillatorBasePitchSemitones(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones,
                                                 const GlobalVoiceSettings& globalSettings);
   static double PitchSemitonesToFrequencyHz(double pitchSemitones);
@@ -60,7 +61,15 @@ private:
                                double futureFundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;
-  static constexpr int kNoteControlIntervalSamples = 16;
+  static constexpr int kNoteControlIntervalSamples = 8;
+
+  // Breath CCs arrive as discrete steps (typically a few ms apart), and with
+  // short attack/release times the level envelope reproduces that staircase as
+  // audible zipper noise. Each new breath value is therefore approached with a
+  // linear ramp lasting this many seconds, advanced at the control-tick rate.
+  // 0 disables the ramp (breath changes apply immediately). Note on/off snaps
+  // rather than ramps, so articulation speed is unaffected.
+  static constexpr double kBreathRampTimeSec = 0.002;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
   double mNotePitch{0.0};
@@ -75,8 +84,11 @@ private:
   double mPitchRatePerSample{std::numeric_limits<double>::infinity()};
   int mNoteControlSamplesUntilUpdate{0};
 
-  // Breath is a linear value from 0 to 1.
+  // Breath is a linear value from 0 to 1. mBreath is the currently rendered
+  // value, ramping towards mTargetBreath by mBreathRampPerTick per control tick.
   double mBreath{0.0};
+  double mTargetBreath{0.0};
+  double mBreathRampPerTick{0.0};
   double mPortamentoControl{0.0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;

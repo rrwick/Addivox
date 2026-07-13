@@ -45,7 +45,7 @@ void SynthVoice::Start(double pitch, double pitchBend, double breath) {
   mPitchBend = pitchBend;
   mTargetMidiPitch = GetTargetMidiPitch();
   if (freshStart) mRenderedMidiPitch = mTargetMidiPitch;
-  mBreath = SmoothBreath(breath);
+  mBreath = mTargetBreath = SmoothBreath(breath);
   UpdatePitch();
 
   if (freshStart) {
@@ -55,7 +55,7 @@ void SynthVoice::Start(double pitch, double pitchBend, double breath) {
   }
 }
 
-void SynthVoice::Stop() { SetBreath(0.0); }
+void SynthVoice::Stop() { SnapBreath(0.0); }
 
 void SynthVoice::SetPitchBend(double pitchBend) {
   mPitchBend = pitchBend;
@@ -79,7 +79,24 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings&
 }
 
 void SynthVoice::SetBreath(double breath) {
+  // Snap while inactive: a silent voice is not processed, so a ramp would
+  // never advance and a rising breath could not wake it.
+  if (kBreathRampTimeSec <= 0.0 || !IsActive()) {
+    SnapBreath(breath);
+    return;
+  }
+
   const double smoothedBreath = SmoothBreath(breath);
+  if (smoothedBreath == mTargetBreath) return;
+
+  mTargetBreath = smoothedBreath;
+  const double rampTicks = std::max(1.0, (kBreathRampTimeSec * mSampleRate) / kNoteControlIntervalSamples);
+  mBreathRampPerTick = std::abs(mTargetBreath - mBreath) / rampTicks;
+}
+
+void SynthVoice::SnapBreath(double breath) {
+  const double smoothedBreath = SmoothBreath(breath);
+  mTargetBreath = smoothedBreath;
   if (smoothedBreath == mBreath) return;
 
   mBreath = smoothedBreath;
@@ -193,6 +210,8 @@ void SynthVoice::Clear() {
   mNotePitch = 0.0;
   mPitchBend = 0.0;
   mBreath = 0.0;
+  mTargetBreath = 0.0;
+  mBreathRampPerTick = 0.0;
   mPortamentoControl = 0.0;
   mRenderedMidiPitch = 0.0;
   mTargetMidiPitch = 0.0;
@@ -216,11 +235,11 @@ double SynthVoice::GetOscillatorBasePitchSemitones(int harmonic, const Oscillato
 
 double SynthVoice::PitchSemitonesToFrequencyHz(double pitchSemitones) { return 440.0 * std::exp2(pitchSemitones / 12.0); }
 
-double SynthVoice::AdvancePitchTowards(double currentPitch, double targetPitch, double maxDeltaSemitones) {
-  const double pitchDelta = targetPitch - currentPitch;
-  if (std::abs(pitchDelta) <= maxDeltaSemitones || !std::isfinite(maxDeltaSemitones)) return targetPitch;
+double SynthVoice::AdvanceTowards(double current, double target, double maxDelta) {
+  const double delta = target - current;
+  if (std::abs(delta) <= maxDelta || !std::isfinite(maxDelta)) return target;
 
-  return currentPitch + std::copysign(maxDeltaSemitones, pitchDelta);
+  return current + std::copysign(maxDelta, delta);
 }
 
 void SynthVoice::UpdatePitchRate() {
@@ -235,7 +254,7 @@ void SynthVoice::UpdatePitchRate() {
 
 double SynthVoice::PredictRenderedMidiPitch(int numSamples) const {
   const int clampedSamples = std::max(numSamples, 0);
-  return AdvancePitchTowards(mRenderedMidiPitch, mTargetMidiPitch, mPitchRatePerSample * static_cast<double>(clampedSamples));
+  return AdvanceTowards(mRenderedMidiPitch, mTargetMidiPitch, mPitchRatePerSample * static_cast<double>(clampedSamples));
 }
 
 void SynthVoice::AdvanceRenderedPitch(int numSamples) { mRenderedMidiPitch = PredictRenderedMidiPitch(numSamples); }
@@ -284,7 +303,12 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
   const int endIdx = startIdx + nFrames;
   for (int i = startIdx; i < endIdx; i++) {
     const bool pitchIsMoving = (mRenderedMidiPitch != mTargetMidiPitch);
-    if (pitchIsMoving && mNoteControlSamplesUntilUpdate <= 0) RefreshNoteDependentState(kNoteControlIntervalSamples);
+    const bool breathIsRamping = (mBreath != mTargetBreath);
+    if ((pitchIsMoving || breathIsRamping) && mNoteControlSamplesUntilUpdate <= 0) {
+      if (breathIsRamping) mBreath = AdvanceTowards(mBreath, mTargetBreath, mBreathRampPerTick);
+
+      RefreshNoteDependentState(kNoteControlIntervalSamples);
+    }
 
     iplug::sample leftSample = 0.0;
     iplug::sample rightSample = 0.0;
@@ -296,10 +320,8 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
     outputs[0][i] += leftSample;
     outputs[1][i] += rightSample;
 
-    if (pitchIsMoving) {
-      AdvanceRenderedPitch(1);
-      --mNoteControlSamplesUntilUpdate;
-    }
+    if (pitchIsMoving) AdvanceRenderedPitch(1);
+    if (pitchIsMoving || breathIsRamping) --mNoteControlSamplesUntilUpdate;
   }
 }
 
