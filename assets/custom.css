@@ -113,6 +113,15 @@
   p[align="center"] {
     text-align: center !important;
   }
+
+  /* The "PDF version available" notice on index.md is only relevant on
+     the website, not inside the PDF itself. mkdocs-with-pdf rewrites
+     every id to a page-path-prefixed form (e.g. "./:pdf-notice") when
+     merging pages into the PDF, so match on a suffix rather than the
+     exact id to catch both that and the website's plain "pdf-notice". */
+  [id$="pdf-notice"] {
+    display: none !important;
+  }
 }
 
 /* Turn off the running section-title header in the top-right corner. */
@@ -120,4 +129,12 @@
   @top-right {
     content: '' !important;
   }
+}
+
+/* The "online version available" notice on index.md is only relevant in
+   the PDF. mkdocs-with-pdf discards the .md-content wrapper when it pulls
+   in each page's content, so this only matches (and hides it) on the
+   website, the same way the hidden H1 above works on this page. */
+.md-content [id$="web-notice"] {
+  display: none;
 }
