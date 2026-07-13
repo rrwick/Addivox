@@ -88,6 +88,14 @@ private:
   double mReleaseTimeSec = 0.0;                    // release time in seconds, 0=immediate release
   double mReleaseRate = 1.0;                       // one-pole per-sample release coefficient
   static constexpr double kLevelEpsilon = 0.00001; // levels below this are considered silent
+
+  // Floors on the effective attack/release times. Near-instant level changes
+  // produce audible clicks (broadband splash from the amplitude step), so
+  // requested times below these floors are clamped up. Applied here rather
+  // than in the UI so that global attack/release scaling and hand-edited
+  // patches can't drive the effective time to zero.
+  static constexpr double kMinAttackTimeSec = 0.001;
+  static constexpr double kMinReleaseTimeSec = 0.001;
   void UpdateLevelRates();
 
   // Oscillator phase accumulator. Output level is determined by the current

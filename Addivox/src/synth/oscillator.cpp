@@ -60,7 +60,7 @@ void Oscillator::SetPitchTime(double pitchTimeSec) {
 void Oscillator::SetPitchVariation(double amplitudeSemitones, double rateHz) { mPitchVariation.SetTargets(amplitudeSemitones, rateHz); }
 
 void Oscillator::SetAttackTime(double attackTimeSec) {
-  const double clampedAttackTimeSec = std::max(0.0, attackTimeSec);
+  const double clampedAttackTimeSec = std::max(kMinAttackTimeSec, attackTimeSec);
   if (clampedAttackTimeSec == mAttackTimeSec) return;
 
   mAttackTimeSec = clampedAttackTimeSec;
@@ -68,7 +68,7 @@ void Oscillator::SetAttackTime(double attackTimeSec) {
 }
 
 void Oscillator::SetReleaseTime(double releaseTimeSec) {
-  const double clampedReleaseTimeSec = std::max(0.0, releaseTimeSec);
+  const double clampedReleaseTimeSec = std::max(kMinReleaseTimeSec, releaseTimeSec);
   if (clampedReleaseTimeSec == mReleaseTimeSec) return;
 
   mReleaseTimeSec = clampedReleaseTimeSec;
