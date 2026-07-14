@@ -1,9 +1,9 @@
 // Update these when changing Addivox's version:
 #define PLUG_VERSION_MAJOR 1
 #define PLUG_VERSION_MINOR 0
-#define PLUG_VERSION_PATCH 1
+#define PLUG_VERSION_PATCH 2
 // Packed as 0xMMMMmmpp; keep as literal hex, e.g. 1.2.3 -> 0x00010203.
-#define PLUG_VERSION_HEX 0x00010001
+#define PLUG_VERSION_HEX 0x00010002
 
 #ifndef ADDIVOX_DEMO
 #define ADDIVOX_DEMO 0
