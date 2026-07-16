@@ -95,7 +95,7 @@ def main():
   config = parse_config(projectpath)
   resource_bundle_name = config['BUNDLE_NAME']
   apply_demo_config(config)
-  xcconfig = parse_xcconfig(os.path.join(os.getcwd(), IPLUG2_ROOT +  '/common-mac.xcconfig'))
+  xcconfig = parse_xcconfig(os.path.join(projectpath, 'config', 'Addivox-mac.xcconfig'))
 
   CFBundleGetInfoString = config['BUNDLE_NAME'] + " v" + config['FULL_VER_STR'] + " " + config['PLUG_COPYRIGHT_STR']
   CFBundleVersion = config['FULL_VER_STR']
@@ -233,7 +233,7 @@ def main():
   auv3['CFBundleName'] = config['BUNDLE_NAME']
   auv3['CFBundleVersion'] = CFBundleVersion
   auv3['CFBundleShortVersionString'] = CFBundleVersion
-  auv3['LSMinimumSystemVersion'] = "10.13.0"
+  auv3['LSMinimumSystemVersion'] = LSMinimumSystemVersion
   auv3['CFBundlePackageType'] = "XPC!"
   auv3['NSExtension'] = dict(
   NSExtensionAttributes = dict(

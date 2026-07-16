@@ -51,6 +51,10 @@ DEBUG_OPTIMIZE = 0 //0,1,2,3,s
 //ARCHS = $(ARCHS_STANDARD_32_64_BIT)
 ARCHS = $(ARCHS_STANDARD_64_BIT)
 
+// Metal is required (see IGRAPHICS_METAL above), so require the first macOS
+// version guaranteed to have it, rather than iPlug2's default of 10.13.
+MACOSX_DEPLOYMENT_TARGET = 10.14
+
 GCC_INCREASE_PRECOMPILED_HEADER_SHARING = NO
 
 // Flags to pass to compiler for all builds

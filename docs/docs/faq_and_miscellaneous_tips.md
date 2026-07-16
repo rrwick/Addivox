@@ -3,7 +3,11 @@
 
 ### What are the system requirements for Addivox?
 
-I can't give specific minimum specs, since performance depends on your DAW, buffer size and whatever else you're running alongside Addivox. But as a couple of data points, it runs fine on an M1 MacBook Air (2020) and on an Intel Core i3-8109U (2018), and it doesn't use much memory. If your hardware is older or less powerful, you can reduce CPU usage by disabling the visualizer in the [settings menu](main_ui.md#settings-menu). The best way to know for sure is to try before you buy: download the [demo version of Addivox](demo.md) and confirm it runs well on your system before purchasing.
+I can't give specific minimum specs, since performance depends on your DAW, buffer size and whatever else you're running alongside Addivox. But as a couple of data points, it runs fine on an M1 MacBook Air (2020) and on an Intel Core i3-8109U (2018), and it doesn't use much memory.
+
+For Macs, both Intel and Apple Silicon chips are supported, but your graphics hardware will need to support [Metal](https://en.wikipedia.org/wiki/Metal_(API)). Addivox requires macOS 10.14 (Mojave) or later, which guarantees Metal support. This rules out most Macs from about 2011 or earlier.
+
+If your hardware is older or less powerful, you can reduce CPU usage by disabling the visualizer in the [settings menu](main_ui.md#settings-menu). The best way to know for sure: download the [demo version of Addivox](demo.md) and try it on your system before buying.
 
 <!-- * It runs fine on my 9th gen iPad from 2021, and doesn't max out the CPU.
 * So I predict it will do okay with iPads from about 2019 onward. -->
