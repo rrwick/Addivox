@@ -78,8 +78,8 @@ public:
       const float leftHeight = leftNormHeight * channelHeight;
       const float rightHeight = rightNormHeight * channelHeight;
 
-      drawBarSegment(x, centerY - leftHeight, centerY, harmonicColor, leftHeight);
-      drawBarSegment(x, centerY, centerY + rightHeight, harmonicColor, rightHeight);
+      drawBarSegment(x, centerY - rightHeight, centerY, harmonicColor, rightHeight);
+      drawBarSegment(x, centerY, centerY + leftHeight, harmonicColor, leftHeight);
     }
 
     for (std::size_t i = 0; i < kAxisLabelFrequenciesHz.size(); ++i)
