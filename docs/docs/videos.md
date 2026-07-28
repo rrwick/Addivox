@@ -5,7 +5,16 @@ The Addivox YouTube channel: [youtube.com/@Addivox](https://www.youtube.com/@Add
 <div class="video-embed">
   <iframe
     src="https://www.youtube.com/embed/4JBFZMQKJp4"
-    title="Introducing Addivox"
+    title="Addivox introduction"
+    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen>
+  </iframe>
+</div>
+
+<div class="video-embed">
+  <iframe
+    src="https://www.youtube.com/embed/JkGRvMTywJI"
+    title="How to edit patches in Addivox"
     allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
     allowfullscreen>
   </iframe>
