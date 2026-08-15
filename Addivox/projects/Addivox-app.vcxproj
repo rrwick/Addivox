@@ -343,6 +343,7 @@
     <ClInclude Include="..\src\ui\oscillator_slider_control.h" />
     <ClInclude Include="..\src\ui\patch_manager.h" />
     <ClInclude Include="..\src\ui\peak_led_meter_control.h" />
+    <ClInclude Include="..\src\ui\pitch_bend_range_menu.h" />
     <ClInclude Include="..\src\ui\pitch_bend_wheel.h" />
     <ClInclude Include="..\src\ui\positions.h" />
     <ClInclude Include="..\src\ui\settings_menu_button.h" />

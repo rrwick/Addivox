@@ -4,6 +4,7 @@
 #include "IControls.h"
 #include "colour.h"
 #include "editor_messages.h"
+#include "pitch_bend_range_menu.h"
 #include "theme.h"
 
 #if defined OS_IOS
@@ -81,8 +82,8 @@ public:
             delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetBreathCCSource, GetTag(), sizeof(payload), &payload);
           }
         } else {
-          int selectedPitchBendRange = 2;
-          if (TryParsePitchBendRangeMenuLabel(selectedText, selectedPitchBendRange)) {
+          int selectedPitchBendRange = kFallbackPitchBendRange;
+          if (TryGetPitchBendRangeFromMenu(selectedMenu, selectedPitchBendRange)) {
             if (mPitchBendRange) *mPitchBendRange = selectedPitchBendRange;
 
             if (auto* delegate = GetDelegate()) {
@@ -128,12 +129,7 @@ private:
     mMenu.AddItem("Breath CC", breathMenu);
 
     auto* pitchBendRangeMenu = new IPopupMenu("Pitch Bend Range");
-    const int currentPitchBendRange = mPitchBendRange ? *mPitchBendRange : 2;
-    for (const PitchBendRangeMenuItem& item : kPitchBendRangeMenuItems) {
-      const int flags = (item.semitones == currentPitchBendRange) ? IPopupMenu::Item::kChecked : 0;
-      pitchBendRangeMenu->AddItem(item.label, -1, flags);
-    }
-
+    PopulatePitchBendRangeMenu(*pitchBendRangeMenu, mPitchBendRange ? *mPitchBendRange : kFallbackPitchBendRange);
     mMenu.AddItem("Pitch Bend Range", pitchBendRangeMenu);
     mMenu.AddSeparator();
 #if defined APP_API && !defined OS_IOS
@@ -197,13 +193,8 @@ private:
   std::shared_ptr<int> mPitchBendRange;
   std::shared_ptr<bool> mHarmonicVisualizerEnabled;
 
-  struct PitchBendRangeMenuItem {
-    const char* label;
-    int semitones;
-  };
-
+  static constexpr int kFallbackPitchBendRange = 2;
   static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer Enabled";
-  static constexpr PitchBendRangeMenuItem kPitchBendRangeMenuItems[] = {{"1 semitone", 1}, {"2 semitones", 2}, {"Fifth", 7}, {"Octave", 12}};
 #if defined APP_API && !defined OS_IOS
   static constexpr const char* kMacAudioMidiSettingsMenuLabel = "Audio & MIDI Settings...";
 #endif
@@ -211,19 +202,6 @@ private:
   static constexpr const char* kIOSAudioMidiSettingsMenuLabel = "Audio & MIDI Settings";
 #endif
   static constexpr const char* kResetToDefaultsMenuLabel = "Reset Synth Settings to Defaults";
-
-  static bool TryParsePitchBendRangeMenuLabel(const char* label, int& semitones) {
-    if (!label) return false;
-
-    for (const PitchBendRangeMenuItem& item : kPitchBendRangeMenuItems) {
-      if (std::strcmp(label, item.label) == 0) {
-        semitones = item.semitones;
-        return true;
-      }
-    }
-
-    return false;
-  }
 };
 } // namespace layout
 } // namespace plugin_ui

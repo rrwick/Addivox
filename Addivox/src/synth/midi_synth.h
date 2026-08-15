@@ -54,7 +54,12 @@ public:
 
   /** Set the pitch bend range in semitones for the active mono channel state.
    */
-  void SetPitchBendRange(int pitchBendRange) { mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(pitchBendRange, 0, 96)); }
+  void SetPitchBendRange(int pitchBendRange) {
+    mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(pitchBendRange, 0, 96));
+
+    // A range of zero must also cancel any bend that is already sounding, not just neutralize future pitch wheel messages.
+    if (mMidiState.pitchBendRange == 0) PitchBend(static_cast<int>(mActiveChannel), 0.0);
+  }
 
   void AddMidiMsgToQueue(const IMidiMsg& msg) { mMidiQueue.Add(msg); }
 
@@ -212,7 +217,7 @@ private:
       param = ((state.paramMSB & 0xFF) << 7) + (state.paramLSB & 0xFF);
 
       if (param == 0) // RPN 0 : pitch bend range (MSB is semitones; the LSB is cents, which Addivox ignores)
-        mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(state.valueMSB & 0x7F, 0, 96));
+        SetPitchBendRange(state.valueMSB & 0x7F);
 
       break;
     }

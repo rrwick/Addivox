@@ -340,6 +340,9 @@
     <ClInclude Include="..\src\ui\peak_led_meter_control.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ui\pitch_bend_range_menu.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\ui\pitch_bend_wheel.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>

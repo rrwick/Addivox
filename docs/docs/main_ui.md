@@ -13,7 +13,7 @@ The gear icon in the top-right corner of the top bar opens the settings menu:
 
 - **Visualizer Enabled** — toggles the harmonic visualizer in VIS mode; disabling it can reduce CPU usage on older hardware.
 - **Breath CC** — selects the MIDI CC(s) used for breath/level control: CC 1 (Mod Wheel), CC 2 (Breath), CC 2 + CC 34 (High-Res Breath), CC 7 (Volume), CC 7 + CC 39 (High-Res Volume), CC 11 (Expression) or CC 11 + CC 43 (High-Res Expression).
-- **Pitch Bend Range** — sets the pitch bend range to 1 semitone, 2 semitones, a fifth or an octave. This can also be set by right-clicking the pitch bend wheel.
+- **Pitch Bend Range** — sets the pitch bend range to off, 1 semitone, 2 semitones, a fifth, an octave, 2 octaves or 4 octaves. This can also be set by right-clicking the pitch bend wheel. When off, pitch bend does not change Addivox's pitch, but the wheel still moves and pitch bend messages are still passed on to other plugins.
 - **Audio & MIDI Settings...** *(standalone app only)* — opens the system audio and MIDI device settings.
 - **Reset Synth Settings to Defaults** — restores the first factory patch and resets transpose, tuning, pan shift, reverb, breath CC source, pitch bend range and the visualizer toggle to their defaults. Does not affect the Audio & MIDI Settings.
 

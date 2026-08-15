@@ -78,6 +78,7 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/keyboard_control.h
     src/ui/knob.h
     src/ui/peak_led_meter_control.h
+    src/ui/pitch_bend_range_menu.h
     src/ui/pitch_bend_wheel.h
     src/ui/positions.h
     src/ui/settings_menu_button.h

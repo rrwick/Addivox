@@ -1051,7 +1051,10 @@ void Addivox::SetPitchBendRange(int pitchBendRange) {
   if (mEditorState) mEditorState->pitchBendRange = mPitchBendRange;
 
 #if IPLUG_DSP
+  // A range of zero cancels any bend on the sounding voice, so guard it like the other UI-thread voice edits.
+  ENTER_PARAMS_MUTEX
   mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
+  LEAVE_PARAMS_MUTEX
 #endif
 
   SyncPitchBendRangeUI();

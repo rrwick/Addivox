@@ -897,6 +897,7 @@
 		2BFCC0640E52EEC13C9A94FA /* oscillator_slider_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = oscillator_slider_control.h; path = ../src/ui/oscillator_slider_control.h; sourceTree = SOURCE_ROOT; };
 		E1242E478063EEA72C3A2301 /* patch_manager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = patch_manager.h; path = ../src/ui/patch_manager.h; sourceTree = SOURCE_ROOT; };
 		635BF6B2948C64499E4E3BA1 /* peak_led_meter_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = peak_led_meter_control.h; path = ../src/ui/peak_led_meter_control.h; sourceTree = SOURCE_ROOT; };
+		A4C1D07B3F5E962841BD0C57 /* pitch_bend_range_menu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pitch_bend_range_menu.h; path = ../src/ui/pitch_bend_range_menu.h; sourceTree = SOURCE_ROOT; };
 		7E2C4FEBA8085AB5FC47EC4C /* pitch_bend_wheel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pitch_bend_wheel.h; path = ../src/ui/pitch_bend_wheel.h; sourceTree = SOURCE_ROOT; };
 		46440055B94652073C3046BC /* positions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = positions.h; path = ../src/ui/positions.h; sourceTree = SOURCE_ROOT; };
 		AEE0AC53F836E5184BBF0FE4 /* settings_menu_button.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settings_menu_button.h; path = ../src/ui/settings_menu_button.h; sourceTree = SOURCE_ROOT; };
@@ -1304,6 +1305,7 @@
 				2BFCC0640E52EEC13C9A94FA /* oscillator_slider_control.h */,
 				E1242E478063EEA72C3A2301 /* patch_manager.h */,
 				635BF6B2948C64499E4E3BA1 /* peak_led_meter_control.h */,
+				A4C1D07B3F5E962841BD0C57 /* pitch_bend_range_menu.h */,
 				7E2C4FEBA8085AB5FC47EC4C /* pitch_bend_wheel.h */,
 				46440055B94652073C3046BC /* positions.h */,
 				AEE0AC53F836E5184BBF0FE4 /* settings_menu_button.h */,

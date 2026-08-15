@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IControls.h"
+#include "pitch_bend_range_menu.h"
 
 #include <cmath>
 
@@ -18,11 +19,6 @@ public:
 
   explicit PitchBendWheelControl(const IRECT& bounds, int initBendRange = 12)
       : ISliderControlBase(bounds, kNoParameter, EDirection::Vertical, DEFAULT_GEARING, 40.f), mPitchBendRange(initBendRange) {
-    mMenu.AddItem("1 semitone");
-    mMenu.AddItem("2 semitones");
-    mMenu.AddItem("Fifth");
-    mMenu.AddItem("Octave");
-
     SetValue(0.5);
     SetWantsMidi(true);
     SetActionFunction([](IControl* pControl) {
@@ -93,29 +89,16 @@ public:
   void OnPopupMenuSelection(IPopupMenu* pSelectedMenu, int valIdx) override {
     (void)valIdx;
 
-    if (!pSelectedMenu) return;
+    int selectedRange = 0;
+    if (!TryGetPitchBendRangeFromMenu(pSelectedMenu, selectedRange)) return;
 
-    switch (pSelectedMenu->GetChosenItemIdx()) {
-    case 0:  mPitchBendRange = 1; break;
-    case 1:  mPitchBendRange = 2; break;
-    case 2:  mPitchBendRange = 7; break;
-    case 3:
-    default: mPitchBendRange = 12; break;
-    }
-
+    mPitchBendRange = selectedRange;
     GetDelegate()->SendArbitraryMsgFromUI(kMessageTagSetPitchBendRange, GetTag(), sizeof(int), &mPitchBendRange);
   }
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override {
     if (mod.R) {
-      switch (mPitchBendRange) {
-      case 1:  mMenu.CheckItemAlone(0); break;
-      case 2:  mMenu.CheckItemAlone(1); break;
-      case 7:  mMenu.CheckItemAlone(2); break;
-      case 12: mMenu.CheckItemAlone(3); break;
-      default: break;
-      }
-
+      PopulatePitchBendRangeMenu(mMenu, mPitchBendRange);
       GetUI()->CreatePopupMenu(*this, mMenu, x, y);
       return;
     }
