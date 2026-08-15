@@ -1735,7 +1735,7 @@ void Addivox::RebuildPatchCatalog() {
     entry.id = nextId++;
     entry.source = PatchSource::User;
     entry.path = patchPath;
-    entry.name = patch_io::detail::FileStem(patchPath);
+    entry.name = document.name.empty() ? patch_io::detail::FileStem(patchPath) : document.name;
 
     entry.menuPath = {"User"};
     const std::string relativeDirectory = DirectoryRelativeToRoot(userPatchDirectory, patchPath);
