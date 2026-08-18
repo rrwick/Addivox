@@ -72,6 +72,17 @@ FONT 8, "MS Sans Serif"
 BEGIN
 END
 
+IDD_DIALOG_MIDI_ERROR DIALOG 0, 0, 250, 78
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "MIDI Initialization Failed"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Addivox could not initialize external MIDI after several attempts. Retry, ignore the error and continue without external MIDI, or quit.",IDC_STATIC,10,10,230,28
+    DEFPUSHBUTTON   "Retry",IDRETRY,68,54,50,14
+    PUSHBUTTON      "Ignore",IDIGNORE,124,54,50,14
+    PUSHBUTTON      "Quit",IDCANCEL,180,54,50,14
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

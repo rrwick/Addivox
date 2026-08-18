@@ -20,6 +20,7 @@
 #include "IPlugLogger.h"
 
 #include <atomic>
+#include <cstdlib>
 
 #if defined OS_WIN
 #include <cstdint>
@@ -47,6 +48,42 @@ std::unique_ptr<RtAudio>               gPreservedAudio;
 
 constexpr UINT    kAudioRecoveryDelayMilliseconds = 100;
 std::atomic<bool> gAudioRecoveryPending{false};
+
+constexpr int kMidiInitAttempts = 5;
+constexpr int kMidiRetryDelayMilliseconds = 250;
+
+WDL_DLGRET MidiInitializationDlgProc(HWND dialog, UINT message, WPARAM wParam, LPARAM) {
+  if (message == WM_COMMAND && (LOWORD(wParam) == IDRETRY || LOWORD(wParam) == IDIGNORE || LOWORD(wParam) == IDCANCEL)) {
+    EndDialog(dialog, LOWORD(wParam));
+    return TRUE;
+  }
+
+  if (message == WM_CLOSE) {
+    EndDialog(dialog, IDCANCEL);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+bool InitializeMidiForStartup(IPlugAPPHost& host) {
+  if (host.IsNoIO() || host.IsScreenshotMode()) return false;
+
+  while (true) {
+    for (int attempt = 0; attempt < kMidiInitAttempts; ++attempt) {
+      if (host.InitMidi()) return true;
+      if (attempt + 1 < kMidiInitAttempts) Sleep(kMidiRetryDelayMilliseconds);
+    }
+
+#if defined OS_WIN
+    const INT_PTR choice = DialogBox(gHINSTANCE, MAKEINTRESOURCE(IDD_DIALOG_MIDI_ERROR), gHWND, MidiInitializationDlgProc);
+#else
+    const INT_PTR choice = DialogBox(nullptr, MAKEINTRESOURCE(IDD_DIALOG_MIDI_ERROR), gHWND, MidiInitializationDlgProc);
+#endif
+    if (choice == IDIGNORE) return false;
+    if (choice != IDRETRY) std::exit(EXIT_SUCCESS);
+  }
+}
 
 // Generous upper bound for one callback-driven fade-out; the longest buffer
 // option (8192 frames at 44.1 kHz) takes under 200 ms.
@@ -265,11 +302,11 @@ bool IPlugAPPHost::Init() {
                                 // gState->mAudioDriverType
   ProbeAudioIO();               // find out what audio IO devs are available and put their IDs
                                 // in the global variables gAudioInputDevs / gAudioOutputDevs
-  InitMidi();                   // creates RTMidiIn and RTMidiOut objects
-  ProbeMidiIO();                // find out what midi IO devs are available and put their names
-                                // in the global variables gMidiInputDevs / gMidiOutputDevs
-  SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
-  SelectMIDIDevice(ERoute::kOutput, mState.mMidiOutDev.Get());
+  if (InitializeMidiForStartup(*this)) {
+    ProbeMidiIO(); // find available MIDI devices and populate their names
+    SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
+    SelectMIDIDevice(ERoute::kOutput, mState.mMidiOutDev.Get());
+  }
 
   mIPlug->OnParamReset(kReset);
   mIPlug->OnActivate(true);
@@ -877,10 +914,12 @@ bool IPlugAPPHost::InitMidi() {
   // Skip MIDI initialization in no-I/O mode or screenshot mode
   if (mNoIO || IsScreenshotMode()) return true;
 
+  mMidiIn.reset();
+  mMidiOut.reset();
+
   try {
     mMidiIn = std::make_unique<RtMidiIn>();
   } catch (RtMidiError& error) {
-    mMidiIn = nullptr;
     error.printMessage();
     return false;
   }
@@ -888,7 +927,7 @@ bool IPlugAPPHost::InitMidi() {
   try {
     mMidiOut = std::make_unique<RtMidiOut>();
   } catch (RtMidiError& error) {
-    mMidiOut = nullptr;
+    mMidiIn.reset();
     error.printMessage();
     return false;
   }

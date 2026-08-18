@@ -32,6 +32,7 @@
 #define ID_SHOW_FPS                     40027
 #define ID_SHOW_BOUNDS                  40028
 #define ID_SCREENSHOT                   40029
+#define IDD_DIALOG_MIDI_ERROR           40030
 
 // Next default values for new objects
 //
