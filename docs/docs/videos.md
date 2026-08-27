@@ -20,6 +20,15 @@ The Addivox YouTube channel: [youtube.com/@Addivox](https://www.youtube.com/@Add
   </iframe>
 </div>
 
+<div class="video-embed">
+  <iframe
+    src="https://www.youtube.com/embed/o5iU6TV-cGU"
+    title="Formants in Addivox"
+    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen>
+  </iframe>
+</div>
+
 ---
 
 ### Videos from others
