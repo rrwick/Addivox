@@ -29,8 +29,10 @@ extra:
 
 extra_css:
   - assets/custom.css
+  - assets/ewi_fingerings/ewi_fingerings.css
 
 markdown_extensions:
+  - attr_list
   - toc:
       toc_depth: 0
 
@@ -43,6 +45,8 @@ plugins:
       output_path: addivox-docs.pdf
       cover_title: Addivox
       cover_subtitle: Documentation
+      exclude_pages:
+        - '^ewi_fingerings/'
 
 nav:
   - Home: index.md
@@ -67,3 +71,5 @@ nav:
       - Release notes: release_notes.md
       - Known issues: known_issues.md
       - License: license.md
+  - Extras:
+      - EWI fingerings: ewi_fingerings.md

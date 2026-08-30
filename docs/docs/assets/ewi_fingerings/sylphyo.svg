@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 102 287.15">
+  <g id="Body">
+    <path d="M19.14,145.55C19.14,73.91,15.74,1,15.74,1h70.48s-3.44,72.91-3.44,144.55,4.26,140.59,4.26,140.59H14.96s4.18-67.85,4.18-140.59Z" fill="#f4f4f4" stroke="#969696" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="LH1">
+    <circle cx="51.01" cy="43.81" r="11.18" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="Missing-LHb">
+    <rect x="1" y="53.05" width="10" height="10" rx="5" ry="5" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LH2">
+    <circle cx="51.01" cy="73.02" r="11.18" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="LH3">
+    <circle cx="51.01" cy="104.35" r="11.18" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="LHp1">
+    <ellipse cx="76.16" cy="126.06" rx="6.83" ry="10.9" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="Missing-LHp2">
+    <rect x="91" y="132.22" width="10" height="10" rx="5" ry="5" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="Missing-RHs">
+    <rect x="1" y="136.96" width="10" height="10" rx="5" ry="5" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RH1">
+    <circle cx="51.01" cy="153.41" r="11.18" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="RH2">
+    <circle cx="51.01" cy="183.65" r="11.18" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="RH3">
+    <circle cx="51.01" cy="213.89" r="11.18" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+  <g id="Missing-RHp1">
+    <rect x="1" y="214.08" width="10" height="10" rx="5" ry="5" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="Missing-RHp2">
+    <rect x="1" y="226.08" width="10" height="10" rx="5" ry="5" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RHp3">
+    <ellipse cx="24.07" cy="241.98" rx="6.83" ry="10.9" fill="#d2d2d2" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </g>
+</svg>

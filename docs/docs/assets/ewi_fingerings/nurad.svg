@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 140.5 271.2">
+  <g id="Body">
+    <polygon points="26.38 5.75 52.21 1 88.29 1 114.12 5.75 114.12 133.75 139.19 185.69 108.52 202.69 95.22 270.2 45.28 270.2 31.98 202.69 1.31 185.69 26.38 133.75 26.38 5.75" fill="#f4f4f4" fill-rule="evenodd" stroke="#969696" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="Extra-special">
+    <circle cx="48.46" cy="137.88" r="3.13" fill="#f4f4f4" stroke="#969696" stroke-miterlimit="10" stroke-width="2"/>
+    <circle cx="48.46" cy="111.39" r="3.13" fill="#f4f4f4" stroke="#969696" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="Extra-LHp3">
+    <path d="M104.29,189.04c.69-.4,1.46-.56,2.2-.52l20.98-12.11,3.2,5.55-20.71,11.96c-.32.81-.88,1.53-1.7,2-1.9,1.1-4.33.45-5.43-1.45s-.45-4.33,1.45-5.43Z" fill="#f4f4f4" fill-rule="evenodd" stroke="#969696" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="Extra-mod">
+    <circle cx="97.45" cy="84.23" r="3.97" fill="#f4f4f4" stroke="#969696" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LH1">
+    <circle cx="101.27" cy="102" r="6.77" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LHb">
+    <circle cx="96.6" cy="111.48" r="3.13" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LH2">
+    <circle cx="97.83" cy="124.96" r="6.77" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LH3">
+    <circle cx="101.54" cy="147.28" r="6.77" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LHp1">
+    <path d="M102.21,162.49c.69-.4,1.46-.56,2.2-.52l10.59-6.11,3.2,5.55-10.32,5.96c-.32.81-.88,1.53-1.7,2-1.9,1.1-4.33.45-5.43-1.45s-.45-4.33,1.45-5.43Z" fill="#d2d2d2" fill-rule="evenodd" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="LHp2">
+    <path d="M103.03,175.74c.69-.4,1.46-.56,2.2-.52l15.78-9.11,3.2,5.55-15.52,8.96c-.32.81-.88,1.53-1.7,2-1.9,1.1-4.33.45-5.43-1.45s-.45-4.33,1.45-5.43Z" fill="#d2d2d2" fill-rule="evenodd" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RHs">
+    <path d="M42.85,80.26c-.8,0-1.54.24-2.17.65h-11.22v6.41h10.92c.68.55,1.53.89,2.47.89,2.19,0,3.97-1.78,3.97-3.97s-1.78-3.97-3.97-3.97Z" fill="#d2d2d2" fill-rule="evenodd" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RH1">
+    <circle cx="39.1" cy="101.99" r="6.77" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RH2">
+    <circle cx="42.81" cy="124.96" r="6.77" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RH3">
+    <circle cx="39.1" cy="147.28" r="6.77" fill="#d2d2d2" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RHp1">
+    <path d="M38.18,162.49c-.69-.4-1.46-.56-2.2-.52l-10.59-6.11-3.2,5.55,10.32,5.96c.32.81.88,1.53,1.7,2,1.9,1.1,4.33.45,5.43-1.45s.45-4.33-1.45-5.43Z" fill="#d2d2d2" fill-rule="evenodd" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RHp2">
+    <path d="M37.35,175.74c-.69-.4-1.46-.56-2.2-.52l-15.78-9.11-3.2,5.55,15.52,8.96c.32.81.88,1.53,1.7,2,1.9,1.1,4.33.45,5.43-1.45s.45-4.33-1.45-5.43Z" fill="#d2d2d2" fill-rule="evenodd" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+  <g id="RHp3">
+    <path d="M36.09,189.04c-.69-.4-1.46-.56-2.2-.52l-20.98-12.11-3.2,5.55,20.71,11.96c.32.81.88,1.53,1.7,2,1.9,1.1,4.33.45,5.43-1.45s.45-4.33-1.45-5.43Z" fill="#d2d2d2" fill-rule="evenodd" stroke="#000" stroke-miterlimit="10" stroke-width="2"/>
+  </g>
+</svg>
