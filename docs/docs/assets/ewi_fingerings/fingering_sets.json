@@ -1,7 +1,7 @@
 [
   {
     "id": "ewi5000_manual",
-    "name": "EWI5000 manual",
+    "name": "Akai EWI5000 manual",
     "codes": [
       "5NV", "5NS", "5HS", "5SS", "5HR", "5HW", "5HG", "5H0", "5GG", "5G0",
       "5R0", "500", "520", "600", "400", "100", "000", "080"
@@ -9,7 +9,7 @@
   },
   {
     "id": "ewi_solo_manual",
-    "name": "EWI Solo manual",
+    "name": "Akai EWI Solo manual",
     "codes": [
       "5NV", "5NS", "5HV", "5HS", "5NT", "5SS", "5HT", "5HR", "5HW", "5HG",
       "5H0", "5GG", "5G0", "5R0", "500", "520", "410", "600", "400", "100",
@@ -17,8 +17,17 @@
     ]
   },
   {
+    "id": "nurad_manual",
+    "name": "Berglund NuRAD manual",
+    "codes": [
+      "5NV", "5NS", "5HV", "5HS", "5NT", "5SS", "5HT", "5HR", "5HW", "5SR",
+      "5HG", "5H0", "5GG", "5S0", "5G0", "510", "5R0", "500", "410", "600",
+      "400", "100", "000", "080"
+    ]
+  },
+  {
     "id": "clarii_pro_c20_manual",
-    "name": "Clarii PRO C20 manual",
+    "name": "Robkoo Clarii PRO C20 manual",
     "codes": [
       "5HS", "5SS", "5NR", "5HR", "5SR", "5NG", "5HG", "5H0", "5GG", "5S0",
       "5M0", "5G0", "510", "5R0", "540", "500", "40G", "410", "580", "440",
@@ -26,19 +35,35 @@
     ]
   },
   {
+    "id": "sylphyo_manual",
+    "name": "Aodyo Sylphyo manual",
+    "codes": [
+      "5HS", "5SS", "5HR", "5SR", "5HG", "5H0", "5GG", "5G0", "5R0", "500",
+      "410", "40G", "400", "100", "000", "080"
+    ]
+  },
+  {
+    "id": "ap100_manual",
+    "name": "Greaten AP100 manual",
+    "codes": [
+      "5NS", "5HS", "5SS", "5HR", "5HG", "5H0", "5GG", "5G0", "5J0", "500",
+      "520", "400", "100", "000", "080", "600"
+    ]
+  },
+  {
     "id": "ap300_manual",
-    "name": "AP300 manual",
+    "name": "Greaten AP300 manual",
     "codes": [
       "5NV", "5NS", "5HS", "5SS", "5HR", "5HW", "5HG", "5H0", "5GG", "5G0",
       "5J0", "500", "520", "600", "400", "100", "000", "080"
     ]
   },
   {
-    "id": "sylphyo_manual",
-    "name": "Sylphyo manual",
+    "id": "ap500_manual",
+    "name": "Greaten AP500 manual",
     "codes": [
-      "5HS", "5SS", "5HR", "5SR", "5HG", "5H0", "5GG", "5G0", "5R0", "500",
-      "410", "40G", "400", "100", "000", "080"
+      "5NV", "5NS", "5HS", "5SS", "5HR", "5HW", "5HG", "5H0", "5GG", "5G0",
+      "5R0", "500", "520", "400", "100", "000", "080"
     ]
   },
   {

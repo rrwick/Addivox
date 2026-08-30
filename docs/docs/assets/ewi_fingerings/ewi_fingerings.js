@@ -10,25 +10,33 @@
   const KEYS = ["LH1", "LHb", "LH2", "LH3", "LHp1", "LHp2",
                 "RHs", "RH1", "RH2", "RH3", "RHp1", "RHp2", "RHp3"];
 
+  // How many fingerings exist, derived from the key count rather than written
+  // out, so the bound used when decoding cannot drift from the bit layout.
+  const COUNT = 1 << KEYS.length;
+
   // Proper musical sharp (U+266F) and flat (U+266D), not "#" and "b".
   const NOTES = ["C", "C\u266F/D\u266D", "D", "D\u266F/E\u266D", "E", "F",
                  "F\u266F/G\u266D", "G", "G\u266F/A\u266D", "A", "A\u266F/B\u266D", "B"];
 
   const BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-  // Every reachable offset, high notes first. Rows are always all shown, even
-  // the ones no manual lists a fingering for.
-  const OFFSETS = [];
-  for (let o = 3; o >= -14; o--) OFFSETS.push(o);
-
   // Adding a layout is one line here plus the SVG alongside this file. Every
   // model exposes the same 13 editable keys, so the choice only changes the
   // drawing — never the note, the code, or anything else.
+  //
+  // keyNotes is optional, for instruments that name a key differently or need
+  // it configured a particular way. It only ever adds to the help text.
   const MODELS = [
     { id: "ewi5000", name: "Akai EWI5000", file: "ewi5000.svg" },
     { id: "ewi_solo", name: "Akai EWI Solo", file: "ewi_solo.svg" },
     { id: "nurad", name: "Berglund NuRAD", file: "nurad.svg" },
     { id: "nurad_diagram", name: "Berglund NuRAD (diagram)", file: "nurad_diagram.svg" },
+    {
+      id: "clarii_pro_c20",
+      name: "Robkoo Clarii PRO C20",
+      file: "clarii_pro_c20.svg",
+      keyNotes: { RHs: "the *2 key, which must be set to Sharp" },
+    },
     { id: "sylphyo", name: "Aodyo Sylphyo", file: "sylphyo.svg" },
     { id: "ap100", name: "Greaten AP100", file: "ap100.svg" },
     { id: "ap300", name: "Greaten AP300", file: "ap300.svg" },
@@ -38,9 +46,6 @@
   // Named sets are data, not code: adding one is an edit to this file alone.
   const SETS_URL = "fingering_sets.json";
 
-  // Shared collections travel in the fragment, never the query string: the
-  // fragment is not sent to the server, so it dodges the ~8KB request-line cap
-  // that would 414 a large collection, and collections stay out of server logs.
   // Marks a key the instrument does not have. It stays fully interactive: the
   // diagram must be able to show any of the 8192 fingerings whatever layout is
   // chosen, and a key that could not be released would trap the user.
@@ -57,8 +62,13 @@
     special: "Special key, for chords and polyphony",
     mod: "Mod key, pitch bend or transpose",
     functional: "Functional key",
+    "*": "* key",
   };
 
+  // Shared collections travel in the fragment, never the query string: the
+  // fragment is not sent to the server, so it dodges the ~8KB request-line cap
+  // that would 414 a large collection, and collections stay out of server logs.
+  //
   // The fragment is a comma-separated list of fields:
   //   v  format version
   //   f  the collection, as concatenated three-character codes
@@ -143,6 +153,20 @@
       - 2 * RHp3;
   }
 
+  // Every reachable offset, high notes first. Derived from the formula rather
+  // than written out, so the table cannot fall out of step with it. Rows are
+  // always all shown, even the ones no manual lists a fingering for.
+  const OFFSETS = [];
+  {
+    let lo = offsetOf(0), hi = lo;
+    for (let n = 1; n < COUNT; n++) {
+      const o = offsetOf(n);
+      if (o < lo) lo = o;
+      if (o > hi) hi = o;
+    }
+    for (let o = hi; o >= lo; o--) OFFSETS.push(o);
+  }
+
   function bits() {
     return KEYS.reduce((n, name, i) => n | ((pressed.has(name) ? 1 : 0) << (12 - i)), 0);
   }
@@ -164,7 +188,7 @@
       n = n * 32 + i;
     }
 
-    return n <= 8191 ? n : null;
+    return n < COUNT ? n : null;
   }
 
   function usesAbsentKey(n) {
@@ -256,16 +280,33 @@
     group.insertBefore(title, group.firstChild);
   }
 
+  // Illustrator escapes characters an XML id cannot hold as _xHH_, so a layer
+  // named "Extra-*" reaches us as "Extra-_x2A_". Undoing that lets the names
+  // above be written the way the key is labelled on the instrument, and keeps
+  // them working whether the id was exported or hand-edited.
+  function unescapeId(name) {
+    return name.replace(/_x([0-9A-Fa-f]{2})_/g,
+      (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  }
+
   function extraDescription(id) {
-    const named = EXTRA_NAMES[id.slice(EXTRA_PREFIX.length)];
+    const named = EXTRA_NAMES[unescapeId(id.slice(EXTRA_PREFIX.length))];
     return (named ? named + ", " : "")
       + "not part of the fingering system this page uses";
+  }
+
+  // The key's own name, plus whatever this instrument calls it or needs of it.
+  function keyDescription(key, absent, model) {
+    if (absent) return key + ", not on this instrument";
+
+    const note = model.keyNotes && model.keyNotes[key];
+    return note ? key + ", " + note : key;
   }
 
   // Illustrator's ids are only a handoff. Strip them once they have been turned
   // into classes, so generic names like "Body" cannot collide with heading
   // anchors elsewhere on the page.
-  function prepare(svg) {
+  function prepare(svg, model) {
     absentMask = 0;
 
     for (const g of svg.querySelectorAll("g[id]")) {
@@ -284,7 +325,7 @@
         g.dataset.key = key;
         g.setAttribute("role", "button");
         g.setAttribute("tabindex", "0");
-        describe(g, absent ? key + ", not on this instrument" : key);
+        describe(g, keyDescription(key, absent, model));
         setKeyState(g, pressed.has(key));
       } else if (id.startsWith(EXTRA_PREFIX)) {
         g.classList.add("ewi-extra");
@@ -308,19 +349,37 @@
     });
   }
 
+  // Counts layout loads, so that a slow response for a layout the reader has
+  // already switched away from cannot arrive last and win.
+  let modelToken = 0;
+
   // Which keys are down is model-independent, so it survives a layout change.
   function loadModel(model) {
+    const token = ++modelToken;
+
     fetch(new URL(model.file, HERE))
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.status))))
       .then((text) => {
+        if (token !== modelToken) return;
+
         const doc = new DOMParser().parseFromString(text, "image/svg+xml");
         const svg = doc.documentElement;
-        prepare(svg);
+
+        // A malformed file parses into an error document rather than throwing,
+        // and would otherwise be inserted into the page as one. The instanceof
+        // also rejects a drawing saved without the SVG namespace, which parses
+        // cleanly but renders as nothing.
+        if (!(svg instanceof SVGSVGElement) || doc.querySelector("parsererror")) {
+          throw new Error("not an SVG");
+        }
+
+        prepare(svg, model);
         host.replaceChildren(svg);
         renderTable();
         render();
       })
       .catch(() => {
+        if (token !== modelToken) return;
         host.textContent = "Could not load the fingering diagram.";
       });
   }
@@ -483,8 +542,8 @@
   // Pasting a link into the address bar of a page that is already open changes
   // only the fragment, which reloads nothing, so this has to be handled here
   // as well as at first paint.
-  // Returns true when the link was applied, so the caller can refresh the
-  // display without loading the diagram twice at first paint.
+  // Returns true when a link was applied, which is what tells the hashchange
+  // handler whether there is anything to refresh.
   function loadFromHash() {
     const shared = parseHash(location.hash.replace(/^#/, ""));
     if (shared === undefined) return false;
@@ -498,8 +557,9 @@
     collection.length = 0;
     for (const n of shared.fingerings) collection.push(n);
 
-    // A layout carried in a link applies to this visit only; it deliberately
-    // does not overwrite the reader's own stored preference.
+    // A link may carry the sharer's layout and mirror setting. Both are display
+    // preferences, so one that is absent or unrecognised simply leaves the page
+    // default in place rather than failing the link.
     if (shared.model !== null) modelEl.value = shared.model;
     if (shared.mirror !== null) mirrorEl.checked = shared.mirror;
 
@@ -527,7 +587,8 @@
     const out = [];
     for (const c of codes) {
       const n = decode(c);
-      if (n !== null) out.push(n);
+      if (n === null) console.warn("Ignoring unreadable fingering code:", c);
+      else out.push(n);
     }
     return out;
   }
@@ -535,9 +596,7 @@
   // Every 13-bit combination. Computed rather than curated, which is why it is
   // here and not in the sets file.
   function everyFingering() {
-    const all = [];
-    for (let n = 0; n < 8192; n++) all.push(n);
-    return all;
+    return Array.from({ length: COUNT }, (_, n) => n);
   }
 
   setEl.addEventListener("change", () => {
@@ -563,6 +622,18 @@
     if (entry) loadFingering(Number(entry.dataset.n));
   });
 
+  // Reaching an entry by keyboard loads it, exactly as clicking it does, so the
+  // diagram always shows the entry you are on. Without this, tabbing moves the
+  // focus ring away from the highlight, and Delete below would then remove an
+  // entry other than the one you appear to be standing on. focusin rather than
+  // focus, because focus does not bubble to this delegated listener.
+  tableEl.addEventListener("focusin", (e) => {
+    const entry = e.target.closest(".ewi-entry");
+    if (entry) loadFingering(Number(entry.dataset.n));
+  });
+
+  // Focus can only be on an entry, and an entry is only focused once it has been
+  // loaded, so the current fingering is the one the cursor is standing on.
   tableEl.addEventListener("keydown", (e) => {
     if (e.key !== "Delete" && e.key !== "Backspace") return;
     const n = bits();

@@ -31,10 +31,15 @@
 }
 
 /* Spans both columns so the controls run the full width, rather than being
-   squeezed into the column the table occupies. */
+   squeezed into the column the table occupies, and stacks key layout above the
+   buttons. */
 .ewi-actions {
   grid-column: 1 / -1;
   grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
 }
 
 .ewi-diagram svg {
@@ -102,14 +107,6 @@
   fill: var(--ewi-unavailable);
   stroke: var(--ewi-unavailable);
   stroke-dasharray: 3 2;
-}
-
-/* Key layout above, Add below it. */
-.ewi-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4rem;
 }
 
 /* Shows the current fingering's code, and accepts one typed in. Bidirectional,

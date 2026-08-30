@@ -31,18 +31,18 @@
   </div>
 </div>
 
-This page allows you to explore the wonderfully flexible world of EWI fingerings! With 13 keys, there are 2<sup>13</sup> = 8192 possible fingerings in total. An individual player will likely only use a small subset of these, but different players may settle on different subsets.
+This page allows you to explore the wonderfully flexible world of EWI fingerings! With 13 keys, there are 2<sup>13</sup> = 8192 fingering combinations. An individual player will likely only use a small subset of these, but different players may settle on different subsets.
 
 On this page, you can add the fingerings you use, and then use the "Copy link" button to share them with others or save them for later. Nothing is saved on this site (it does not use cookies), so use "Copy link" if you want to keep your fingering set.
 
-Use the "Key layout" dropdown to change the fingering appearance. The "Mirror" toggle flips right and left, which may be useful for visualising the finger positions.
+Use the "Key layout" dropdown to change which instrument the diagram shows. The "Mirror" toggle flips right and left, which may be useful for visualising the finger positions.
 
-You can also browse some existing fingering sets with the "Load set" dropdown. Some of these came from the fingering section of instrument manuals, and while they often agree on some notes (e.g. F), they differ on other notes (e.g. B♭). Others came from various resources on the web – see the Credits section below.
+You can also browse some fingering sets with the "Load set" dropdown. Some of these come from the fingering section of instrument manuals, and while they often agree on some notes (e.g. F), they can differ on other notes (e.g. B♭). Others came from various resources on the web – see the Credits section below.
 
 
 ### Fingering logic
 
-The keys are named with "LH" or "RH" for left-hand or right-hand. The keys with "p" in the name are typically played with the pinky finger. Some keys have a fixed effect while some interact with other keys.
+The keys are named with "LH" or "RH" for left-hand or right-hand. The keys with "p" in the name are typically played with the pinky finger. Some keys have a fixed effect and some interact with other keys.
 
 - LH1 (a.k.a. B key): −2 semitones
 - LHb (a.k.a. bis key): −1 semitone, but does nothing if both LH1 and LH2 are pressed
@@ -59,13 +59,13 @@ The keys are named with "LH" or "RH" for left-hand or right-hand. The keys with 
 - RHp3: −2 semitones
 { .ewi-tight }
 
-This page uses C♯ as the reference note, i.e. the note played when no keys are pressed. This should correspond to default settings (no transposition) on supported instruments. This page also does not model octave settings, which are often controlled with the thumb.
-
-Some instruments are lacking one or more of these 13 keys. For these key layouts, the unusable keys are displayed to the side with a dashed border and are coloured red when pressed. They can still be interacted with, but any fingering that uses one of these keys is not possible on that instrument, and these fingerings will be coloured red in the table. See the compatibility notes below for more details.
-
-Some instruments have keys in addition to the 13 used in this logic. For these key layouts, the extra keys are drawn faintly and are not interactive. See the compatibility notes below for more details.
-
 13 keys correspond to a 13-bit binary value. For example, the common F♯ fingering could be written as `1011000010000`, where `1` means pressed and `0` means not pressed. To make these codes more concise, this page converts them into [Crockford's base-32](https://en.wikipedia.org/wiki/Base32#Crockford's_Base32) which can represent each fingering using just three characters (`5GG` for the common F♯ fingering).
+
+This page uses C♯ as the reference note, i.e. the note played when no keys are pressed. This should correspond to default settings (no transposition) on supported instruments. Octaves are set separately (usually with the left thumb) and are not covered here.
+
+Some instruments are lacking some of the 13 keys, so these layouts have unusable keys: displayed to the side, with a dashed border and coloured red when pressed. Any fingering that uses one of these keys is not possible on that instrument, and its code will appear red in the table. See the compatibility notes below for more details.
+
+Some instruments have keys in addition to the 13 used in this logic. For these layouts, the extra keys are drawn faintly and are not interactive. See the compatibility notes below for more details.
 
 
 
@@ -75,23 +75,23 @@ I don't own or have access to most of these instruments. If you do and you find 
 
 #### Compatible
 
-- **Berglund NuRAD: EWI fingering.** I'm 100% certain the NuRAD EWI fingering works with this page, because I've read its [source code](https://github.com/berglundinst/NuEVI/blob/56d8568dd7883337e0929a4ed06e2894506ec2cc/NuEVI/NuEVI.ino#L2496). The NuRAD also has extra keys not used on this page: mod, LHp3 and special keys.
-- **Akai EWI Solo: EWI fingering.** I own an EWI Solo, and while I haven't tried all 8192 fingerings, I haven't found any exceptions. The EWI Solo also has an extra F♯ key not used on this page.
-- **Akai EWI4000, EWI5000 and EWI USB: EWI fingering.** I don't own any of these, but I am assuming they are consistent with the EWI Solo. Also, the logic described by Bret Pimentel in [this blog post](https://bretpimentel.com/flexible-ewi-fingerings/) is exactly the same as the logic on this page.
+- **Berglund NuRAD: EWI fingering.** I'm 100% certain the NuRAD EWI fingering works with this page, because I've read its [source code](https://github.com/berglundinst/NuEVI/blob/56d8568dd7883337e0929a4ed06e2894506ec2cc/NuEVI/NuEVI.ino#L2496). The NuRAD also has extra keys not used on this page: LHp3, mod and special.
+- **Akai EWI Solo: EWI fingering.** I own an EWI Solo, and while I haven't tried all 8192 fingerings, I've tested every rule. The EWI Solo also has an extra F♯ key not used on this page (I keep mine disabled).
+- **Akai EWI4000, EWI5000 and EWI USB: EWI fingering.** I don't own any of these, but I am assuming they are consistent with the EWI Solo. Also, the logic described by Bret Pimentel in [this blog post](https://bretpimentel.com/flexible-ewi-fingerings/) is an exact match.
 
 
 #### Probably/mostly/incompletely compatible
 
-- **Robkoo Clarii PRO C20: EWI fingering.** All of the "EWI fingering" examples in the Clarii PRO C20 manual are compatible, but the manual only describes the LHb key in combination with LH1, so I'm not sure if it behaves the same on its own. Also, the RHs key (\*2 key in the Clarii PRO C20 manual) needs to be set to the "sharp" function to be compatible.
+- **Robkoo Clarii PRO C20: EWI fingering.** All of the "EWI fingering" examples in the Clarii PRO C20 manual are compatible, but the manual only describes the LHb key in combination with LH1, so I'm not sure how it behaves on its own. Also, the RHs key (\*2 key in the Clarii PRO C20 manual) needs to be set to the "sharp" function to be compatible.
 - **Greaten AP100: standard fingering.** This instrument lacks RHp1 and RHp2 keys. Otherwise, the "standard fingering" set in its manual seems to be compatible.
-- **Greaten AP300: standard fingering.** The "standard fingering" set in its manual seems to be compatible.
+- **Greaten AP300: standard fingering.** This instrument has all 13 keys, and the fingerings in its manual seem to be compatible.
 - **Greaten AP500: standard fingering.** This instrument lacks the LHb key. Otherwise, the "standard fingering" set in its manual seems to be compatible. It also has an extra "functional" key not used on this page.
 - **Aodyo Sylphyo: EWI fingering.** This instrument lacks the LHb, LHp2, RHs, RHp1 and RHp2 keys.
 
 #### Incompatible
 
-- **Roland Aerophone series.** These have an "Electronic wind" fingering mode, where many of the keys follow the logic on this page. However, some of the additional keys (operated by index and pinky fingers) behave differently, making the Aerophone range incompatible with this page.
-- **Berglund NuEVI.** This instrument is based around brass fingerings, a very different system to the EWI fingerings.
+- **Roland Aerophone series.** These have an "Electronic wind" fingering mode, where many of the keys follow the logic on this page. However, some of the additional keys (operated by index and pinky fingers) behave differently.
+- **Berglund NuEVI.** This instrument is based around brass valve fingerings.
 - **Robkoo R1 and Clarii mini.** Do not have an EWI-like fingering mode.
 - **Yamaha WX5.** Does not have an EWI-like fingering mode.
 - **Yamaha YDS-120 and Yamaha YDS-150.** Do not have an EWI-like fingering mode.
@@ -101,15 +101,23 @@ I don't own or have access to most of these instruments. If you do and you find 
 
 ### Credits
 
-The "Curt Sipe transposable" fingerings were inspired by [these scale books](https://www.curtsipe.com/books-sales) created by Curt Sipe. They were very influential on my fingering choices when I started to learn the EWI. The idea is that by not using pinky keys, these fingerings allow you to transpose your playing up or down a few semitones by holding one or more pinky keys while you play. While I do not usually play with transposing (I just play natively in each key), I still enjoy the simplicity of these fingerings, and it leaves the pinky keys free for things like trills. These fingerings are also compatible with all of the key layouts on this site (except for the bis-B♭ fingering on layouts lacking LHb). Curt also has lots of EWI content, including videos about fingerings, on his [YouTube channel](https://www.youtube.com/@curtsipe-forge).
+The "Curt Sipe transposable" fingerings were inspired by [these scale books](https://www.curtsipe.com/books-sales) created by Curt Sipe. They were very influential on my fingering choices when I started to learn the EWI. The idea is that by not using pinky keys, these fingerings allow you to transpose your playing up or down a few semitones by holding one or more pinky keys while you play. While I do not usually play in this transposing style (I just play natively in each key), I still enjoy the simplicity of these fingerings, and it leaves the pinky keys free for things like trills. These fingerings are also compatible with all of the key layouts on this site (except for the bis-B♭ fingering on layouts lacking LHb). Curt also has lots of EWI content on his [YouTube channel](https://www.youtube.com/@curtsipe-forge), including videos about fingerings.
 
-The "Bret Pimentel borrowed" fingerings were taken from [this post](https://bretpimentel.com/using-borrowed-fingerings-in-ewi-mode/). They include the fingerings from the EWI4000/EWI5000 manual plus eight more borrowed from other instruments.
+The "Bret Pimentel borrowed" fingerings were taken from [this post](https://bretpimentel.com/using-borrowed-fingerings-in-ewi-mode/). They include the fingerings from the EWI5000 manual plus eight more borrowed from other instruments.
 
-The "Bernie Kenerson little finger" fingerings were taken from [this post](https://berniekenerson.com/blogs/ewi-tips-techniques/posts/6164084/51-ewi-little-finger-exercises-free-download). They include the fingerings from the EWI4000/EWI5000 manual plus additional ones that use the pinky keys to avoid octave breaks. The post also includes sheet music showing which fingerings to use in which contexts.
+The "Bernie Kenerson little finger" fingerings were taken from [this post](https://berniekenerson.com/blogs/ewi-tips-techniques/posts/6164084/51-ewi-little-finger-exercises-free-download). They include the fingerings from the EWI5000 manual plus additional ones that use the pinky keys to avoid octave breaks. The post also includes sheet music showing which fingerings to use in which contexts.
 
 The "Eric Marx listing" is a particularly large fingering set taken from [this PDF](https://www.patchmanmusic.com/EWIFingeringOneWatts.pdf).
 
 The "Yoshimeme style" fingering set was taken from [this PDF](https://www.alsoj.net/download/ewi/ALEWISG1_fingeringchart.pdf). Yoshimeme is a Japanese EWI player and teacher who published an [EWI Start Guide](https://gakufubin.shimamura.co.jp/ec/pro/disp/2/g0252972) with these fingerings.
+
+
+
+### Miscellaneous notes
+
+The standard fingering list in the Greaten AP100 manual is missing D♯/E♭, presumably an error on their part.
+
+The EWI fingerings in the EWI4000 and EWI USB manuals are identical to those in the EWI5000 manual, with one exception: they erroneously show the same fingering for G and G♯/A♭.
 
 
 <script src="../assets/ewi_fingerings/ewi_fingerings.js"></script>
