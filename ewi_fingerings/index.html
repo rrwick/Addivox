@@ -8,13 +8,11 @@
       
       
       
-        <link rel="canonical" href="https://rrwick.github.io/Addivox/per-harmonic_settings/">
+        <link rel="canonical" href="https://rrwick.github.io/Addivox/ewi_fingerings/">
       
       
-        <link rel="prev" href="../eq/">
+        <link rel="prev" href="../license/">
       
-      
-        <link rel="next" href="../key_notes_and_interpolation/">
       
       
         
@@ -25,7 +23,7 @@
     
     
       
-        <title>Per-harmonic settings - Addivox</title>
+        <title>EWI fingerings - Addivox</title>
       
     
     
@@ -110,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Per-harmonic settings
+              EWI fingerings
             
           </span>
         </div>
@@ -426,8 +424,6 @@
       
   
   
-    
-  
   
   
     
@@ -440,11 +436,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -465,7 +461,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -564,17 +560,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../per-harmonic_settings/" class="md-nav__link">
         
   
   
@@ -590,7 +579,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -946,8 +934,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -958,11 +948,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
@@ -983,7 +973,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -998,10 +988,17 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../ewi_fingerings/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1017,6 +1014,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -1062,33 +1060,101 @@
 
 
 
-<h1 id="per-harmonic-settings">Per-harmonic Settings</h1>
-<p>In EDIT mode, the main panel contains a row of tabs. Each tab shows a bar chart with one bar per harmonic (up to 100). You can drag bars up and down to set values, use the <strong>Set shape</strong> dropdown to apply a preset curve, or use the <strong>Run action</strong> dropdown to apply transformations like scaling or normalising. Many actions in these dropdowns have a keyboard shortcut, shown as a letter in brackets next to the action name.</p>
-<p>The <strong>X range</strong> controls at the bottom let you zoom in on a subset of harmonics, making it easier to edit the higher harmonics where bars would otherwise be very narrow.</p>
-<p>The <strong>All notes</strong> toggle, when enabled, locks that parameter in sync across all key notes. See <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>.</p>
-<h3 id="level">Level</h3>
-<p>Controls the amplitude of each harmonic at full breath. This is the primary control for shaping the tonal character of a patch — setting the relative strength of each harmonic determines whether the sound is bright or mellow, thin or full.</p>
-<h3 id="breath">Breath</h3>
-<p>Controls per-harmonic breath sensitivity (the <code>breath_power</code> exponent). At a value of 1, a harmonic's level scales linearly with breath. Higher values make the harmonic require proportionally more breath before it becomes prominent — effectively hiding quieter harmonics until the player blows harder. Lower values make a harmonic appear at low breath levels.</p>
-<h3 id="attack-release">Attack / Release</h3>
-<p>Controls how quickly each harmonic can increase (<strong>Attack</strong>) or decrease (<strong>Release</strong>) in level in response to breath changes. Higher attack values make a harmonic bloom more slowly; higher release values make it fade more slowly. These are scaled globally by the <a href="../global_settings/">envelope controls</a>.</p>
-<h3 id="pitch">Pitch</h3>
-<p>A static pitch offset in cents for each harmonic, added on top of its natural harmonic frequency. Small detuning of individual harmonics can add warmth and movement to the sound.</p>
-<h3 id="pan">Pan</h3>
-<p>The stereo position of each harmonic, from −1 (fully left) to +1 (fully right). Spreading harmonics across the stereo field can add width and richness to the sound.</p>
-<h3 id="variation-tabs">Variation tabs</h3>
-<p>Six tabs control continuous slow modulation of level, pitch, and pan. Each has an <strong>Amount</strong> tab (depth of the modulation for that harmonic) and a <strong>Rate</strong> tab (speed of the modulation). These are scaled globally by the <a href="../global_settings/">variation controls</a>.</p>
+<h1 id="ewi-fingerings">EWI fingerings</h1>
+<div class="ewi-page">
+  <div class="ewi-instrument">
+    <div class="ewi-note" id="ewi-note">—</div>
+    <input class="ewi-code" id="ewi-code" type="text" autocomplete="off"
+           spellcheck="false" aria-label="Fingering code"
+           title="The current fingering's code. Type or paste one to load it.">
+    <div class="ewi-diagram" id="ewi-diagram">Loading…</div>
+  </div>
+  <div class="ewi-actions">
+    <div class="ewi-controls">
+      <label for="ewi-model">Key layout:</label>
+      <select id="ewi-model"></select>
+      <label class="ewi-check"><input type="checkbox" id="ewi-mirror"> Mirror</label>
+    </div>
+    <div class="ewi-buttons">
+      <button class="ewi-button" id="ewi-add" type="button">Add fingering</button>
+      <button class="ewi-button" id="ewi-remove" type="button">Remove fingering</button>
+      <select class="ewi-set" id="ewi-set">
+        <option value="" selected disabled hidden>Load set…</option>
+        <option value="clear">Clear</option>
+        <option value="all">All possible fingerings</option>
+      </select>
+      <button class="ewi-button" id="ewi-copy" type="button">Copy link</button>
+    </div>
+    <p class="ewi-status" id="ewi-status" hidden></p>
+  </div>
+  <div class="ewi-table-scroll">
+    <div class="ewi-table" id="ewi-table"></div>
+  </div>
+</div>
+
+<p>This page allows you to explore the wonderfully flexible world of EWI fingerings! With 13 keys, there are 2<sup>13</sup> = 8192 fingering combinations. An individual player will likely only use a small subset of these, but different players may settle on different subsets.</p>
+<p>On this page, you can add the fingerings you use, and then use the "Copy link" button to share them with others or save them for later. Nothing is saved on this site (it does not use cookies), so use "Copy link" if you want to keep your fingering set.</p>
+<p>Use the "Key layout" dropdown to change which instrument the diagram shows. The "Mirror" toggle flips right and left, which may be useful for visualising the finger positions.</p>
+<p>You can also browse some fingering sets with the "Load set" dropdown. Some of these come from the fingering section of instrument manuals, and while they often agree on some notes (e.g. F), they can differ on other notes (e.g. B♭). Others came from various resources on the web – see the Credits section below.</p>
+<h3 id="fingering-logic">Fingering logic</h3>
+<p>The keys are named with "LH" or "RH" for left-hand or right-hand. The keys with "p" in the name are typically played with the pinky finger. Some keys have a fixed effect and some interact with other keys.</p>
 <ul>
-<li><strong>LvlVarAmt / LvlVarRate</strong> — level variation</li>
-<li><strong>PchVarAmt / PchVarRate</strong> — pitch variation</li>
-<li><strong>PanVarAmt / PanVarRate</strong> — pan variation</li>
+<li>LH1 (a.k.a. B key): −2 semitones</li>
+<li>LHb (a.k.a. bis key): −1 semitone, but does nothing if both LH1 and LH2 are pressed</li>
+<li>LH2 (a.k.a. A key): −1 semitone, but −2 semitones if LH1 is pressed</li>
+<li>LH3 (a.k.a. G key): −2 semitones</li>
+<li>LHp1: +1 semitone</li>
+<li>LHp2: −1 semitone</li>
+<li>RHs (a.k.a. side key): +1 semitone, but does nothing if LHp1 is pressed</li>
+<li>RH1 (a.k.a. F key): −1 semitone, but −2 semitones if LH3 is pressed</li>
+<li>RH2 (a.k.a. E key): −1 semitone</li>
+<li>RH3 (a.k.a. D key): −2 semitones</li>
+<li>RHp1: +1 semitone</li>
+<li>RHp2: −1 semitone</li>
+<li class="ewi-tight">RHp3: −2 semitones</li>
 </ul>
-<h3 id="y-axis-transformations">Y-axis transformations</h3>
-<p>Addivox's edit tabs let you view the per-harmonic settings as a bar chart. The y-axis transform controls how a bar's height maps to its actual value.</p>
-<p><strong>Linear</strong> is the most intuitive: a bar twice as tall represents twice the value. But this makes fine adjustments near zero difficult — small values are squashed into a thin sliver at the bottom of the chart.</p>
-<p>The <strong>Square root</strong> and <strong>Pseudo-log</strong> transforms both stretch the lower end of the scale, giving you more visual room for near-zero values so small adjustments are easier to make. Square root gives a moderate stretch; Pseudo-log stretches more dramatically.</p>
-<p>Pseudo-log is particularly well suited to audio levels. Our ears perceive loudness on a logarithmic scale — this is why volume is measured in decibels. Using Pseudo-log for the "Level" edit tab means equal changes in bar height correspond to roughly equal changes in perceived loudness. (A pure <a href="https://en.wikipedia.org/wiki/Log_transformation_(statistics)">log transform</a> has one problem: it can never actually reach zero. Pseudo-log is a modified version that behaves like a log for most of its range but allows a bar to be set all the way to zero at the bottom.)</p>
-<p>All of these transform options are purely visual — they do not change the sound produced by Addivox.</p>
+<p>13 keys correspond to a 13-bit binary value. For example, the common F♯ fingering could be written as <code>1011000010000</code>, where <code>1</code> means pressed and <code>0</code> means not pressed. To make these codes more concise, this page converts them into <a href="https://en.wikipedia.org/wiki/Base32#Crockford's_Base32">Crockford's base-32</a> which can represent each fingering using just three characters (<code>5GG</code> for the common F♯ fingering).</p>
+<p>This page uses C♯ as the reference note, i.e. the note played when no keys are pressed. This should correspond to default settings (no transposition) on supported instruments. Octaves are set separately (usually with the left thumb) and are not covered here.</p>
+<p>Some instruments are lacking some of the 13 keys, so these layouts have unusable keys: displayed to the side, with a dashed border and coloured red when pressed. Any fingering that uses one of these keys is not possible on that instrument, and its code will appear red in the table. See the compatibility notes below for more details.</p>
+<p>Some instruments have keys in addition to the 13 used in this logic. For these layouts, the extra keys are drawn faintly and are not interactive. See the compatibility notes below for more details.</p>
+<h3 id="instrument-compatibility">Instrument compatibility</h3>
+<p>I don't own or have access to most of these instruments. If you do and you find any omissions or mistakes, please <a href="mailto:addivox.support@gmail.com">let me know</a> and I'll update this page.</p>
+<h4 id="compatible">Compatible</h4>
+<ul>
+<li><strong>Berglund NuRAD: EWI fingering.</strong> I'm 100% certain the NuRAD EWI fingering works with this page, because I've read its <a href="https://github.com/berglundinst/NuEVI/blob/56d8568dd7883337e0929a4ed06e2894506ec2cc/NuEVI/NuEVI.ino#L2496">source code</a>. The NuRAD also has extra keys not used on this page: LHp3, mod and special.</li>
+<li><strong>Akai EWI Solo: EWI fingering.</strong> I own an EWI Solo, and while I haven't tried all 8192 fingerings, I've tested every rule. The EWI Solo also has an extra F♯ key not used on this page (I keep mine disabled).</li>
+<li><strong>Akai EWI4000, EWI5000 and EWI USB: EWI fingering.</strong> I don't own any of these, but I am assuming they are consistent with the EWI Solo. Also, the logic described by Bret Pimentel in <a href="https://bretpimentel.com/flexible-ewi-fingerings/">this blog post</a> is an exact match.</li>
+</ul>
+<h4 id="probablymostlyincompletely-compatible">Probably/mostly/incompletely compatible</h4>
+<ul>
+<li><strong>Robkoo Clarii PRO C20: EWI fingering.</strong> All of the "EWI fingering" examples in the Clarii PRO C20 manual are compatible, but the manual only describes the LHb key in combination with LH1, so I'm not sure how it behaves on its own. Also, the RHs key (*2 key in the Clarii PRO C20 manual) needs to be set to the "sharp" function to be compatible.</li>
+<li><strong>Greaten AP100: standard fingering.</strong> This instrument lacks RHp1 and RHp2 keys. Otherwise, the "standard fingering" set in its manual seems to be compatible.</li>
+<li><strong>Greaten AP300: standard fingering.</strong> This instrument has all 13 keys, and the fingerings in its manual seem to be compatible.</li>
+<li><strong>Greaten AP500: standard fingering.</strong> This instrument lacks the LHb key. Otherwise, the "standard fingering" set in its manual seems to be compatible. It also has an extra "functional" key not used on this page.</li>
+<li><strong>Aodyo Sylphyo: EWI fingering.</strong> This instrument lacks the LHb, LHp2, RHs, RHp1 and RHp2 keys.</li>
+</ul>
+<h4 id="incompatible">Incompatible</h4>
+<ul>
+<li><strong>Roland Aerophone series.</strong> These have an "Electronic wind" fingering mode, where many of the keys follow the logic on this page. However, some of the additional keys (operated by index and pinky fingers) behave differently.</li>
+<li><strong>Berglund NuEVI.</strong> This instrument is based around brass valve fingerings.</li>
+<li><strong>Robkoo R1 and Clarii mini.</strong> Do not have an EWI-like fingering mode.</li>
+<li><strong>Yamaha WX5.</strong> Does not have an EWI-like fingering mode.</li>
+<li><strong>Yamaha YDS-120 and Yamaha YDS-150.</strong> Do not have an EWI-like fingering mode.</li>
+<li><strong>EMEO.</strong> Does not have an EWI-like fingering mode.</li>
+<li><strong>Diosynth.</strong> Does not have an EWI-like fingering mode.</li>
+</ul>
+<h3 id="credits">Credits</h3>
+<p>The "Curt Sipe transposable" fingerings were inspired by <a href="https://www.curtsipe.com/books-sales">these scale books</a> created by Curt Sipe. They were very influential on my fingering choices when I started to learn the EWI. The idea is that by not using pinky keys, these fingerings allow you to transpose your playing up or down a few semitones by holding one or more pinky keys while you play. While I do not usually play in this transposing style (I just play natively in each key), I still enjoy the simplicity of these fingerings, and it leaves the pinky keys free for things like trills. These fingerings are also compatible with all of the key layouts on this site (except for the bis-B♭ fingering on layouts lacking LHb). Curt also has lots of EWI content on his <a href="https://www.youtube.com/@curtsipe-forge">YouTube channel</a>, including videos about fingerings.</p>
+<p>The "Bret Pimentel borrowed" fingerings were taken from <a href="https://bretpimentel.com/using-borrowed-fingerings-in-ewi-mode/">this post</a>. They include the fingerings from the EWI5000 manual plus eight more borrowed from other instruments.</p>
+<p>The "Bernie Kenerson little finger" fingerings were taken from <a href="https://berniekenerson.com/blogs/ewi-tips-techniques/posts/6164084/51-ewi-little-finger-exercises-free-download">this post</a>. They include the fingerings from the EWI5000 manual plus additional ones that use the pinky keys to avoid octave breaks. The post also includes sheet music showing which fingerings to use in which contexts.</p>
+<p>The "Eric Marx listing" is a particularly large fingering set taken from <a href="https://www.patchmanmusic.com/EWIFingeringOneWatts.pdf">this PDF</a>.</p>
+<p>The "Yoshimeme style" fingering set was taken from <a href="https://www.alsoj.net/download/ewi/ALEWISG1_fingeringchart.pdf">this PDF</a>. Yoshimeme is a Japanese EWI player and teacher who published an <a href="https://gakufubin.shimamura.co.jp/ec/pro/disp/2/g0252972">EWI Start Guide</a> with these fingerings.</p>
+<h3 id="miscellaneous-notes">Miscellaneous notes</h3>
+<ul>
+<li>The standard fingering list in the Greaten AP100 manual is missing D♯/E♭, presumably an error on their part.</li>
+<li>The EWI fingerings in the EWI4000 and EWI USB manuals are identical to those in the EWI5000 manual, with one exception: they erroneously show the same fingering for G and G♯/A♭.</li>
+</ul>
+<script src="../assets/ewi_fingerings/ewi_fingerings.js"></script>
 
 
 

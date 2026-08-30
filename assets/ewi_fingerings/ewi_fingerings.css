@@ -1,0 +1,359 @@
+:root {
+  --ewi-unavailable: #e05252;
+}
+
+/* Interactive EWI fingering diagram (ewi_fingerings.md).
+
+   Colours come from Material's theme variables so the diagram follows the
+   light/dark palette toggle. The fills and strokes exported by Illustrator are
+   presentation attributes, which lose to these rules. */
+
+/* Diagram on the left, readout above the table on the right. The minmax(0, 1fr)
+   is what lets the right column shrink below the table's natural width; a plain
+   1fr would refuse to go narrower than 50,000-odd pixels of entries. */
+.ewi-page {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem 1.5rem;
+  margin: 1.5rem 0;
+}
+
+/* Note and diagram travel together as one block, centred on each other, and the
+   pair is centred vertically against the table beside it. */
+.ewi-instrument {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Spans both columns so the controls run the full width, rather than being
+   squeezed into the column the table occupies, and stacks key layout above the
+   buttons. */
+.ewi-actions {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.ewi-diagram svg {
+  display: block;
+  height: 480px;
+  width: auto;
+}
+
+.ewi-body > * {
+  fill: var(--md-default-fg-color--lightest);
+  stroke: var(--md-default-fg-color--lighter);
+}
+
+/* Keys the model has but this page cannot represent. */
+.ewi-extra > * {
+  fill: var(--md-default-bg-color);
+  stroke: var(--md-default-fg-color--lightest);
+}
+
+.ewi-key > * {
+  fill: var(--md-default-bg-color);
+  stroke: var(--md-default-fg-color--light);
+  cursor: pointer;
+}
+
+.ewi-key--down > * {
+  fill: var(--md-primary-fg-color);
+  stroke: var(--md-primary-fg-color);
+}
+
+.ewi-key:hover > * {
+  stroke: var(--md-accent-fg-color);
+}
+
+.ewi-key:focus {
+  outline: none;
+}
+
+.ewi-key:focus-visible > * {
+  stroke: var(--md-accent-fg-color);
+}
+
+/* Keys the chosen instrument does not have. Drawn, and deliberately legible
+   rather than hidden: where an instrument has one of several pinky keys, these
+   are what tell the player which position theirs occupies. They stay clickable
+   so that a fingering arriving from a link or a code can always be edited.
+   Placed after the rules above so they win at equal specificity. */
+.ewi-key--absent > * {
+  fill: none;
+  /* With fill:none only the stroke itself would be clickable. */
+  pointer-events: all;
+  stroke: var(--md-default-fg-color--lighter);
+  stroke-dasharray: 3 2;
+}
+
+.ewi-key--absent:hover > *,
+.ewi-key--absent:focus-visible > * {
+  stroke: var(--md-accent-fg-color);
+}
+
+/* Pressed, but not a key this instrument has. Coloured differently from an
+   ordinary pressed key, and still dashed, so the signal does not rest on
+   colour alone. */
+.ewi-key--absent.ewi-key--down > * {
+  fill: var(--ewi-unavailable);
+  stroke: var(--ewi-unavailable);
+  stroke-dasharray: 3 2;
+}
+
+/* Shows the current fingering's code, and accepts one typed in. Bidirectional,
+   which is what earns it a place beside the note name. */
+.ewi-code {
+  width: 4.5rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.2rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font-family: monospace;
+  font-size: 0.85rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ewi-code:focus {
+  outline: none;
+  border-color: var(--md-accent-fg-color);
+}
+
+/* Three characters that do not name a fingering. Quiet, and it clears itself
+   as soon as the value becomes valid again. */
+.ewi-code--invalid {
+  border-color: var(--ewi-unavailable);
+}
+
+.ewi-note {
+  /* Reserved width so that column one, and therefore the table beside it, does
+     not change width as the note name changes length. */
+  min-width: 3.6em;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.ewi-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+}
+
+/* Flipping only the drawing: the keys keep their identities, so a mirrored
+   diagram still toggles exactly the keys it appears to. */
+.ewi-diagram--mirrored svg {
+  transform: scaleX(-1);
+}
+
+.ewi-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+/* Fixed rather than intrinsic: the options arrive from the sets file after
+   first paint, and a select sized to its widest option would silently grow the
+   first time it was opened. */
+.ewi-set {
+  width: 10rem;
+}
+
+.ewi-controls select,
+.ewi-set {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.2rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font-size: 0.7rem;
+}
+
+/* Only shown when there is something to say, so it costs no layout otherwise. */
+.md-typeset .ewi-status {
+  margin: 0;
+  font-size: 0.65rem;
+  color: var(--md-default-fg-color--light);
+}
+
+/* Held at the natural width of "Copy link" so the transient labels, which are
+   both narrower, do not resize the button as they swap in. */
+#ewi-copy {
+  min-width: 4.75rem;
+}
+
+.ewi-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ewi-button {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--md-default-fg-color);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.ewi-button:hover:not(:disabled) {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}
+
+.ewi-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The collection. One horizontal scrollbar for the whole table: the grid is as
+   wide as its widest row, and the note column is pinned so it stays readable
+   while the entries scroll under it. */
+.ewi-table-scroll {
+  grid-column: 2;
+  grid-row: 2;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-default-fg-color--lighter) transparent;
+}
+
+.ewi-table {
+  --ewi-entry-height: 1.2rem;
+
+  display: grid;
+  /* The entries column is at least as wide as its widest row, but stretches to
+     fill the table when the collection is small, so rows always span the full
+     width. */
+  grid-template-columns: max-content minmax(max-content, 1fr);
+  align-items: stretch;
+  width: max-content;
+  min-width: 100%;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  font-size: 0.7rem;
+}
+
+.ewi-row-note,
+.ewi-row-entries {
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  padding: 0.2rem 0.5rem;
+}
+
+.ewi-row-note {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  border-right: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: var(--ewi-entry-height);
+}
+
+.ewi-row-entries {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: var(--ewi-entry-height);
+}
+
+.ewi-entry {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  box-sizing: border-box;
+  height: var(--ewi-entry-height);
+  padding: 0 0.35rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.15rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font-family: monospace;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.ewi-entry:hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}
+
+.ewi-entry--selected {
+  border-color: var(--md-primary-fg-color);
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+}
+
+/* A fingering that needs a key the chosen instrument does not have. Dashed as
+   well as coloured, echoing the ghost keys on the diagram. Text and border
+   only — with a large collection on a reduced layout nearly every entry
+   qualifies, and a filled background would read as breakage. */
+.ewi-entry--unplayable {
+  border-style: dashed;
+  border-color: var(--ewi-unavailable);
+  color: var(--ewi-unavailable);
+}
+
+/* Selection keeps its fill and text; the dashes carry the signal instead. */
+.ewi-entry--selected.ewi-entry--unplayable {
+  color: var(--md-primary-bg-color);
+}
+
+@keyframes ewi-flash {
+  from {
+    border-color: var(--md-accent-fg-color);
+    background: var(--md-accent-fg-color);
+    color: var(--md-primary-bg-color);
+  }
+}
+
+.ewi-entry--flash {
+  animation: ewi-flash 0.7s ease-out;
+}
+
+/* Narrow screens: one column, diagram above the readout and table. Kept last
+   so these overrides beat the grid placement set on the rules above. */
+@media screen and (max-width: 60em) {
+  .ewi-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ewi-instrument,
+  .ewi-actions,
+  .ewi-table-scroll {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .ewi-instrument {
+    justify-self: start;
+  }
+}
+
+/* Opt-in tighter list spacing: Material puts 0.5em under every list item,
+   which is airy for a long reference list.
+
+   attr_list can only attach a class to the LAST list item, and only when the
+   `{ .ewi-tight }` marker sits on its own line after the list, so :has() is
+   what reaches the rest of the items from there. A browser without :has()
+   simply keeps the default spacing. */
+.md-typeset ul:has(> li.ewi-tight) > li,
+.md-typeset ol:has(> li.ewi-tight) > li {
+  margin-bottom: 0;
+}
