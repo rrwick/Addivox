@@ -19,6 +19,7 @@
 
 #include "IPlugLogger.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 
@@ -202,7 +203,29 @@ AudioObjectID FindCoreAudioDeviceByRtAudioName(const std::string& rtAudioName) {
     return buffer;
   };
 
+  // CoreAudio can expose one piece of hardware as two devices sharing a name,
+  // one per direction: AirPods do. The listener follows the output stream, so
+  // skip the capture half - binding to it would compare the playback stream's
+  // rate against the microphone's and restart audio in a loop.
+  auto hasOutputChannels = [](AudioObjectID device) {
+    AudioObjectPropertyAddress address = {kAudioDevicePropertyStreamConfiguration, kAudioObjectPropertyScopeOutput, kAudioPropertyElement};
+    UInt32 size = 0;
+    if (AudioObjectGetPropertyDataSize(device, &address, 0, nullptr, &size) != noErr || size == 0) return false;
+
+    std::vector<uint8_t> storage(size);
+    auto* bufferList = reinterpret_cast<AudioBufferList*>(storage.data());
+    if (AudioObjectGetPropertyData(device, &address, 0, nullptr, &size, bufferList) != noErr) return false;
+
+    for (UInt32 buffer = 0; buffer < bufferList->mNumberBuffers; buffer++) {
+      if (bufferList->mBuffers[buffer].mNumberChannels > 0) return true;
+    }
+
+    return false;
+  };
+
   for (AudioObjectID device : devices) {
+    if (!hasOutputChannels(device)) continue;
+
     // Match the exact "Manufacturer: Name" string RtApiCore::probeDeviceInfo builds.
     if (stringProperty(device, kAudioObjectPropertyManufacturer) + ": " + stringProperty(device, kAudioObjectPropertyName) == rtAudioName)
       return device;
@@ -655,19 +678,31 @@ bool IPlugAPPHost::TryToChangeAudio() {
   // resolve stale device IDs.
   ProbeAudioIO();
 
-  auto tryCurrentAudioSettings = [this]() {
+  // CoreAudio can expose one piece of hardware as two devices sharing a name:
+  // AirPods appear once for input and once for output. Resolving by name alone
+  // returns whichever is enumerated first, which for AirPods is the input-only
+  // device, leaving nothing to open for playback. Search the direction wanted.
+  auto findDevice = [this](const std::vector<uint32_t>& deviceIDs, const char* name) -> std::optional<uint32_t> {
+    for (auto deviceID : deviceIDs) {
+      if (GetAudioDeviceName(deviceID) == name) return deviceID;
+    }
+
+    return std::nullopt;
+  };
+
+  auto tryCurrentAudioSettings = [this, &findDevice]() {
     if (gLastWorkingAudioState && AudioSettingsInStateAreEqual(mState, *gLastWorkingAudioState)) return true;
 
 #if defined OS_WIN
     // ASIO exposes one device for both directions, so use its output name for
     // the input ID as well.
-    auto inputID = GetAudioDeviceID(mState.mAudioDriverType == kDeviceASIO ? mState.mAudioOutDev.Get() : mState.mAudioInDev.Get());
+    auto inputID = findDevice(mAudioInputDevIDs, mState.mAudioDriverType == kDeviceASIO ? mState.mAudioOutDev.Get() : mState.mAudioInDev.Get());
 #elif defined OS_MAC
-    auto inputID = GetAudioDeviceID(mState.mAudioInDev.Get());
+    auto inputID = findDevice(mAudioInputDevIDs, mState.mAudioInDev.Get());
 #else
 #error NOT IMPLEMENTED
 #endif
-    auto outputID = GetAudioDeviceID(mState.mAudioOutDev.Get());
+    auto outputID = findDevice(mAudioOutputDevIDs, mState.mAudioOutDev.Get());
     bool resetToDefault = false;
 
     if (!inputID && mDefaultInputDev) {
@@ -820,6 +855,27 @@ void IPlugAPPHost::CloseAudio() {
   }
 }
 
+namespace {
+// Not every device offers the rate stored in the settings file: AirPods, for
+// instance, advertise only 24k and 48k. Prefer the hardware's own rate over
+// letting openStream fail on a rate the device never supported.
+uint32_t NegotiateSampleRate(const RtAudio::DeviceInfo& outInfo, const RtAudio::DeviceInfo* pInInfo, uint32_t sr) {
+  auto supported = [&](uint32_t rate) {
+    auto offers = [rate](const std::vector<unsigned int>& rates) { return std::find(rates.begin(), rates.end(), rate) != rates.end(); };
+    return offers(outInfo.sampleRates) && (!pInInfo || offers(pInInfo->sampleRates));
+  };
+
+  if (supported(sr)) return sr;
+  if (supported(outInfo.preferredSampleRate)) return outInfo.preferredSampleRate;
+
+  for (auto rate : outInfo.sampleRates) {
+    if (supported(rate)) return rate;
+  }
+
+  return sr; // Nothing in common; let openStream report the failure.
+}
+} // namespace
+
 bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_t iovs) {
   if (gPreservedAudio) {
     auto pendingAudio = std::move(mDAC);
@@ -839,6 +895,11 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
   oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput); // TODO: flexible channel count
   oParams.firstChannel = 0;                                     // TODO: flexible channel count
 
+  const bool duplex = iParams.nChannels > 0;
+  const RtAudio::DeviceInfo outInfo = mDAC->getDeviceInfo(outID);
+  const RtAudio::DeviceInfo inInfo = duplex ? mDAC->getDeviceInfo(inID) : RtAudio::DeviceInfo();
+  sr = NegotiateSampleRate(outInfo, duplex ? &inInfo : nullptr, sr);
+
   mBufferSize = iovs; // mBufferSize may get changed by stream
 
   DBGMSG("trying to start audio stream @ %i sr, buffer size %i\nindev = "
@@ -851,12 +912,28 @@ bool IPlugAPPHost::InitAudio(uint32_t inID, uint32_t outID, uint32_t sr, uint32_
   // streams
 
   mSamplesElapsed = 0;
-  mSampleRate = static_cast<double>(sr);
   mVecWait = 0;
   mAudioEnding = false;
   mAudioDone = false;
 
-  auto status = mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options);
+  auto openAt = [&](uint32_t rate) {
+    mBufferSize = iovs; // A failed openStream may have altered it
+    mSampleRate = static_cast<double>(rate);
+    return mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, rate, &mBufferSize, &AudioCallback, this, &options);
+  };
+
+  auto status = openAt(sr);
+
+  // A device can advertise a rate it will not actually switch to: AirPods in
+  // hands-free mode list 44.1k but stay pinned at 24k. Fall back to the rate
+  // the hardware says it is really running, then to the one it prefers, so a
+  // stale rate in the settings file cannot strand the app with no audio.
+  for (uint32_t fallback : {outInfo.currentSampleRate, outInfo.preferredSampleRate}) {
+    if (status == RtAudioErrorType::RTAUDIO_NO_ERROR || !fallback || fallback == sr) continue;
+    DBGMSG("%s\nretrying at %i\n", mDAC->getErrorText().c_str(), fallback);
+    sr = fallback;
+    status = openAt(sr);
+  }
 
   if (status != RtAudioErrorType::RTAUDIO_NO_ERROR) {
     DBGMSG("%s", mDAC->getErrorText().c_str());

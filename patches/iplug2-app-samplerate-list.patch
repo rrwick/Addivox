@@ -1,0 +1,40 @@
+diff --git a/IPlug/APP/IPlugAPP_dialog.cpp b/IPlug/APP/IPlugAPP_dialog.cpp
+index 9919d55b4..c9b219d88 100644
+--- a/IPlug/APP/IPlugAPP_dialog.cpp
++++ b/IPlug/APP/IPlugAPP_dialog.cpp
+@@ -44,13 +44,21 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo* inp
+ 
+   std::vector<int> matchedSRs;
+ 
+-  for (int i=0; i<inputDevInfo->sampleRates.size(); i++)
++  // A plugin with no audio inputs never opens the input device, so that device's
++  // rates must not constrain the list. Intersecting regardless can empty it: a
++  // microphone that starts at 44.1k shares nothing with a Bluetooth headset
++  // pinned at 24k in hands-free mode.
++  const bool usesInput = GetPlug()->MaxNChannels(ERoute::kInput) > 0;
++
++  for (int j=0; j<outputDevInfo->sampleRates.size(); j++)
+   {
+-    for (int j=0; j<outputDevInfo->sampleRates.size(); j++)
+-    {
+-      if (inputDevInfo->sampleRates[i] == outputDevInfo->sampleRates[j])
+-        matchedSRs.push_back(inputDevInfo->sampleRates[i]);
+-    }
++    bool matched = !usesInput;
++
++    for (int i=0; !matched && i<inputDevInfo->sampleRates.size(); i++)
++      matched = inputDevInfo->sampleRates[i] == outputDevInfo->sampleRates[j];
++
++    if (matched)
++      matchedSRs.push_back(outputDevInfo->sampleRates[j]);
+   }
+ 
+   for (int k=0; k<matchedSRs.size(); k++)
+@@ -64,6 +72,7 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo* inp
+   str.SetFormatted(32, "%i", mState.mAudioSR);
+ 
+   LRESULT sridx = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_SR, CB_FINDSTRINGEXACT, -1, (LPARAM) str.Get());
++
+   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_SR, CB_SETCURSEL, sridx, 0);
+ }
+ 

@@ -10,6 +10,11 @@ The Windows standalone application supports DirectSound, ASIO and WASAPI shared 
 Audio device names containing non-ASCII characters (e.g. curly apostrophes, accented letters) can be corrupted in the Audio and MIDI settings dialog. Example: `Ryan’s iPhone Microphone` → `RyanÕs iPhone Microphone`. This bug is cosmetic only – a device with a mangled name still works correctly for audio I/O.
 
 
+### AirPods audio support
+
+AirPods are not recommended for Addivox. macOS moves them between Bluetooth profiles, which changes their channel count (mono or stereo) and sample rate (24 kHz, 44.1 kHz or 48 kHz), sometimes while Addivox is running. Addivox follows whatever the device reports, but the behaviour is erratic. All wireless audio also adds latency, which makes real-time playing harder, so a wired output is the better choice regardless.
+
+
 ### AUv3 "View" size control doesn't scale the interface
 
 In GarageBand and MainStage, AUv3 plugin windows have a "View" percentage control for resizing the window. For Addivox, this control changes the size of the window but not the size of the Addivox interface itself, so setting it to anything other than 100% will crop the interface or leave blank space around it. Leave View set to 100% for the interface to display correctly.
