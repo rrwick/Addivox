@@ -92,6 +92,25 @@ public:
 
   bool IsEditable() const { return !IsDisabled(); }
 
+  // Macros mode dims the bars and blocks dragging without touching mBlend, so it stays visually distinct from
+  // the whole-control fade SetEditable applies when no key note is selected. When both apply, the fade simply
+  // covers the dimmed bars and the macro line too, which is the intended combined look.
+  void SetMacrosMode(bool macrosMode) {
+    if (mMacrosMode == macrosMode) return;
+
+    mMacrosMode = macrosMode;
+    SetDirty(false);
+  }
+
+  bool IsMacrosMode() const { return mMacrosMode; }
+
+  void SetMacroCurve(const ControlState& rangeValues) {
+    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
+      mMacroCurve[static_cast<std::size_t>(oscillatorIndex)] = rangeValues[static_cast<std::size_t>(oscillatorIndex)];
+
+    if (mMacrosMode) SetDirty(false);
+  }
+
   void CaptureRestoreState(int midiNote) {
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       mRestoreState[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
@@ -134,6 +153,8 @@ public:
   void DrawWidget(IGraphics& g) override {
     Base::DrawWidget(g);
 
+    if (UsesMacrosModeAppearance()) DrawMacroCurve(g);
+
     const int oscillatorIndex = GetReadoutOscillatorIndex();
     if (oscillatorIndex < 0) return;
 
@@ -156,12 +177,16 @@ public:
   }
 
   void DrawTrackHandle(IGraphics& g, const IRECT& r, int chIdx, bool aboveBaseValue) override {
-    const IColor fillColor = chIdx == mHighlightedTrack ? GetColor(kX1) : GetColor(kFG);
+    IColor fillColor = chIdx == mHighlightedTrack ? GetColor(kX1) : GetColor(kFG);
+    if (UsesMacrosModeAppearance()) fillColor = ScaleColorOpacity(fillColor, kMacrosModeBarOpacity);
+
+    // The hover highlight says "draggable", so it goes with the dragging.
+    const bool drawHoverHighlight = !mMacrosMode && chIdx == mMouseOverTrack;
 
     if (UsesBipolarRange()) {
       DrawBipolarBarFill(g, r, aboveBaseValue, fillColor);
 
-      if (chIdx == mMouseOverTrack) DrawBipolarBarFill(g, r, aboveBaseValue, GetColor(kHL));
+      if (drawHoverHighlight) DrawBipolarBarFill(g, r, aboveBaseValue, GetColor(kHL));
 
       return;
     }
@@ -171,7 +196,7 @@ public:
 
     DrawBarFill(g, r, alignedRect, aboveBaseValue, fillColor);
 
-    if (chIdx == mMouseOverTrack) DrawBarFill(g, r, alignedRect, aboveBaseValue, GetColor(kHL));
+    if (drawHoverHighlight) DrawBarFill(g, r, alignedRect, aboveBaseValue, GetColor(kHL));
   }
 
   void DrawPeak(IGraphics&, const IRECT&, int, bool) override {
@@ -179,6 +204,8 @@ public:
   }
 
   void SnapToMouse(float x, float y, EDirection direction, const IRECT& bounds, int valIdx = -1, double minClip = 0., double maxClip = 1.) override {
+    if (mMacrosMode) return;
+
     const bool allowOutsideTrackSelection = GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine;
     const auto editPoint = GetMouseEditPoint(x, y, direction, bounds, allowOutsideTrackSelection);
     const int sliderHit = editPoint.sliderHit;
@@ -200,12 +227,16 @@ public:
     ResetStepwiseDragState();
     ResetDrawLineState();
 
+    if (mMacrosMode) return;
+
     if (GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine) BeginDrawLineDrag(GetMouseEditPoint(x, y, mDirection, mWidgetBounds));
 
     Base::OnMouseDown(x, y, mod);
   }
 
   void OnMouseUp(float x, float y, const IMouseMod& mod) override {
+    if (mMacrosMode) return;
+
     if (GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine && mHasDrawLineStartPoint) SnapToMouse(x, y, mDirection, mWidgetBounds);
 
     Base::OnMouseUp(x, y, mod);
@@ -214,6 +245,8 @@ public:
   }
 
 private:
+  static constexpr float kMacrosModeBarOpacity = 0.5f;
+  static constexpr float kMacroCurveThickness = 2.f;
   static constexpr float kReadoutMaxBandHeight = 16.f;
   static constexpr float kReadoutMinBandHeight = 8.f;
   static constexpr float kReadoutTextWidth = 72.f;
@@ -830,6 +863,15 @@ private:
     return -1;
   }
 
+  // The dimmed bars and the macro line both describe what the knobs would do to this note's array, so they are
+  // drawn only when there is an array for the knobs to drive. SetEditable is the only thing that disables this
+  // control, and it means exactly "this note has no key-note patch": the curve on screen is then an
+  // element-wise interpolation of the neighbouring key notes, which the macro family cannot generally
+  // reproduce, so a fit line drawn over it would report a residual that is an artifact of the interpolation
+  // rather than anything about the patch. Dropping the whole macros appearance leaves the bars rendering
+  // identically in either mode, which is honest, since a non-key note is equally uneditable in both.
+  bool UsesMacrosModeAppearance() const { return mMacrosMode && !IsDisabled(); }
+
   bool IsVisibleOscillatorIndex(int oscillatorIndex) const {
     return oscillatorIndex >= 0 && oscillatorIndex < NVals() && !mTrackBounds.Get()[oscillatorIndex].Empty();
   }
@@ -850,6 +892,33 @@ private:
 
     g.DrawText(MakeReadoutText("Roboto-Black", 12.f, EAlign::Center, EVAlign::Bottom), value.Get(), topBand, &mBlend);
     g.DrawText(MakeReadoutText("Roboto-Black", 12.f, EAlign::Center, EVAlign::Top), harmonicNumber.Get(), bottomBand, &mBlend);
+  }
+
+  // The macro line is drawn in the tab's current Y transform, through the centre of each visible bar, so its
+  // distance from the bar tops is exactly the error the first knob move would snap away.
+  void DrawMacroCurve(IGraphics& g) const {
+    const int nVals = NVals();
+    const int visibleMin = std::clamp(mVisibleOscillatorMin, 0, nVals - 1);
+    const int visibleMax = std::clamp(mVisibleOscillatorMax, visibleMin, nVals - 1);
+
+    float previousX = 0.f;
+    float previousY = 0.f;
+    bool hasPreviousPoint = false;
+
+    for (int oscillatorIndex = visibleMin; oscillatorIndex <= visibleMax; ++oscillatorIndex) {
+      const IRECT& trackBounds = mTrackBounds.Get()[oscillatorIndex];
+      if (trackBounds.Empty()) continue;
+
+      const double controlValue = Clamp01(ToControlValueFromRangeValue(mMacroCurve[static_cast<std::size_t>(oscillatorIndex)]));
+      const float x = trackBounds.MW();
+      const float y = mWidgetBounds.B - (mWidgetBounds.H() * static_cast<float>(controlValue));
+
+      if (hasPreviousPoint) g.DrawLine(colour::ui::kAccentSecondary, previousX, previousY, x, y, &mBlend, kMacroCurveThickness);
+
+      previousX = x;
+      previousY = y;
+      hasPreviousPoint = true;
+    }
   }
 
   IRECT MakeReadoutRect(const IRECT& bandBounds, float centerX) const {
@@ -938,6 +1007,8 @@ private:
   bool mHasDrawLineStartPoint{false};
   double mPreviousStepwiseCursorValue{0.0};
   bool mHasPreviousStepwiseDragPoint{false};
+  bool mMacrosMode{false};
+  ControlState mMacroCurve{};
 };
 
 } // namespace plugin_ui

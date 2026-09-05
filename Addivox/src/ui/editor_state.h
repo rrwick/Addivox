@@ -30,6 +30,8 @@ struct EditorState {
   int selectedTabIndex{0};
   int oscillatorXRangeMin{1};
   int oscillatorXRangeMax{SimplePatch::kNumOscillators};
+  // Transient editor state, shared by every per-harmonic tab and deliberately not saved in the patch.
+  bool oscillatorMacrosMode{false};
   EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
   EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
   EditorLevelTransform attackTransform{EditorLevelTransform::Linear};

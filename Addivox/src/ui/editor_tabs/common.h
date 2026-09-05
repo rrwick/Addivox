@@ -38,6 +38,7 @@ inline constexpr float       kHarmonicTabSideInset =   8.f;
 inline constexpr float     kHarmonicTabLabelHeight =  14.f;
 inline constexpr float      kHarmonicTabControlGap =   7.f;
 inline constexpr float kHarmonicTabScopeSectionGap =   6.f;
+inline constexpr float   kHarmonicTabModeToggleGap =  14.f;
 inline constexpr float       kHarmonicTabBottomPad =   6.f;
 inline constexpr float   kHarmonicTabXRangeHalfGap =   6.f;
 inline constexpr float  kHarmonicTabToggleLabelGap =   8.f;
@@ -45,7 +46,7 @@ inline constexpr float kHarmonicTabScopeRightInset =   4.f;
 inline constexpr float        kHarmonicTabLabelGap =   0.f;
 inline constexpr float        kHarmonicTabScopeGap =   0.f;
 inline constexpr float           kTabButtonHalfGap =   3.f;
-inline constexpr int        kHarmonicTabChildCount =  18;
+inline constexpr int        kHarmonicTabChildCount =  19;
 
 struct OscillatorTabDescriptor {
   const char* title;
@@ -56,6 +57,7 @@ struct OscillatorTabDescriptor {
 };
 
 struct HarmonicTabLayout {
+  IRECT modeToggleBounds{};
   IRECT xRangeLabelBounds{};
   IRECT xRangeMinBounds{};
   IRECT xRangeMaxBounds{};
@@ -579,6 +581,28 @@ inline std::size_t GetVariationTabIndex(OscillatorParameter parameter) {
   return static_cast<std::size_t>(static_cast<int>(parameter) - static_cast<int>(OscillatorParameter::level_variation_amplitude));
 }
 
+// "Macro" is the left segment (index 0) and "Detail" the right (index 1), so the mode toggle's value runs
+// opposite to the macros-mode flag. These keep that inversion in one place.
+inline double GetMacrosModeToggleValue(bool macrosMode) { return macrosMode ? 0.0 : 1.0; }
+
+inline bool IsMacrosModeToggleValue(double toggleValue) { return toggleValue < 0.5; }
+
+// Stand-in for the per-tab macro generators of step 3: a smooth exponential rolloff across the harmonic
+// series, unlike anything the tabs normally hold. It is drawn over the dimmed bars but never written to the
+// patch, so the overlay's legibility can be judged before any real generator exists.
+inline OscillatorParameterValues MakePlaceholderMacroCurve(const SliderRange& range) {
+  constexpr double kDecayHarmonics = 20.0;
+  const double asymptote = (range.min < 0.0 && range.max > 0.0) ? 0.0 : range.min;
+
+  OscillatorParameterValues values{};
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+    const double decay = std::exp(-static_cast<double>(oscillatorIndex) / kDecayHarmonics);
+    values[static_cast<std::size_t>(oscillatorIndex)] = asymptote + ((range.max - asymptote) * decay);
+  }
+
+  return values;
+}
+
 struct EditorModelRefs {
   std::shared_ptr<std::recursive_mutex> patchMutex;
   std::shared_ptr<CompoundPatch> compoundPatch;
@@ -595,6 +619,7 @@ struct EditorModelRefs {
 struct OscillatorViewRefs {
   std::shared_ptr<int> xRangeMin;
   std::shared_ptr<int> xRangeMax;
+  std::shared_ptr<bool> macrosMode;
 };
 
 struct LevelTabRefs {
@@ -652,6 +677,14 @@ struct OscillatorTabControlRefs {
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> restoreButtons;
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> addButtons;
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> deleteButtons;
+  std::shared_ptr<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>> modeToggles;
+  // Every child of every page lives in one flat IGraphics control list, and drawing tests only the child's own
+  // hidden flag -- a page being hidden does not hide its children by itself. So un-hiding a control belonging
+  // to a hidden tab draws it on top of the visible one. These let the mode switch skip tabs that are not showing.
+  std::shared_ptr<std::array<IControl*, OscillatorSettings::kNumParameters>> tabPages;
+  // The controls each tab shows only in Hand edits mode. Collected at attach time so the mode switch is one
+  // loop rather than a named reference per control; the Macros-mode knobs will get a matching list in step 3.
+  std::shared_ptr<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>> handEditOnlyControls;
 };
 
 struct TitleControlRefs {
@@ -731,6 +764,22 @@ struct EditorContext {
     *oscillatorView.xRangeMax = maxOscillator;
   }
 
+  bool IsMacrosMode() const { return *oscillatorView.macrosMode; }
+
+  // Global, like the X range: switching mode on one tab switches it on all of them. Macros drive the whole
+  // harmonic series, so entering the mode also opens the X range out to the full 1-100. That is deliberately
+  // one-way -- returning to Hand edits leaves the range open rather than restoring any previous zoom.
+  void SetMacrosMode(bool macrosMode) const {
+    if (IsMacrosMode() == macrosMode) return;
+
+    *oscillatorView.macrosMode = macrosMode;
+    if (macrosMode) SetXRange(1, SimplePatch::kNumOscillators);
+
+    SyncMacrosModeControls();
+    ApplyMacrosModeVisibility();
+    RefreshOscillatorTabs();
+  }
+
   bool HasValidSelectedMidiNote() const {
     const int midiNote = SelectedMidiNote();
     return midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
@@ -759,6 +808,43 @@ struct EditorContext {
     for (std::size_t i = 0; i < oscillatorTabControls.xRangeMinControls->size(); ++i) {
       setNumberBoxValueSilently((*oscillatorTabControls.xRangeMinControls)[i], XRangeMin());
       setNumberBoxValueSilently((*oscillatorTabControls.xRangeMaxControls)[i], XRangeMax());
+    }
+  }
+
+  // Pushes the global mode onto every per-harmonic tab: the toggles themselves and the sliders' dimmed-bar and
+  // macro-line rendering. Both are safe to set on a tab that is not showing, since neither changes what is
+  // hidden. Which controls a tab shows is ApplyMacrosModeVisibility's job.
+  void SyncMacrosModeControls() const {
+    const bool macrosMode = IsMacrosMode();
+
+    for (const auto& descriptor : GetOscillatorTabDescriptors()) {
+      const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+
+      SetControlValueSilently((*oscillatorTabControls.modeToggles)[parameterIndex], GetMacrosModeToggleValue(macrosMode));
+
+      if (auto* sliderControl = (*oscillatorTabControls.sliderControls)[parameterIndex]) {
+        sliderControl->SetMacroCurve(MakePlaceholderMacroCurve(descriptor.range));
+        sliderControl->SetMacrosMode(macrosMode);
+      }
+    }
+  }
+
+  // Shows or hides the Hand-edits-only controls of whichever tabs are currently on screen. Tabs that are not
+  // showing are deliberately left alone: their children are hidden by the page, and un-hiding them here would
+  // draw them over the visible tab (see OscillatorTabControlRefs::tabPages). Each page re-applies this for
+  // itself when it is shown, which is also what undoes the blanket un-hide IVTabPage::Hide performs.
+  void ApplyMacrosModeVisibility() const {
+    const bool macrosMode = IsMacrosMode();
+
+    for (const auto& descriptor : GetOscillatorTabDescriptors()) {
+      const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+
+      const IControl* page = (*oscillatorTabControls.tabPages)[parameterIndex];
+      if (!page || page->IsHidden()) continue;
+
+      for (auto* control : (*oscillatorTabControls.handEditOnlyControls)[parameterIndex]) {
+        if (control) control->Hide(macrosMode);
+      }
     }
   }
 
@@ -1156,27 +1242,65 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
   return {toggleControl, labelControl};
 }
 
+// IVTabSwitchControl draws every segment's text in one colour, but the selected segment is filled with the
+// accent blue, where the usual light grey sits at roughly 1.3:1 and is barely readable. The near-black control
+// body colour on that fill reaches about 7.3:1, close to the 9.6:1 the unselected segment gets against its own
+// dark body, so the two halves of the switch read with the same weight.
+class EditorModeSwitchControl final : public IVTabSwitchControl {
+public:
+  using IVTabSwitchControl::IVTabSwitchControl;
+
+  void DrawButtonText(IGraphics& g, const IRECT& bounds, bool isSelected, bool mouseOver, ETabSegment segment, bool disabled, const char* text) override {
+    if (!CStringHasContents(text)) return;
+
+    g.DrawText(isSelected ? mStyle.valueText.WithFGColor(colour::ui::kControlBody) : mStyle.valueText, text, bounds, &mBlend);
+  }
+};
+
+inline IVTabSwitchControl* CreateMacrosModeToggleControl(const std::shared_ptr<EditorContext>& context, const OscillatorTabDescriptor& descriptor,
+                                                        const EditorStyles& styles) {
+  // "Macro" and "Detail" name the level the tab is worked at, and neither word is spoken for elsewhere on the
+  // page -- unlike "draw", "shape", "edit" and "all", which all already mean something specific here.
+  auto* control = new EditorModeSwitchControl(
+      IRECT(), [context](IControl* caller) { context->SetMacrosMode(caller && IsMacrosModeToggleValue(caller->GetValue())); }, {"Macro", "Detail"}, "",
+      styles.utilityToggleStyle.WithValueText(styles.utilityActionTitleText), EVShape::Rectangle, EDirection::Horizontal);
+  control->SetTooltip(help_text::oscillator_tabs::kMacrosMode);
+  SetControlValueSilently(control, GetMacrosModeToggleValue(context->IsMacrosMode()));
+
+  (*context->oscillatorTabControls.modeToggles)[static_cast<std::size_t>(descriptor.parameter)] = control;
+  return control;
+}
+
 inline void AttachHarmonicTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                       const OscillatorTabDescriptor& descriptor, const XRangeControls& xRangeControls,
                                       ActionSelectionControl* yTransformControl, ActionSelectionControl* setShapeControl,
                                       ActionSelectionControl* actionsControl, const AllKeyNotesControls& allKeyNotesControls, IVButtonControl* restoreButton,
                                       IVButtonControl* addButton, IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
   const char* const actionsTooltip = help_text::oscillator_tabs::GetHarmonicActions(descriptor.parameter);
+  auto& handEditOnlyControls = (*context->oscillatorTabControls.handEditOnlyControls)[static_cast<std::size_t>(descriptor.parameter)];
 
-  page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
-  page->AddChildControl(xRangeControls.minControl);
-  page->AddChildControl(xRangeControls.maxControl);
-  page->AddChildControl(CreateUtilityLabelControl("Y transform:", styles, help_text::oscillator_tabs::kYTransform));
-  page->AddChildControl(yTransformControl);
-  page->AddChildControl(CreateEditModeLabelControl(styles));
-  page->AddChildControl(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
-  page->AddChildControl(CreateEditModeScopeControl(context->model.oscillatorEditScopes, descriptor, styles));
-  page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kHarmonicSetShape));
+  // Children are positioned by index in ResizeHarmonicOscillatorTabPage, so this order must match the bounds
+  // listed there. addHandEditOnlyChild also records the control for the Macros-mode switch to hide.
+  const auto addHandEditOnlyChild = [page, &handEditOnlyControls](IControl* control) {
+    page->AddChildControl(control);
+    handEditOnlyControls.push_back(control);
+  };
+
+  page->AddChildControl(CreateMacrosModeToggleControl(context, descriptor, styles));
+  addHandEditOnlyChild(CreateUtilityLabelControl("X range:", styles));
+  addHandEditOnlyChild(xRangeControls.minControl);
+  addHandEditOnlyChild(xRangeControls.maxControl);
+  addHandEditOnlyChild(CreateUtilityLabelControl("Y transform:", styles, help_text::oscillator_tabs::kYTransform));
+  addHandEditOnlyChild(yTransformControl);
+  addHandEditOnlyChild(CreateEditModeLabelControl(styles));
+  addHandEditOnlyChild(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
+  addHandEditOnlyChild(CreateEditModeScopeControl(context->model.oscillatorEditScopes, descriptor, styles));
+  addHandEditOnlyChild(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kHarmonicSetShape));
   setShapeControl->SetTooltip(help_text::oscillator_tabs::kHarmonicSetShape);
-  page->AddChildControl(setShapeControl);
-  page->AddChildControl(CreateUtilityLabelControl("Actions:", styles, actionsTooltip));
+  addHandEditOnlyChild(setShapeControl);
+  addHandEditOnlyChild(CreateUtilityLabelControl("Actions:", styles, actionsTooltip));
   actionsControl->SetTooltip(actionsTooltip);
-  page->AddChildControl(actionsControl);
+  addHandEditOnlyChild(actionsControl);
   page->AddChildControl(allKeyNotesControls.toggleControl);
   page->AddChildControl(allKeyNotesControls.labelControl);
   page->AddChildControl(restoreButton);
@@ -1245,6 +1369,12 @@ inline HarmonicTabLayout GetHarmonicTabLayout(IContainerBase* pTab, const IRECT&
   layout.xRangeMaxBounds = IRECT(rowMid + (kHarmonicTabXRangeHalfGap * 0.5f), layout.xRangeMinBounds.T, rowR, layout.xRangeMinBounds.B);
   layout.xRangeLabelBounds = GetHarmonicTabLabelBounds(layout.xRangeMinBounds, rowL, rowR);
 
+  // The mode toggle hangs above the rest of the stack rather than joining its rhythm: it governs what the
+  // controls below it are, so it keeps a wider gap, and it is positioned from them so it stays put across both
+  // modes. That leaves a column-top margin of whatever the stack does not use, currently 7px.
+  const float modeToggleTop = layout.xRangeLabelBounds.T - kHarmonicTabModeToggleGap - kEditorControlHeight;
+  layout.modeToggleBounds = IRECT(rowL, modeToggleTop, rowR, modeToggleTop + kEditorControlHeight);
+
   return layout;
 }
 
@@ -1253,7 +1383,7 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
 
   const auto layout = GetHarmonicTabLayout(pTab, r);
   const std::array<IRECT, kHarmonicTabChildCount> childBounds{
-      {layout.xRangeLabelBounds, layout.xRangeMinBounds, layout.xRangeMaxBounds, layout.yTransformLabelBounds, layout.yTransformBounds,
+      {layout.modeToggleBounds, layout.xRangeLabelBounds, layout.xRangeMinBounds, layout.xRangeMaxBounds, layout.yTransformLabelBounds, layout.yTransformBounds,
        layout.editModeLabelBounds, layout.editModeBounds, layout.scopeBounds, layout.setShapeLabelBounds, layout.setShapeBounds, layout.actionsLabelBounds,
        layout.actionsBounds, layout.allKeyNotesToggleBounds, layout.allKeyNotesLabelBounds, layout.restoreButtonBounds, layout.addButtonBounds,
        layout.deleteButtonBounds, layout.sliderBounds}};

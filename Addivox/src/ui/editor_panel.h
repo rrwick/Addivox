@@ -26,19 +26,30 @@ using namespace igraphics;
 class EditorOscillatorTabPage final : public IVTabPage {
 public:
   using VisibilityChangedFunc = std::function<void(bool isVisible)>;
+  using ReapplyChildVisibilityFunc = std::function<void()>;
 
-  EditorOscillatorTabPage(TabAttachFunc attachFunc, ResizeFunc resizeFunc, VisibilityChangedFunc visibilityChangedFunc)
-      : IVTabPage(std::move(attachFunc), std::move(resizeFunc)), mVisibilityChangedFunc(std::move(visibilityChangedFunc)) {}
+  // reapplyChildVisibilityFunc is optional: the EQ page has no mode-hidden controls to restore.
+  EditorOscillatorTabPage(TabAttachFunc attachFunc, ResizeFunc resizeFunc, VisibilityChangedFunc visibilityChangedFunc,
+                          ReapplyChildVisibilityFunc reapplyChildVisibilityFunc = nullptr)
+      : IVTabPage(std::move(attachFunc), std::move(resizeFunc)), mVisibilityChangedFunc(std::move(visibilityChangedFunc)),
+        mReapplyChildVisibilityFunc(std::move(reapplyChildVisibilityFunc)) {}
 
   void Hide(bool hide) override {
     const bool wasHidden = IsHidden();
     IVTabPage::Hide(hide);
     const bool isHidden = IsHidden();
+
+    // IVTabPage::Hide un-hides every child indiscriminately, so anything hidden for another reason has to be
+    // re-applied afterwards. This runs on every call rather than only on a change, because clicking the tab
+    // that is already selected still un-hides the children without changing the page's own hidden state.
+    if (mReapplyChildVisibilityFunc) mReapplyChildVisibilityFunc();
+
     if (wasHidden != isHidden && mVisibilityChangedFunc) mVisibilityChangedFunc(!isHidden);
   }
 
 private:
   VisibilityChangedFunc mVisibilityChangedFunc{};
+  ReapplyChildVisibilityFunc mReapplyChildVisibilityFunc{};
 };
 
 #include "editor_tabs/eq.h"
@@ -266,6 +277,8 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
     return;
   }
 
+  if (context->IsMacrosMode()) return;
+
   const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
   if (!descriptor) return;
 
@@ -331,7 +344,7 @@ inline void AttachOscillatorTabChildren(IVTabPage* page, const std::shared_ptr<E
 
 inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                           const OscillatorTabDescriptor& descriptor) {
-  return new EditorOscillatorTabPage(
+  auto* page = new EditorOscillatorTabPage(
       [context, styles, descriptor](IVTabPage* page, const IRECT&) { AttachOscillatorTabChildren(page, context, styles, descriptor); },
       ResizeHarmonicOscillatorTabPage,
       [context, descriptor](bool isVisible) {
@@ -346,7 +359,11 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
           control->ClearRestoreState();
 
         context->RefreshOscillatorTabs();
-      });
+      },
+      [context]() { context->ApplyMacrosModeVisibility(); });
+
+  (*context->oscillatorTabControls.tabPages)[static_cast<std::size_t>(descriptor.parameter)] = page;
+  return page;
 }
 
 inline PageMap CreateOscillatorTabPages(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
@@ -398,6 +415,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
       std::shared_ptr<std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditScopes);
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
+  context->oscillatorView.macrosMode = std::shared_ptr<bool>(editorState, &editorState->oscillatorMacrosMode);
   context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
   context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
   context->pitchTab.pitchTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->pitchTransform);
@@ -419,6 +437,11 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorTabControls.addButtons->fill(nullptr);
   context->oscillatorTabControls.deleteButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.deleteButtons->fill(nullptr);
+  context->oscillatorTabControls.modeToggles = std::make_shared<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.modeToggles->fill(nullptr);
+  context->oscillatorTabControls.handEditOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.tabPages = std::make_shared<std::array<IControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.tabPages->fill(nullptr);
   context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
   context->breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
@@ -464,6 +487,9 @@ inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics
   auto* editorTabsControl = new EditorTabbedPagesControl(positions::kEditorTabs, CreateOscillatorTabPages(context, styles), "", styles.tabsStyle, 20.f, 1.f);
   pGraphics->AttachControl(editorTabsControl, editorTabsTag);
   RestoreSelectedTab(editorTabsControl, context->model.selectedTabIndex);
+  // The sliders learn the mode only from this call, so it has to happen once at startup as well as on every
+  // later mode change -- otherwise a session that begins in Macros mode shows undimmed bars and no macro line.
+  context->SyncMacrosModeControls();
   context->RefreshOscillatorTabs();
   if (pGraphics->TooltipsEnabled()) pGraphics->UpdateTooltips();
   return context;

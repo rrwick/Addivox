@@ -154,6 +154,12 @@ inline constexpr const char *kPanVariationAmplitude =
 inline constexpr const char *kPanVariationRate =
     "Controls speed of pan variation for each harmonic.";
 
+inline constexpr const char *kMacrosMode =
+    "Switches every per-harmonic tab between the two ways of shaping a curve. This setting is shared by all tabs.\n\n"
+    "Macro: shape the curve with a few knobs. The bars dim to show they are not draggable, and a bright line "
+    "shows the curve the knobs describe.\n\n"
+    "Detail: draw the curve by hand, one harmonic at a time.";
+
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
 
