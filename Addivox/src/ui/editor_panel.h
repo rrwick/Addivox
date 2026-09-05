@@ -297,27 +297,6 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
       applyEditScope);
 }
 
-inline void AttachDefaultTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
-                                     const OscillatorTabDescriptor& descriptor, IVButtonControl* restoreButton, IVButtonControl* addButton,
-                                     IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
-  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  auto* editModeControl = CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles);
-  auto* editModeScopeControl = CreateEditModeScopeControl(context->model.oscillatorEditScopes, descriptor, styles);
-  page->AddChildControl(CreateUtilityLabelControl("X range:", styles));
-  page->AddChildControl(xRangeControls.minControl);
-  page->AddChildControl(xRangeControls.maxControl);
-  page->AddChildControl(CreateEditModeLabelControl(styles));
-  page->AddChildControl(editModeControl);
-  page->AddChildControl(editModeScopeControl);
-  page->AddChildControl(allKeyNotesControls.toggleControl);
-  page->AddChildControl(allKeyNotesControls.labelControl);
-  page->AddChildControl(restoreButton);
-  page->AddChildControl(addButton);
-  page->AddChildControl(deleteButton);
-  page->AddChildControl(sliderControl);
-}
-
 inline void AttachOscillatorTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                         const OscillatorTabDescriptor& descriptor) {
   auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
@@ -343,22 +322,18 @@ inline void AttachOscillatorTabChildren(IVTabPage* page, const std::shared_ptr<E
     AttachPitchTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
   else if (descriptor.parameter == OscillatorParameter::pan)
     AttachPanTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
-  else if (IsVariationParameter(descriptor.parameter))
+  else
     AttachVariationTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton,
                                sliderControl);
-  else
-    AttachDefaultTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton,
-                             sliderControl);
 
   context->RefreshOscillatorTabs();
 }
 
 inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                           const OscillatorTabDescriptor& descriptor) {
-  auto resizeFunc = UsesHarmonicOscillatorTabLayout(descriptor.parameter) ? ResizeHarmonicOscillatorTabPage : ResizeDefaultOscillatorTabPage;
-
   return new EditorOscillatorTabPage(
-      [context, styles, descriptor](IVTabPage* page, const IRECT&) { AttachOscillatorTabChildren(page, context, styles, descriptor); }, resizeFunc,
+      [context, styles, descriptor](IVTabPage* page, const IRECT&) { AttachOscillatorTabChildren(page, context, styles, descriptor); },
+      ResizeHarmonicOscillatorTabPage,
       [context, descriptor](bool isVisible) {
         auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
         if (!control) return;

@@ -33,12 +33,12 @@ using SliderRange = OscillatorSliderControl::ValueRange;
 using EditorStyles = theme::EditorStyles;
 
 inline constexpr float        kEditorControlHeight =  20.f;
-inline constexpr float       kHarmonicTabLeftInset = 104.f;
+inline constexpr float       kHarmonicTabLeftInset = 112.f;
 inline constexpr float       kHarmonicTabSideInset =   8.f;
 inline constexpr float     kHarmonicTabLabelHeight =  14.f;
-inline constexpr float      kHarmonicTabControlGap =  10.f;
+inline constexpr float      kHarmonicTabControlGap =   7.f;
 inline constexpr float kHarmonicTabScopeSectionGap =   6.f;
-inline constexpr float       kHarmonicTabBottomPad =   8.f;
+inline constexpr float       kHarmonicTabBottomPad =   6.f;
 inline constexpr float   kHarmonicTabXRangeHalfGap =   6.f;
 inline constexpr float  kHarmonicTabToggleLabelGap =   8.f;
 inline constexpr float kHarmonicTabScopeRightInset =   4.f;
@@ -427,12 +427,6 @@ inline std::size_t GetAttackReleaseTabIndex(OscillatorParameter parameter) { ret
 inline bool IsVariationParameter(OscillatorParameter parameter) {
   const int index = static_cast<int>(parameter);
   return index >= static_cast<int>(OscillatorParameter::level_variation_amplitude) && index <= static_cast<int>(OscillatorParameter::pan_variation_rate);
-}
-
-inline bool UsesHarmonicOscillatorTabLayout(OscillatorParameter parameter) {
-  return parameter == OscillatorParameter::level || parameter == OscillatorParameter::breath_power || parameter == OscillatorParameter::attack ||
-         parameter == OscillatorParameter::release || parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan ||
-         IsVariationParameter(parameter);
 }
 
 inline bool MatchesActionLabel(const char* selectedText, const char* actionName) {
@@ -1265,61 +1259,6 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
        layout.deleteButtonBounds, layout.sliderBounds}};
 
   for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
-}
-
-inline void ResizeDefaultOscillatorTabPage(IContainerBase* pTab, const IRECT& r) {
-  if (pTab->NChildren() < 12) return;
-
-  constexpr float kLeftInset = 104.f;
-  constexpr float kLabelHeight = 14.f;
-  constexpr float kControlHeight = kEditorControlHeight;
-  constexpr float kButtonHeight = kEditorControlHeight;
-  constexpr float kBottomPad = 8.f;
-  constexpr float kTightGap = 0.f;
-  constexpr float kGap = 10.f;
-  constexpr float kHalfGap = 6.f;
-  constexpr float kToggleLabelGap = 8.f;
-  constexpr float kScopeGap = 0.f;
-
-  auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
-  auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-  const float rowL = leftColumnBounds.L + 8.f;
-  const float rowR = leftColumnBounds.R - 8.f;
-  const float rowMid = (rowL + rowR) * 0.5f;
-  const float scopeRowL = rowL;
-  const float scopeRowR = leftColumnBounds.R - 4.f;
-  const float buttonRowBottom = leftColumnBounds.B - kBottomPad;
-  const float buttonRowTop = buttonRowBottom - kButtonHeight;
-  auto addButtonBounds = IRECT(rowL, buttonRowTop, rowMid - kTabButtonHalfGap, buttonRowBottom);
-  auto deleteButtonBounds = IRECT(rowMid + kTabButtonHalfGap, buttonRowTop, rowR, buttonRowBottom);
-  const float restoreTop = addButtonBounds.T - kGap - kButtonHeight;
-  auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kButtonHeight);
-  const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
-  auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
-  auto allKeyNotesLabelBounds = IRECT(allKeyNotesToggleBounds.R + kToggleLabelGap, allKeyNotesToggleBounds.T, rowR, allKeyNotesToggleBounds.B);
-  const float scopeTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
-  auto scopeBounds = IRECT(scopeRowL, scopeTop, scopeRowR, scopeTop + kControlHeight);
-  const float editModeTop = scopeBounds.T - kScopeGap - kControlHeight;
-  auto editModeBounds = IRECT(rowL, editModeTop, rowR, editModeTop + kControlHeight);
-  auto editModeLabelBounds = IRECT(rowL, editModeBounds.T - kTightGap - kLabelHeight, rowR, editModeBounds.T - kTightGap);
-  const float xRangeTop = editModeLabelBounds.T - kGap - kControlHeight;
-  auto xRangeMinBounds = IRECT(rowL, xRangeTop, rowMid - kHalfGap * 0.5f, xRangeTop + kControlHeight);
-  auto xRangeMaxBounds = IRECT(rowMid + kHalfGap * 0.5f, xRangeMinBounds.T, rowR, xRangeMinBounds.B);
-  auto xRangeLabelBounds = IRECT(rowL, xRangeMinBounds.T - kTightGap - kLabelHeight, rowR, xRangeMinBounds.T - kTightGap);
-  const auto sliderBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
-
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(xRangeLabelBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(xRangeMinBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(xRangeMaxBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(editModeLabelBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(editModeBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(scopeBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(addButtonBounds);
-  pTab->GetChild(10)->SetTargetAndDrawRECTs(deleteButtonBounds);
-  pTab->GetChild(11)->SetTargetAndDrawRECTs(sliderBounds);
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller, const OscillatorTabDescriptor& descriptor) {

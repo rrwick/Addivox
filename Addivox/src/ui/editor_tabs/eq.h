@@ -165,40 +165,32 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
 inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r) {
   if (pTab->NChildren() < 10) return;
 
-  constexpr float kLeftInset = 104.f;
-  constexpr float kColumnSideInset = 8.f;
-  constexpr float kLabelHeight = 14.f;
-  constexpr float kControlHeight = kEditorControlHeight;
-  constexpr float kButtonHeight = kEditorControlHeight;
-  constexpr float kGap = 10.f;
-  constexpr float kTightGap = 0.f;
-  constexpr float kBottomPad = 8.f;
-  constexpr float kToggleLabelGap = 8.f;
+  // The EQ editor needs a little more breathing room from the column than the harmonic histograms do.
   constexpr float kEditorGap = 15.f;
 
   auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
-  auto leftColumnBounds = innerBounds.GetFromLeft(kLeftInset);
-  auto editorBounds = GetOscillatorSliderBounds(pTab, r, kLeftInset);
+  auto leftColumnBounds = innerBounds.GetFromLeft(kHarmonicTabLeftInset);
+  auto editorBounds = GetOscillatorSliderBounds(pTab, r, kHarmonicTabLeftInset);
   editorBounds.L += kEditorGap;
 
-  const float rowL = leftColumnBounds.L + kColumnSideInset;
-  const float rowR = leftColumnBounds.R - kColumnSideInset;
+  const float rowL = leftColumnBounds.L + kHarmonicTabSideInset;
+  const float rowR = leftColumnBounds.R - kHarmonicTabSideInset;
   const float rowMid = (rowL + rowR) * 0.5f;
-  const float buttonRowBottom = leftColumnBounds.B - kBottomPad;
-  const float buttonRowTop = buttonRowBottom - kButtonHeight;
+  const float buttonRowBottom = leftColumnBounds.B - kHarmonicTabBottomPad;
+  const float buttonRowTop = buttonRowBottom - kEditorControlHeight;
   auto addButtonBounds = IRECT(rowL, buttonRowTop, rowMid - kTabButtonHalfGap, buttonRowBottom);
   auto deleteButtonBounds = IRECT(rowMid + kTabButtonHalfGap, buttonRowTop, rowR, buttonRowBottom);
-  const float restoreTop = addButtonBounds.T - kGap - kButtonHeight;
-  auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kButtonHeight);
-  const float allKeyNotesTop = restoreButtonBounds.T - kGap - kControlHeight;
-  auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kControlHeight, allKeyNotesTop + kControlHeight);
-  auto allKeyNotesLabelBounds = IRECT(allKeyNotesToggleBounds.R + kToggleLabelGap, allKeyNotesToggleBounds.T, rowR, allKeyNotesToggleBounds.B);
-  const float actionsTop = allKeyNotesToggleBounds.T - kGap - kControlHeight;
-  auto actionsBounds = IRECT(rowL, actionsTop, rowR, actionsTop + kControlHeight);
-  auto actionsLabelBounds = IRECT(rowL, actionsBounds.T - kTightGap - kLabelHeight, rowR, actionsBounds.T - kTightGap);
-  const float setShapeTop = actionsLabelBounds.T - kGap - kControlHeight;
-  auto setShapeBounds = IRECT(rowL, setShapeTop, rowR, setShapeTop + kControlHeight);
-  auto setShapeLabelBounds = IRECT(rowL, setShapeBounds.T - kTightGap - kLabelHeight, rowR, setShapeBounds.T - kTightGap);
+  const float restoreTop = addButtonBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
+  auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kEditorControlHeight);
+  const float allKeyNotesTop = restoreButtonBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
+  auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kEditorControlHeight, allKeyNotesTop + kEditorControlHeight);
+  auto allKeyNotesLabelBounds = IRECT(allKeyNotesToggleBounds.R + kHarmonicTabToggleLabelGap, allKeyNotesToggleBounds.T, rowR, allKeyNotesToggleBounds.B);
+  const float actionsTop = allKeyNotesToggleBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
+  auto actionsBounds = IRECT(rowL, actionsTop, rowR, actionsTop + kEditorControlHeight);
+  auto actionsLabelBounds = GetHarmonicTabLabelBounds(actionsBounds, rowL, rowR);
+  const float setShapeTop = actionsLabelBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
+  auto setShapeBounds = IRECT(rowL, setShapeTop, rowR, setShapeTop + kEditorControlHeight);
+  auto setShapeLabelBounds = GetHarmonicTabLabelBounds(setShapeBounds, rowL, rowR);
 
   pTab->GetChild(0)->SetTargetAndDrawRECTs(setShapeLabelBounds);
   pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeBounds);
