@@ -2,6 +2,7 @@
 
 #include "IControls.h"
 
+#include <cstring>
 #include <functional>
 #include <initializer_list>
 #include <utility>
@@ -28,6 +29,26 @@ public:
   }
 
   void SetOnSelection(SelectionFunc func) { mOnSelection = std::move(func); }
+
+  // Updates what the control displays without running the selection callback, keeping the popup menu's own
+  // chosen item in step so the tick stays on the right row. For when something other than a click changes the
+  // value the control reflects.
+  void SetSelectedText(const char* selectedText) {
+    if (!selectedText || selectedText[0] == '\0') return;
+
+    if (mPersistentSelection) {
+      for (int i = 0; i < mMenu.NItems(); ++i) {
+        const IPopupMenu::Item* item = mMenu.GetItem(i);
+        if (item && std::strcmp(item->GetText(), selectedText) == 0) {
+          mMenu.SetChosenItemIdx(i);
+          break;
+        }
+      }
+    }
+
+    SetStr(selectedText);
+    SetDirty(false);
+  }
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override {
     if (IsDisabled() || !(mod.L || mod.R) || !GetUI()) return;

@@ -11,6 +11,7 @@
 #include "../oscillator_slider_control.h"
 #include "../theme.h"
 #include "IControls.h"
+#include "macros.h"
 
 #include <algorithm>
 #include <array>
@@ -58,6 +59,7 @@ struct OscillatorTabDescriptor {
 
 struct HarmonicTabLayout {
   IRECT modeToggleBounds{};
+  IRECT macroAreaBounds{};
   IRECT xRangeLabelBounds{};
   IRECT xRangeMinBounds{};
   IRECT xRangeMaxBounds{};
@@ -186,6 +188,23 @@ inline OscillatorSliderControl::ValueTransform GetSliderValueTransform(EditorLev
   }
 }
 
+// The Y transform Macros mode fixes for each tab, chosen so a typical patch fills the chart instead of
+// crowding the floor. Level spans four orders of magnitude, so it needs pseudo-log; Breath, the two time tabs
+// and the six variation tabs all sit low in their ranges, where square root lifts them without flattening the
+// top; Pitch and Pan are bipolar and read best undistorted, Pan especially, since its axis maps to a stereo
+// position the listener hears linearly. Display only -- no generator depends on this, so it is cheap to revisit.
+inline EditorLevelTransform GetMacrosModeTransform(OscillatorParameter parameter) {
+  switch (parameter) {
+  case OscillatorParameter::level:        return EditorLevelTransform::PseudoLog;
+  case OscillatorParameter::pitch:
+  case OscillatorParameter::pan:          return EditorLevelTransform::Linear;
+  case OscillatorParameter::breath_power:
+  case OscillatorParameter::attack:
+  case OscillatorParameter::release:
+  default:                                return EditorLevelTransform::SquareRoot;  // and the six variation tabs
+  }
+}
+
 inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode) {
   switch (mode) {
   case EditorOscillatorEditMode::DrawLine: return "draw line";
@@ -233,6 +252,14 @@ inline void SetDisabledState(IControl* control, bool disabled) {
 }
 
 inline bool AreNearlyEqual(double lhs, double rhs, double tolerance = 1.0e-9) { return std::fabs(lhs - rhs) <= tolerance; }
+
+inline bool AreNearlyEqual(const OscillatorParameterValues& lhs, const OscillatorParameterValues& rhs) {
+  for (std::size_t i = 0; i < lhs.size(); ++i) {
+    if (!AreNearlyEqual(lhs[i], rhs[i])) return false;
+  }
+
+  return true;
+}
 
 inline void SetControlValueSilently(IControl* control, double value, int valIdx = 0) {
   if (!control || AreNearlyEqual(control->GetValue(valIdx), value)) return;
@@ -678,13 +705,18 @@ struct OscillatorTabControlRefs {
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> addButtons;
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> deleteButtons;
   std::shared_ptr<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>> modeToggles;
+  std::shared_ptr<std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters>> yTransformControls;
   // Every child of every page lives in one flat IGraphics control list, and drawing tests only the child's own
   // hidden flag -- a page being hidden does not hide its children by itself. So un-hiding a control belonging
   // to a hidden tab draws it on top of the visible one. These let the mode switch skip tabs that are not showing.
   std::shared_ptr<std::array<IControl*, OscillatorSettings::kNumParameters>> tabPages;
-  // The controls each tab shows only in Hand edits mode. Collected at attach time so the mode switch is one
-  // loop rather than a named reference per control; the Macros-mode knobs will get a matching list in step 3.
+  // The controls each tab shows in only one of the two modes. Collected at attach time so the mode switch is
+  // one loop rather than a named reference per control.
   std::shared_ptr<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>> handEditOnlyControls;
+  std::shared_ptr<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>> macroOnlyControls;
+  // A tab's generator and fit, registered by the tab itself, alongside the array its knobs currently describe.
+  std::shared_ptr<std::array<MacroTabFunctions, OscillatorSettings::kNumParameters>> macroFunctions;
+  std::shared_ptr<std::array<MacroFitState, OscillatorSettings::kNumParameters>> macroFitStates;
 };
 
 struct TitleControlRefs {
@@ -766,14 +798,59 @@ struct EditorContext {
 
   bool IsMacrosMode() const { return *oscillatorView.macrosMode; }
 
+  // The Y transform each tab keeps in EditorState. The variation tabs share one array, so their element is
+  // handed back through an aliasing shared_ptr that keeps the array alive.
+  std::shared_ptr<EditorLevelTransform> GetTransformRef(OscillatorParameter parameter) const {
+    switch (parameter) {
+    case OscillatorParameter::level:        return levelTab.levelTransform;
+    case OscillatorParameter::breath_power: return breathTab.breathTransform;
+    case OscillatorParameter::attack:       return attackReleaseTab.attackTransform;
+    case OscillatorParameter::release:      return attackReleaseTab.releaseTransform;
+    case OscillatorParameter::pitch:        return pitchTab.pitchTransform;
+    case OscillatorParameter::pan:          return panTab.panTransform;
+    default:                                break;
+    }
+
+    if (!IsVariationParameter(parameter)) return nullptr;
+
+    return std::shared_ptr<EditorLevelTransform>(variationTab.transforms, &(*variationTab.transforms)[GetVariationTabIndex(parameter)]);
+  }
+
+  // The view settings Macros mode fixes, applied on entry and again at startup, since the mode is global and a
+  // session could in principle begin in it. One-way by design, matching the X range decision: returning to
+  // Detail leaves both the range and the transforms where Macros put them rather than restoring what was there.
+  void ApplyMacrosModeViewSettings() const {
+    SetXRange(1, SimplePatch::kNumOscillators);
+
+    for (const auto& descriptor : GetOscillatorTabDescriptors()) {
+      const auto transformRef = GetTransformRef(descriptor.parameter);
+      if (!transformRef) continue;
+
+      const EditorLevelTransform transform = GetMacrosModeTransform(descriptor.parameter);
+      if (*transformRef == transform) continue;
+
+      *transformRef = transform;
+
+      const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+      if (auto* sliderControl = (*oscillatorTabControls.sliderControls)[parameterIndex]) {
+        auto config = sliderControl->GetConfig();
+        config.transform = GetSliderValueTransform(transform);
+        sliderControl->SetConfig(config);
+      }
+
+      // The dropdown is hidden in Macros mode but comes back in Detail, so it has to agree with what it reflects.
+      if (auto* yTransformControl = (*oscillatorTabControls.yTransformControls)[parameterIndex])
+        yTransformControl->SetSelectedText(GetLevelTransformLabel(transform));
+    }
+  }
+
   // Global, like the X range: switching mode on one tab switches it on all of them. Macros drive the whole
-  // harmonic series, so entering the mode also opens the X range out to the full 1-100. That is deliberately
-  // one-way -- returning to Hand edits leaves the range open rather than restoring any previous zoom.
+  // harmonic series, so entering the mode also fixes the view settings that presentation depends on.
   void SetMacrosMode(bool macrosMode) const {
     if (IsMacrosMode() == macrosMode) return;
 
     *oscillatorView.macrosMode = macrosMode;
-    if (macrosMode) SetXRange(1, SimplePatch::kNumOscillators);
+    if (macrosMode) ApplyMacrosModeViewSettings();
 
     SyncMacrosModeControls();
     ApplyMacrosModeVisibility();
@@ -811,6 +888,72 @@ struct EditorContext {
     }
   }
 
+  // A tab with a generator shows the curve its knobs describe; the rest still show the step-2 placeholder, so
+  // an empty Macro mode is not also a blank chart.
+  OscillatorParameterValues GetMacroCurve(const OscillatorTabDescriptor& descriptor) const {
+    const auto& functions = (*oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(descriptor.parameter)];
+    return functions.IsValid() ? functions.generateValues() : MakePlaceholderMacroCurve(descriptor.range);
+  }
+
+  // Refits each tab's knobs whenever the array has moved away from the one they describe -- a key note change,
+  // Restore, or a hand edit made before switching modes. Only ever on a key note: elsewhere the displayed curve
+  // is an element-wise interpolation of the neighbours, and the macro family is not closed under that, so a fit
+  // there would report a residual that says nothing about the patch.
+  void RefitMacroKnobsIfNeeded() const {
+    if (!IsMacrosMode() || !HasValidSelectedMidiNote()) return;
+
+    const auto patchLock = LockPatch();
+    const SimplePatch* keyNotePatch = Patch().GetKeyNotePatch(SelectedMidiNote());
+    if (!keyNotePatch) return;
+
+    for (const auto& descriptor : GetOscillatorTabDescriptors()) {
+      const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+      const auto& functions = (*oscillatorTabControls.macroFunctions)[parameterIndex];
+      if (!functions.IsValid()) continue;
+
+      const OscillatorParameterValues values = GetOscillatorParameterValues(*keyNotePatch, descriptor.parameter);
+      auto& fitState = (*oscillatorTabControls.macroFitStates)[parameterIndex];
+      if (fitState.valid && AreNearlyEqual(fitState.values, values)) continue;
+
+      functions.fitKnobsToValues(values);
+      fitState = MacroFitState{true, values};
+
+      if (auto* sliderControl = (*oscillatorTabControls.sliderControls)[parameterIndex]) sliderControl->SetMacroCurve(functions.generateValues());
+    }
+  }
+
+  // A knob move regenerates the whole array and writes it. Deliberately lighter than
+  // ApplyOscillatorParameterActionToSelectedKeyNote: no edit scope, since Macro mode hides it, and no
+  // RefreshOscillatorTabs, since this runs on every mouse-move of a drag and nothing else on the page changes.
+  void ApplyMacroKnobsToSelectedKeyNote(OscillatorParameter parameter) const {
+    const auto parameterIndex = static_cast<std::size_t>(parameter);
+    const auto& functions = (*oscillatorTabControls.macroFunctions)[parameterIndex];
+    if (!functions.IsValid()) return;
+
+    const int midiNote = SelectedMidiNote();
+    const OscillatorParameterValues values = functions.generateValues();
+
+    bool updated = false;
+    {
+      const auto patchLock = LockPatch();
+      updated = Patch().SetKeyNoteOscillatorParameterValues(midiNote, parameter, values);
+    }
+    if (!updated) return;
+
+    auto* sliderControl = (*oscillatorTabControls.sliderControls)[parameterIndex];
+    SendOscillatorParameterValuesToDSP(sliderControl, midiNote, parameter, values);
+
+    // The knobs now describe the array exactly, so record that rather than letting the next refresh refit them.
+    (*oscillatorTabControls.macroFitStates)[parameterIndex] = MacroFitState{true, values};
+    if (!sliderControl) return;
+
+    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
+      sliderControl->SetOscillatorValue(oscillatorIndex, values[static_cast<std::size_t>(oscillatorIndex)]);
+
+    sliderControl->SetMacroCurve(values);
+    sliderControl->SetDirty(false);
+  }
+
   // Pushes the global mode onto every per-harmonic tab: the toggles themselves and the sliders' dimmed-bar and
   // macro-line rendering. Both are safe to set on a tab that is not showing, since neither changes what is
   // hidden. Which controls a tab shows is ApplyMacrosModeVisibility's job.
@@ -823,7 +966,7 @@ struct EditorContext {
       SetControlValueSilently((*oscillatorTabControls.modeToggles)[parameterIndex], GetMacrosModeToggleValue(macrosMode));
 
       if (auto* sliderControl = (*oscillatorTabControls.sliderControls)[parameterIndex]) {
-        sliderControl->SetMacroCurve(MakePlaceholderMacroCurve(descriptor.range));
+        sliderControl->SetMacroCurve(GetMacroCurve(descriptor));
         sliderControl->SetMacrosMode(macrosMode);
       }
     }
@@ -844,6 +987,10 @@ struct EditorContext {
 
       for (auto* control : (*oscillatorTabControls.handEditOnlyControls)[parameterIndex]) {
         if (control) control->Hide(macrosMode);
+      }
+
+      for (auto* control : (*oscillatorTabControls.macroOnlyControls)[parameterIndex]) {
+        if (control) control->Hide(!macrosMode);
       }
     }
   }
@@ -1023,6 +1170,11 @@ struct EditorContext {
     for (auto* control : *variationTab.actionsControls)      SetDisabledState(control, disabled);
     for (auto* control : *attackReleaseTab.setShapeControls) SetDisabledState(control, disabled);
     for (auto* control : *attackReleaseTab.actionsControls)  SetDisabledState(control, disabled);
+
+    // Macro knobs write through the same key-note path the actions do, so they grey out with them.
+    for (const auto& knobControls : *oscillatorTabControls.macroOnlyControls) {
+      for (auto* control : knobControls) SetDisabledState(control, disabled);
+    }
   }
 
   void RefreshOscillatorTabs() const {
@@ -1113,6 +1265,8 @@ struct EditorContext {
     }
 
     SetDisabledState(*eqTab.restoreButton, !((*eqTab.editorControl) && editable && (*eqTab.editorControl)->HasRestoreStateForMidiNote(midiNote)));
+
+    RefitMacroKnobsIfNeeded();
   }
 
   template <typename Action>
@@ -1291,6 +1445,7 @@ inline void AttachHarmonicTabChildren(IVTabPage* page, const std::shared_ptr<Edi
   addHandEditOnlyChild(xRangeControls.minControl);
   addHandEditOnlyChild(xRangeControls.maxControl);
   addHandEditOnlyChild(CreateUtilityLabelControl("Y transform:", styles, help_text::oscillator_tabs::kYTransform));
+  (*context->oscillatorTabControls.yTransformControls)[static_cast<std::size_t>(descriptor.parameter)] = yTransformControl;
   addHandEditOnlyChild(yTransformControl);
   addHandEditOnlyChild(CreateEditModeLabelControl(styles));
   addHandEditOnlyChild(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
@@ -1307,6 +1462,30 @@ inline void AttachHarmonicTabChildren(IVTabPage* page, const std::shared_ptr<Edi
   page->AddChildControl(addButton);
   page->AddChildControl(deleteButton);
   page->AddChildControl(sliderControl);
+}
+
+// Macro knobs are attached after the fixed stack, which is exactly what ResizeHarmonicOscillatorTabPage treats
+// its trailing children as. They are hidden here rather than waiting for the mode switch, so that a tab which
+// is never shown cannot leave them drawn over whichever tab is.
+inline std::vector<layout::LabelledKnob*> AttachMacroKnobChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context,
+                                                                  const OscillatorTabDescriptor& descriptor,
+                                                                  const std::vector<MacroKnobDescriptor>& knobDescriptors) {
+  const OscillatorParameter parameter = descriptor.parameter;
+  auto& macroOnlyControls = (*context->oscillatorTabControls.macroOnlyControls)[static_cast<std::size_t>(parameter)];
+
+  std::vector<layout::LabelledKnob*> knobControls;
+  knobControls.reserve(knobDescriptors.size());
+
+  for (const auto& knobDescriptor : knobDescriptors) {
+    auto* control = CreateMacroKnobControl(knobDescriptor, [context, parameter]() { context->ApplyMacroKnobsToSelectedKeyNote(parameter); });
+    page->AddChildControl(control);
+    control->Hide(!context->IsMacrosMode());
+
+    macroOnlyControls.push_back(control);
+    knobControls.push_back(control);
+  }
+
+  return knobControls;
 }
 
 inline IRECT GetOscillatorSliderBounds(IContainerBase* pTab, const IRECT& r, float leftInset) {
@@ -1375,6 +1554,10 @@ inline HarmonicTabLayout GetHarmonicTabLayout(IContainerBase* pTab, const IRECT&
   const float modeToggleTop = layout.xRangeLabelBounds.T - kHarmonicTabModeToggleGap - kEditorControlHeight;
   layout.modeToggleBounds = IRECT(rowL, modeToggleTop, rowR, modeToggleTop + kEditorControlHeight);
 
+  // Everything the hand-edit stack occupies between the toggle and the fixed footer is the macro knobs' to use.
+  layout.macroAreaBounds = IRECT(rowL, layout.modeToggleBounds.B + kHarmonicTabControlGap, rowR,
+                                 layout.allKeyNotesToggleBounds.T - kHarmonicTabControlGap);
+
   return layout;
 }
 
@@ -1389,6 +1572,12 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
        layout.deleteButtonBounds, layout.sliderBounds}};
 
   for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
+
+  // Anything attached past the fixed stack is a macro knob, laid out in the space the stack vacates.
+  const int numMacroKnobs = pTab->NChildren() - kHarmonicTabChildCount;
+  const auto macroKnobBounds = GetMacroKnobBounds(layout.macroAreaBounds, numMacroKnobs);
+  for (std::size_t i = 0; i < macroKnobBounds.size(); ++i)
+    pTab->GetChild(kHarmonicTabChildCount + static_cast<int>(i))->SetTargetAndDrawRECTs(macroKnobBounds[i]);
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller, const OscillatorTabDescriptor& descriptor) {
@@ -1423,19 +1612,7 @@ inline OscillatorSliderControl* CreateOscillatorSliderControl(const std::shared_
   auto* control = new OscillatorSliderControl(IRECT(), "", styles.sliderStyle, EDirection::Vertical);
   OscillatorSliderControl::Config config;
   config.range = descriptor.range;
-  if (descriptor.parameter == OscillatorParameter::level) config.transform = GetSliderValueTransform(*context->levelTab.levelTransform);
-  else if (descriptor.parameter == OscillatorParameter::breath_power)
-    config.transform = GetSliderValueTransform(*context->breathTab.breathTransform);
-  else if (descriptor.parameter == OscillatorParameter::pitch)
-    config.transform = GetSliderValueTransform(*context->pitchTab.pitchTransform);
-  else if (descriptor.parameter == OscillatorParameter::pan)
-    config.transform = GetSliderValueTransform(*context->panTab.panTransform);
-  else if (IsVariationParameter(descriptor.parameter))
-    config.transform = GetSliderValueTransform((*context->variationTab.transforms)[GetVariationTabIndex(descriptor.parameter)]);
-  else if (descriptor.parameter == OscillatorParameter::attack)
-    config.transform = GetSliderValueTransform(*context->attackReleaseTab.attackTransform);
-  else if (descriptor.parameter == OscillatorParameter::release)
-    config.transform = GetSliderValueTransform(*context->attackReleaseTab.releaseTransform);
+  if (const auto transformRef = context->GetTransformRef(descriptor.parameter)) config.transform = GetSliderValueTransform(*transformRef);
   control->SetConfig(config);
   control->SetOscillatorEditModeFunc([context, parameter = descriptor.parameter]() { return context->GetOscillatorEditMode(parameter); });
   control->SetOscillatorEditableFunc(

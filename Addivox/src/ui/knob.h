@@ -7,6 +7,7 @@
 #include "theme.h"
 
 #include <algorithm>
+#include <functional>
 
 namespace plugin_ui {
 using namespace iplug;
@@ -57,6 +58,21 @@ public:
     SetDirty(false);
   }
 
+  // A knob with no plugin parameter behind it has no default to snap back to and no range to read the value
+  // arc's origin from, so both are supplied instead of derived.
+  void SetUnboundDefaultValue(double defaultValue) { mUnboundDefaultValue = std::clamp(defaultValue, 0.0, 1.0); }
+
+  void SetUnboundArcStartValue(double arcStartValue) {
+    mUnboundArcStartValue = std::clamp(arcStartValue, 0.0, 1.0);
+    SetDirty(false);
+  }
+
+  void SetValueToDefault(int valIdx) override {
+    if (!GetParam()) SetValue(mUnboundDefaultValue, (NVals() == 1) ? 0 : valIdx);
+
+    IKnobControlBase::SetValueToDefault(valIdx);
+  }
+
   void OnAttached() override {
     IKnobControlBase::OnAttached();
     if (mDoubleTapGestureAttached || !GetUI()) return;
@@ -79,7 +95,7 @@ private:
       return param->ToNormalized(param->GetMin());
     }
 
-    return 0.0;
+    return mUnboundArcStartValue;
   }
 
   IColor ValueArcColor() const { return colour::visualizer::kKnob; }
@@ -108,11 +124,15 @@ private:
   float mStartAngle = -135.f;
   float mEndAngle = 135.f;
   float mValueArcThickness = 4.8f;
+  double mUnboundDefaultValue = 0.0;
+  double mUnboundArcStartValue = 0.0;
   bool mDoubleTapGestureAttached = false;
 };
 
 class KnobReadoutControl final : public ITextControl {
 public:
+  using ValueFormatterFunc = std::function<void(WDL_String& text, double normalizedValue)>;
+
   KnobReadoutControl(const IRECT& bounds, int paramIdx, const char* label, const IText& text)
       : ITextControl(bounds, label ? label : "", text, COLOR_TRANSPARENT), mLabel(label ? label : "") {
     SetParamIdx(paramIdx);
@@ -140,9 +160,15 @@ public:
     SetDirty(false);
   }
 
+  // Without a plugin parameter there is no GetDisplay to call, so an unbound knob supplies its own formatter
+  // and pushes its value here for the readout to render.
+  void SetValueFormatter(ValueFormatterFunc formatValue) { mFormatValue = std::move(formatValue); }
+
   void Draw(IGraphics& g) override {
     if (ShouldShowValue()) {
       if (const IParam* param = GetParam()) param->GetDisplay(mStr);
+      else if (mFormatValue)
+        mFormatValue(mStr, GetValue());
       else
         mStr.Set(mLabel.Get());
     } else {
@@ -162,6 +188,7 @@ private:
   bool ShouldShowValue() const { return mShowValueWhileInteracting || mShowValueTemporarily; }
 
   WDL_String mLabel;
+  ValueFormatterFunc mFormatValue;
   bool mShowValueWhileInteracting = false;
   bool mShowValueTemporarily = false;
 };
@@ -196,12 +223,50 @@ private:
   KnobReadoutControl* mReadoutControl = nullptr;
 };
 
+// How an unbound knob -- one with no automatable plugin parameter behind it -- carries its value. The knob
+// control itself is the storage; this says where it starts, how it reads out, and who to tell when it moves.
+struct UnboundKnobSpec {
+  double defaultValue = 0.0; // Normalised 0..1, what a double-tap returns to.
+  bool bipolar = false;      // Draws the value arc out from the centre rather than from the left.
+  KnobReadoutControl::ValueFormatterFunc formatValue;
+  std::function<void(double normalizedValue)> onValueChanged;
+};
+
 class LabelledKnob final : public IContainerBase {
 public:
   LabelledKnob(const IRECT& bounds, int paramIdx, const char* label, float knobTextGap = 6.f)
       : IContainerBase(bounds, kNoParameter), mParamIdx(paramIdx), mKnobTextGap(knobTextGap) {
     mLabel.Set(label ? label : "");
   }
+
+  LabelledKnob(const IRECT& bounds, const char* label, UnboundKnobSpec spec, float knobTextGap = 6.f)
+      : IContainerBase(bounds, kNoParameter), mKnobTextGap(knobTextGap), mUnboundSpec(std::move(spec)), mUnboundValue(mUnboundSpec.defaultValue) {
+    mLabel.Set(label ? label : "");
+  }
+
+  // Presentation overrides for knobs in tighter quarters than the main panel's. Both must be set before the
+  // knob is attached, since that is when the child controls are built. Capping the knob independently of the
+  // cell lets a narrow knob keep a label wider than itself.
+  void SetLabelStyle(const IText& text, float textHeight) {
+    mLabelText = text;
+    mLabelHeight = std::max(0.f, textHeight);
+  }
+
+  void SetMaxKnobSize(float maxKnobSize) { mMaxKnobSize = std::max(0.f, maxKnobSize); }
+
+  // Unbound knobs only: moves the knob without calling back, which is how a fit pushes its result in. The
+  // spec's default is left alone, since that is where a double-tap still belongs.
+  void SetNormalizedValueSilently(double normalizedValue) {
+    mUnboundValue = std::clamp(normalizedValue, 0.0, 1.0);
+    if (!mKnobControl || !mReadoutControl) return;
+
+    mKnobControl->SetValue(mUnboundValue);
+    mKnobControl->SetDirty(false);
+    mReadoutControl->SetValue(mUnboundValue);
+    mReadoutControl->SetDirty(false);
+  }
+
+  double GetNormalizedValue() const { return mKnobControl ? mKnobControl->GetValue() : mUnboundValue; }
 
   void SetTooltip(const char* tooltip) {
     IControl::SetTooltip(tooltip);
@@ -219,8 +284,9 @@ public:
     const ISVG rotatingSVG = ui->LoadSVG("knob-rotating.svg");
 
     mKnobControl = new InteractiveLayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
-    mReadoutControl = new KnobReadoutControl(IRECT(), mParamIdx, mLabel.Get(), theme::CompactLabelText(EAlign::Center));
+    mReadoutControl = new KnobReadoutControl(IRECT(), mParamIdx, mLabel.Get(), mLabelText);
     mKnobControl->SetReadoutControl(mReadoutControl);
+    if (mParamIdx == kNoParameter) ApplyUnboundSpec();
 
     AddChildControl(mKnobControl);
     AddChildControl(mReadoutControl);
@@ -241,27 +307,46 @@ public:
   }
 
 private:
+  void ApplyUnboundSpec() {
+    mKnobControl->SetUnboundDefaultValue(mUnboundSpec.defaultValue);
+    mKnobControl->SetUnboundArcStartValue(mUnboundSpec.bipolar ? 0.5 : 0.0);
+    mKnobControl->SetValue(mUnboundValue);
+    mReadoutControl->SetValueFormatter(mUnboundSpec.formatValue);
+    mReadoutControl->SetValue(mUnboundValue);
+
+    // Captures the readout by pointer rather than capturing this, so the action holds nothing that outlives it.
+    mKnobControl->SetActionFunction([readoutControl = mReadoutControl, onValueChanged = mUnboundSpec.onValueChanged](IControl* caller) {
+      const double normalizedValue = caller->GetValue();
+      readoutControl->SetValue(normalizedValue);
+      readoutControl->SetDirty(false);
+
+      if (onValueChanged) onValueChanged(normalizedValue);
+    });
+  }
+
   float GetKnobTextGap() const { return std::clamp(mKnobTextGap, 0.f, 2.f); }
 
   IRECT GetKnobBounds() const {
-    constexpr float kTextHeight = 12.f;
-
     const float knobTextGap = GetKnobTextGap();
-    const float textBlockHeight = kTextHeight;
-    const float knobSize = std::max(0.f, std::min(mRECT.W(), mRECT.H() - textBlockHeight - knobTextGap));
+    float knobSize = std::max(0.f, std::min(mRECT.W(), mRECT.H() - mLabelHeight - knobTextGap));
+    if (mMaxKnobSize > 0.f) knobSize = std::min(knobSize, mMaxKnobSize);
+
     return IRECT::MakeXYWH(mRECT.MW() - (knobSize * 0.5f), mRECT.T, knobSize, knobSize);
   }
 
   IRECT GetTextBounds() const {
-    constexpr float kTextHeight = 12.f;
-
     const IRECT knobBounds = GetKnobBounds();
     const float top = knobBounds.B + GetKnobTextGap();
-    return IRECT::MakeXYWH(mRECT.L, top, mRECT.W(), kTextHeight);
+    return IRECT::MakeXYWH(mRECT.L, top, mRECT.W(), mLabelHeight);
   }
 
   int mParamIdx = kNoParameter;
   float mKnobTextGap = 6.f;
+  float mMaxKnobSize = 0.f;
+  float mLabelHeight = 12.f;
+  IText mLabelText = theme::CompactLabelText(EAlign::Center);
+  UnboundKnobSpec mUnboundSpec;
+  double mUnboundValue = 0.0;
   WDL_String mLabel;
   WDL_String mTooltip;
   InteractiveLayeredSVGKnobControl* mKnobControl = nullptr;

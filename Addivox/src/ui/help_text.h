@@ -160,6 +160,22 @@ inline constexpr const char *kMacrosMode =
     "shows the curve the knobs describe.\n\n"
     "Detail: draw the curve by hand, one harmonic at a time.";
 
+inline constexpr const char *kMacroLevelBrightness =
+    "Shapes how far up the harmonic series the level curve peaks. Low settings put the energy in the fundamental "
+    "and the first few harmonics; high settings push the peak higher and give a brassier, more cutting tone.";
+
+inline constexpr const char *kMacroLevelRolloff =
+    "Controls how quickly the harmonics fall away above the peak. Low settings keep high harmonics alive for a "
+    "bright, buzzy sound; high settings roll them off for a darker, rounder one.";
+
+inline constexpr const char *kMacroLevelOddEven =
+    "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned up, only the odd harmonics "
+    "survive, giving a hollow, clarinet-like tone; turned down favours the even harmonics.";
+
+inline constexpr const char *kMacroLevelTaper =
+    "Pulls the topmost harmonics down to silence independently of the rolloff, which keeps the very highest "
+    "harmonics from whining on bright settings. Turn it up to start the taper lower down the series.";
+
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
 

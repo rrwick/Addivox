@@ -439,7 +439,12 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorTabControls.deleteButtons->fill(nullptr);
   context->oscillatorTabControls.modeToggles = std::make_shared<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.modeToggles->fill(nullptr);
+  context->oscillatorTabControls.yTransformControls = std::make_shared<std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.yTransformControls->fill(nullptr);
   context->oscillatorTabControls.handEditOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.macroOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.macroFunctions = std::make_shared<std::array<MacroTabFunctions, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.macroFitStates = std::make_shared<std::array<MacroFitState, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.tabPages = std::make_shared<std::array<IControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.tabPages->fill(nullptr);
   context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
@@ -487,8 +492,10 @@ inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics
   auto* editorTabsControl = new EditorTabbedPagesControl(positions::kEditorTabs, CreateOscillatorTabPages(context, styles), "", styles.tabsStyle, 20.f, 1.f);
   pGraphics->AttachControl(editorTabsControl, editorTabsTag);
   RestoreSelectedTab(editorTabsControl, context->model.selectedTabIndex);
-  // The sliders learn the mode only from this call, so it has to happen once at startup as well as on every
-  // later mode change -- otherwise a session that begins in Macros mode shows undimmed bars and no macro line.
+  // The sliders learn the mode only from these calls, so they have to happen once at startup as well as on
+  // every later mode change -- otherwise a session that begins in Macros mode would show undimmed bars, no
+  // macro line, a zoomed X range and the wrong Y transforms.
+  if (context->IsMacrosMode()) context->ApplyMacrosModeViewSettings();
   context->SyncMacrosModeControls();
   context->RefreshOscillatorTabs();
   if (pGraphics->TooltipsEnabled()) pGraphics->UpdateTooltips();
