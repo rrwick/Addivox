@@ -160,21 +160,26 @@ inline constexpr const char *kMacrosMode =
     "shows the curve the knobs describe.\n\n"
     "Detail: draw the curve by hand, one harmonic at a time.";
 
-inline constexpr const char *kMacroLevelBrightness =
-    "Shapes how far up the harmonic series the level curve peaks. Low settings put the energy in the fundamental "
-    "and the first few harmonics; high settings push the peak higher and give a brassier, more cutting tone.";
+inline constexpr const char *kMacroLevelWidth =
+    "Sets the highest harmonic still in use; everything above it is silent. It also controls how steeply the "
+    "harmonics fall away from the fundamental, so lowering it makes the whole sound darker, not just the very top.";
 
-inline constexpr const char *kMacroLevelRolloff =
-    "Controls how quickly the harmonics fall away above the peak. Low settings keep high harmonics alive for a "
-    "bright, buzzy sound; high settings roll them off for a darker, rounder one.";
+inline constexpr const char *kMacroLevelShape =
+    "Bows the falling curve without moving either of its ends. Turned down the harmonics drop away early and "
+    "then trail off quietly, for a darker, softer sound; turned up they hold their level for longer before "
+    "falling steeply to silence at the top, which is brighter and more present.";
+
+inline constexpr const char *kMacroLevelFund =
+    "Sets how strong the fundamental is. At full it is the strongest harmonic; turned down it is thinned out "
+    "for a hollow, more nasal tone, and at the bottom it is silent altogether.\n\n"
+    "The harmonics just above it are thinned along with it, most strongly on the second harmonic and less on "
+    "each one after that. This is what moves the peak: as the fundamental is thinned the strongest harmonic "
+    "climbs up the series. How far the thinning reaches depends on Width, so a wider sound is scooped out over "
+    "more harmonics than a narrow one.";
 
 inline constexpr const char *kMacroLevelOddEven =
     "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned up, only the odd harmonics "
     "survive, giving a hollow, clarinet-like tone; turned down favours the even harmonics.";
-
-inline constexpr const char *kMacroLevelTaper =
-    "Pulls the topmost harmonics down to silence independently of the rolloff, which keeps the very highest "
-    "harmonics from whining on bright settings. Turn it up to start the taper lower down the series.";
 
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";

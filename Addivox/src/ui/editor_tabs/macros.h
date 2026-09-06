@@ -35,7 +35,7 @@ struct MacroKnobDescriptor {
   const char* label{""};
   const char* tooltip{""};
   double defaultValue{0.0}; // Normalised 0..1, and where a double-tap returns to.
-  bool bipolar{false};      // Draws the value arc out from the centre; reads out -100..100 rather than 0..100.
+  bool bipolar{false};      // Draws the value arc out from the centre rather than from the left.
 };
 
 // What a tab with macros can do, registered by that tab when it attaches its knobs. Tabs with no generator
@@ -55,18 +55,10 @@ struct MacroFitState {
   MacroOscillatorParameterValues values{};
 };
 
-// Readouts are normalised 0-100 rather than the model parameter behind them, which means nothing to anyone
-// who has not read the generator.
-inline void FormatMacroKnobValue(WDL_String& text, double normalizedValue, bool bipolar) {
-  const double displayValue = bipolar ? (((normalizedValue * 2.0) - 1.0) * 100.0) : (normalizedValue * 100.0);
-  text.SetFormatted(16, "%.0f", displayValue);
-}
-
 inline layout::LabelledKnob* CreateMacroKnobControl(const MacroKnobDescriptor& descriptor, std::function<void()> onValueChanged) {
   layout::UnboundKnobSpec spec;
   spec.defaultValue = descriptor.defaultValue;
   spec.bipolar = descriptor.bipolar;
-  spec.formatValue = [bipolar = descriptor.bipolar](WDL_String& text, double normalizedValue) { FormatMacroKnobValue(text, normalizedValue, bipolar); };
   spec.onValueChanged = [onValueChanged = std::move(onValueChanged)](double) {
     if (onValueChanged) onValueChanged();
   };

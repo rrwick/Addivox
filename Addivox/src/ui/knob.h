@@ -131,8 +131,6 @@ private:
 
 class KnobReadoutControl final : public ITextControl {
 public:
-  using ValueFormatterFunc = std::function<void(WDL_String& text, double normalizedValue)>;
-
   KnobReadoutControl(const IRECT& bounds, int paramIdx, const char* label, const IText& text)
       : ITextControl(bounds, label ? label : "", text, COLOR_TRANSPARENT), mLabel(label ? label : "") {
     SetParamIdx(paramIdx);
@@ -160,15 +158,9 @@ public:
     SetDirty(false);
   }
 
-  // Without a plugin parameter there is no GetDisplay to call, so an unbound knob supplies its own formatter
-  // and pushes its value here for the readout to render.
-  void SetValueFormatter(ValueFormatterFunc formatValue) { mFormatValue = std::move(formatValue); }
-
   void Draw(IGraphics& g) override {
     if (ShouldShowValue()) {
       if (const IParam* param = GetParam()) param->GetDisplay(mStr);
-      else if (mFormatValue)
-        mFormatValue(mStr, GetValue());
       else
         mStr.Set(mLabel.Get());
     } else {
@@ -188,7 +180,6 @@ private:
   bool ShouldShowValue() const { return mShowValueWhileInteracting || mShowValueTemporarily; }
 
   WDL_String mLabel;
-  ValueFormatterFunc mFormatValue;
   bool mShowValueWhileInteracting = false;
   bool mShowValueTemporarily = false;
 };
@@ -228,7 +219,6 @@ private:
 struct UnboundKnobSpec {
   double defaultValue = 0.0; // Normalised 0..1, what a double-tap returns to.
   bool bipolar = false;      // Draws the value arc out from the centre rather than from the left.
-  KnobReadoutControl::ValueFormatterFunc formatValue;
   std::function<void(double normalizedValue)> onValueChanged;
 };
 
@@ -258,12 +248,10 @@ public:
   // spec's default is left alone, since that is where a double-tap still belongs.
   void SetNormalizedValueSilently(double normalizedValue) {
     mUnboundValue = std::clamp(normalizedValue, 0.0, 1.0);
-    if (!mKnobControl || !mReadoutControl) return;
+    if (!mKnobControl) return;
 
     mKnobControl->SetValue(mUnboundValue);
     mKnobControl->SetDirty(false);
-    mReadoutControl->SetValue(mUnboundValue);
-    mReadoutControl->SetDirty(false);
   }
 
   double GetNormalizedValue() const { return mKnobControl ? mKnobControl->GetValue() : mUnboundValue; }
@@ -285,8 +273,12 @@ public:
 
     mKnobControl = new InteractiveLayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
     mReadoutControl = new KnobReadoutControl(IRECT(), mParamIdx, mLabel.Get(), mLabelText);
-    mKnobControl->SetReadoutControl(mReadoutControl);
+
+    // An unbound knob's text stays the label even while it is being dragged: there is no parameter value worth
+    // reading out, only a position, so the readout is never wired up to it.
     if (mParamIdx == kNoParameter) ApplyUnboundSpec();
+    else
+      mKnobControl->SetReadoutControl(mReadoutControl);
 
     AddChildControl(mKnobControl);
     AddChildControl(mReadoutControl);
@@ -311,16 +303,10 @@ private:
     mKnobControl->SetUnboundDefaultValue(mUnboundSpec.defaultValue);
     mKnobControl->SetUnboundArcStartValue(mUnboundSpec.bipolar ? 0.5 : 0.0);
     mKnobControl->SetValue(mUnboundValue);
-    mReadoutControl->SetValueFormatter(mUnboundSpec.formatValue);
-    mReadoutControl->SetValue(mUnboundValue);
 
-    // Captures the readout by pointer rather than capturing this, so the action holds nothing that outlives it.
-    mKnobControl->SetActionFunction([readoutControl = mReadoutControl, onValueChanged = mUnboundSpec.onValueChanged](IControl* caller) {
-      const double normalizedValue = caller->GetValue();
-      readoutControl->SetValue(normalizedValue);
-      readoutControl->SetDirty(false);
-
-      if (onValueChanged) onValueChanged(normalizedValue);
+    // Captures the callback by value rather than capturing this, so the action holds nothing that outlives it.
+    mKnobControl->SetActionFunction([onValueChanged = mUnboundSpec.onValueChanged](IControl* caller) {
+      if (onValueChanged) onValueChanged(caller->GetValue());
     });
   }
 
