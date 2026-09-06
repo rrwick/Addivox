@@ -125,18 +125,60 @@ inline constexpr double   kLevelShapeDefault = 0.50;
 inline constexpr double    kLevelFundDefault = 1.00; // Full is no thinning at all, which is what a double-tap should give.
 inline constexpr double kLevelOddEvenDefault = 0.50;
 
-// Width is the last audible harmonic, so the falling curve reaches zero one harmonic past it. Linear travel,
-// because Width is not just an endpoint: every harmonic moves when it does, since it sets the slope too.
+// ---------------------------------------------------------------------------------------------------------
+// Tuning
+//
+// Every constant here is a dial rather than a decision: changing one moves the curves the knobs draw, or moves
+// where along a knob's travel a given curve sits, but none of them changes how the macros work. They are kept
+// together because they are meant to be tuned together, against how well the macros can match sounds worth
+// matching and against how the knobs feel under the hand.
+
+// What Width spans. It is the last audible harmonic, so the falling curve reaches zero one harmonic past it,
+// and the top of the travel is the oscillator count -- a curve that only just fades out by the end of the
+// series. Width is not merely an endpoint: it sets the slope of the whole fall, so every harmonic moves with
+// it, and it sets how far Fund's scoop reaches as well.
 inline constexpr double kLevelWidthHarmonicMin =   1.0;
 inline constexpr double kLevelWidthHarmonicMax = static_cast<double>(SimplePatch::kNumOscillators);
 
-// Shape runs geometrically from 1/4 through 1 -- a straight fall -- to 4.
+// What Shape spans: the exponent of the fall, geometrically from 1/max through 1 -- a straight line on the
+// chart -- to max. Measured against the factory patches this one is close to inert, anything from 3 upwards
+// fitting them to the same four decimal places, so it is set for feel rather than for fit.
 inline constexpr double kLevelShapeExponentMax = 4.0;
 
-// How far up the series Fund's thinning reaches, as a fraction of the width harmonic. Tying it to Width rather
-// than fixing it in harmonics keeps the scoop the same size relative to the curve it is taken out of, so Fund
-// reads as the same gesture on a narrow shape as on a wide one.
-inline constexpr double kLevelFundReachFraction = 0.2;
+// The scoop Fund takes out of the bottom of the series, which is  1 - (1 - fund) * exp(-(offset / reach)^decay).
+//
+// Reach is where the scoop fades out, in harmonics, as  fraction * widthHarmonic^power. A power of 1 keeps the
+// scoop the same size relative to the curve it comes out of, so Fund reads as the same gesture on a narrow
+// shape as on a wide one; lowering it holds the scoop tight on wide shapes while still opening it out on
+// narrow ones, which is the trade between what a bright sound wants and what a dark one does.
+//
+// Decay is the scoop's profile. At 1 it is a plain exponential; below 1 it digs a deeper, narrower notch that
+// climbs back steeply, and above 1 it spreads into something broader and flatter-bottomed.
+inline constexpr double kLevelFundReachFraction = 0.40;
+inline constexpr double kLevelFundReachWidthPower = 0.55;
+inline constexpr double kLevelFundDecayExponent = 1.20;
+
+// Where along each knob's travel those curves sit. These cannot change which curves the macros can draw, only
+// which part of a rotation draws them, so they answer to feel alone: they are set so that the sounds worth
+// reaching are spread across the travel rather than bunched into a corner of it.
+//
+// Width and Fund bend their travel end to end -- above 1 gives the bottom of the knob more room, below 1 the
+// top. Shape bends about its centre instead, so that half travel stays the straight fall it is now.
+//
+// These were set by fitting the twenty-one brass and reed curves and looking at where their knobs landed.
+// Width came out spread evenly across its whole travel already and is left alone. Shape bunched into the
+// middle third, so its centre is stretched out. Fund bunched into the top third, because a natural spectrum
+// hardly thins its fundamental at all -- but the hollow sounds Fund exists for live below that band and simply
+// are not in the factory set, so the bend here is a moderate one: enough to open out the top, not so much that
+// the bottom of the travel stops being usable.
+inline constexpr double kLevelWidthTravelExponent = 1.0;
+inline constexpr double kLevelShapeTravelExponent = 2.0;
+inline constexpr double kLevelFundTravelExponent = 0.5;
+
+// Where the fit stops caring: harmonics more than 60 dB below the peak no longer pull on it.
+inline constexpr double kLevelFitRelativeFloor = 1.0e-3;
+
+// ---------------------------------------------------------------------------------------------------------
 
 inline constexpr double kLevelMacroEpsilon = 1.0e-12;
 
@@ -158,11 +200,28 @@ struct LevelMacroModel {
   double oddEvenWeight{0.0};  // -1 all even, 0 balanced, +1 all odd
 };
 
+// Bends a knob's 0..1 travel end to end. An exponent of 1 leaves it alone.
+inline double GetLevelBentTravel(double knobValue, double exponent) {
+  const double clamped = std::clamp(knobValue, 0.0, 1.0);
+  return (exponent == 1.0) ? clamped : std::pow(clamped, exponent);
+}
+
+// The same, bent about the centre rather than an end, so that half travel stays half travel.
+inline double GetLevelBentCentredTravel(double knobValue, double exponent) {
+  const double fromCentre = (2.0 * std::clamp(knobValue, 0.0, 1.0)) - 1.0;
+  if (exponent == 1.0) return 0.5 + (0.5 * fromCentre);
+
+  return 0.5 + (0.5 * std::copysign(std::pow(std::fabs(fromCentre), exponent), fromCentre));
+}
+
 inline LevelMacroModel GetLevelMacroModel(const LevelMacroKnobs& knobs) {
+  const double widthTravel = GetLevelBentTravel(knobs.width, kLevelWidthTravelExponent);
+  const double shapeTravel = GetLevelBentCentredTravel(knobs.shape, kLevelShapeTravelExponent);
+
   LevelMacroModel model;
-  model.widthHarmonic = kLevelWidthHarmonicMin + (std::clamp(knobs.width, 0.0, 1.0) * (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin));
-  model.shapeExponent = std::pow(kLevelShapeExponentMax, 1.0 - (2.0 * std::clamp(knobs.shape, 0.0, 1.0)));
-  model.fundLevel = std::clamp(knobs.fund, 0.0, 1.0);
+  model.widthHarmonic = kLevelWidthHarmonicMin + (widthTravel * (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin));
+  model.shapeExponent = std::pow(kLevelShapeExponentMax, 1.0 - (2.0 * shapeTravel));
+  model.fundLevel = GetLevelBentTravel(knobs.fund, kLevelFundTravelExponent);
   model.oddEvenWeight = (std::clamp(knobs.oddEven, 0.0, 1.0) * 2.0) - 1.0;
   return model;
 }
@@ -174,7 +233,7 @@ inline int GetLevelHarmonicParity(int oscillatorIndex) { return IsOddHarmonic(os
 // The curve in display units, running 1 at the fundamental down to 0 (silent). Two pieces multiplied together:
 //
 //   fall(h)  = (1 - u)^q,  u running 0 at the fundamental to 1 one harmonic past the width harmonic
-//   thin(h)  = 1 - (1 - fund) * exp(-(h - 1) / reach)
+//   thin(h)  = 1 - (1 - fund) * exp(-((h - 1) / reach)^decay)
 //
 // The fall is the shape Width and Shape draw between them: q below 1 leaves the fundamental gently and turns
 // down hard at the end, above 1 drops away immediately and then trails, and 1 is a straight line on the chart.
@@ -188,15 +247,65 @@ inline int GetLevelHarmonicParity(int oscillatorIndex) { return IsOddHarmonic(os
 // the exponential is the shape that lets it: strongest on h2, weaker on h3, weaker again on h4, and never quite
 // zero, so there is no harmonic where the thinning stops and the curve creases.
 inline void FillLevelMacroDisplayCurve(const LevelMacroModel& model, LevelMacroCurve& display) {
-  const double reach = kLevelFundReachFraction * model.widthHarmonic;
+  const double reach = kLevelFundReachFraction * std::pow(model.widthHarmonic, kLevelFundReachWidthPower);
   const double thinning = 1.0 - model.fundLevel;
 
   for (std::size_t index = 0; index < display.size(); ++index) {
     const double offset = static_cast<double>(index);
     const double fall = std::pow(std::max(0.0, 1.0 - (offset / model.widthHarmonic)), model.shapeExponent);
+    const double scoop = std::exp(-std::pow(offset / reach, kLevelFundDecayExponent));
 
-    display[index] = fall * (1.0 - (thinning * std::exp(-offset / reach)));
+    display[index] = fall * (1.0 - (thinning * scoop));
   }
+
+  // Scaled so the apex is exactly 1. That is not a change of shape -- the height solved for below absorbs it --
+  // but it is what lets that solve start from a known overshoot.
+  double apex = 0.0;
+  for (const double value : display) apex = std::max(apex, value);
+  if (apex <= kLevelMacroEpsilon) return;
+
+  for (double& value : display) value /= apex;
+}
+
+// How far down the chart the drawn curve is scaled, so that the levels underneath it sum to 1.
+//
+// This is the whole reason the sum is not simply divided out at the end. Dividing the levels by a constant is
+// not a constant change to the curve the chart draws: high up, where the pseudo-log transform is logarithmic,
+// it slides the curve down bodily, but low down, where the transform is near enough linear, it squashes the
+// curve towards zero instead. The join between the two put a flattening bend into the bottom of every curve.
+// Scaling the display curve leaves its shape exactly alone, so a straight line stays straight the whole way to
+// silence -- but then the scale has to be found rather than applied afterwards.
+//
+// Writing k for the display shape, the levels are  (e^(k * height * s) - 1) / (e^k - 1)  and they sum to 1 when
+//
+//     sum of e^(k * height * s)  =  e^k - 1 + N
+//
+// The left side is a log-sum-exp, so its logarithm is convex, and full height always overshoots: a curve whose
+// apex is 1 has a harmonic at full level and so already sums to at least 1 by itself. Newton's method started
+// there walks down onto the answer without ever stepping past it, which is why it needs no bracketing.
+inline double SolveLevelMacroDisplayHeight(const LevelMacroCurve& display) {
+  constexpr int kIterations = 4; // Measured: four brings the sum within 3e-15 of 1 everywhere, three within 3e-11.
+
+  const double displayShape = transformations::GetGlobalPseudoLogShapeValue();
+  const double target = std::expm1(displayShape) + static_cast<double>(display.size());
+
+  double exponent = displayShape;
+  for (int iteration = 0; iteration < kIterations; ++iteration) {
+    double sum = 0.0;
+    double slope = 0.0;
+    for (const double value : display) {
+      const double term = std::exp(exponent * value);
+      sum += term;
+      slope += term * value;
+    }
+
+    if (slope <= kLevelMacroEpsilon) return 0.0;
+
+    exponent -= (std::log(sum / target) * sum) / slope;
+    if (exponent <= 0.0) return 0.0;
+  }
+
+  return exponent / displayShape;
 }
 
 // The curve before odd/even weighting and normalisation: the drawn shape, read out of display space as levels.
@@ -205,13 +314,19 @@ inline void FillLevelMacroDisplayCurve(const LevelMacroModel& model, LevelMacroC
 // display-only.
 inline void FillLevelMacroBasis(const LevelMacroCurve& display, OscillatorParameterValues& basis) {
   const double displayShape = transformations::GetGlobalPseudoLogShapeValue();
+  const double height = SolveLevelMacroDisplayHeight(display);
 
-  for (std::size_t index = 0; index < basis.size(); ++index) basis[index] = transformations::NormalizedExp(display[index], displayShape);
+  for (std::size_t index = 0; index < basis.size(); ++index) basis[index] = transformations::NormalizedExp(height * display[index], displayShape);
 }
 
 // Every harmonic in phase makes the rendered waveform peak at the sum of the levels, so the sum is what gets
 // pinned to 1: at full breath the worst case then reaches full scale and no further. This is a quieter
 // convention than the RMS normalisation the shape presets and the factory patches use, which can clip there.
+//
+// The height solved for above has already brought the sum to 1, so with Odd/Even centred the division below is
+// by 1 and the drawn curve is the display curve exactly. Away from centre the weights move the sum, and the
+// division takes up the difference -- which the fit sees the same way, since a scale on the whole curve is
+// precisely what its two parity scales are free to absorb.
 inline OscillatorParameterValues GenerateLevelMacroCurve(const LevelMacroKnobs& knobs) {
   const LevelMacroModel model = GetLevelMacroModel(knobs);
 
@@ -247,8 +362,6 @@ struct LevelMacroFitTarget {
   OscillatorParameterValues values{};
   OscillatorParameterValues weights{};
 };
-
-inline constexpr double kLevelFitRelativeFloor = 1.0e-3; // Harmonics more than 60 dB below the peak stop pulling.
 
 inline LevelMacroFitTarget MakeLevelMacroFitTarget(const OscillatorParameterValues& values) {
   double peak = 0.0;
@@ -359,7 +472,8 @@ inline double MeasureLevelMacroWidthSeed(const OscillatorParameterValues& values
     break;
   }
 
-  return std::clamp(static_cast<double>(topIndex) / (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin), 0.0, 1.0);
+  const double span = std::clamp(static_cast<double>(topIndex) / (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin), 0.0, 1.0);
+  return (kLevelWidthTravelExponent == 1.0) ? span : std::pow(span, 1.0 / kLevelWidthTravelExponent);
 }
 
 // Shape and Fund are searched blind over their whole travel, because neither has a cliff in it: both only bend
