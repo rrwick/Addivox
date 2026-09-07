@@ -5,6 +5,7 @@
 #include "../knob.h"
 #include "IControls.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <functional>
@@ -18,17 +19,29 @@ using namespace igraphics;
 namespace editor {
 using MacroOscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 
-// Macro knobs go in the column the hand-edit controls vacate: two per row, sized so that three rows of two
-// fit the space with room to spare. The knob is capped narrower than its cell so a label can be wider than
-// the knob it names, which is what makes "Odd/Even" fit a 48px column.
-inline constexpr int      kMacroKnobColumns =  2;
-inline constexpr float  kMacroKnobRowHeight = 58.f;
-inline constexpr float     kMacroKnobRowGap = 12.f;
-inline constexpr float        kMacroKnobMax = 42.f;
-inline constexpr float kMacroKnobLabelHeight = 11.f;
-inline constexpr float   kMacroKnobLabelGap =  1.f;
+// Macro knobs go in the column the hand-edit controls vacate, at hand-picked positions rather than on a grid.
+// Four knobs leave most of the column empty, and a staggered pair of columns reads better than a block, which is
+// not something a row-and-gap rule expresses well. The label is drawn across the full knob width and centred, so
+// a name wider than the knob -- "Odd/Even" -- simply spills into the empty corner beside it.
+inline constexpr float        kMacroKnobSize = 48.f;
+inline constexpr float kMacroKnobLabelHeight = 13.f;
+inline constexpr float    kMacroKnobLabelGap =  1.f;
 
-inline IText GetMacroKnobLabelText() { return {11.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center}; }
+// Where each knob sits: pixels right and down from the top-left of the macro area, one entry per knob in the
+// order the tab lists them. These are the numbers to tweak, and a tab with more knobs than this adds lines.
+struct MacroKnobPosition {
+  float x{0.f};
+  float y{0.f};
+};
+
+inline constexpr std::array<MacroKnobPosition, 4> kMacroKnobPositions{{
+    { 0.f,  10.f},  // Width
+    {48.f,  58.f},  // Shape
+    { 0.f, 106.f},  // Fund
+    {48.f, 154.f},  // Odd/Even
+}};
+
+inline IText GetMacroKnobLabelText() { return {12.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center}; }
 
 // One row of a tab's knob table. Adding, removing or renaming a macro knob should be this and nothing else.
 struct MacroKnobDescriptor {
@@ -65,22 +78,21 @@ inline layout::LabelledKnob* CreateMacroKnobControl(const MacroKnobDescriptor& d
 
   auto* control = new layout::LabelledKnob(IRECT(), descriptor.label, std::move(spec), kMacroKnobLabelGap);
   control->SetLabelStyle(GetMacroKnobLabelText(), kMacroKnobLabelHeight);
-  control->SetMaxKnobSize(kMacroKnobMax);
+  control->SetMaxKnobSize(kMacroKnobSize);
   control->SetTooltip(descriptor.tooltip);
   return control;
 }
 
 inline std::vector<IRECT> GetMacroKnobBounds(const IRECT& macroAreaBounds, int numKnobs) {
+  const auto placedKnobs = std::min<std::size_t>(static_cast<std::size_t>(std::max(numKnobs, 0)), kMacroKnobPositions.size());
+
   std::vector<IRECT> knobBounds;
-  if (numKnobs <= 0) return knobBounds;
+  knobBounds.reserve(placedKnobs);
+  const float boxHeight = kMacroKnobSize + kMacroKnobLabelGap + kMacroKnobLabelHeight;
 
-  knobBounds.reserve(static_cast<std::size_t>(numKnobs));
-  const float cellWidth = macroAreaBounds.W() / static_cast<float>(kMacroKnobColumns);
-
-  for (int knobIndex = 0; knobIndex < numKnobs; ++knobIndex) {
-    const float left = macroAreaBounds.L + (cellWidth * static_cast<float>(knobIndex % kMacroKnobColumns));
-    const float top = macroAreaBounds.T + (static_cast<float>(knobIndex / kMacroKnobColumns) * (kMacroKnobRowHeight + kMacroKnobRowGap));
-    knobBounds.push_back(IRECT::MakeXYWH(left, top, cellWidth, kMacroKnobRowHeight));
+  for (std::size_t knobIndex = 0; knobIndex < placedKnobs; ++knobIndex) {
+    const auto& position = kMacroKnobPositions[knobIndex];
+    knobBounds.push_back(IRECT::MakeXYWH(macroAreaBounds.L + position.x, macroAreaBounds.T + position.y, kMacroKnobSize, boxHeight));
   }
 
   return knobBounds;

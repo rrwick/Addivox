@@ -14,7 +14,7 @@ static const IColor  kPanelBackground{255,  27,  42,  56};  // Main window backg
 static const IColor      kControlBody{255,  20,  22,  28};  // Base fill for vector controls (knob body, meter track background)
 static const IColor     kControlFrame{255,  88,  96, 110};  // Outline/frame color for vector controls
 static const IColor    kAccentPrimary{255, 118, 168, 230};  // Primary accent used for active/pressed states and indicator tracks
-static const IColor  kAccentSecondary{255,  90, 214, 205};  // Secondary accent used as an alternate track/LED tone
+static const IColor  kAccentSecondary{255, 185, 210, 241};  // Secondary accent used as an alternate track/LED tone
 static const IColor kControlHighlight{110, 140, 180, 235};  // Mouse-over / hover highlight overlay
 static const IColor    kControlShadow{ 90,   0,   0,   0};  // Soft shadow tone for vector controls
 static const IColor        kLabelText{255, 188, 188, 188};  // Label text color for control captions

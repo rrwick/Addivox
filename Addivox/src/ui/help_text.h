@@ -155,30 +155,20 @@ inline constexpr const char *kPanVariationRate =
     "Controls speed of pan variation for each harmonic.";
 
 inline constexpr const char *kMacrosMode =
-    "Switches every per-harmonic tab between the two ways of shaping a curve. This setting is shared by all tabs.\n\n"
-    "Macro: shape the curve with a few knobs. The bars dim to show they are not draggable, and a bright line "
-    "shows the curve the knobs describe.\n\n"
+    "Switches per-harmonic edit tabs between the two ways of shaping a curve.\n\n"
+    "Macro: shape the curve with a few knobs.\n\n"
     "Detail: draw the curve by hand, one harmonic at a time.";
 
 inline constexpr const char *kMacroLevelWidth =
-    "Sets the highest harmonic still in use; everything above it is silent. It also controls how steeply the "
-    "harmonics fall away from the fundamental, so lowering it makes the whole sound darker, not just the very top.";
+    "Sets the width of the harmonic profile. Higher values use more harmonics.";
 
 inline constexpr const char *kMacroLevelShape =
-    "Bows the falling curve without moving either of its ends. Turned down the harmonics drop away early and "
-    "then trail off quietly, for a darker, softer sound; turned up they hold their level for longer before "
-    "falling steeply to silence at the top, which is brighter and more present.";
+    "Sets the shape of the harmonic profile. Lower values make the curve fall off quickly, "
+    "higher values make it fall off slowly.";
 
 inline constexpr const char *kMacroLevelFund =
-    "Sets how strong the fundamental is against the rest of the harmonics. Centred leaves it exactly where the "
-    "falling curve puts it. Turned down it is thinned out for a hollow, more nasal tone, and at the bottom it "
-    "is silent altogether; turned up it stands above the curve instead, for a purer, more flute-like tone.\n\n"
-    "The harmonics just above it move with it, most strongly on the second harmonic and less on each one after "
-    "that. Turning it down is what moves the peak: as the fundamental is thinned the strongest harmonic climbs "
-    "up the series. How far the effect reaches depends on Width, so a wider sound is shaped over more harmonics "
-    "than a narrow one.\n\n"
-    "Turning it up does not make the sound fuller. The patch is held at a fixed loudness, so raising the "
-    "fundamental lowers everything above it by the same amount, thinning the tone rather than filling it out.";
+    "Sets the strength of the fundamental harmonic and its immediate neighbors. Higher values make the "
+    "fundamental more prominent, while lower values make it quieter.";
 
 inline constexpr const char *kMacroLevelOddEven =
     "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned up, only the odd harmonics "
