@@ -170,12 +170,15 @@ inline constexpr const char *kMacroLevelShape =
     "falling steeply to silence at the top, which is brighter and more present.";
 
 inline constexpr const char *kMacroLevelFund =
-    "Sets how strong the fundamental is. At full it is the strongest harmonic; turned down it is thinned out "
-    "for a hollow, more nasal tone, and at the bottom it is silent altogether.\n\n"
-    "The harmonics just above it are thinned along with it, most strongly on the second harmonic and less on "
-    "each one after that. This is what moves the peak: as the fundamental is thinned the strongest harmonic "
-    "climbs up the series. How far the thinning reaches depends on Width, so a wider sound is scooped out over "
-    "more harmonics than a narrow one.";
+    "Sets how strong the fundamental is against the rest of the harmonics. Centred leaves it exactly where the "
+    "falling curve puts it. Turned down it is thinned out for a hollow, more nasal tone, and at the bottom it "
+    "is silent altogether; turned up it stands above the curve instead, for a purer, more flute-like tone.\n\n"
+    "The harmonics just above it move with it, most strongly on the second harmonic and less on each one after "
+    "that. Turning it down is what moves the peak: as the fundamental is thinned the strongest harmonic climbs "
+    "up the series. How far the effect reaches depends on Width, so a wider sound is shaped over more harmonics "
+    "than a narrow one.\n\n"
+    "Turning it up does not make the sound fuller. The patch is held at a fixed loudness, so raising the "
+    "fundamental lowers everything above it by the same amount, thinning the tone rather than filling it out.";
 
 inline constexpr const char *kMacroLevelOddEven =
     "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned up, only the odd harmonics "

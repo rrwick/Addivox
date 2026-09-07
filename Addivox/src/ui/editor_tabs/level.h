@@ -122,7 +122,7 @@ inline constexpr int kNumLevelMacroSearchKnobs = kLevelOddEvenKnob;
 
 inline constexpr double   kLevelWidthDefault = 0.50;
 inline constexpr double   kLevelShapeDefault = 0.50;
-inline constexpr double    kLevelFundDefault = 1.00; // Full is no thinning at all, which is what a double-tap should give.
+inline constexpr double    kLevelFundDefault = 0.50; // Centred is no lift at all, which is what a double-tap should give.
 inline constexpr double kLevelOddEvenDefault = 0.50;
 
 // ---------------------------------------------------------------------------------------------------------
@@ -145,35 +145,44 @@ inline constexpr double kLevelWidthHarmonicMax = static_cast<double>(SimplePatch
 // fitting them to the same four decimal places, so it is set for feel rather than for fit.
 inline constexpr double kLevelShapeExponentMax = 4.0;
 
-// The scoop Fund takes out of the bottom of the series, which is  1 - (1 - fund) * exp(-(offset / reach)^decay).
+// The lift Fund applies to the bottom of the series, which is  1 + lift * exp(-(offset / reach)^decay). The
+// lift runs -1 at the bottom of the knob, through 0 at the centre, up to the boost maximum at the top: -1
+// silences the fundamental outright, and the same expression run the other way lets it stand above the fall.
 //
-// Reach is where the scoop fades out, in harmonics, as  fraction * widthHarmonic^power. A power of 1 keeps the
-// scoop the same size relative to the curve it comes out of, so Fund reads as the same gesture on a narrow
-// shape as on a wide one; lowering it holds the scoop tight on wide shapes while still opening it out on
-// narrow ones, which is the trade between what a bright sound wants and what a dark one does.
+// Reach is where the lift fades out, in harmonics, as  fraction * widthHarmonic^power. A power of 1 keeps it
+// the same size relative to the curve it works on, so Fund reads as the same gesture on a narrow shape as on a
+// wide one; lowering it holds the lift tight on wide shapes while still opening it out on narrow ones, which
+// is the trade between what a bright sound wants and what a dark one does.
 //
-// Decay is the scoop's profile. At 1 it is a plain exponential; below 1 it digs a deeper, narrower notch that
-// climbs back steeply, and above 1 it spreads into something broader and flatter-bottomed.
+// Decay is the lift's profile. At 1 it is a plain exponential; below 1 it digs a deeper, narrower notch that
+// climbs back steeply, and above 1 it spreads into something broader and flatter-topped. Above 1 also means
+// the lift is flat at the fundamental rather than sloping, so it makes a shoulder just above h1 instead of
+// steepening the curve's start -- which is what keeps it from doing Shape's job over again.
+//
+// The boost maximum is how far the other half of the knob reaches, as a multiple of the height the fall alone
+// gives the fundamental. There is no principled ceiling the way silence is a principled floor, so this is the
+// one end of Fund's travel that is chosen rather than derived.
 inline constexpr double kLevelFundReachFraction = 0.40;
 inline constexpr double kLevelFundReachWidthPower = 0.55;
 inline constexpr double kLevelFundDecayExponent = 1.20;
+inline constexpr double kLevelFundBoostMax = 1.00;
 
 // Where along each knob's travel those curves sit. These cannot change which curves the macros can draw, only
 // which part of a rotation draws them, so they answer to feel alone: they are set so that the sounds worth
 // reaching are spread across the travel rather than bunched into a corner of it.
 //
-// Width and Fund bend their travel end to end -- above 1 gives the bottom of the knob more room, below 1 the
-// top. Shape bends about its centre instead, so that half travel stays the straight fall it is now.
+// Width bends its travel end to end -- above 1 gives the bottom of the knob more room, below 1 the top. Shape
+// and Fund bend about their centres instead, so that half travel stays exactly what it is: a straight fall,
+// and no lift at all.
 //
 // These were set by fitting the twenty-one brass and reed curves and looking at where their knobs landed.
-// Width came out spread evenly across its whole travel already and is left alone. Shape bunched into the
-// middle third, so its centre is stretched out. Fund bunched into the top third, because a natural spectrum
-// hardly thins its fundamental at all -- but the hollow sounds Fund exists for live below that band and simply
-// are not in the factory set, so the bend here is a moderate one: enough to open out the top, not so much that
-// the bottom of the travel stops being usable.
+// Width came out spread evenly across its whole travel already and is left alone. Shape bunched towards its
+// centre, so that centre is stretched out. Fund's natural sounds all sit in its cutting half, because a
+// natural spectrum does not stand its fundamental above the rest -- the sounds its boosting half exists for
+// simply are not in the factory set, so its bend is a moderate one rather than one fitted to that lopsidedness.
 inline constexpr double kLevelWidthTravelExponent = 1.0;
 inline constexpr double kLevelShapeTravelExponent = 2.0;
-inline constexpr double kLevelFundTravelExponent = 0.5;
+inline constexpr double kLevelFundTravelExponent = 1.25;
 
 // Where the fit stops caring: harmonics more than 60 dB below the peak no longer pull on it.
 inline constexpr double kLevelFitRelativeFloor = 1.0e-3;
@@ -196,7 +205,7 @@ struct LevelMacroKnobs {
 struct LevelMacroModel {
   double widthHarmonic{0.0};  // Last audible harmonic; the falling curve reaches zero at widthHarmonic + 1
   double shapeExponent{1.0};  // Bows the fall: below 1 it holds up then plunges, 1 straight, above 1 the reverse
-  double fundLevel{1.0};      // What the fundamental keeps, as a fraction of what the fall alone would give it
+  double fundLift{0.0};       // What the fundamental gains, as a fraction of what the fall alone gives it: -1 silences it
   double oddEvenWeight{0.0};  // -1 all even, 0 balanced, +1 all odd
 };
 
@@ -218,10 +227,14 @@ inline LevelMacroModel GetLevelMacroModel(const LevelMacroKnobs& knobs) {
   const double widthTravel = GetLevelBentTravel(knobs.width, kLevelWidthTravelExponent);
   const double shapeTravel = GetLevelBentCentredTravel(knobs.shape, kLevelShapeTravelExponent);
 
+  // Fund is bipolar: the two halves share one expression but not one range, since cutting ends at silence and
+  // boosting ends wherever the boost maximum is put.
+  const double fundTravel = (2.0 * GetLevelBentCentredTravel(knobs.fund, kLevelFundTravelExponent)) - 1.0;
+
   LevelMacroModel model;
   model.widthHarmonic = kLevelWidthHarmonicMin + (widthTravel * (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin));
   model.shapeExponent = std::pow(kLevelShapeExponentMax, 1.0 - (2.0 * shapeTravel));
-  model.fundLevel = GetLevelBentTravel(knobs.fund, kLevelFundTravelExponent);
+  model.fundLift = (fundTravel < 0.0) ? fundTravel : (fundTravel * kLevelFundBoostMax);
   model.oddEvenWeight = (std::clamp(knobs.oddEven, 0.0, 1.0) * 2.0) - 1.0;
   return model;
 }
@@ -233,29 +246,34 @@ inline int GetLevelHarmonicParity(int oscillatorIndex) { return IsOddHarmonic(os
 // The curve in display units, running 1 at the fundamental down to 0 (silent). Two pieces multiplied together:
 //
 //   fall(h)  = (1 - u)^q,  u running 0 at the fundamental to 1 one harmonic past the width harmonic
-//   thin(h)  = 1 - (1 - fund) * exp(-((h - 1) / reach)^decay)
+//   lift(h)  = 1 + fundLift * exp(-((h - 1) / reach)^decay)
 //
 // The fall is the shape Width and Shape draw between them: q below 1 leaves the fundamental gently and turns
 // down hard at the end, above 1 drops away immediately and then trails, and 1 is a straight line on the chart.
 // It arrives at zero rather than stopping short of it.
 //
-// The thinning is Fund. It is exactly `fund` at the fundamental and climbs back to 1 as it goes up the series,
-// so Fund is the fundamental's height and nothing else has to be arranged for it -- and because it is a factor
-// rather than a subtraction it can only ever lower, and can never take a harmonic below silence.
+// The lift is Fund. It is at full strength on the fundamental and fades back to nothing as it goes up the
+// series, so Fund is the fundamental's height against the fall and nothing else has to be arranged for it.
+// Below the centre it cuts, reaching silence at the bottom of the travel because the factor is then 1 - 1;
+// above the centre the same expression boosts instead, and being a factor rather than a subtraction it can
+// never take a harmonic below silence at either end.
 //
-// It reaches beyond h1 because a fundamental cut away on its own sounds like a notch rather than a voice, and
-// the exponential is the shape that lets it: strongest on h2, weaker on h3, weaker again on h4, and never quite
-// zero, so there is no harmonic where the thinning stops and the curve creases.
+// It reaches beyond h1 either way, because a fundamental moved on its own reads as a notch or a spike rather
+// than a voice: strongest on h2, weaker on h3, weaker again on h4, and never quite nothing, so there is no
+// harmonic where the lift stops and the curve creases.
+//
+// Boosting and cutting are the same gesture here, not opposites. The height solved for below is what sets the
+// curve's loudness, so standing the fundamental above the fall is arithmetically the same as pressing the rest
+// of the series down beneath it -- which is why the top of the knob thins the tone out rather than filling it.
 inline void FillLevelMacroDisplayCurve(const LevelMacroModel& model, LevelMacroCurve& display) {
   const double reach = kLevelFundReachFraction * std::pow(model.widthHarmonic, kLevelFundReachWidthPower);
-  const double thinning = 1.0 - model.fundLevel;
 
   for (std::size_t index = 0; index < display.size(); ++index) {
     const double offset = static_cast<double>(index);
     const double fall = std::pow(std::max(0.0, 1.0 - (offset / model.widthHarmonic)), model.shapeExponent);
     const double scoop = std::exp(-std::pow(offset / reach, kLevelFundDecayExponent));
 
-    display[index] = fall * (1.0 - (thinning * scoop));
+    display[index] = fall * (1.0 + (model.fundLift * scoop));
   }
 
   // Scaled so the apex is exactly 1. That is not a change of shape -- the height solved for below absorbs it --
