@@ -10,6 +10,7 @@
 #include "eq.h"
 
 #include <array>
+#include <cmath>
 #include <initializer_list>
 #include <map>
 #include <utility>
@@ -79,6 +80,13 @@ public:
 class SimplePatch {
 public:
   static constexpr int kNumOscillators = 100;
+  // Tune these dBFS targets for Normalise, Set shape and Level macros, then rebuild.
+  // Nominal sine-sum RMS before pan, modulation, EQ and global gain.
+  static constexpr double kReferenceLevelWaveformRmsDbFS = -10.0;
+  static constexpr double kLevelWaveformPeakDbFS = -0.25;
+  inline static const double kLevelWaveformPeak = std::pow(10.0, kLevelWaveformPeakDbFS / 20.0);
+  inline static const double kReferenceLevelWaveformRms = std::pow(10.0, kReferenceLevelWaveformRmsDbFS / 20.0);
+  using LevelArray = std::array<double, kNumOscillators>;
   using OscillatorArray = std::array<OscillatorSettings, kNumOscillators>;
 
   SimplePatch() = default;
@@ -95,6 +103,8 @@ public:
   bool ZeroEvenLevels();
   bool ZeroOddLevels();
   bool NormalizeLevelWaveformRms();
+  // Shared nominal waveform normalisation; leaves silence unchanged.
+  static bool NormalizeLevels(LevelArray& levels);
 
   static SimplePatch Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t);
 

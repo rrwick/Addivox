@@ -61,11 +61,44 @@ OscillatorParameterValues SanitizeParameterValues(Parameter parameter, const Osc
   return sanitized;
 }
 
-// Existing patches are normalized so the sum of squared harmonic levels is 1.
-// For a harmonic sine sum at full breath, that corresponds to a waveform RMS of
-// 1/sqrt(2).
-constexpr double kReferenceLevelWaveformRms = 0.70710678118654752440;
 constexpr double kLevelWaveformRmsEpsilon = 1.0e-12;
+
+// A sine sum is antisymmetric, so half a cycle contains its full absolute peak. The table is built once,
+// off the audio path; harmonic-major storage makes each waveform accumulation contiguous.
+constexpr int kLevelPeakCycleSamples = 4096;
+constexpr double kLevelPeakPhaseStep = 6.28318530717958647692 / kLevelPeakCycleSamples;
+using LevelPeakWaveform = std::array<double, kLevelPeakCycleSamples / 2 + 1>;
+
+const auto& GetLevelPeakSines() {
+  static const auto sines = [] {
+    std::array<LevelPeakWaveform, SimplePatch::kNumOscillators> table{};
+    for (int harmonic = 0; harmonic < SimplePatch::kNumOscillators; ++harmonic) {
+      for (std::size_t sample = 0; sample < table[harmonic].size(); ++sample)
+        table[harmonic][sample] = std::sin(kLevelPeakPhaseStep * static_cast<double>(sample) * (harmonic + 1));
+    }
+    return table;
+  }();
+  return sines;
+}
+
+double GetLevelWaveformPeakBound(const SimplePatch::LevelArray& levels) {
+  const auto& sines = GetLevelPeakSines();
+  LevelPeakWaveform waveform{};
+  double curvatureBound = 0.0;
+  for (int harmonic = 0; harmonic < SimplePatch::kNumOscillators; ++harmonic) {
+    const double level = levels[harmonic];
+    if (level == 0.0) continue;
+    const double frequency = harmonic + 1;
+    curvatureBound += std::abs(level) * frequency * frequency;
+    for (std::size_t sample = 0; sample < waveform.size(); ++sample) waveform[sample] += level * sines[harmonic][sample];
+  }
+
+  double peak = 0.0;
+  for (const double sample : waveform) peak = std::max(peak, std::abs(sample));
+  // Linear interpolation differs from the continuous waveform by at most max|f''| * step^2 / 8.
+  // Including that bound protects peaks between samples without an iterative peak search.
+  return peak + curvatureBound * kLevelPeakPhaseStep * kLevelPeakPhaseStep / 8.0;
+}
 
 enum class HarmonicParity { All, Even, Odd };
 
@@ -236,13 +269,28 @@ bool SimplePatch::ZeroOddLevels() {
   return true;
 }
 
+bool SimplePatch::NormalizeLevels(LevelArray& levels) {
+  double sumSquares = 0.0;
+  double sumAbsolute = 0.0;
+  for (const double level : levels) {
+    sumSquares += level * level;
+    sumAbsolute += std::abs(level);
+  }
+  const double rms = std::sqrt(sumSquares * 0.5);
+  if (rms <= kLevelWaveformRmsEpsilon) return false;
+
+  double scale = kReferenceLevelWaveformRms / rms;
+  // Sparse, quiet spectra can be proven safe without scanning the waveform.
+  if (sumAbsolute * scale > kLevelWaveformPeak) scale = std::min(scale, kLevelWaveformPeak / GetLevelWaveformPeakBound(levels));
+  for (double& level : levels) level *= scale;
+  return true;
+}
+
 bool SimplePatch::NormalizeLevelWaveformRms() {
-  const double currentRms = GetLevelWaveformRms();
-  if (currentRms <= kLevelWaveformRmsEpsilon) return false;
-
-  const double scale = kReferenceLevelWaveformRms / currentRms;
-  for (auto& settings : mOscillatorSettings) settings.level *= scale;
-
+  LevelArray levels{};
+  for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic) levels[harmonic] = mOscillatorSettings[harmonic].level;
+  if (!NormalizeLevels(levels)) return false;
+  for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic) mOscillatorSettings[harmonic].level = levels[harmonic];
   return true;
 }
 

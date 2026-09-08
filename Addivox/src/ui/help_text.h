@@ -219,7 +219,7 @@ inline constexpr const char *kHarmonicLevelActions =
     "away from max: moves values away from the top of the range.\n\n"
     "bend up: bends the shape upward while keeping its low and high points.\n\n"
     "bend down: bends the shape downward while keeping its low and high points.\n\n"
-    "normalize: adjusts all harmonic levels to keep overall loudness consistent.";
+    "normalize: adjusts all harmonic levels to the shared nominal waveform RMS target, reducing gain as needed to respect the peak ceiling. Before pan, variation, EQ and global gain.";
 
 inline constexpr const char *kHarmonicSignedActions =
     "Runs the selected operation. Shortcut keys are shown in brackets. The edit scope limits which harmonics are changed.\n\n"

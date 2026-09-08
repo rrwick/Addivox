@@ -102,8 +102,8 @@ inline bool ApplyLevelAction(SimplePatch& patch, const char* actionName, EditorO
 // The curve is drawn in the tab's pseudo-log display space: a fall from the fundamental to silence just past
 // the width harmonic, thinned at the bottom end by Fund. Width says how far up the series the fall reaches,
 // Shape bows it, Fund scoops out the low harmonics, and odd/even weighting is multiplied in afterwards with
-// the result normalised so the harmonics sum to 1. There is no rounding control because there is nothing to
-// round: both pieces are smooth, so their product has no corner in it at any setting.
+// the result normalised to the shared nominal waveform RMS target. There is no rounding control because
+// both pieces are smooth, so their product has no corner in it at any setting.
 //
 // Working in display space is what makes the knobs feel even: a straight line on screen is a constant number
 // of decibels per harmonic, so every knob moves the curve by roughly as much per degree of rotation wherever
@@ -285,42 +285,32 @@ inline void FillLevelMacroDisplayCurve(const LevelMacroModel& model, LevelMacroC
   for (double& value : display) value /= apex;
 }
 
-// How far down the chart the drawn curve is scaled, so that the levels underneath it sum to 1.
-//
-// This is the whole reason the sum is not simply divided out at the end. Dividing the levels by a constant is
-// not a constant change to the curve the chart draws: high up, where the pseudo-log transform is logarithmic,
-// it slides the curve down bodily, but low down, where the transform is near enough linear, it squashes the
-// curve towards zero instead. The join between the two put a flattening bend into the bottom of every curve.
-// Scaling the display curve leaves its shape exactly alone, so a straight line stays straight the whole way to
-// silence -- but then the scale has to be found rather than applied afterwards.
-//
-// Writing k for the display shape, the levels are  (e^(k * height * s) - 1) / (e^k - 1)  and they sum to 1 when
-//
-//     sum of e^(k * height * s)  =  e^k - 1 + N
-//
-// The left side is a log-sum-exp, so its logarithm is convex, and full height always overshoots: a curve whose
-// apex is 1 has a harmonic at full level and so already sums to at least 1 by itself. Newton's method started
-// there walks down onto the answer without ever stepping past it, which is why it needs no bracketing.
+// Solve the display height for the shared nominal RMS target. Scaling levels afterwards would bend a
+// straight line on the pseudo-log chart, whereas solving the height preserves the drawn shape.
+// With exponent = displayShape * height, solve sum(expm1(exponent * s)^2) = 2 * (RMS * expm1(displayShape))^2.
+// This sum is increasing and convex. Starting where the apex alone reaches the target gives an overshoot,
+// so Newton converges from above without needing a bracket.
 inline double SolveLevelMacroDisplayHeight(const LevelMacroCurve& display) {
-  constexpr int kIterations = 4; // Measured: four brings the sum within 3e-15 of 1 everywhere, three within 3e-11.
+  constexpr int kMaxIterations = 16;
+  constexpr double kRelativeTolerance = 1.0e-13;
 
   const double displayShape = transformations::GetGlobalPseudoLogShapeValue();
-  const double target = std::expm1(displayShape) + static_cast<double>(display.size());
+  const double scaledRms = SimplePatch::kReferenceLevelWaveformRms * std::expm1(displayShape);
+  const double target = 2.0 * scaledRms * scaledRms;
 
-  double exponent = displayShape;
-  for (int iteration = 0; iteration < kIterations; ++iteration) {
+  double exponent = std::log1p(std::sqrt(target));
+  for (int iteration = 0; iteration < kMaxIterations; ++iteration) {
     double sum = 0.0;
     double slope = 0.0;
     for (const double value : display) {
-      const double term = std::exp(exponent * value);
-      sum += term;
-      slope += term * value;
+      const double term = std::expm1(exponent * value);
+      sum += term * term;
+      slope += 2.0 * term * (term + 1.0) * value;
     }
 
     if (slope <= kLevelMacroEpsilon) return 0.0;
-
-    exponent -= (std::log(sum / target) * sum) / slope;
-    if (exponent <= 0.0) return 0.0;
+    if (std::fabs(sum - target) <= kRelativeTolerance * target) break;
+    exponent -= (sum - target) / slope;
   }
 
   return exponent / displayShape;
@@ -337,14 +327,8 @@ inline void FillLevelMacroBasis(const LevelMacroCurve& display, OscillatorParame
   for (std::size_t index = 0; index < basis.size(); ++index) basis[index] = transformations::NormalizedExp(height * display[index], displayShape);
 }
 
-// Every harmonic in phase makes the rendered waveform peak at the sum of the levels, so the sum is what gets
-// pinned to 1: at full breath the worst case then reaches full scale and no further. This is a quieter
-// convention than the RMS normalisation the shape presets and the factory patches use, which can clip there.
-//
-// The height solved for above has already brought the sum to 1, so with Odd/Even centred the division below is
-// by 1 and the drawn curve is the display curve exactly. Away from centre the weights move the sum, and the
-// division takes up the difference -- which the fit sees the same way, since a scale on the whole curve is
-// precisely what its two parity scales are free to absorb.
+// Apply the shared RMS target and nominal peak ceiling after odd/even weighting. The fit's free parity
+// scales absorb this uniform gain; fitting candidates do not need to scan the waveform.
 inline OscillatorParameterValues GenerateLevelMacroCurve(const LevelMacroKnobs& knobs) {
   const LevelMacroModel model = GetLevelMacroModel(knobs);
 
@@ -354,20 +338,17 @@ inline OscillatorParameterValues GenerateLevelMacroCurve(const LevelMacroKnobs& 
   OscillatorParameterValues values{};
   FillLevelMacroBasis(display, values);
 
-  double total = 0.0;
   for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
     double& value = values[static_cast<std::size_t>(oscillatorIndex)];
     value = std::max(0.0, value * (1.0 + (model.oddEvenWeight * GetLevelOddEvenSign(oscillatorIndex))));
-    total += value;
   }
 
-  if (total <= kLevelMacroEpsilon) {
+  if (!SimplePatch::NormalizeLevels(values)) {
+    // A degenerate curve still has to be audible; normalise the fallback sine by the same rules.
     values.fill(0.0);
-    values[0] = 1.0; // A degenerate curve still has to be audible, and a sine is the honest fallback.
-    return values;
+    values[0] = 1.0;
+    SimplePatch::NormalizeLevels(values);
   }
-
-  for (auto& value : values) value /= total;
 
   return values;
 }
