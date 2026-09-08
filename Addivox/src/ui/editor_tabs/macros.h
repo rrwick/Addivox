@@ -21,11 +21,29 @@ using MacroOscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 
 // Macro knobs go in the column the hand-edit controls vacate, at hand-picked positions rather than on a grid.
 // Four knobs leave most of the column empty, and a staggered pair of columns reads better than a block, which is
-// not something a row-and-gap rule expresses well. The label is drawn across the full knob width and centred, so
-// a name wider than the knob -- "Odd/Even" -- simply spills into the empty corner beside it.
-inline constexpr float        kMacroKnobSize = 48.f;
+// not something a row-and-gap rule expresses well.
+//
+// The box is much wider than the knob because it has to hold the label, and the longest label is a good deal
+// wider than the knob it names: "Odd/Even" is 57px of 13px Roboto-Black against a 46px knob. Every box
+// therefore reaches 7px past its own knob on each side, which puts the left column's boxes into the column's
+// side inset and the right column's 5px onto the slider -- harmlessly, since the slider keeps 15px of empty
+// margin before its first bar.
+//
+// So the boxes overlap things they do not own, and what keeps that harmless is attach order: where two target
+// rects overlap, the control attached later takes the mouse. Every box that covers a knob covers one attached
+// after it -- Width's box reaches into Shape's knob, Shape's into Fund's -- so the knob always wins. A stagger
+// below kMacroKnobSize would reverse that, dropping each box into the band of the knob above it in the other
+// column, which was attached earlier, and the box would start swallowing that knob's clicks. The knobs are the
+// only children here that take the mouse at all; readouts set SetIgnoreMouse.
+inline constexpr float        kMacroKnobSize = 46.f;  // Matches the main UI's knobs, which solve to 46 in a 50x60 box.
+inline constexpr float    kMacroKnobBoxWidth = 60.f;  // Holds "Odd/Even" with ~1.7px spare either side; see GetMacroKnobBounds.
 inline constexpr float kMacroKnobLabelHeight = 13.f;
 inline constexpr float    kMacroKnobLabelGap =  1.f;
+inline constexpr float   kMacroKnobEdgeSlack =  1.f;  // The gap below the label; see GetMacroKnobBounds.
+
+// A box narrower than its knob would silently shrink the knob rather than overflow, since LabelledKnob fits the
+// knob to whichever of the box's dimensions is smallest.
+static_assert(kMacroKnobBoxWidth >= kMacroKnobSize, "The macro knob box must be at least as wide as the knob it holds");
 
 // Where each knob sits: pixels right and down from the top-left of the macro area, one entry per knob in the
 // order the tab lists them. These are the numbers to tweak, and a tab with more knobs than this adds lines.
@@ -41,7 +59,9 @@ inline constexpr std::array<MacroKnobPosition, 4> kMacroKnobPositions{{
     {48.f, 154.f},  // Odd/Even
 }};
 
-inline IText GetMacroKnobLabelText() { return {12.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center}; }
+// 13px Roboto-Black, matching the tab's own controls -- theme::EditorStyles::utilityLabelText ("All notes") and
+// restoreButtonStyle ("Restore") are the same face at the same size.
+inline IText GetMacroKnobLabelText() { return {13.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center}; }
 
 // One row of a tab's knob table. Adding, removing or renaming a macro knob should be this and nothing else.
 struct MacroKnobDescriptor {
@@ -83,16 +103,29 @@ inline layout::LabelledKnob* CreateMacroKnobControl(const MacroKnobDescriptor& d
   return control;
 }
 
+// The position is the knob's own top-left; the box is grown around it, out to kMacroKnobBoxWidth across and
+// kMacroKnobEdgeSlack below the label. Neither margin is spare room. A child control that reaches its parent's
+// edge has its repaint region pulled back inside itself: IGraphics::IsDirty clanks a dirty rect into the
+// parent's bounds, and IRECT::Clank treats touching as overflowing -- it returns rhs.R - 1, not rhs.R. A knob
+// that exactly filled its box therefore never repainted its own right-hand column, and left a sliver of
+// whatever was underneath until a neighbouring control dirtied a wider region.
+//
+// So the knob is inset horizontally by the box's extra width and the label is held off the bottom by the slack.
+// The label is the one child still flush with its box, left and right, because it is laid out across the full
+// width -- that costs it a pixel of repaint on the right, which the ~1.7px the text has spare inside a 60px box
+// absorbs. The knob keeps its size through SetMaxKnobSize; the box only grows around it.
 inline std::vector<IRECT> GetMacroKnobBounds(const IRECT& macroAreaBounds, int numKnobs) {
   const auto placedKnobs = std::min<std::size_t>(static_cast<std::size_t>(std::max(numKnobs, 0)), kMacroKnobPositions.size());
 
   std::vector<IRECT> knobBounds;
   knobBounds.reserve(placedKnobs);
-  const float boxHeight = kMacroKnobSize + kMacroKnobLabelGap + kMacroKnobLabelHeight;
+  const float boxHeight = kMacroKnobSize + kMacroKnobLabelGap + kMacroKnobLabelHeight + kMacroKnobEdgeSlack;
+  const float knobInset = (kMacroKnobBoxWidth - kMacroKnobSize) * 0.5f;
 
   for (std::size_t knobIndex = 0; knobIndex < placedKnobs; ++knobIndex) {
     const auto& position = kMacroKnobPositions[knobIndex];
-    knobBounds.push_back(IRECT::MakeXYWH(macroAreaBounds.L + position.x, macroAreaBounds.T + position.y, kMacroKnobSize, boxHeight));
+    knobBounds.push_back(
+        IRECT::MakeXYWH(macroAreaBounds.L + position.x - knobInset, macroAreaBounds.T + position.y, kMacroKnobBoxWidth, boxHeight));
   }
 
   return knobBounds;
