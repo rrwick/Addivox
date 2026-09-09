@@ -14,6 +14,7 @@
 #include <initializer_list>
 #include <map>
 #include <utility>
+#include <vector>
 
 class OscillatorSettings {
 public:
@@ -114,6 +115,21 @@ private:
   OscillatorArray mOscillatorSettings{};
 };
 
+// Advisory editor metadata. Harmonic arrays remain the complete sound definition.
+struct MacroSettings {
+  int version{0};
+  std::vector<double> positions;
+
+  bool IsValid() const {
+    if (version <= 0 || positions.empty()) return false;
+    for (double value : positions)
+      if (!std::isfinite(value) || value < 0.0 || value > 1.0) return false;
+    return true;
+  }
+  bool operator==(const MacroSettings& other) const { return version == other.version && positions == other.positions; }
+  bool operator!=(const MacroSettings& other) const { return !(*this == other); }
+};
+
 class CompoundPatch {
 public:
   using KeyNotePatch = std::pair<int, SimplePatch>;
@@ -152,9 +168,11 @@ public:
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
   bool SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
-                                           const std::array<double, SimplePatch::kNumOscillators>& values);
+                                           const std::array<double, SimplePatch::kNumOscillators>& values, const MacroSettings& macros = {});
+  const MacroSettings& GetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter) const;
+  void SetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter, const MacroSettings& macros);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
-  void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values);
+  void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values, const MacroSettings& macros = {});
   void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
@@ -172,6 +190,9 @@ private:
 
   std::map<int, SimplePatch> mKeyNotePatches{};
   std::map<int, EqCurve> mKeyNoteEqCurves{};
+  using TabMacroSettings = std::array<MacroSettings, OscillatorSettings::kNumParameters>;
+  std::map<int, TabMacroSettings> mKeyNoteMacros{};
+  TabMacroSettings mAllKeyNotesMacros{};
   std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
   std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};
   bool mAllKeyNotesEqEnabled{false};

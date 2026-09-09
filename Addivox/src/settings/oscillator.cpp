@@ -417,6 +417,7 @@ void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch) {
   SimplePatch updatedPatch = patch;
   ApplyAllKeyNotesValues(updatedPatch);
   mKeyNotePatches[clampedMidiNote] = updatedPatch;
+  mKeyNoteMacros.erase(clampedMidiNote);
   mKeyNoteEqCurves[clampedMidiNote] = eqCurve;
 }
 
@@ -426,6 +427,9 @@ bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillato
 
   // SimplePatch::SetOscillatorParameter() clamps internally, but mAllKeyNotesValues below is indexed directly, so clamp here too.
   const int clampedOscillatorIndex = std::clamp(oscillatorIndex, 0, SimplePatch::kNumOscillators - 1);
+
+  const double previous = mKeyNotePatches[clampedNote].GetOscillatorSettings(clampedOscillatorIndex).GetParameter(parameter);
+  if (previous != OscillatorSettings::SanitizeParameter(parameter, value)) SetMacroSettings(midiNote, parameter, {});
 
   if (IsAllKeyNotesEnabled(parameter)) {
     auto& sharedValues = mAllKeyNotesValues[ParameterIndex(parameter)];
@@ -438,7 +442,7 @@ bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillato
 }
 
 bool CompoundPatch::SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
-                                                        const std::array<double, SimplePatch::kNumOscillators>& values) {
+                                                        const std::array<double, SimplePatch::kNumOscillators>& values, const MacroSettings& macros) {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
   if (mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end()) return false;
 
@@ -448,7 +452,23 @@ bool CompoundPatch::SetKeyNoteOscillatorParameterValues(double midiNote, Oscilla
   } else
     ApplyAllKeyNotesValues(mKeyNotePatches[clampedNote], parameter, values);
 
+  SetMacroSettings(midiNote, parameter, macros);
   return true;
+}
+
+const MacroSettings& CompoundPatch::GetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter) const {
+  static const MacroSettings empty;
+  if (!HasKeyNotePatch(midiNote)) return empty;
+  if (IsAllKeyNotesEnabled(parameter)) return mAllKeyNotesMacros[ParameterIndex(parameter)];
+  const auto it = mKeyNoteMacros.find(RoundAndClampMidiNote(midiNote));
+  return it == mKeyNoteMacros.end() ? empty : it->second[ParameterIndex(parameter)];
+}
+
+void CompoundPatch::SetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter, const MacroSettings& macros) {
+  if (!HasKeyNotePatch(midiNote)) return;
+  if (IsAllKeyNotesEnabled(parameter)) mAllKeyNotesMacros[ParameterIndex(parameter)] = macros;
+  else if (!macros.positions.empty() || mKeyNoteMacros.count(RoundAndClampMidiNote(midiNote)))
+    mKeyNoteMacros[RoundAndClampMidiNote(midiNote)][ParameterIndex(parameter)] = macros;
 }
 
 bool CompoundPatch::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve) {
@@ -463,25 +483,31 @@ bool CompoundPatch::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve) {
   return true;
 }
 
-void CompoundPatch::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) {
+void CompoundPatch::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values, const MacroSettings& macros) {
   const auto parameterIndex = ParameterIndex(parameter);
   mAllKeyNotesValues[parameterIndex] = SanitizeParameterValues(parameter, values);
   mAllKeyNotesEnabled[parameterIndex] = true;
+  mAllKeyNotesMacros[parameterIndex] = macros;
 
   for (auto& [_, patch] : mKeyNotePatches) ApplyAllKeyNotesValues(patch, parameter, values);
 }
 
 void CompoundPatch::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote) {
-  mAllKeyNotesEnabled[ParameterIndex(parameter)] = enabled;
-
-  if (enabled) {
-    if (const SimplePatch* sourcePatch = GetKeyNotePatch(sourceMidiNote))
-      mAllKeyNotesValues[ParameterIndex(parameter)] = GetParameterValues(*sourcePatch, parameter);
-    else if (!mKeyNotePatches.empty())
-      mAllKeyNotesValues[ParameterIndex(parameter)] = GetParameterValues(mKeyNotePatches.begin()->second, parameter);
-
-    for (auto& [_, patch] : mKeyNotePatches) ApplyAllKeyNotesValues(patch, parameter, GetAllKeyNotesValues(parameter));
+  if (IsAllKeyNotesEnabled(parameter) == enabled) return;
+  const auto index = ParameterIndex(parameter);
+  if (!enabled) {
+    mAllKeyNotesEnabled[index] = false;
+    for (const auto& [note, _] : mKeyNotePatches) SetMacroSettings(note, parameter, mAllKeyNotesMacros[index]);
+    mAllKeyNotesMacros[index] = {};
+    return;
   }
+
+  const int sourceNote =
+      HasKeyNotePatch(sourceMidiNote) ? RoundAndClampMidiNote(sourceMidiNote) : (mKeyNotePatches.empty() ? kMinMidiNote : mKeyNotePatches.begin()->first);
+  if (const auto* sourcePatch = GetKeyNotePatch(sourceNote))
+    EnableAllKeyNotes(parameter, GetParameterValues(*sourcePatch, parameter), GetMacroSettings(sourceNote, parameter));
+  else
+    mAllKeyNotesEnabled[index] = true;
 }
 
 void CompoundPatch::EnableAllKeyNotesEq(const EqCurve& curve) {
@@ -504,12 +530,15 @@ bool CompoundPatch::RemoveKeyNotePatch(int midiNote) {
   const int clampedMidiNote = ClampMidiNote(midiNote);
   const size_t numRemoved = mKeyNotePatches.erase(clampedMidiNote);
   mKeyNoteEqCurves.erase(clampedMidiNote);
+  mKeyNoteMacros.erase(clampedMidiNote);
   return numRemoved > 0;
 }
 
 void CompoundPatch::ClearKeyNotePatches() {
   mKeyNotePatches.clear();
   mKeyNoteEqCurves.clear();
+  mKeyNoteMacros.clear();
+  mAllKeyNotesMacros = {};
 }
 
 void CompoundPatch::ApplyAllKeyNotesValues(SimplePatch& patch) const {

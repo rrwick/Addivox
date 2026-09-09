@@ -303,6 +303,14 @@ inline void AppendOscillatorParameterArray(std::ostringstream& stream, const Sim
   stream << "]\n";
 }
 
+// The first element versions the tab's generator and knob mapping; the rest are normalized positions.
+inline void AppendMacroSettings(std::ostringstream& stream, std::string_view key, const MacroSettings& macros) {
+  if (!macros.IsValid()) return;
+  stream << key << "_macros = [" << macros.version << std::setprecision(std::numeric_limits<double>::max_digits10);
+  for (double position : macros.positions) stream << ", " << position;
+  stream << "]\n";
+}
+
 inline void AppendDoubleArray(std::ostringstream& stream, std::string_view key, const std::vector<double>& values) {
   stream << key << " = [";
   for (std::size_t i = 0; i < values.size(); ++i) {
@@ -550,6 +558,9 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     }
 
     stream << "]\n";
+    const auto& notes = document.compoundPatch.GetKeyNotePatches();
+    if (!notes.empty())
+      detail::AppendMacroSettings(stream, descriptor.key, document.compoundPatch.GetMacroSettings(notes.begin()->first, descriptor.parameter));
   }
 
   if (document.compoundPatch.IsAllKeyNotesEqEnabled()) {
@@ -569,6 +580,7 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
       if (document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
       detail::AppendOscillatorParameterArray(stream, patch, descriptor);
+      detail::AppendMacroSettings(stream, descriptor.key, document.compoundPatch.GetMacroSettings(midiNote, descriptor.parameter));
     }
 
     if (!document.compoundPatch.IsAllKeyNotesEqEnabled()) {
@@ -586,6 +598,7 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
     int midiNote = 60;
     bool hasMidiNote = false;
     SimplePatch patch = detail::MakeDefaultKeyNotePatch();
+    std::array<MacroSettings, OscillatorSettings::kNumParameters> macros{};
     bool hasEqFreqHz = false;
     bool hasEqDb = false;
     std::vector<double> eqFreqHz;
@@ -595,6 +608,7 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
   struct ParsedAllKeyNotesParameter {
     bool present = false;
     CompoundPatch::OscillatorParameterValues values{};
+    MacroSettings macros;
   };
 
   struct ParsedEqCurve {
@@ -661,6 +675,25 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
       if (descriptor->member == &EffectsSettings::tone && std::abs(parsedValue) > 1.0) parsedValue *= 0.01;
 
       document.effectsSettings.*(descriptor->member) = parsedValue;
+      return true;
+    }
+
+    constexpr std::string_view macroSuffix = "_macros";
+    if ((section == Section::AllKeyNotes || section == Section::KeyNote) && key.size() > macroSuffix.size() &&
+        key.substr(key.size() - macroSuffix.size()) == macroSuffix) {
+      const auto* descriptor = detail::FindOscillatorParameterDescriptor(key.substr(0, key.size() - macroSuffix.size()));
+      if (!descriptor) return true;
+      // Bad or unsupported advisory metadata must never prevent loading the sound.
+      std::vector<double> values;
+      if (!detail::ParseDoubleArray(value, values) || values.size() < 2 || !std::isfinite(values[0]) || values[0] < 1.0 ||
+          values[0] > std::numeric_limits<int>::max() || std::floor(values[0]) != values[0])
+        return true;
+      MacroSettings macros{static_cast<int>(values[0]), {values.begin() + 1, values.end()}};
+      if (!macros.IsValid()) return true;
+      const auto index = static_cast<std::size_t>(descriptor->parameter);
+      if (section == Section::AllKeyNotes) allKeyNotesParameters[index].macros = std::move(macros);
+      else if (keyNote)
+        keyNote->macros[index] = std::move(macros);
       return true;
     }
 
@@ -842,6 +875,8 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
                   "eq_freq_hz and eq_db");
 
     compoundPatch.SetKeyNotePatch(keyNote.midiNote, keyNote.patch);
+    for (auto parameter : OscillatorSettings::AllParameters())
+      compoundPatch.SetMacroSettings(keyNote.midiNote, parameter, keyNote.macros[static_cast<std::size_t>(parameter)]);
 
     if (keyNote.hasEqFreqHz) {
       const EqCurve eqCurve = buildEqCurve(keyNote.eqFreqHz, keyNote.eqDb, "[[key_notes]]");
@@ -854,7 +889,7 @@ inline bool ParsePatchToml(const std::string& toml, PatchDocument& document, std
 
   for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
     const auto& parsedParameter = allKeyNotesParameters[static_cast<std::size_t>(descriptor.parameter)];
-    if (parsedParameter.present) compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values);
+    if (parsedParameter.present) compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values, parsedParameter.macros);
   }
 
   if (allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb) return fail("[all_key_notes] EQ definition must include both eq_freq_hz and eq_db");

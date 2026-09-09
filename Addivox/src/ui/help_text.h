@@ -155,7 +155,7 @@ inline constexpr const char *kPanVariationRate =
     "Controls speed of pan variation for each harmonic.";
 
 inline constexpr const char *kMacrosMode =
-    "Switches per-harmonic edit tabs between the two ways of shaping a curve.\n\n"
+    "Switches this tab between the two ways of shaping a curve. Saved macro positions select its mode on entry.\n\n"
     "Macro: shape the curve with a few knobs.\n\n"
     "Detail: draw the curve by hand, one harmonic at a time.";
 

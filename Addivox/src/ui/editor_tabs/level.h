@@ -192,7 +192,7 @@ inline constexpr double kLevelFitRelativeFloor = 1.0e-3;
 
 using LevelMacroCurve = std::array<double, SimplePatch::kNumOscillators>;
 
-// Normalised 0..1 knob positions: exactly what the knob controls hold, and the only place macro values live.
+// Normalised 0..1 knob positions, in the same order as the saved Level macro settings.
 struct LevelMacroKnobs {
   double width{kLevelWidthDefault};
   double shape{kLevelShapeDefault};
@@ -507,13 +507,14 @@ inline LevelMacroKnobs ReadLevelMacroKnobs(const std::vector<layout::LabelledKno
           knobControls[kLevelFundKnob]->GetNormalizedValue(), knobControls[kLevelOddEvenKnob]->GetNormalizedValue()};
 }
 
-// The knob controls are the only storage the macro values have, so the generator and the fit are closures over
-// them: read the four positions out, or push four positions in.
+// Fitting is only needed for explicit Macro entry without compatible saved settings.
 inline void RegisterLevelMacroFunctions(const std::shared_ptr<EditorContext>& context, const std::vector<layout::LabelledKnob*>& knobControls) {
   if (knobControls.size() != static_cast<std::size_t>(kNumLevelMacroKnobs)) return;
 
   auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(OscillatorParameter::level)];
 
+  functions.version = 1;
+  functions.knobs = knobControls;
   functions.generateValues = [knobControls]() { return GenerateLevelMacroCurve(ReadLevelMacroKnobs(knobControls)); };
 
   functions.fitKnobsToValues = [knobControls](const OscillatorParameterValues& values) {

@@ -277,10 +277,8 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
     return;
   }
 
-  if (context->IsMacrosMode()) return;
-
   const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
-  if (!descriptor) return;
+  if (!descriptor || context->IsMacrosMode(descriptor->parameter)) return;
 
   const char* actionName = GetEditorActionShortcutActionName(descriptor->parameter, keyVK);
   if (!actionName) return;
@@ -351,8 +349,9 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
         auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
         if (!control) return;
 
+        (*context->oscillatorTabControls.macroStates)[static_cast<std::size_t>(descriptor.parameter)].midiNote = -1;
         if (isVisible) {
-          if (context->HasValidSelectedMidiNote()) control->CaptureRestoreState(context->SelectedMidiNote());
+          if (context->HasValidSelectedMidiNote()) context->CaptureOscillatorRestoreState(descriptor.parameter);
           else
             control->ClearRestoreState();
         } else
@@ -415,7 +414,6 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
       std::shared_ptr<std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditScopes);
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
-  context->oscillatorView.macrosMode = std::shared_ptr<bool>(editorState, &editorState->oscillatorMacrosMode);
   context->oscillatorView.transforms =
       std::shared_ptr<std::array<EditorLevelTransform, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorTransforms);
   context->oscillatorTabControls.sliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
@@ -439,7 +437,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorTabControls.handEditOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.macroOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.macroFunctions = std::make_shared<std::array<MacroTabFunctions, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.macroFitStates = std::make_shared<std::array<MacroFitState, OscillatorSettings::kNumParameters>>();
+  context->oscillatorTabControls.macroStates = std::make_shared<std::array<MacroTabState, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.tabPages = std::make_shared<std::array<IControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.tabPages->fill(nullptr);
   context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
@@ -487,11 +485,6 @@ inline std::shared_ptr<editor::EditorContext> AttachEditorMainControls(IGraphics
   auto* editorTabsControl = new EditorTabbedPagesControl(positions::kEditorTabs, CreateOscillatorTabPages(context, styles), "", styles.tabsStyle, 20.f, 1.f);
   pGraphics->AttachControl(editorTabsControl, editorTabsTag);
   RestoreSelectedTab(editorTabsControl, context->model.selectedTabIndex);
-  // The sliders learn the mode only from these calls, so they have to happen once at startup as well as on
-  // every later mode change -- otherwise a session that begins in Macros mode would show undimmed bars, no
-  // macro line, a zoomed X range and the wrong Y transforms.
-  if (context->IsMacrosMode()) context->ApplyMacrosModeViewSettings();
-  context->SyncMacrosModeControls();
   context->RefreshOscillatorTabs();
   if (pGraphics->TooltipsEnabled()) pGraphics->UpdateTooltips();
   return context;
