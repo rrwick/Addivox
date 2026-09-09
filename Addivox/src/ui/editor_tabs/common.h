@@ -188,23 +188,6 @@ inline OscillatorSliderControl::ValueTransform GetSliderValueTransform(EditorLev
   }
 }
 
-// The Y transform Macros mode fixes for each tab, chosen so a typical patch fills the chart instead of
-// crowding the floor. Level spans four orders of magnitude, so it needs pseudo-log; Breath, the two time tabs
-// and the six variation tabs all sit low in their ranges, where square root lifts them without flattening the
-// top; Pitch and Pan are bipolar and read best undistorted, Pan especially, since its axis maps to a stereo
-// position the listener hears linearly. Display only -- no generator depends on this, so it is cheap to revisit.
-inline EditorLevelTransform GetMacrosModeTransform(OscillatorParameter parameter) {
-  switch (parameter) {
-  case OscillatorParameter::level:        return EditorLevelTransform::PseudoLog;
-  case OscillatorParameter::pitch:
-  case OscillatorParameter::pan:          return EditorLevelTransform::Linear;
-  case OscillatorParameter::breath_power:
-  case OscillatorParameter::attack:
-  case OscillatorParameter::release:
-  default:                                return EditorLevelTransform::SquareRoot;  // and the six variation tabs
-  }
-}
-
 inline const char* GetOscillatorEditModeLabel(EditorOscillatorEditMode mode) {
   switch (mode) {
   case EditorOscillatorEditMode::DrawLine: return "draw line";
@@ -647,41 +630,35 @@ struct OscillatorViewRefs {
   std::shared_ptr<int> xRangeMin;
   std::shared_ptr<int> xRangeMax;
   std::shared_ptr<bool> macrosMode;
+  std::shared_ptr<std::array<EditorLevelTransform, OscillatorSettings::kNumParameters>> transforms;
 };
 
 struct LevelTabRefs {
-  std::shared_ptr<EditorLevelTransform> levelTransform;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
 struct BreathTabRefs {
-  std::shared_ptr<EditorLevelTransform> breathTransform;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
 struct PitchTabRefs {
-  std::shared_ptr<EditorLevelTransform> pitchTransform;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
 struct PanTabRefs {
-  std::shared_ptr<EditorLevelTransform> panTransform;
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
 
 struct VariationTabRefs {
-  std::shared_ptr<std::array<EditorLevelTransform, 6>> transforms;
   std::shared_ptr<std::array<ActionSelectionControl*, 6>> setShapeControls;
   std::shared_ptr<std::array<ActionSelectionControl*, 6>> actionsControls;
 };
 
 struct AttackReleaseTabRefs {
-  std::shared_ptr<EditorLevelTransform> attackTransform;
-  std::shared_ptr<EditorLevelTransform> releaseTransform;
   std::shared_ptr<std::array<ActionSelectionControl*, 2>> setShapeControls;
   std::shared_ptr<std::array<ActionSelectionControl*, 2>> actionsControls;
 };
@@ -798,22 +775,13 @@ struct EditorContext {
 
   bool IsMacrosMode() const { return *oscillatorView.macrosMode; }
 
-  // The Y transform each tab keeps in EditorState. The variation tabs share one array, so their element is
-  // handed back through an aliasing shared_ptr that keeps the array alive.
+  // The Y transform for one tab. Every tab's lives in the one array EditorState holds, indexed by parameter, so
+  // an element is handed back through an aliasing shared_ptr that keeps the array alive.
   std::shared_ptr<EditorLevelTransform> GetTransformRef(OscillatorParameter parameter) const {
-    switch (parameter) {
-    case OscillatorParameter::level:        return levelTab.levelTransform;
-    case OscillatorParameter::breath_power: return breathTab.breathTransform;
-    case OscillatorParameter::attack:       return attackReleaseTab.attackTransform;
-    case OscillatorParameter::release:      return attackReleaseTab.releaseTransform;
-    case OscillatorParameter::pitch:        return pitchTab.pitchTransform;
-    case OscillatorParameter::pan:          return panTab.panTransform;
-    default:                                break;
-    }
+    const auto parameterIndex = static_cast<std::size_t>(parameter);
+    if (parameterIndex >= oscillatorView.transforms->size()) return nullptr;
 
-    if (!IsVariationParameter(parameter)) return nullptr;
-
-    return std::shared_ptr<EditorLevelTransform>(variationTab.transforms, &(*variationTab.transforms)[GetVariationTabIndex(parameter)]);
+    return std::shared_ptr<EditorLevelTransform>(oscillatorView.transforms, &(*oscillatorView.transforms)[parameterIndex]);
   }
 
   // The view settings Macros mode fixes, applied on entry and again at startup, since the mode is global and a
@@ -826,7 +794,7 @@ struct EditorContext {
       const auto transformRef = GetTransformRef(descriptor.parameter);
       if (!transformRef) continue;
 
-      const EditorLevelTransform transform = GetMacrosModeTransform(descriptor.parameter);
+      const EditorLevelTransform transform = GetOscillatorTabTransform(descriptor.parameter);
       if (*transformRef == transform) continue;
 
       *transformRef = transform;

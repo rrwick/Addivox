@@ -4,10 +4,6 @@
 
 namespace plugin_ui {
 namespace editor {
-inline std::shared_ptr<EditorLevelTransform> GetAttackReleaseTransform(const std::shared_ptr<EditorContext>& context, OscillatorParameter parameter) {
-  return (parameter == OscillatorParameter::attack) ? context->attackReleaseTab.attackTransform : context->attackReleaseTab.releaseTransform;
-}
-
 inline double GetAttackReleaseMaxValue(OscillatorParameter parameter) { return parameter == OscillatorParameter::release ? 0.1 : 1.0; }
 
 inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter, const char* shapeName, int oscillatorIndex, double& value) {
@@ -118,7 +114,7 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_pt
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   const auto attackReleaseIndex = GetAttackReleaseTabIndex(descriptor.parameter);
-  auto* yTransformControl = CreateYTransformControl(GetAttackReleaseTransform(context, descriptor.parameter), sliderControl, styles);
+  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
   auto* setShapeControl = new ActionSelectionControl(
       IRECT(), "choose shape",
       descriptor.parameter == OscillatorParameter::attack

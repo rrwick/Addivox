@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <mutex>
 
 #include "../midi/breath_control.h"
@@ -9,6 +10,32 @@
 namespace plugin_ui {
 
 enum class EditorLevelTransform { Linear, SquareRoot, PseudoLog };
+
+// The Y transform each per-harmonic tab uses. This one table is the single place the choice is made: it seeds
+// every tab's transform at startup, and entering Macros mode snaps every tab back to it. Chosen so a typical
+// patch fills the chart instead of crowding the floor -- Level spans four orders of magnitude, so it needs
+// pseudo-log; Breath, the two time tabs and the six variation tabs all sit low in their ranges, where square
+// root lifts them without flattening the top; Pitch and Pan are bipolar and read best undistorted, Pan
+// especially, since its axis maps to a stereo position the listener hears linearly. Display only -- no
+// generator depends on it, so it is cheap to revisit. Edit a row and both modes follow.
+inline constexpr std::array<EditorLevelTransform, OscillatorSettings::kNumParameters> kOscillatorTabTransforms{{
+    EditorLevelTransform::PseudoLog,  // Level
+    EditorLevelTransform::SquareRoot, // Breath
+    EditorLevelTransform::SquareRoot, // Attack
+    EditorLevelTransform::SquareRoot, // Release
+    EditorLevelTransform::Linear,     // Pitch
+    EditorLevelTransform::Linear,     // Pan
+    EditorLevelTransform::SquareRoot, // LvlVarAmt
+    EditorLevelTransform::SquareRoot, // LvlVarRate
+    EditorLevelTransform::SquareRoot, // PchVarAmt
+    EditorLevelTransform::SquareRoot, // PchVarRate
+    EditorLevelTransform::SquareRoot, // PanVarAmt
+    EditorLevelTransform::SquareRoot, // PanVarRate
+}};
+
+inline constexpr EditorLevelTransform GetOscillatorTabTransform(OscillatorSettings::Parameter parameter) {
+  return kOscillatorTabTransforms[static_cast<std::size_t>(parameter)];
+}
 
 enum class EditorOscillatorEditMode { Set, Nudge, Smooth, DrawLine };
 
@@ -32,12 +59,7 @@ struct EditorState {
   int oscillatorXRangeMax{SimplePatch::kNumOscillators};
   // Transient editor state, shared by every per-harmonic tab and deliberately not saved in the patch.
   bool oscillatorMacrosMode{false};
-  EditorLevelTransform levelTransform{EditorLevelTransform::Linear};
-  EditorLevelTransform breathTransform{EditorLevelTransform::Linear};
-  EditorLevelTransform attackTransform{EditorLevelTransform::Linear};
-  EditorLevelTransform releaseTransform{EditorLevelTransform::Linear};
-  EditorLevelTransform pitchTransform{EditorLevelTransform::Linear};
-  EditorLevelTransform panTransform{EditorLevelTransform::Linear};
+  std::array<EditorLevelTransform, OscillatorSettings::kNumParameters> oscillatorTransforms{kOscillatorTabTransforms};
   std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> oscillatorEditModes = [] {
     std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters> result{};
     result.fill(EditorOscillatorEditMode::Set);
@@ -48,8 +70,6 @@ struct EditorState {
     result.fill(EditorOscillatorEditScope::All);
     return result;
   }();
-  std::array<EditorLevelTransform, 6> variationTransforms{EditorLevelTransform::Linear, EditorLevelTransform::Linear, EditorLevelTransform::Linear,
-                                                          EditorLevelTransform::Linear, EditorLevelTransform::Linear, EditorLevelTransform::Linear};
 };
 
 } // namespace plugin_ui

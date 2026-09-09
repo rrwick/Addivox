@@ -60,8 +60,7 @@ inline void AttachVariationTabChildren(IVTabPage* page, const std::shared_ptr<Ed
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   const auto variationIndex = GetVariationTabIndex(descriptor.parameter);
-  auto* yTransformControl = CreateYTransformControl(
-      std::shared_ptr<EditorLevelTransform>(context->variationTab.transforms, &(*context->variationTab.transforms)[variationIndex]), sliderControl, styles);
+  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
   auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"zero", "flat", "linear ramp up"}, styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
     if (!selectedText) return;

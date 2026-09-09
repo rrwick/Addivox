@@ -537,7 +537,7 @@ inline void AttachLevelTabChildren(IVTabPage* page, const std::shared_ptr<Editor
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
 
-  auto* yTransformControl = CreateYTransformControl(context->levelTab.levelTransform, sliderControl, styles);
+  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
 
   auto* setShapeControl =
       new ActionSelectionControl(IRECT(), "choose shape", {"sine", "saw", "square", "triangle", "flat", "octaves", "octaves+fifths", "octaves+fifths+thirds"},

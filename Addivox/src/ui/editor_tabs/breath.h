@@ -59,7 +59,7 @@ inline void AttachBreathTabChildren(IVTabPage* page, const std::shared_ptr<Edito
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
 
-  auto* yTransformControl = CreateYTransformControl(context->breathTab.breathTransform, sliderControl, styles);
+  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
 
   auto* setShapeControl =
       new ActionSelectionControl(IRECT(), "choose shape", {"flat", "linear ramp", "square ramp", "cube ramp"}, styles.utilityDropdownText, styles.darkTab);

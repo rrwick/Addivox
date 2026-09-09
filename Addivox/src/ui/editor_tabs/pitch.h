@@ -87,7 +87,7 @@ inline void AttachPitchTabChildren(IVTabPage* page, const std::shared_ptr<Editor
                                    IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  auto* yTransformControl = CreateYTransformControl(context->pitchTab.pitchTransform, sliderControl, styles);
+  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
   auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"zero", "alternating", "ramp sharp", "ramp flat", "ramp alternating"},
                                                      styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {

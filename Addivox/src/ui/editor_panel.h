@@ -416,13 +416,8 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
   context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
   context->oscillatorView.macrosMode = std::shared_ptr<bool>(editorState, &editorState->oscillatorMacrosMode);
-  context->levelTab.levelTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->levelTransform);
-  context->breathTab.breathTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->breathTransform);
-  context->pitchTab.pitchTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->pitchTransform);
-  context->panTab.panTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->panTransform);
-  context->variationTab.transforms = std::shared_ptr<std::array<EditorLevelTransform, 6>>(editorState, &editorState->variationTransforms);
-  context->attackReleaseTab.attackTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->attackTransform);
-  context->attackReleaseTab.releaseTransform = std::shared_ptr<EditorLevelTransform>(editorState, &editorState->releaseTransform);
+  context->oscillatorView.transforms =
+      std::shared_ptr<std::array<EditorLevelTransform, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorTransforms);
   context->oscillatorTabControls.sliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
   context->oscillatorTabControls.sliderControls->fill(nullptr);
   context->oscillatorTabControls.xRangeMinControls = std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();

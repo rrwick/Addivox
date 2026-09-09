@@ -88,7 +88,7 @@ inline void AttachPanTabChildren(IVTabPage* page, const std::shared_ptr<EditorCo
                                  IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  auto* yTransformControl = CreateYTransformControl(context->panTab.panTransform, sliderControl, styles);
+  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
   auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"zero", "ramp right", "ramp left", "ramp alternating", "full alternating"},
                                                      styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
