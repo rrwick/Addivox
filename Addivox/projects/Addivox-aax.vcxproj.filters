@@ -328,6 +328,12 @@
     <ClInclude Include="..\src\ui\editor_tabs\level.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ui\editor_tabs\macro_fit.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ui\editor_tabs\macros.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\ui\editor_tabs\pan.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>

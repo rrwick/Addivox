@@ -886,6 +886,8 @@
 		822FE98B875C90A7C2041393 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = common.h; path = ../src/ui/editor_tabs/common.h; sourceTree = SOURCE_ROOT; };
 		1DF8CAE922449BA6163A7757 /* eq.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = eq.h; path = ../src/ui/editor_tabs/eq.h; sourceTree = SOURCE_ROOT; };
 		5A1A6D9776CFDC2F2DE73043 /* level.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = level.h; path = ../src/ui/editor_tabs/level.h; sourceTree = SOURCE_ROOT; };
+		A7C41E0B93D5F26184AB0C17 /* macro_fit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = macro_fit.h; path = ../src/ui/editor_tabs/macro_fit.h; sourceTree = SOURCE_ROOT; };
+		A7C41E0C93D5F26184AB0C18 /* macros.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = macros.h; path = ../src/ui/editor_tabs/macros.h; sourceTree = SOURCE_ROOT; };
 		DF14A1CEED809FDBAE4C8E5B /* pan.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pan.h; path = ../src/ui/editor_tabs/pan.h; sourceTree = SOURCE_ROOT; };
 		01BBFB1AED4183963C59DDDF /* pitch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pitch.h; path = ../src/ui/editor_tabs/pitch.h; sourceTree = SOURCE_ROOT; };
 		5F5C6140B6A6D3FA0588953F /* variation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = variation.h; path = ../src/ui/editor_tabs/variation.h; sourceTree = SOURCE_ROOT; };
@@ -1294,6 +1296,8 @@
 				822FE98B875C90A7C2041393 /* common.h */,
 				1DF8CAE922449BA6163A7757 /* eq.h */,
 				5A1A6D9776CFDC2F2DE73043 /* level.h */,
+				A7C41E0B93D5F26184AB0C17 /* macro_fit.h */,
+				A7C41E0C93D5F26184AB0C18 /* macros.h */,
 				DF14A1CEED809FDBAE4C8E5B /* pan.h */,
 				01BBFB1AED4183963C59DDDF /* pitch.h */,
 				5F5C6140B6A6D3FA0588953F /* variation.h */,

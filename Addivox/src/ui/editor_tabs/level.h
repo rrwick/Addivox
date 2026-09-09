@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "macro_fit.h"
 
 #include <limits>
 
@@ -118,7 +119,7 @@ inline bool ApplyLevelAction(SimplePatch& patch, const char* actionName, EditorO
 // searching for it.
 enum LevelMacroKnobIndex { kLevelWidthKnob, kLevelShapeKnob, kLevelFundKnob, kLevelOddEvenKnob, kNumLevelMacroKnobs };
 
-inline constexpr int kNumLevelMacroSearchKnobs = kLevelOddEvenKnob;
+inline constexpr std::size_t kNumLevelMacroSearchKnobs = kLevelOddEvenKnob;
 
 inline constexpr double   kLevelWidthDefault = 0.50;
 inline constexpr double   kLevelShapeDefault = 0.50;
@@ -189,8 +190,6 @@ inline constexpr double kLevelFitRelativeFloor = 1.0e-3;
 
 // ---------------------------------------------------------------------------------------------------------
 
-inline constexpr double kLevelMacroEpsilon = 1.0e-12;
-
 using LevelMacroCurve = std::array<double, SimplePatch::kNumOscillators>;
 
 // Normalised 0..1 knob positions: exactly what the knob controls hold, and the only place macro values live.
@@ -209,27 +208,13 @@ struct LevelMacroModel {
   double oddEvenWeight{0.0};  // -1 all even, 0 balanced, +1 all odd
 };
 
-// Bends a knob's 0..1 travel end to end. An exponent of 1 leaves it alone.
-inline double GetLevelBentTravel(double knobValue, double exponent) {
-  const double clamped = std::clamp(knobValue, 0.0, 1.0);
-  return (exponent == 1.0) ? clamped : std::pow(clamped, exponent);
-}
-
-// The same, bent about the centre rather than an end, so that half travel stays half travel.
-inline double GetLevelBentCentredTravel(double knobValue, double exponent) {
-  const double fromCentre = (2.0 * std::clamp(knobValue, 0.0, 1.0)) - 1.0;
-  if (exponent == 1.0) return 0.5 + (0.5 * fromCentre);
-
-  return 0.5 + (0.5 * std::copysign(std::pow(std::fabs(fromCentre), exponent), fromCentre));
-}
-
 inline LevelMacroModel GetLevelMacroModel(const LevelMacroKnobs& knobs) {
-  const double widthTravel = GetLevelBentTravel(knobs.width, kLevelWidthTravelExponent);
-  const double shapeTravel = GetLevelBentCentredTravel(knobs.shape, kLevelShapeTravelExponent);
+  const double widthTravel = BendMacroTravel(knobs.width, kLevelWidthTravelExponent);
+  const double shapeTravel = BendMacroTravelAboutCentre(knobs.shape, kLevelShapeTravelExponent);
 
   // Fund is bipolar: the two halves share one expression but not one range, since cutting ends at silence and
   // boosting ends wherever the boost maximum is put.
-  const double fundTravel = (2.0 * GetLevelBentCentredTravel(knobs.fund, kLevelFundTravelExponent)) - 1.0;
+  const double fundTravel = (2.0 * BendMacroTravelAboutCentre(knobs.fund, kLevelFundTravelExponent)) - 1.0;
 
   LevelMacroModel model;
   model.widthHarmonic = kLevelWidthHarmonicMin + (widthTravel * (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin));
@@ -280,7 +265,7 @@ inline void FillLevelMacroDisplayCurve(const LevelMacroModel& model, LevelMacroC
   // but it is what lets that solve start from a known overshoot.
   double apex = 0.0;
   for (const double value : display) apex = std::max(apex, value);
-  if (apex <= kLevelMacroEpsilon) return;
+  if (apex <= kMacroEpsilon) return;
 
   for (double& value : display) value /= apex;
 }
@@ -308,7 +293,7 @@ inline double SolveLevelMacroDisplayHeight(const LevelMacroCurve& display) {
       slope += 2.0 * term * (term + 1.0) * value;
     }
 
-    if (slope <= kLevelMacroEpsilon) return 0.0;
+    if (slope <= kMacroEpsilon) return 0.0;
     if (std::fabs(sum - target) <= kRelativeTolerance * target) break;
     exponent -= (sum - target) / slope;
   }
@@ -353,37 +338,12 @@ inline OscillatorParameterValues GenerateLevelMacroCurve(const LevelMacroKnobs& 
   return values;
 }
 
-// The curve to fit, plus a per-harmonic weight of 1 / (value + floor)^2. Unweighted least squares is blind to
-// the top of the series -- the harmonics up there are a thousandth of the fundamental, so a wildly wrong Width
-// costs almost nothing -- yet those are exactly the harmonics Width and Shape control, and pseudo-log display
-// makes them half the chart. Relative error weights every harmonic about equally.
-struct LevelMacroFitTarget {
-  OscillatorParameterValues values{};
-  OscillatorParameterValues weights{};
-};
-
-inline LevelMacroFitTarget MakeLevelMacroFitTarget(const OscillatorParameterValues& values) {
-  double peak = 0.0;
-  for (const double value : values) peak = std::max(peak, value);
-
-  const double floorValue = std::max(peak * kLevelFitRelativeFloor, kLevelMacroEpsilon);
-
-  LevelMacroFitTarget target;
-  target.values = values;
-  for (std::size_t index = 0; index < values.size(); ++index) {
-    const double scale = 1.0 / (values[index] + floorValue);
-    target.weights[index] = scale * scale;
-  }
-
-  return target;
-}
-
 struct LevelMacroFitResult {
   LevelMacroKnobs knobs{};
   double residual{std::numeric_limits<double>::max()};
 };
 
-inline double GetLevelMacroSearchKnob(const LevelMacroKnobs& knobs, int axis) {
+inline double GetLevelMacroSearchKnob(const LevelMacroKnobs& knobs, std::size_t axis) {
   switch (axis) {
   case kLevelWidthKnob: return knobs.width;
   case kLevelShapeKnob: return knobs.shape;
@@ -391,7 +351,7 @@ inline double GetLevelMacroSearchKnob(const LevelMacroKnobs& knobs, int axis) {
   }
 }
 
-inline void SetLevelMacroSearchKnob(LevelMacroKnobs& knobs, int axis, double value) {
+inline void SetLevelMacroSearchKnob(LevelMacroKnobs& knobs, std::size_t axis, double value) {
   switch (axis) {
   case kLevelWidthKnob: knobs.width = value; break;
   case kLevelShapeKnob: knobs.shape = value; break;
@@ -409,7 +369,7 @@ inline void SetLevelMacroSearchKnob(LevelMacroKnobs& knobs, int axis, double val
 // its determinant is a difference of two nearly equal products, and the weights here span eight orders of
 // magnitude: a curve reaching only a harmonic or two above the fundamental lost every significant digit of it
 // and came back claiming a residual of zero, which then beat every real candidate in the search.
-inline void AccumulateLevelMacroFit(const OscillatorParameterValues& basis, const LevelMacroFitTarget& target, const LevelMacroKnobs& knobs,
+inline void AccumulateLevelMacroFit(const OscillatorParameterValues& basis, const MacroFitTarget& target, const LevelMacroKnobs& knobs,
                                     LevelMacroFitResult& best) {
   double basisSquared[2] = {0.0, 0.0}; // Indexed by GetLevelHarmonicParity: even harmonics, then odd.
   double targetDotBasis[2] = {0.0, 0.0};
@@ -428,12 +388,12 @@ inline void AccumulateLevelMacroFit(const OscillatorParameterValues& basis, cons
   // A basis with nothing on one parity says nothing about the balance between them, and a curve that thin is
   // not one the knobs are trying to draw.
   const double totalBasisSquared = basisSquared[0] + basisSquared[1];
-  if (std::min(basisSquared[0], basisSquared[1]) <= kLevelMacroEpsilon * totalBasisSquared) return;
+  if (std::min(basisSquared[0], basisSquared[1]) <= kMacroEpsilon * totalBasisSquared) return;
 
   const double evenScale = std::max(0.0, targetDotBasis[0] / basisSquared[0]);
   const double oddScale = std::max(0.0, targetDotBasis[1] / basisSquared[1]);
   const double totalScale = evenScale + oddScale;
-  if (totalScale <= kLevelMacroEpsilon) return;
+  if (totalScale <= kMacroEpsilon) return;
 
   double residual = targetSquared;
   residual += (evenScale * ((evenScale * basisSquared[0]) - (2.0 * targetDotBasis[0])));
@@ -445,7 +405,7 @@ inline void AccumulateLevelMacroFit(const OscillatorParameterValues& basis, cons
   best.knobs = LevelMacroKnobs{knobs.width, knobs.shape, knobs.fund, oddScale / totalScale};
 }
 
-inline void EvaluateLevelMacroCandidate(const LevelMacroFitTarget& target, const LevelMacroKnobs& knobs, LevelMacroCurve& display,
+inline void EvaluateLevelMacroCandidate(const MacroFitTarget& target, const LevelMacroKnobs& knobs, LevelMacroCurve& display,
                                         OscillatorParameterValues& basis, LevelMacroFitResult& best) {
   FillLevelMacroDisplayCurve(GetLevelMacroModel(knobs), display);
   FillLevelMacroBasis(display, basis);
@@ -478,167 +438,59 @@ inline double MeasureLevelMacroWidthSeed(const OscillatorParameterValues& values
 // Shape and Fund are searched blind over their whole travel, because neither has a cliff in it: both only bend
 // harmonics that are already there. Width is searched in a band around its measurement, wide enough that the
 // measurement can be several harmonics out without the answer falling outside it.
-inline void SweepLevelMacroGrid(const LevelMacroFitTarget& target, double widthSeed, LevelMacroCurve& display, OscillatorParameterValues& basis,
-                                LevelMacroFitResult& best) {
-  constexpr int kGridSteps = 8;
-  constexpr double kWidthHalfBand = 0.08; // Eight harmonics either side of the measurement.
+inline constexpr int    kLevelMacroGridSteps = 8;    // Nine samples an axis, so the grid lands within a sixteenth of the travel.
+inline constexpr double kLevelMacroWidthBand = 0.08; // Eight harmonics either side of the measurement.
 
-  const double widthMin = std::max(0.0, widthSeed - kWidthHalfBand);
-  const double widthMax = std::min(1.0, widthSeed + kWidthHalfBand);
-
-  LevelMacroKnobs knobs;
-  for (int widthStep = 0; widthStep <= kGridSteps; ++widthStep) {
-    knobs.width = widthMin + ((widthMax - widthMin) * (static_cast<double>(widthStep) / kGridSteps));
-
-    for (int shapeStep = 0; shapeStep <= kGridSteps; ++shapeStep) {
-      knobs.shape = static_cast<double>(shapeStep) / kGridSteps;
-
-      for (int fundStep = 0; fundStep <= kGridSteps; ++fundStep) {
-        knobs.fund = static_cast<double>(fundStep) / kGridSteps;
-        EvaluateLevelMacroCandidate(target, knobs, display, basis, best);
-      }
-    }
-  }
+inline std::array<MacroFitAxis, kNumLevelMacroSearchKnobs> GetLevelMacroFitAxes(double widthSeed) {
+  return {{{std::max(0.0, widthSeed - kLevelMacroWidthBand), std::min(1.0, widthSeed + kLevelMacroWidthBand)}, {0.0, 1.0}, {0.0, 1.0}}};
 }
 
-// The searched knobs as a point, so that the simplex below can do arithmetic on them.
-using LevelMacroPoint = std::array<double, kNumLevelMacroSearchKnobs>;
+// The searched knobs as a point, in the order the knob enum lists them.
+using LevelMacroPoint = MacroFitPoint<kNumLevelMacroSearchKnobs>;
 
 inline LevelMacroKnobs MakeLevelMacroKnobs(const LevelMacroPoint& point) {
   LevelMacroKnobs knobs;
-  for (int axis = 0; axis < kNumLevelMacroSearchKnobs; ++axis) {
-    SetLevelMacroSearchKnob(knobs, axis, std::clamp(point[static_cast<std::size_t>(axis)], 0.0, 1.0));
-  }
+  for (std::size_t axis = 0; axis < kNumLevelMacroSearchKnobs; ++axis) SetLevelMacroSearchKnob(knobs, axis, std::clamp(point[axis], 0.0, 1.0));
   return knobs;
 }
 
 inline LevelMacroPoint MakeLevelMacroPoint(const LevelMacroKnobs& knobs) {
   LevelMacroPoint point{};
-  for (int axis = 0; axis < kNumLevelMacroSearchKnobs; ++axis) point[static_cast<std::size_t>(axis)] = GetLevelMacroSearchKnob(knobs, axis);
+  for (std::size_t axis = 0; axis < kNumLevelMacroSearchKnobs; ++axis) point[axis] = GetLevelMacroSearchKnob(knobs, axis);
   return point;
 }
 
-// How big the simplex starts, per axis. The axes are not equally sharp for the same reason the grid is not
-// uniform: a step of Width moves harmonics on and off the end of the series, where Shape and Fund only bend
-// what is already there. So Width starts a few harmonics wide, and the other two start wide enough to cross a
-// grid cell and find a neighbouring basin.
+// Width starts a few harmonics wide because a step of it moves harmonics on and off the end of the series, where
+// Shape and Fund only bend what is already there; those two start wide enough to cross a grid cell and find a
+// neighbouring basin. The restarts matter as much as the step sizes: a single simplex stalls in the steep valley
+// and left the worst factory patch at 0.168 where restarting from where it stopped gets 0.080.
 inline constexpr LevelMacroPoint kLevelMacroSimplexSteps{{0.04, 0.18, 0.18}};
+inline constexpr int kLevelMacroSimplexRuns = 4;
 
-inline LevelMacroPoint BlendLevelMacroPoints(const LevelMacroPoint& from, const LevelMacroPoint& to, double amount) {
-  LevelMacroPoint blended{};
-  for (std::size_t axis = 0; axis < blended.size(); ++axis) blended[axis] = from[axis] + (amount * (to[axis] - from[axis]));
-  return blended;
-}
-
-// Scores one point and remembers it if it is the best seen. Points outside the knobs' travel score as the
-// clamped ones do, so the simplex may walk past an edge and be drawn back rather than having to know where the
-// edges are.
-inline double ScoreLevelMacroPoint(const LevelMacroFitTarget& target, const LevelMacroPoint& point, LevelMacroCurve& display,
-                                   OscillatorParameterValues& basis, LevelMacroFitResult& best) {
-  const LevelMacroKnobs knobs = MakeLevelMacroKnobs(point);
-  LevelMacroFitResult candidate;
-  EvaluateLevelMacroCandidate(target, knobs, display, basis, candidate);
-
-  if (candidate.residual < best.residual) best = candidate;
-  return candidate.residual;
-}
-
-// A Nelder-Mead simplex: a triangle of points that reflects the worst of itself through the other two,
-// stretching along whatever direction pays and folding up when none does.
-//
-// The three have to move together rather than one at a time, because they trade against each other: a narrower
-// curve bowed to hold its level longer looks much like a wider one that drops away sooner, and Width sets how
-// far Fund's scoop reaches as well. The residual's valleys run diagonally through all of them, so sweeping one
-// axis at a time walks into a wall rather than running out of resolution.
-inline void SearchLevelMacroSimplex(const LevelMacroFitTarget& target, const LevelMacroPoint& start, LevelMacroCurve& display,
-                                    OscillatorParameterValues& basis, LevelMacroFitResult& best) {
-  constexpr int kIterations = 200;
-  constexpr double kSmallestSimplex = 1.0e-4;
-
-  std::array<LevelMacroPoint, kNumLevelMacroSearchKnobs + 1> points{};
-  std::array<double, kNumLevelMacroSearchKnobs + 1> residuals{};
-
-  points[0] = start;
-  for (std::size_t axis = 0; axis < start.size(); ++axis) {
-    points[axis + 1] = start;
-    points[axis + 1][axis] += (start[axis] > 0.5) ? -kLevelMacroSimplexSteps[axis] : kLevelMacroSimplexSteps[axis];
-  }
-  for (std::size_t index = 0; index < points.size(); ++index) residuals[index] = ScoreLevelMacroPoint(target, points[index], display, basis, best);
-
-  for (int iteration = 0; iteration < kIterations; ++iteration) {
-    std::size_t lowest = 0;
-    std::size_t highest = 0;
-    for (std::size_t index = 1; index < residuals.size(); ++index) {
-      if (residuals[index] < residuals[lowest]) lowest = index;
-      if (residuals[index] > residuals[highest]) highest = index;
-    }
-
-    std::size_t nextHighest = (highest == 0) ? 1 : 0;
-    for (std::size_t index = 0; index < residuals.size(); ++index) {
-      if (index != highest && residuals[index] > residuals[nextHighest]) nextHighest = index;
-    }
-
-    LevelMacroPoint centroid{};
-    for (std::size_t index = 0; index < points.size(); ++index) {
-      if (index == highest) continue;
-
-      for (std::size_t axis = 0; axis < centroid.size(); ++axis) centroid[axis] += points[index][axis];
-    }
-    for (double& value : centroid) value /= static_cast<double>(points.size() - 1);
-
-    double spread = 0.0;
-    for (std::size_t axis = 0; axis < centroid.size(); ++axis) spread = std::max(spread, std::fabs(points[highest][axis] - centroid[axis]));
-    if (spread < kSmallestSimplex) break;
-
-    const LevelMacroPoint reflected = BlendLevelMacroPoints(points[highest], centroid, 2.0);
-    const double reflectedResidual = ScoreLevelMacroPoint(target, reflected, display, basis, best);
-
-    if (reflectedResidual < residuals[lowest]) {
-      // Reflecting beat everything, so the direction is worth following further than the simplex is wide.
-      const LevelMacroPoint stretched = BlendLevelMacroPoints(points[highest], centroid, 3.0);
-      const double stretchedResidual = ScoreLevelMacroPoint(target, stretched, display, basis, best);
-      const bool stretch = stretchedResidual < reflectedResidual;
-
-      points[highest] = stretch ? stretched : reflected;
-      residuals[highest] = stretch ? stretchedResidual : reflectedResidual;
-    } else if (reflectedResidual < residuals[nextHighest]) {
-      points[highest] = reflected;
-      residuals[highest] = reflectedResidual;
-    } else {
-      const LevelMacroPoint folded = BlendLevelMacroPoints(points[highest], centroid, 0.5);
-      const double foldedResidual = ScoreLevelMacroPoint(target, folded, display, basis, best);
-
-      if (foldedResidual < residuals[highest]) {
-        points[highest] = folded;
-        residuals[highest] = foldedResidual;
-      } else {
-        // Nothing along that direction helped, so the valley must be narrower than the simplex: shrink it.
-        for (std::size_t index = 0; index < points.size(); ++index) {
-          if (index == lowest) continue;
-
-          points[index] = BlendLevelMacroPoints(points[lowest], points[index], 0.5);
-          residuals[index] = ScoreLevelMacroPoint(target, points[index], display, basis, best);
-        }
-      }
-    }
-  }
-}
-
-// A coarse grid to find the basin, then a simplex to sharpen inside it. The grid is the only part that looks
-// everywhere, and at 9 samples an axis it cannot land closer than a sixteenth of the travel; the simplex costs
-// a couple of hundred candidates and takes it the rest of the way.
+// A coarse grid to find the basin, then a simplex to sharpen inside it. Scoring is one lambda shared by both,
+// and it holds everything Level-specific about the fit: a point becomes knobs, the knobs a curve, and the curve
+// a residual with the parity scales solved out. It keeps its own best rather than handing it back, because the
+// solved Odd/Even arrives with the winning candidate and a search that knows nothing of knobs has nowhere to
+// put it.
 inline LevelMacroKnobs FitLevelMacroKnobs(const OscillatorParameterValues& values) {
-  const LevelMacroFitTarget target = MakeLevelMacroFitTarget(values);
+  const MacroFitTarget target = MakeMacroFitTarget(values, kLevelFitRelativeFloor);
 
   LevelMacroCurve display{};
   OscillatorParameterValues basis{};
   LevelMacroFitResult best;
-  SweepLevelMacroGrid(target, MeasureLevelMacroWidthSeed(values), display, basis, best);
 
+  const auto score = [&](const LevelMacroPoint& point) {
+    LevelMacroFitResult candidate;
+    EvaluateLevelMacroCandidate(target, MakeLevelMacroKnobs(point), display, basis, candidate);
+
+    if (candidate.residual < best.residual) best = candidate;
+    return candidate.residual;
+  };
+
+  SweepMacroFitGrid(GetLevelMacroFitAxes(MeasureLevelMacroWidthSeed(values)), kLevelMacroGridSteps, score);
   if (best.residual == std::numeric_limits<double>::max()) return LevelMacroKnobs{};
 
-  constexpr int kRestarts = 4;
-  for (int restart = 0; restart < kRestarts; ++restart) SearchLevelMacroSimplex(target, MakeLevelMacroPoint(best.knobs), display, basis, best);
+  for (int run = 0; run < kLevelMacroSimplexRuns; ++run) SearchMacroFitSimplex(MakeLevelMacroPoint(best.knobs), kLevelMacroSimplexSteps, score);
 
   return best.knobs;
 }

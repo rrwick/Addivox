@@ -70,6 +70,8 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/editor_tabs/common.h
     src/ui/editor_tabs/eq.h
     src/ui/editor_tabs/level.h
+    src/ui/editor_tabs/macro_fit.h
+    src/ui/editor_tabs/macros.h
     src/ui/editor_tabs/pan.h
     src/ui/editor_tabs/pitch.h
     src/ui/editor_tabs/variation.h
