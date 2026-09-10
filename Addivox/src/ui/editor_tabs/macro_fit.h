@@ -113,9 +113,9 @@ template <std::size_t N, typename ScoreFunc> void SweepMacroFitGrid(const std::a
 //
 // Points outside 0..1 are not prevented. A scoring function is expected to clamp, so the simplex may walk past
 // an edge and be drawn back rather than having to know where the edges are.
-template <std::size_t N, typename ScoreFunc> void SearchMacroFitSimplex(const MacroFitPoint<N>& start, const MacroFitPoint<N>& steps, ScoreFunc&& score) {
+template <std::size_t N, typename ScoreFunc>
+void SearchMacroFitSimplex(const MacroFitPoint<N>& start, const MacroFitPoint<N>& steps, ScoreFunc&& score, double smallestSimplex = 1.0e-4) {
   constexpr int kIterations = 200;
-  constexpr double kSmallestSimplex = 1.0e-4;
 
   std::array<MacroFitPoint<N>, N + 1> points{};
   std::array<double, N + 1> residuals{};
@@ -150,7 +150,7 @@ template <std::size_t N, typename ScoreFunc> void SearchMacroFitSimplex(const Ma
 
     double spread = 0.0;
     for (std::size_t axis = 0; axis < N; ++axis) spread = std::max(spread, std::fabs(points[highest][axis] - centroid[axis]));
-    if (spread < kSmallestSimplex) break;
+    if (spread < smallestSimplex) break;
 
     const MacroFitPoint<N> reflected = BlendMacroFitPoints(points[highest], centroid, 2.0);
     const double reflectedResidual = score(reflected);

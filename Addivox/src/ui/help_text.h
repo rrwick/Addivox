@@ -174,6 +174,18 @@ inline constexpr const char *kMacroLevelOddEven =
     "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned up, only the odd harmonics "
     "survive, giving a hollow, clarinet-like tone; turned down favours the even harmonics.";
 
+inline constexpr const char *kMacroBreathBase =
+    "Sets breath power at Position. Lower powers respond more strongly to gentle breath; higher powers need more breath.";
+
+inline constexpr const char *kMacroBreathOuter =
+    "Sets breath power at the endpoint farthest from Position. Set below Base to reverse the curve, or equal to Base for a flat response.";
+
+inline constexpr const char *kMacroBreathShape =
+    "Bends the transition from Base to Outer. Centred is a square ramp in breath power; lower values change more gradually near Position, higher values more quickly.";
+
+inline constexpr const char *kMacroBreathPosition =
+    "Moves the harmonic where Base applies, continuously from 1 to 100. Both sides follow the same distance curve towards Outer.";
+
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
 
