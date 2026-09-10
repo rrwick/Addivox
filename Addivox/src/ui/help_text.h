@@ -175,16 +175,13 @@ inline constexpr const char *kMacroLevelOddEven =
     "survive, giving a hollow, clarinet-like tone; turned down favours the even harmonics.";
 
 inline constexpr const char *kMacroBreathBase =
-    "Sets breath power at Position. Lower powers respond more strongly to gentle breath; higher powers need more breath.";
+    "Sets breath power at harmonic 1, from 0.5 to 3. Centred is 1.5. Lower powers respond more strongly to gentle breath; higher powers need more breath.";
 
-inline constexpr const char *kMacroBreathOuter =
-    "Sets breath power at the endpoint farthest from Position. Set below Base to reverse the curve, or equal to Base for a flat response.";
+inline constexpr const char *kMacroBreathTop =
+    "Sets breath power at harmonic 100, from Base to 100. At minimum the curve is flat; at maximum the top is 100.";
 
 inline constexpr const char *kMacroBreathShape =
-    "Bends the transition from Base to Outer. Centred is a square ramp in breath power; lower values change more gradually near Position, higher values more quickly.";
-
-inline constexpr const char *kMacroBreathPosition =
-    "Moves the harmonic where Base applies, continuously from 1 to 100. Both sides follow the same distance curve towards Outer.";
+    "Bends the transition from Base to Top. Centred uses exponent 1.5, ranging from 4 to 0.75. Lower settings rise more gradually near harmonic 1; higher settings rise faster.";
 
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
