@@ -183,6 +183,25 @@ inline constexpr const char *kMacroBreathTop =
 inline constexpr const char *kMacroBreathShape =
     "Bends the transition from Base to Top. Centred uses exponent 1.5, ranging from 4 to 0.75. Lower settings rise more gradually near harmonic 1; higher settings rise faster.";
 
+inline constexpr const char *kMacroBreathOddEven =
+    "Favours odd harmonics when turned right by adding breath power to even harmonics; left adds power to odd harmonics, including the fundamental. "
+    "Centred adds nothing. Each end adds 10, with finer control near centre; powers are capped at 100. The effect fades as breath reaches full strength.";
+
+inline constexpr const char *kMacroAttackBase =
+    "Sets attack time at Position before Odd/Even is added. Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to zero.";
+
+inline constexpr const char *kMacroAttackOuter =
+    "Sets attack time at the endpoint farthest from Position, before Odd/Even is added. Can be above or below Base. "
+    "Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to zero.";
+
+inline constexpr const char *kMacroAttackPosition =
+    "Places Base at a harmonic from 1 to 100, with harmonic 10 at half travel. Moves continuously between harmonics. "
+    "Equal distances either side have equal attack times before Odd/Even is added. Double-click resets to harmonic 1.";
+
+inline constexpr const char *kMacroAttackOddEven =
+    "Favours odd harmonics when turned right by adding attack time to even harmonics; left adds time to odd harmonics, including the fundamental. "
+    "Centre adds nothing; halfway to either end adds 0.05 seconds; each end adds 1 second. Attack times are capped at 1 second before the global Attack multiplier.";
+
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
 

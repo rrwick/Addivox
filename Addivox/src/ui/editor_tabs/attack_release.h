@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "attack_macros.h"
 
 namespace plugin_ui {
 namespace editor {
@@ -147,6 +148,9 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_pt
 
   AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
                             restoreButton, addButton, deleteButton, sliderControl);
+
+  if (descriptor.parameter == OscillatorParameter::attack)
+    RegisterAttackMacroFunctions(context, AttachMacroKnobChildren(page, context, descriptor, GetAttackMacroKnobDescriptors()));
 }
 } // namespace editor
 } // namespace plugin_ui
