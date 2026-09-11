@@ -232,7 +232,7 @@ inline std::vector<MacroKnobDescriptor> GetBreathMacroKnobDescriptors() {
 inline void RegisterBreathMacroFunctions(const std::shared_ptr<EditorContext>& context, const std::vector<layout::LabelledKnob*>& knobs) {
   if (knobs.size() != 4) return;
   auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(OscillatorParameter::breath_power)];
-  functions.version = 6; // Adds Odd/Even breath-power offsets, capped at 100.
+  functions.version = 1; // Adds Odd/Even breath-power offsets, capped at 100.
   functions.knobs = knobs;
   functions.generateValues = [knobs]() {
     return GenerateBreathMacroCurve({knobs[0]->GetNormalizedValue(), knobs[1]->GetNormalizedValue(), knobs[2]->GetNormalizedValue(),

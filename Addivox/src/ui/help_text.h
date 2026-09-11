@@ -190,9 +190,9 @@ inline constexpr const char *kMacroBreathOddEven =
 inline constexpr const char *kMacroAttackBase =
     "Sets attack time at Position before Odd/Even is added. Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to zero.";
 
-inline constexpr const char *kMacroAttackOuter =
-    "Sets attack time at the endpoint farthest from Position, before Odd/Even is added. Can be above or below Base. "
-    "Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to zero.";
+inline constexpr const char *kMacroAttackSlope =
+    "Sets a straight ramp away from Position on the square-root chart. Centre is flat; right rises and left falls. "
+    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. The curve stops at zero or 1 second. Odd/Even is added afterward. Double-click resets to slope +1.";
 
 inline constexpr const char *kMacroAttackPosition =
     "Places Base at a harmonic from 1 to 100, with harmonic 10 at half travel. Moves continuously between harmonics. "
