@@ -7,7 +7,7 @@
 
 namespace plugin_ui {
 namespace editor {
-inline double GetAttackReleaseMaxValue(OscillatorParameter parameter) { return parameter == OscillatorParameter::release ? 0.1 : 1.0; }
+inline constexpr double kAttackReleaseMaxTimeSec = 1.0;
 
 inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter, const char* shapeName, int oscillatorIndex, double& value) {
   const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
@@ -94,14 +94,14 @@ inline bool ApplyAttackReleaseShape(SimplePatch& patch, OscillatorParameter para
     double value = 0.0;
     if (!TryGetAttackReleaseShapeValue(parameter, shapeName, oscillatorIndex, value)) return false;
 
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, GetAttackReleaseMaxValue(parameter)));
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, kAttackReleaseMaxTimeSec));
   }
 
   return true;
 }
 
 inline bool ApplyAttackReleaseAction(SimplePatch& patch, OscillatorParameter parameter, const char* actionName, EditorOscillatorEditScope editScope) {
-  return ApplyStandardHarmonicAction(patch, parameter, actionName, 0.0, GetAttackReleaseMaxValue(parameter), editScope);
+  return ApplyStandardHarmonicAction(patch, parameter, actionName, 0.0, kAttackReleaseMaxTimeSec, editScope);
 }
 
 // Attack macros draw straight ramps in square-root display space, then add Odd/Even in seconds.
@@ -327,6 +327,23 @@ inline AttackMacroKnobs FitAttackMacroKnobs(const OscillatorParameterValues& val
   return best;
 }
 
+// Release shares Attack's curve family, with longer times favouring the selected parity during the tail.
+struct ReleaseMacroKnobs {
+  double base{GetAttackMacroTimeTravel(0.05)};
+  double slope{GetAttackMacroSlopeTravel(-std::sqrt(0.05) * 99.0 / 49.0)}; // Reaches zero at harmonic 50 from Position 1.
+  double position{0.0};
+  double oddEven{0.5};
+};
+
+inline OscillatorParameterValues GenerateReleaseMacroCurve(const ReleaseMacroKnobs& knobs) {
+  return GenerateAttackMacroCurve({knobs.base, knobs.slope, knobs.position, 1.0 - knobs.oddEven});
+}
+
+inline ReleaseMacroKnobs FitReleaseMacroKnobs(const OscillatorParameterValues& values) {
+  const auto fitted = FitAttackMacroKnobs(values);
+  return {fitted.base, fitted.slope, fitted.position, 1.0 - fitted.oddEven};
+}
+
 inline std::vector<MacroKnobDescriptor> GetAttackMacroKnobDescriptors() {
   const AttackMacroKnobs defaults;
   return {{"Base", help_text::oscillator_tabs::kMacroAttackBase, defaults.base, false},
@@ -335,29 +352,44 @@ inline std::vector<MacroKnobDescriptor> GetAttackMacroKnobDescriptors() {
           {"Odd/Even", help_text::oscillator_tabs::kMacroAttackOddEven, defaults.oddEven, true}};
 }
 
-inline void RegisterAttackMacroFunctions(const std::shared_ptr<EditorContext>& context, const std::vector<layout::LabelledKnob*>& knobs) {
+inline std::vector<MacroKnobDescriptor> GetReleaseMacroKnobDescriptors() {
+  const ReleaseMacroKnobs defaults;
+  return {{"Base", help_text::oscillator_tabs::kMacroReleaseBase, defaults.base, false},
+          {"Slope", help_text::oscillator_tabs::kMacroReleaseSlope, defaults.slope, true},
+          {"Position", help_text::oscillator_tabs::kMacroReleasePosition, defaults.position, false},
+          {"Odd/Even", help_text::oscillator_tabs::kMacroReleaseOddEven, defaults.oddEven, true}};
+}
+
+inline void RegisterAttackReleaseMacroFunctions(const std::shared_ptr<EditorContext>& context, OscillatorParameter parameter,
+                                               const std::vector<layout::LabelledKnob*>& knobs) {
   if (knobs.size() != 4) return;
-  auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(OscillatorParameter::attack)];
+  auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(parameter)];
   functions.version = 1; // Slope uses a fixed harmonic distance, independent of Position.
   functions.knobs = knobs;
-  functions.generateValues = [knobs]() {
+  functions.generateValues = [knobs, parameter]() {
+    if (parameter == OscillatorParameter::release)
+      return GenerateReleaseMacroCurve(
+          {knobs[0]->GetNormalizedValue(), knobs[1]->GetNormalizedValue(), knobs[2]->GetNormalizedValue(), knobs[3]->GetNormalizedValue()});
     return GenerateAttackMacroCurve(
         {knobs[0]->GetNormalizedValue(), knobs[1]->GetNormalizedValue(), knobs[2]->GetNormalizedValue(), knobs[3]->GetNormalizedValue()});
   };
-  functions.fitKnobsToValues = [knobs](const OscillatorParameterValues& values) {
-    const auto fitted = FitAttackMacroKnobs(values);
-    knobs[0]->SetNormalizedValueSilently(fitted.base);
-    knobs[1]->SetNormalizedValueSilently(fitted.slope);
-    knobs[2]->SetNormalizedValueSilently(fitted.position);
-    knobs[3]->SetNormalizedValueSilently(fitted.oddEven);
+  functions.fitKnobsToValues = [knobs, parameter](const OscillatorParameterValues& values) {
+    const auto apply = [&knobs](const auto& fitted) {
+      knobs[0]->SetNormalizedValueSilently(fitted.base);
+      knobs[1]->SetNormalizedValueSilently(fitted.slope);
+      knobs[2]->SetNormalizedValueSilently(fitted.position);
+      knobs[3]->SetNormalizedValueSilently(fitted.oddEven);
+    };
+    if (parameter == OscillatorParameter::release) apply(FitReleaseMacroKnobs(values));
+    else apply(FitAttackMacroKnobs(values));
   };
 }
 
 inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
   descriptors.push_back(
-      {kOscillatorTabTitles[2], "Attack time", OscillatorParameter::attack, {0.0, 1.0}, help_text::oscillator_tabs::Get(OscillatorParameter::attack)});
+      {kOscillatorTabTitles[2], "Attack time", OscillatorParameter::attack, {0.0, kAttackReleaseMaxTimeSec}, help_text::oscillator_tabs::Get(OscillatorParameter::attack)});
   descriptors.push_back(
-      {kOscillatorTabTitles[3], "Release time", OscillatorParameter::release, {0.0, 0.1}, help_text::oscillator_tabs::Get(OscillatorParameter::release)});
+      {kOscillatorTabTitles[3], "Release time", OscillatorParameter::release, {0.0, kAttackReleaseMaxTimeSec}, help_text::oscillator_tabs::Get(OscillatorParameter::release)});
 }
 
 inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
@@ -400,8 +432,8 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_pt
   AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
                             restoreButton, addButton, deleteButton, sliderControl);
 
-  if (descriptor.parameter == OscillatorParameter::attack)
-    RegisterAttackMacroFunctions(context, AttachMacroKnobChildren(page, context, descriptor, GetAttackMacroKnobDescriptors()));
+  const auto macroDescriptors = descriptor.parameter == OscillatorParameter::release ? GetReleaseMacroKnobDescriptors() : GetAttackMacroKnobDescriptors();
+  RegisterAttackReleaseMacroFunctions(context, descriptor.parameter, AttachMacroKnobChildren(page, context, descriptor, macroDescriptors));
 }
 } // namespace editor
 } // namespace plugin_ui

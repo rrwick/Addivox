@@ -22,7 +22,7 @@ constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kP
     {{"Level", "", &OscillatorSettings::level, 0.0, 1.0},
      {"Breath power", "", &OscillatorSettings::breath_power, 0.0, 100.0},
      {"Attack", "s", &OscillatorSettings::attack, 0.0, 1.0},
-     {"Release", "s", &OscillatorSettings::release, 0.0, 0.1},
+     {"Release", "s", &OscillatorSettings::release, 0.0, 1.0},
      {"Pitch", "cents", &OscillatorSettings::pitch, -100.0, 100.0},
      {"Pan", "", &OscillatorSettings::pan, -1.0, 1.0},
      {"Level variation amount", "", &OscillatorSettings::level_variation_amplitude, 0.0, 10.0},
