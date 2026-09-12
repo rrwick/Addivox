@@ -192,30 +192,30 @@ inline constexpr const char *kMacroAttackBase =
 
 inline constexpr const char *kMacroAttackSlope =
     "Sets a straight ramp away from Position on the square-root chart. Centre is flat; right rises and left falls. "
-    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. The curve stops at zero or 1 second. Odd/Even is added afterward. Double-click resets to slope +1.";
+    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. Odd/Even raises chart height before clamping to 0–1 and squaring into seconds. Double-click resets to slope +1.";
 
 inline constexpr const char *kMacroAttackPosition =
     "Places Base at a harmonic from 1 to 100, with harmonic 10 at half travel. Moves continuously between harmonics. "
     "Equal distances either side have equal attack times before Odd/Even is added. Double-click resets to harmonic 1.";
 
 inline constexpr const char *kMacroAttackOddEven =
-    "Favours odd harmonics when turned right by adding attack time to even harmonics; left adds time to odd harmonics, including the fundamental. "
-    "Centre adds nothing; halfway to either end adds 0.05 seconds; each end adds 1 second. Attack times are capped at 1 second before the global Attack multiplier.";
+    "Favours odd harmonics when turned right by raising even harmonics on the square-root chart; left raises odd harmonics, including the fundamental. "
+    "Centre adds nothing; halfway to either end adds 0.05 chart height; each end adds 1 full chart height. The addition is applied before clamping, so negative ramp heights must first be overcome. Attack times are clamped to 0–1 second before the global Attack multiplier.";
 
 inline constexpr const char *kMacroReleaseBase =
     "Sets release time at Position before Odd/Even is added. Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to 0.05 seconds.";
 
 inline constexpr const char *kMacroReleaseSlope =
     "Sets a straight ramp away from Position on the square-root chart. Centre is flat; right rises and left falls. "
-    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. The curve stops at zero or 1 second. Odd/Even is added afterward. Double-click resets to a falling slope that reaches zero at harmonic 50 with Base at 0.05 seconds and Position at harmonic 1.";
+    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. Odd/Even raises chart height before clamping to 0–1 and squaring into seconds. Double-click resets to a falling slope that reaches zero at harmonic 50 with Base at 0.05 seconds and Position at harmonic 1.";
 
 inline constexpr const char *kMacroReleasePosition =
     "Places Base at a harmonic from 1 to 100, with harmonic 10 at half travel. Moves continuously between harmonics. "
     "Equal distances either side have equal release times before Odd/Even is added. Double-click resets to harmonic 1.";
 
 inline constexpr const char *kMacroReleaseOddEven =
-    "Favours odd harmonics when turned right by adding release time to odd harmonics, including the fundamental; left adds time to even harmonics. "
-    "Centre adds nothing; halfway to either end adds 0.05 seconds; each end adds 1 second. Release times are capped at 1 second before the global Release multiplier.";
+    "Favours odd harmonics when turned right by raising odd harmonics on the square-root chart, including the fundamental; left raises even harmonics. "
+    "Centre adds nothing; halfway to either end adds 0.05 chart height; each end adds 1 full chart height. The addition is applied before clamping, so negative ramp heights must first be overcome. Release times are clamped to 0–1 second before the global Release multiplier.";
 
 inline constexpr const char *kXRangeMin =
     "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";

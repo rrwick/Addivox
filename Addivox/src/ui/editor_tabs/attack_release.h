@@ -104,14 +104,14 @@ inline bool ApplyAttackReleaseAction(SimplePatch& patch, OscillatorParameter par
   return ApplyStandardHarmonicAction(patch, parameter, actionName, 0.0, kAttackReleaseMaxTimeSec, editScope);
 }
 
-// Attack macros draw straight ramps in square-root display space, then add Odd/Even in seconds.
+// Attack macros draw straight ramps in square-root display space, with Odd/Even added to chart height before clamping and squaring.
 // Keep version 1 during unreleased development; bump only when changing a released macro definition.
 inline constexpr double kAttackSlopeMax = 30.0;            // Chart-height change over 99 harmonics, independent of Position.
 inline constexpr double kAttackSlopeQuarterStrength = 1.0; // Magnitude one quarter of the way from centre to either end.
 static_assert(kAttackSlopeQuarterStrength > 0.0 && kAttackSlopeQuarterStrength < kAttackSlopeMax, "Quarter strength must be inside the slope range");
 inline const double kAttackSlopeTravelExponent = std::log(kAttackSlopeMax / kAttackSlopeQuarterStrength) / std::log(4.0);
 inline constexpr double kAttackTimeTravelExponent = 3.321928094887362;    // Half travel = 0.1 seconds.
-inline constexpr double kAttackOddEvenTravelExponent = 4.321928094887362; // Half strength = 0.05 seconds.
+inline constexpr double kAttackOddEvenTravelExponent = 4.321928094887362; // Half strength = 0.05 chart height.
 inline constexpr double kAttackFitRelativeFloor = 0.01;
 
 inline double GetAttackMacroTime(double travel) { return BendMacroTravel(travel, kAttackTimeTravelExponent); }
@@ -156,8 +156,8 @@ inline OscillatorParameterValues GenerateAttackMacroCurve(const AttackMacroKnobs
   const double addition = GetAttackOddEvenAddition(knobs.oddEven);
   for (std::size_t i = 0; i < values.size(); ++i) {
     const bool affected = (i % 2 == 0) ? addition < 0.0 : addition > 0.0;
-    const double height = std::clamp(baseHeight + slope * values[i], 0.0, 1.0);
-    values[i] = std::min(1.0, height * height + (affected ? std::abs(addition) : 0.0));
+    const double height = std::clamp(baseHeight + slope * values[i] + (affected ? std::abs(addition) : 0.0), 0.0, 1.0);
+    values[i] = height * height;
   }
   return values;
 }
@@ -234,6 +234,61 @@ inline AttackMacroKnobs FitAttackMacroDistanceCurve(const OscillatorParameterVal
   return best;
 }
 
+// Both parity lines share a slope; their intercept difference is the visual-height addition.
+inline AttackMacroKnobs FitAttackMacroParallelLines(const OscillatorParameterValues& values, int unaffectedParity) {
+  const auto target = MakeMacroFitTarget(values, kAttackFitRelativeFloor);
+  AttackMacroKnobs best;
+  double bestResidual = std::numeric_limits<double>::max();
+  const auto score = [&](const MacroFitPoint<1>& point) {
+    const double position = 1.0 + 99.0 * std::clamp(point[0], 0.0, 1.0);
+    const auto basis = MakeAttackMacroBasis(position);
+    std::array<double, 2> weights{}, x{}, y{}, xx{}, xy{};
+    for (std::size_t i = 0; i < values.size(); ++i) {
+      if (values[i] <= 0.0 || values[i] >= 1.0) continue;
+      const auto parity = i % 2;
+      const double weight = target.weights[i], height = std::sqrt(values[i]);
+      weights[parity] += weight;
+      x[parity] += weight * basis[i];
+      y[parity] += weight * height;
+      xx[parity] += weight * basis[i] * basis[i];
+      xy[parity] += weight * basis[i] * height;
+    }
+    if (weights[0] == 0.0 || weights[1] == 0.0) return std::numeric_limits<double>::max();
+    double variance = 0.0, covariance = 0.0;
+    for (int parity = 0; parity < 2; ++parity) {
+      variance += xx[parity] - x[parity] * x[parity] / weights[parity];
+      covariance += xy[parity] - x[parity] * y[parity] / weights[parity];
+    }
+    if (variance <= kMacroEpsilon) return std::numeric_limits<double>::max();
+    const double slope = std::clamp(covariance / variance, -kAttackSlopeMax, kAttackSlopeMax);
+    const double base = std::clamp((y[unaffectedParity] - slope * x[unaffectedParity]) / weights[unaffectedParity], 0.0, 1.0);
+    const int liftedParity = 1 - unaffectedParity;
+    const double addition = std::clamp((y[liftedParity] - slope * x[liftedParity]) / weights[liftedParity] - base, 0.0, 1.0);
+    const AttackMacroKnobs candidate{GetAttackMacroTimeTravel(base * base), GetAttackMacroSlopeTravel(slope), GetAttackMacroPositionTravel(position),
+                                     GetAttackOddEvenTravel(unaffectedParity == 0 ? addition : -addition)};
+    const auto curve = GenerateAttackMacroCurve(candidate);
+    double residual = 0.0;
+    for (std::size_t i = 0; i < values.size(); ++i) {
+      const double difference = curve[i] - values[i];
+      residual += target.weights[i] * difference * difference;
+    }
+    if (residual < bestResidual) {
+      bestResidual = residual;
+      best = candidate;
+    }
+    return residual;
+  };
+  std::array<double, 100> residuals{};
+  for (int i = 0; i < 100; ++i) residuals[i] = score({i / 99.0});
+  for (int i = 0; i < 100; ++i) {
+    if (i > 0 && residuals[i] > residuals[i - 1]) continue;
+    if (i < 99 && residuals[i] > residuals[i + 1]) continue;
+    if (residuals[i] == std::numeric_limits<double>::max()) continue;
+    SearchMacroFitSimplex(MacroFitPoint<1>{i / 99.0}, MacroFitPoint<1>{1.0 / 99.0}, score, 1.0e-10);
+  }
+  return best;
+}
+
 inline AttackMacroKnobs FitAttackMacroKnobs(const OscillatorParameterValues& values) {
   if (std::all_of(values.begin(), values.end(), [&](double value) { return value == values.front(); })) {
     const double travel = GetAttackMacroTimeTravel(values.front());
@@ -247,26 +302,6 @@ inline AttackMacroKnobs FitAttackMacroKnobs(const OscillatorParameterValues& val
   // Try both directions, then refine against the complete, capped curve. Search addition linearly so
   // tuning the knob's centre resolution cannot change the fitter's accuracy.
   for (int parity = 0; parity < 2; ++parity) {
-    // A peak entirely between unaffected harmonics is invisible to that parity. Recover a
-    // possible single-harmonic peak from the other parity's excess over its constant offset.
-    bool silentParity = true;
-    double offset = 1.0;
-    std::size_t peak = 1 - parity;
-    for (std::size_t i = 0; i < values.size(); ++i) {
-      if (static_cast<int>(i % 2) == parity) silentParity = silentParity && values[i] == 0.0;
-      else {
-        offset = std::min(offset, values[i]);
-        if (values[i] > values[peak]) peak = i;
-      }
-    }
-    if (silentParity) {
-      const AttackMacroKnobs candidate{GetAttackMacroTimeTravel(values[peak] - offset), 0.0, GetAttackMacroPositionTravel(peak + 1.0),
-                                       GetAttackOddEvenTravel(parity == 0 ? offset : -offset)};
-      const auto curve = GenerateAttackMacroCurve(candidate);
-      double error = 0.0;
-      for (std::size_t i = 0; i < values.size(); ++i) error = std::max(error, std::abs(values[i] - curve[i]));
-      if (error < 1.0e-12) return candidate;
-    }
     std::vector<double> seedPositions{-1.0, 0.0, 0.005, 0.01, 0.99, 0.995, 1.0};
     // Narrow clipped peaks may expose only one sample. Seed around the parity's extrema,
     // as well as the endpoint intervals where the two parities cannot locate the same vertex.
@@ -277,14 +312,24 @@ inline AttackMacroKnobs FitAttackMacroKnobs(const OscillatorParameterValues& val
     }
     for (const auto index : {lowest, highest})
       for (const double offset : {-0.5, 0.0, 0.5}) seedPositions.push_back(std::clamp((index + offset) / 99.0, 0.0, 1.0));
+    std::vector<AttackMacroKnobs> ramps{FitAttackMacroParallelLines(values, parity)};
     for (const double seedPosition : seedPositions) {
+      ramps.push_back(FitAttackMacroDistanceCurve(values, parity, seedPosition));
+      // The lifted parity has the same slope and Position. It can reveal the ramp when
+      // the unaffected parity is silent; start with its entire intercept as the addition.
+      auto lifted = FitAttackMacroDistanceCurve(values, 1 - parity, seedPosition);
+      lifted.base = 0.0;
+      ramps.push_back(lifted);
+    }
+    for (const auto& ramp : ramps) {
       const double direction = (parity == 0) ? 1.0 : -1.0;
-      const auto ramp = FitAttackMacroDistanceCurve(values, parity, seedPosition);
-      const auto baseline = GenerateAttackMacroCurve(ramp);
+      const auto basis = MakeAttackMacroBasis(GetAttackMacroPosition(ramp.position));
+      const double baseHeight = std::sqrt(GetAttackMacroTime(ramp.base)), slope = GetAttackMacroSlope(ramp.slope);
       double weightedOffset = 0.0, weightSum = 0.0;
       for (std::size_t i = 0; i < values.size(); ++i) {
-        if (static_cast<int>(i % 2) == parity || values[i] >= 1.0) continue;
-        weightedOffset += target.weights[i] * (values[i] - baseline[i]);
+        if (static_cast<int>(i % 2) == parity || values[i] <= 0.0 || values[i] >= 1.0) continue;
+        const double height = baseHeight + slope * basis[i];
+        weightedOffset += target.weights[i] * (std::sqrt(values[i]) - height);
         weightSum += target.weights[i];
       }
       const double offset = (weightSum > 0.0) ? std::clamp(weightedOffset / weightSum, 0.0, 1.0) : 1.0;
