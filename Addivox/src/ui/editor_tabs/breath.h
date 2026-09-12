@@ -52,8 +52,7 @@ inline bool ApplyBreathAction(SimplePatch& patch, const char* actionName, Editor
 inline constexpr double kBreathBaseMin = 0.5;
 inline constexpr double kBreathBaseMax = 3.0;
 inline constexpr double kBreathPowerMax = 100.0;
-inline constexpr double kBreathOddEvenAdditionMax = 10.0;
-inline constexpr double kBreathOddEvenTravelExponent = 2.32;
+inline constexpr double kBreathOddEvenTravelExponent = 4.321928094887362; // Half strength = 0.05 chart height.
 inline constexpr double kBreathFitRelativeFloor = 0.01;
 
 // Smooth offset exponentials put the intended values at minimum, half and maximum travel.
@@ -72,11 +71,11 @@ inline double GetBreathMacroShapeExponent(double travel) {
 
 inline double GetBreathOddEvenAddition(double travel) {
   const double distance = 2.0 * std::clamp(travel, 0.0, 1.0) - 1.0;
-  return std::copysign(kBreathOddEvenAdditionMax * std::pow(std::abs(distance), kBreathOddEvenTravelExponent), distance);
+  return std::copysign(std::pow(std::abs(distance), kBreathOddEvenTravelExponent), distance);
 }
 
 inline double GetBreathOddEvenTravel(double addition) {
-  const double distance = std::pow(std::clamp(std::abs(addition) / kBreathOddEvenAdditionMax, 0.0, 1.0), 1.0 / kBreathOddEvenTravelExponent);
+  const double distance = std::pow(std::clamp(std::abs(addition), 0.0, 1.0), 1.0 / kBreathOddEvenTravelExponent);
   return 0.5 + 0.5 * std::copysign(distance, addition);
 }
 
@@ -103,7 +102,11 @@ inline OscillatorParameterValues GenerateBreathMacroCurve(const BreathMacroKnobs
   for (std::size_t i = 0; i < values.size(); ++i) {
     const bool oddHarmonic = (i % 2 == 0);
     const double offset = (oddHarmonic ? addition < 0.0 : addition > 0.0) ? std::abs(addition) : 0.0;
-    values[i] = std::min(kBreathPowerMax, base + spread * values[i] + offset);
+    values[i] = base + spread * values[i];
+    if (offset > 0.0) {
+      const double height = std::min(1.0, std::sqrt(values[i] / kBreathPowerMax) + offset);
+      values[i] = kBreathPowerMax * height * height;
+    }
   }
   return values;
 }
@@ -179,7 +182,7 @@ inline BreathMacroKnobs FitBreathMacroKnobs(const OscillatorParameterValues& val
   double bestResidual = std::numeric_limits<double>::max();
 
   // The unaffected parity still describes the original ramp, even when the other parity clips at 100.
-  // Try both directions, then refine against the complete, capped curve. Search addition linearly so
+  // Try both directions, then refine against the complete, capped curve. Search chart-height addition linearly so
   // tuning the knob's centre resolution cannot change the fitter's accuracy.
   for (int parity = 0; parity < 2; ++parity) {
     const double direction = (parity == 0) ? 1.0 : -1.0;
@@ -188,15 +191,15 @@ inline BreathMacroKnobs FitBreathMacroKnobs(const OscillatorParameterValues& val
     double weightedOffset = 0.0, weightSum = 0.0;
     for (std::size_t i = 0; i < values.size(); ++i) {
       if (static_cast<int>(i % 2) == parity || values[i] >= kBreathPowerMax) continue;
-      weightedOffset += target.weights[i] * (values[i] - baseline[i]);
+      weightedOffset += target.weights[i] * (std::sqrt(values[i] / kBreathPowerMax) - std::sqrt(baseline[i] / kBreathPowerMax));
       weightSum += target.weights[i];
     }
-    const double offset = (weightSum > 0.0) ? std::clamp(weightedOffset / weightSum, 0.0, kBreathOddEvenAdditionMax) : kBreathOddEvenAdditionMax;
-    MacroFitPoint<4> bestPoint{ramp.base, ramp.top, ramp.shape, offset / kBreathOddEvenAdditionMax};
+    const double offset = (weightSum > 0.0) ? std::clamp(weightedOffset / weightSum, 0.0, 1.0) : 1.0;
+    MacroFitPoint<4> bestPoint{ramp.base, ramp.top, ramp.shape, offset};
     double directionResidual = std::numeric_limits<double>::max();
     const auto score = [&](MacroFitPoint<4> point) {
       for (double& value : point) value = std::clamp(value, 0.0, 1.0);
-      const BreathMacroKnobs knobs{point[0], point[1], point[2], GetBreathOddEvenTravel(direction * point[3] * kBreathOddEvenAdditionMax)};
+      const BreathMacroKnobs knobs{point[0], point[1], point[2], GetBreathOddEvenTravel(direction * point[3])};
       const auto curve = GenerateBreathMacroCurve(knobs);
       double error = 0.0;
       for (std::size_t i = 0; i < values.size(); ++i) {
@@ -232,7 +235,7 @@ inline std::vector<MacroKnobDescriptor> GetBreathMacroKnobDescriptors() {
 inline void RegisterBreathMacroFunctions(const std::shared_ptr<EditorContext>& context, const std::vector<layout::LabelledKnob*>& knobs) {
   if (knobs.size() != 4) return;
   auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(OscillatorParameter::breath_power)];
-  functions.version = 1; // Adds Odd/Even breath-power offsets, capped at 100.
+  functions.version = 1; // Adds Odd/Even chart-height offsets, capped at 100.
   functions.knobs = knobs;
   functions.generateValues = [knobs]() {
     return GenerateBreathMacroCurve({knobs[0]->GetNormalizedValue(), knobs[1]->GetNormalizedValue(), knobs[2]->GetNormalizedValue(),

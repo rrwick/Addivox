@@ -185,7 +185,8 @@ inline constexpr const char *kMacroBreathShape =
 
 inline constexpr const char *kMacroBreathOddEven =
     "Favours odd harmonics when turned right by adding breath power to even harmonics; left adds power to odd harmonics, including the fundamental. "
-    "Centred adds nothing. Each end adds 10, with finer control near centre; powers are capped at 100. The effect fades as breath reaches full strength.";
+    "Adds a fixed height on the square-root chart: nothing at centre, 5% of chart height halfway to either end, "
+    "and a full chart height at either end. Powers are capped at 100. The effect fades as breath reaches full strength.";
 
 inline constexpr const char *kMacroAttackBase =
     "Sets attack time at Position before Odd/Even is added. Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to zero.";
