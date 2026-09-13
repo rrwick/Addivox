@@ -171,8 +171,8 @@ inline constexpr const char *kMacroLevelFund =
     "fundamental more prominent, while lower values make it quieter.";
 
 inline constexpr const char *kMacroLevelOddEven =
-    "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned up, only the odd harmonics "
-    "survive, giving a hollow, clarinet-like tone; turned down favours the even harmonics.";
+    "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned left, only the odd harmonics "
+    "survive, giving a hollow, clarinet-like tone; turned right favours the even harmonics.";
 
 inline constexpr const char *kMacroBreathBase =
     "Sets breath power at harmonic 1, from 0.5 to 3. Centred is 1.5. Lower powers respond more strongly to gentle breath; higher powers need more breath.";
@@ -184,7 +184,7 @@ inline constexpr const char *kMacroBreathShape =
     "Bends the transition from Base to Top. Centred uses exponent 1.5, ranging from 4 to 0.75. Lower settings rise more gradually near harmonic 1; higher settings rise faster.";
 
 inline constexpr const char *kMacroBreathOddEven =
-    "Favours odd harmonics when turned right by adding breath power to even harmonics; left adds power to odd harmonics, including the fundamental. "
+    "Favours odd harmonics when turned left by adding breath power to even harmonics; right adds power to odd harmonics, including the fundamental. "
     "Adds a fixed height on the square-root chart: nothing at centre, 5% of chart height halfway to either end, "
     "and a full chart height at either end. Powers are capped at 100. The effect fades as breath reaches full strength.";
 
@@ -200,7 +200,7 @@ inline constexpr const char *kMacroAttackPosition =
     "Equal distances either side have equal attack times before Odd/Even is added. Double-click resets to harmonic 1.";
 
 inline constexpr const char *kMacroAttackOddEven =
-    "Favours odd harmonics when turned right by raising even harmonics on the square-root chart; left raises odd harmonics, including the fundamental. "
+    "Favours odd harmonics when turned left by raising even harmonics on the square-root chart; right raises odd harmonics, including the fundamental. "
     "Centre adds nothing; halfway to either end adds 0.05 chart height; each end adds 1 full chart height. The addition is applied before clamping, so negative ramp heights must first be overcome. Attack times are clamped to 0–1 second before the global Attack multiplier.";
 
 inline constexpr const char *kMacroReleaseBase =
@@ -215,7 +215,7 @@ inline constexpr const char *kMacroReleasePosition =
     "Equal distances either side have equal release times before Odd/Even is added. Double-click resets to harmonic 1.";
 
 inline constexpr const char *kMacroReleaseOddEven =
-    "Favours odd harmonics when turned right by raising odd harmonics on the square-root chart, including the fundamental; left raises even harmonics. "
+    "Favours odd harmonics when turned left by raising odd harmonics on the square-root chart, including the fundamental; right raises even harmonics. "
     "Centre adds nothing; halfway to either end adds 0.05 chart height; each end adds 1 full chart height. The addition is applied before clamping, so negative ramp heights must first be overcome. Release times are clamped to 0–1 second before the global Release multiplier.";
 
 inline constexpr const char *kXRangeMin =

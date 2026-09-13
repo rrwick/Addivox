@@ -220,7 +220,7 @@ inline LevelMacroModel GetLevelMacroModel(const LevelMacroKnobs& knobs) {
   model.widthHarmonic = kLevelWidthHarmonicMin + (widthTravel * (kLevelWidthHarmonicMax - kLevelWidthHarmonicMin));
   model.shapeExponent = std::pow(kLevelShapeExponentMax, 1.0 - (2.0 * shapeTravel));
   model.fundLift = (fundTravel < 0.0) ? fundTravel : (fundTravel * kLevelFundBoostMax);
-  model.oddEvenWeight = (std::clamp(knobs.oddEven, 0.0, 1.0) * 2.0) - 1.0;
+  model.oddEvenWeight = 1.0 - (2.0 * std::clamp(knobs.oddEven, 0.0, 1.0));
   return model;
 }
 
@@ -402,7 +402,7 @@ inline void AccumulateLevelMacroFit(const OscillatorParameterValues& basis, cons
   if (residual >= best.residual) return;
 
   best.residual = residual;
-  best.knobs = LevelMacroKnobs{knobs.width, knobs.shape, knobs.fund, oddScale / totalScale};
+  best.knobs = LevelMacroKnobs{knobs.width, knobs.shape, knobs.fund, evenScale / totalScale};
 }
 
 inline void EvaluateLevelMacroCandidate(const MacroFitTarget& target, const LevelMacroKnobs& knobs, LevelMacroCurve& display,

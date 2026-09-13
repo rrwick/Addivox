@@ -127,13 +127,14 @@ inline double GetAttackMacroSlopeTravel(double slope) {
   return 0.5 + 0.5 * std::copysign(BendMacroTravel(std::abs(slope) / kAttackSlopeMax, 1.0 / kAttackSlopeTravelExponent), slope);
 }
 
+// Positive addition slows even attacks: left favours odds, right favours evens.
 inline double GetAttackOddEvenAddition(double travel) {
-  const double distance = 2.0 * std::clamp(travel, 0.0, 1.0) - 1.0;
+  const double distance = 1.0 - 2.0 * std::clamp(travel, 0.0, 1.0);
   return std::copysign(std::pow(std::abs(distance), kAttackOddEvenTravelExponent), distance);
 }
 
 inline double GetAttackOddEvenTravel(double addition) {
-  return 0.5 + 0.5 * std::copysign(BendMacroTravel(std::abs(addition), 1.0 / kAttackOddEvenTravelExponent), addition);
+  return 0.5 - 0.5 * std::copysign(BendMacroTravel(std::abs(addition), 1.0 / kAttackOddEvenTravelExponent), addition);
 }
 
 // Normalised positions in descriptor/storage order; also the double-click targets.

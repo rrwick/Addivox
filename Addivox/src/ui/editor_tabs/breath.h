@@ -69,14 +69,15 @@ inline double GetBreathMacroShapeExponent(double travel) {
   return (3.0 + 25.0 * std::pow(0.09, std::clamp(travel, 0.0, 1.0))) / 7.0;
 }
 
+// Positive addition suppresses evens at gentle breath: left favours odds, right favours evens.
 inline double GetBreathOddEvenAddition(double travel) {
-  const double distance = 2.0 * std::clamp(travel, 0.0, 1.0) - 1.0;
+  const double distance = 1.0 - 2.0 * std::clamp(travel, 0.0, 1.0);
   return std::copysign(std::pow(std::abs(distance), kBreathOddEvenTravelExponent), distance);
 }
 
 inline double GetBreathOddEvenTravel(double addition) {
   const double distance = std::pow(std::clamp(std::abs(addition), 0.0, 1.0), 1.0 / kBreathOddEvenTravelExponent);
-  return 0.5 + 0.5 * std::copysign(distance, addition);
+  return 0.5 - 0.5 * std::copysign(distance, addition);
 }
 
 // Normalised positions in descriptor/storage order. Defaults are also the knobs' double-click targets.
