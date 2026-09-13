@@ -63,6 +63,13 @@ public:
 
   void AddMidiMsgToQueue(const IMidiMsg& msg) { mMidiQueue.Add(msg); }
 
+  void SetPortamentoCC(int controller) {
+    const int sanitizedController = controller == 65 ? 65 : 5;
+    if (mPortamentoCC == sanitizedController) return;
+    mPortamentoCC = sanitizedController;
+    Portamento(mActiveChannel, 0.0);
+  }
+
   void SetBreathCCSource(BreathCCSource source) {
     mBreathCCSources.fill(source);
     mBreathCCInputTracker.Reset();
@@ -177,7 +184,10 @@ private:
       if (msg.mData1 == 120) { StopVoice(); break; }  // CC 120 = All Sound Off
 
       switch (msg.ControlChangeIdx()) {
-      case IMidiMsg::kPortamentoTime: Portamento(channel, static_cast<double>(msg.ControlChange(IMidiMsg::kPortamentoTime))); break;
+      case IMidiMsg::kPortamentoTime:
+      case IMidiMsg::kPortamentoOnOff:
+        if (msg.mData1 == mPortamentoCC) Portamento(channel, mPortamentoCC == 65 ? (msg.mData2 >= 64 ? 1.0 : 0.0) : msg.mData2 / 127.0);
+        break;
       case IMidiMsg::kAllNotesOff:    StopVoice(); break;
       default:                        break;
       }
@@ -296,6 +306,7 @@ private:
   MonoMidiState mMidiState{};
   std::array<BreathCCSource, 16> mBreathCCSources{};
   BreathCCInputTracker mBreathCCInputTracker{};
+  int mPortamentoCC{5};
   VoiceT mVoice{};
   uint8_t mActiveChannel{0};
   uint8_t mActiveKey{kNoKey};

@@ -617,6 +617,7 @@ struct EditorModelRefs {
   std::shared_ptr<std::recursive_mutex> patchMutex;
   std::shared_ptr<CompoundPatch> compoundPatch;
   std::shared_ptr<BreathCCSource> breathCCSource;
+  std::shared_ptr<int> portamentoCC;
   std::shared_ptr<int> pitchBendRange;
   std::shared_ptr<bool> harmonicVisualizerEnabled;
   std::shared_ptr<int> selectedMidiNote;

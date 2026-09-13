@@ -24,9 +24,9 @@ namespace layout {
 class SettingsMenuButton final : public IVButtonControl {
 public:
   SettingsMenuButton(const IRECT& bounds, const ISVG& gearIcon, const std::shared_ptr<BreathCCSource>& breathCCSource,
-                     const std::shared_ptr<int>& pitchBendRange, const std::shared_ptr<bool>& harmonicVisualizerEnabled)
+                     const std::shared_ptr<int>& portamentoCC, const std::shared_ptr<int>& pitchBendRange, const std::shared_ptr<bool>& harmonicVisualizerEnabled)
       : IVButtonControl(bounds, EmptyClickActionFunc, "", theme::AboutIconButtonStyle(), false, false, EVShape::Ellipse), mGearIcon(gearIcon),
-        mBreathCCSource(breathCCSource), mPitchBendRange(pitchBendRange), mHarmonicVisualizerEnabled(harmonicVisualizerEnabled) {
+        mBreathCCSource(breathCCSource), mPortamentoCC(portamentoCC), mPitchBendRange(pitchBendRange), mHarmonicVisualizerEnabled(harmonicVisualizerEnabled) {
     SetTooltip("Settings");
     SetActionFunction([this](IControl* caller) {
       if (caller) {
@@ -59,6 +59,13 @@ public:
         if (auto* delegate = GetDelegate()) {
           const editor_messages::SetHarmonicVisualizerEnabledPayload payload{enabled ? 1 : 0};
           delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetHarmonicVisualizerEnabled, GetTag(), sizeof(payload), &payload);
+        }
+      } else if (selectedText && (std::strcmp(selectedText, kPortamentoTimeMenuLabel) == 0 || std::strcmp(selectedText, kPortamentoSwitchMenuLabel) == 0)) {
+        const int controller = std::strcmp(selectedText, kPortamentoSwitchMenuLabel) == 0 ? 65 : 5;
+        if (mPortamentoCC) *mPortamentoCC = controller;
+        if (auto* delegate = GetDelegate()) {
+          const editor_messages::SetPortamentoCCPayload payload{controller};
+          delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetPortamentoCC, GetTag(), sizeof(payload), &payload);
         }
       } else if (selectedText && std::strcmp(selectedText, kResetToDefaultsMenuLabel) == 0) {
         if (auto* delegate = GetDelegate()) {
@@ -128,6 +135,12 @@ private:
 
     mMenu.AddItem("Breath CC", breathMenu);
 
+    auto* portamentoMenu = new IPopupMenu("Portamento CC");
+    const bool useSwitch = mPortamentoCC && *mPortamentoCC == 65;
+    portamentoMenu->AddItem(kPortamentoTimeMenuLabel, -1, useSwitch ? 0 : IPopupMenu::Item::kChecked);
+    portamentoMenu->AddItem(kPortamentoSwitchMenuLabel, -1, useSwitch ? IPopupMenu::Item::kChecked : 0);
+    mMenu.AddItem("Portamento CC", portamentoMenu);
+
     auto* pitchBendRangeMenu = new IPopupMenu("Pitch Bend Range");
     PopulatePitchBendRangeMenu(*pitchBendRangeMenu, mPitchBendRange ? *mPitchBendRange : kFallbackPitchBendRange);
     mMenu.AddItem("Pitch Bend Range", pitchBendRangeMenu);
@@ -190,9 +203,12 @@ private:
   IPopupMenu mMenu{"Settings"};
   ISVG mGearIcon;
   std::shared_ptr<BreathCCSource> mBreathCCSource;
+  std::shared_ptr<int> mPortamentoCC;
   std::shared_ptr<int> mPitchBendRange;
   std::shared_ptr<bool> mHarmonicVisualizerEnabled;
 
+  static constexpr const char* kPortamentoTimeMenuLabel = "CC 5 (Portamento Time)";
+  static constexpr const char* kPortamentoSwitchMenuLabel = "CC 65 (Portamento On/Off)";
   static constexpr int kFallbackPitchBendRange = 2;
   static constexpr const char* kVisualizerEnabledMenuLabel = "Visualizer Enabled";
 #if defined APP_API && !defined OS_IOS

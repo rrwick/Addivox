@@ -8,4 +8,4 @@ Addivox is a **monosynth** — it plays one note at a time.
 
 **Tuning** applies a global pitch offset in cents (hundredths of a semitone) to all harmonics. Like transpose, this is not patch-tied.
 
-**Portamento** controls smooth pitch glides between notes. The rate of the glide is set by MIDI CC5 (typically the breath controller's bite sensor on a wind controller). The **Min** and **Max** values set the glide time range: **Min** is the glide time when CC5 is 0 (usually instant or very fast), and **Max** is the glide time when CC5 is at full value.
+**Portamento** controls smooth pitch glides between notes. **Min** and **Max** set the glide time range. In Settings, **Portamento CC** selects CC 5 (continuous min–max) or CC 65 (binary min or max).

@@ -403,6 +403,7 @@ inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<
   context->model.patchMutex = std::shared_ptr<std::recursive_mutex>(editorState, &editorState->patchMutex);
   context->model.compoundPatch = std::shared_ptr<CompoundPatch>(editorState, &editorState->compoundPatch);
   context->model.breathCCSource = std::shared_ptr<BreathCCSource>(editorState, &editorState->breathCCSource);
+  context->model.portamentoCC = std::shared_ptr<int>(editorState, &editorState->portamentoCC);
   context->model.pitchBendRange = std::shared_ptr<int>(editorState, &editorState->pitchBendRange);
   context->model.harmonicVisualizerEnabled = std::shared_ptr<bool>(editorState, &editorState->harmonicVisualizerEnabled);
   context->model.selectedMidiNote = std::shared_ptr<int>(editorState, &editorState->selectedMidiNote);

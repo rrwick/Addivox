@@ -50,6 +50,7 @@ struct EditorState {
   std::recursive_mutex patchMutex{};
   CompoundPatch compoundPatch{};
   BreathCCSource breathCCSource{kDefaultBreathCCSource};
+  int portamentoCC{5};
   int pitchBendRange{2};
   bool harmonicVisualizerEnabled{true};
   int selectedMidiNote{60};

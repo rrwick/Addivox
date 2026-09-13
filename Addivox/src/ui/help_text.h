@@ -50,7 +50,7 @@ inline constexpr const char *kPanShift =
     "This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char *kPortamento =
-    "Sets the portamento time range, from the minimum at CC5=0 to the maximum at CC5=127.";
+    "Portamento range: CC5 varies min–max; CC65 selects min or max.";
 
 inline constexpr const char *kLevelVariationAmplitude =
     "Scales the depth of level variation for all oscillators.";

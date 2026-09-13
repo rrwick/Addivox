@@ -23,6 +23,7 @@ inline constexpr int      kMsgTagResetStandaloneStateToDefaults = 1011;
 inline constexpr int                  kMsgTagPatchManagerAction = 1012;
 inline constexpr int               kMsgTagOpenAudioMidiSettings = 1013;
 inline constexpr int              kMsgTagSetPitchBendRange = 1014;
+inline constexpr int                    kMsgTagSetPortamentoCC = 1015;
 
 enum class PatchManagerAction { SelectPatch = 0, PreviousPatch, NextPatch, SavePatch, ImportPatch, ImportCollection, ShowPatchInFileBrowser, RefreshPatches };
 
@@ -60,6 +61,10 @@ struct SetAllKeyNotesEqEnabledPayload {
 
 struct SetBreathCCSourcePayload {
   int source{static_cast<int>(kDefaultBreathCCSource)};
+};
+
+struct SetPortamentoCCPayload {
+  int controller{5};
 };
 
 struct SetPitchBendRangePayload {

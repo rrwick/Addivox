@@ -92,6 +92,7 @@ private:
   void ResetStandaloneStateToDefaults();
   void SetPitchBendRange(int pitchBendRange);
   void SetBreathCCSource(BreathCCSource source);
+  void SetPortamentoCC(int controller);
   void SetHarmonicVisualizerEnabled(bool enabled);
   bool HasPendingRestoredState() const;
   void ApplyPendingRestoredState();
@@ -155,6 +156,7 @@ private:
   uint64_t mStandaloneStateSavedRevision{0};
   int64_t mStandaloneStateLastDirtyMillis{0};
   BreathCCSource mBreathCCSource{kDefaultBreathCCSource};
+  int mPortamentoCC{5};
   std::atomic<bool> mHarmonicVisualizerEnabled{true};
   std::atomic<bool> mHarmonicVisualizerBlankPending{false};
 

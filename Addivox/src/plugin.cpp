@@ -154,7 +154,7 @@ bool BuildPatchChunk(const patch_io::PatchDocument& document, IByteChunk& chunk)
 
 bool AppendPluginStateSettingsChunk(IByteChunk& chunk, BreathCCSource breathCCSource, bool harmonicVisualizerEnabled, int pitchBendRange, bool patchDirty,
                                     const std::string& patchCleanSnapshot, int activePatchSource, int activeFactoryPatchIdx, const std::string& activePatchPath,
-                                    const std::string& activePatchGroupKey) {
+                                    const std::string& activePatchGroupKey, int portamentoCC) {
   const uint32_t magic = kPluginStateSettingsMagic;
   const int32_t rawBreathCCSource = static_cast<int32_t>(breathCCSource);
   const int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
@@ -162,14 +162,15 @@ bool AppendPluginStateSettingsChunk(IByteChunk& chunk, BreathCCSource breathCCSo
   const int32_t rawPatchDirty = patchDirty ? 1 : 0;
   const int32_t rawPatchSource = static_cast<int32_t>(activePatchSource);
   const int32_t rawFactoryPatchIdx = static_cast<int32_t>(activeFactoryPatchIdx);
+  const int32_t rawPortamentoCC = portamentoCC;
   return chunk.Put(&magic) > 0 && chunk.Put(&rawBreathCCSource) > 0 && chunk.Put(&rawHarmonicVisualizerEnabled) > 0 && chunk.Put(&rawPitchBendRange) > 0 &&
          chunk.Put(&rawPatchDirty) > 0 && chunk.PutStr(patchCleanSnapshot.c_str()) > 0 && chunk.Put(&rawPatchSource) > 0 &&
-         chunk.Put(&rawFactoryPatchIdx) > 0 && chunk.PutStr(activePatchPath.c_str()) > 0 && chunk.PutStr(activePatchGroupKey.c_str()) > 0;
+         chunk.Put(&rawFactoryPatchIdx) > 0 && chunk.PutStr(activePatchPath.c_str()) > 0 && chunk.PutStr(activePatchGroupKey.c_str()) > 0 && chunk.Put(&rawPortamentoCC) > 0;
 }
 
 bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathCCSource& breathCCSource, bool& harmonicVisualizerEnabled, int& pitchBendRange,
                                   bool& patchDirty, std::string& patchCleanSnapshot, int& activePatchSource, int& activeFactoryPatchIdx,
-                                  std::string& activePatchPath, std::string& activePatchGroupKey) {
+                                  std::string& activePatchPath, std::string& activePatchGroupKey, int& portamentoCC) {
   uint32_t magic = 0;
   int position = chunk.Get(&magic, startPos);
   if (position < 0 || magic != kPluginStateSettingsMagic) return false;
@@ -241,7 +242,11 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathC
   WDL_String rawPatchGroupKey;
   if (position >= 0) {
     const int nextPosition = chunk.GetStr(rawPatchGroupKey, position);
-    if (nextPosition >= 0) activePatchGroupKey = rawPatchGroupKey.Get();
+    if (nextPosition >= 0) {
+      activePatchGroupKey = rawPatchGroupKey.Get();
+      int32_t rawPortamentoCC = 5;
+      if (chunk.Get(&rawPortamentoCC, nextPosition) >= 0) portamentoCC = rawPortamentoCC == 65 ? 65 : 5;
+    }
   }
 
   return true;
@@ -915,6 +920,7 @@ Addivox::Addivox(const InstanceInfo& info)
 
   SetPitchBendRange(mPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
+  SetPortamentoCC(5);
 }
 
 void Addivox::OnHostIdentified() { EnsureStandaloneStateInitialized(); }
@@ -1034,6 +1040,7 @@ void Addivox::ResetStandaloneStateToDefaults() {
 
   SetPitchBendRange(kDefaultPitchBendRange);
   SetBreathCCSource(kDefaultBreathCCSource);
+  SetPortamentoCC(5);
   SetHarmonicVisualizerEnabled(kDefaultHarmonicVisualizerEnabled);
 
 #if IPLUG_DSP
@@ -1058,6 +1065,19 @@ void Addivox::SetPitchBendRange(int pitchBendRange) {
 #endif
 
   SyncPitchBendRangeUI();
+  if (changed) MarkStandaloneStateDirty();
+}
+
+void Addivox::SetPortamentoCC(int controller) {
+  const int sanitizedController = controller == 65 ? 65 : 5;
+  const bool changed = sanitizedController != mPortamentoCC;
+  mPortamentoCC = sanitizedController;
+  if (mEditorState) mEditorState->portamentoCC = mPortamentoCC;
+#if IPLUG_DSP
+  ENTER_PARAMS_MUTEX
+  mDSP.mSynth.SetPortamentoCC(mPortamentoCC);
+  LEAVE_PARAMS_MUTEX
+#endif
   if (changed) MarkStandaloneStateDirty();
 }
 
@@ -1305,7 +1325,7 @@ bool Addivox::SerializeState(IByteChunk& chunk) const {
 
   return chunk.PutStr(patch_io::SerializePatchToToml(document).c_str()) > 0 && SerializeParams(chunk) &&
          AppendPluginStateSettingsChunk(chunk, mBreathCCSource, mHarmonicVisualizerEnabled.load(std::memory_order_relaxed), mPitchBendRange, activePatchDirty,
-                                        activePatchCleanSnapshot, activePatchSource, activeFactoryPatchIdx, statePatchPath, activePatchGroupKey);
+                                        activePatchCleanSnapshot, activePatchSource, activeFactoryPatchIdx, statePatchPath, activePatchGroupKey, mPortamentoCC);
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
@@ -1329,6 +1349,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
 
   int restoredPitchBendRange = mPitchBendRange;
   BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
+  int restoredPortamentoCC = 5;
   bool restoredHarmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
   bool restoredPatchDirty = false;
   std::string restoredPatchCleanSnapshot;
@@ -1337,7 +1358,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
   std::string restoredPatchPath;
   std::string restoredPatchGroupKey;
   if (ReadPluginStateSettingsChunk(chunk, pos, restoredBreathCCSource, restoredHarmonicVisualizerEnabled, restoredPitchBendRange, restoredPatchDirty,
-                                   restoredPatchCleanSnapshot, restoredPatchSource, restoredFactoryPatchIdx, restoredPatchPath, restoredPatchGroupKey)) {
+                                   restoredPatchCleanSnapshot, restoredPatchSource, restoredFactoryPatchIdx, restoredPatchPath, restoredPatchGroupKey, restoredPortamentoCC)) {
     SetPitchBendRange(restoredPitchBendRange);
     SetBreathCCSource(restoredBreathCCSource);
     SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
@@ -1351,6 +1372,7 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
     mPendingRestoredPatchGroupKey = std::move(restoredPatchGroupKey);
     mPendingRestoredPatchHasIdentity = mPendingRestoredPatchSource != PatchSource::Unknown;
   }
+  if (mRestoringFactoryPatchIdx < 0) SetPortamentoCC(restoredPortamentoCC);
   {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
     mPendingRestoredPatchCleanSnapshot = std::move(restoredPatchCleanSnapshot);
@@ -1519,6 +1541,7 @@ void Addivox::OnReset() {
   EnsureStandaloneStateInitialized();
   mDSP.Reset(GetSampleRate(), GetBlockSize());
   mDSP.mSynth.SetPitchBendRange(mPitchBendRange);
+  mDSP.mSynth.SetPortamentoCC(mPortamentoCC);
   mDSP.SetBreathCCSource(mBreathCCSource);
   mBreathCCInputTracker.Reset();
 
@@ -1560,6 +1583,11 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
   if (msgTag == editor_messages::kMsgTagPatchManagerAction && dataSize == sizeof(editor_messages::PatchManagerActionPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::PatchManagerActionPayload*>(pData);
     HandlePatchManagerAction(payload->action, payload->patchId);
+    return true;
+  }
+
+  if (msgTag == editor_messages::kMsgTagSetPortamentoCC && dataSize == sizeof(editor_messages::SetPortamentoCCPayload) && pData) {
+    SetPortamentoCC(static_cast<const editor_messages::SetPortamentoCCPayload*>(pData)->controller);
     return true;
   }
 

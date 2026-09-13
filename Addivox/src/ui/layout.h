@@ -88,7 +88,7 @@ inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<edit
   auto* patchManagerControl = new PatchManagerControl(positions::kPatchManager, "", theme::PatchManagerStyle());
 
   auto* settingsButton = new SettingsMenuButton(positions::kSettingsButton, pGraphics->LoadSVG("gear.svg"), context->model.breathCCSource,
-                                                context->model.pitchBendRange, context->model.harmonicVisualizerEnabled);
+                                                context->model.portamentoCC, context->model.pitchBendRange, context->model.harmonicVisualizerEnabled);
 
   auto* aboutButton =
       new IVButtonControl(positions::kAboutButton, MakeImmediateButtonAction([pGraphics, aboutBoxTag](IControl*) { ShowAboutBox(pGraphics, aboutBoxTag); }),
