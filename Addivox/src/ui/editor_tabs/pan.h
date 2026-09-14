@@ -49,33 +49,7 @@ inline bool ApplyPanShape(SimplePatch& patch, const char* shapeName) {
 }
 
 inline bool ApplyPanAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {
-  constexpr double kPanMin = -1.0;
-  constexpr double kPanMax = 1.0;
-  constexpr double kPanShiftAmount = 0.01;
-
-  if (MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
-    return ApplyStandardHarmonicAction(patch, OscillatorParameter::pan, actionName, kPanMin, kPanMax, editScope);
-  if (MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown)) {
-    const double shiftAmount = MatchesActionLabel(actionName, kActionShiftUp) ? kPanShiftAmount : -kPanShiftAmount;
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      if (!MatchesOscillatorEditScope(editScope, oscillatorIndex)) continue;
-
-      const double pan = patch.GetOscillatorSettings(oscillatorIndex).pan;
-      patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, ApplyShiftOffset(pan, shiftAmount, kPanMin, kPanMax));
-    }
-    return true;
-  }
-  if (MatchesActionLabel(actionName, kActionInvert)) {
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      if (!MatchesOscillatorEditScope(editScope, oscillatorIndex)) continue;
-
-      const double pan = patch.GetOscillatorSettings(oscillatorIndex).pan;
-      patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, -pan);
-    }
-    return true;
-  }
-
-  return false;
+  return ApplyBipolarHarmonicAction(patch, OscillatorParameter::pan, actionName, 1.0, 0.01, editScope);
 }
 
 inline void AppendPanTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
@@ -89,24 +63,13 @@ inline void AttachPanTabChildren(IVTabPage* page, const std::shared_ptr<EditorCo
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-  auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"zero", "ramp right", "ramp left", "ramp alternating", "full alternating"},
-                                                     styles.utilityDropdownText, styles.darkTab);
-  setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if (!selectedText) return;
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, OscillatorParameter::pan,
-                                                             [selectedText](SimplePatch& patch) { return ApplyPanShape(patch, selectedText); });
-  });
-  auto* actionsControl = new ActionSelectionControl(
-      IRECT(), "run action", {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionInvertMenuLabel},
-      styles.utilityDropdownText, styles.darkTab);
-  actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if (!selectedText) return;
+  auto* setShapeControl = CreateHarmonicShapeControl(context, descriptor.parameter, sliderControl, styles,
+                                                     {"zero", "ramp right", "ramp left", "ramp alternating", "full alternating"}, ApplyPanShape);
+  auto* actionsControl = CreateHarmonicActionsControl(
+      context, descriptor.parameter, sliderControl, styles,
+      {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionInvertMenuLabel}, ApplyPanAction);
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, OscillatorParameter::pan, [selectedText, context](SimplePatch& patch) {
-      return ApplyPanAction(patch, selectedText, context->GetOscillatorEditScope(OscillatorParameter::pan));
-    });
-  });
   *context->panTab.setShapeControl = setShapeControl;
   *context->panTab.actionsControl = actionsControl;
 

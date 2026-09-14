@@ -7,40 +7,28 @@
 #include <cmath>
 #include <cstddef>
 
-// The numerics every tab's macro fit needs, with nothing in here that knows what any tab's knobs mean. A tab
-// supplies a scoring function -- a search point in, a residual out -- and that function is where its generator,
-// its definition of residual and its own best-candidate bookkeeping live. This file supplies only the search
-// that calls it, so a tab's parameterisation can be rewritten without the search moving.
-//
-// Nothing here includes a UI header, which is deliberate: the offline formula harness can include this file
-// whole rather than extracting it by line range, and a stale extraction has already cost one bad constant sweep.
+// Shared grid and simplex searches. Callers score candidates and retain their best fit.
+// Keep this header independent of the UI so numerical harnesses can include it directly.
 namespace plugin_ui {
 namespace editor {
 using OscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 
 inline constexpr double kMacroEpsilon = 1.0e-12;
 
-// Bends a knob's 0..1 travel end to end. An exponent of 1 leaves it alone; above 1 gives the bottom of the knob
-// more room, below 1 the top. Bending cannot change which curves a tab can draw, only which part of a rotation
-// draws them, so these answer to feel alone.
+// Map 0..1 travel: exponents above 1 give the lower end more room.
 inline double BendMacroTravel(double knobValue, double exponent) {
   const double clamped = std::clamp(knobValue, 0.0, 1.0);
   return (exponent == 1.0) ? clamped : std::pow(clamped, exponent);
 }
 
-// The same, bent about the centre rather than an end, so that half travel stays half travel -- which is what a
-// knob whose centre means something in particular (no lift, a straight fall) needs.
+// Preserve the centre while bending each half of the travel.
 inline double BendMacroTravelAboutCentre(double knobValue, double exponent) {
   const double fromCentre = (2.0 * std::clamp(knobValue, 0.0, 1.0)) - 1.0;
   return 0.5 + (0.5 * std::copysign(BendMacroTravel(std::fabs(fromCentre), exponent), fromCentre));
 }
 
-// The curve to fit, plus a per-harmonic weight of 1 / (value + floor)^2. Unweighted least squares is blind to
-// the quiet end of the series -- harmonics a thousandth of the loudest one cost almost nothing to get wrong --
-// yet those are exactly the harmonics a width or reach knob controls, and a non-linear Y transform makes them
-// half the chart. Relative error weights every harmonic about equally.
-//
-// The floor is where the fit stops caring, as a fraction of the largest value: 1e-3 is 60 dB down.
+// Weight by 1 / (value + floor)^2 so quiet harmonics contribute to the fit.
+// The floor is relative to the peak (1e-3 is 60 dB down).
 struct MacroFitTarget {
   OscillatorParameterValues values{};
   OscillatorParameterValues weights{};
@@ -62,12 +50,9 @@ inline MacroFitTarget MakeMacroFitTarget(const OscillatorParameterValues& values
   return target;
 }
 
-// The searched knobs as a point, so the searches below can do arithmetic on them. It is normalised knob travel
-// throughout, in whatever order the tab lists its searched knobs.
+// Search coordinates; callers map these to their model or knob units.
 template <std::size_t N> using MacroFitPoint = std::array<double, N>;
 
-// What the grid covers along one axis. Usually a knob's whole travel, but a knob whose value can be measured
-// off the target instead of searched for gets a band around that measurement.
 struct MacroFitAxis {
   double min{0.0};
   double max{1.0};
@@ -79,9 +64,7 @@ template <std::size_t N> inline MacroFitPoint<N> BlendMacroFitPoints(const Macro
   return blended;
 }
 
-// Every combination of steps + 1 samples along each axis. This is the only part of a fit that looks everywhere,
-// and it is coarse -- its job is to find the basin the simplex then sharpens inside. Walked as an odometer
-// rather than a nest of loops so that the axis count belongs to the caller, with the last axis moving fastest.
+// Visit (steps + 1)^N grid points, with the last axis moving fastest.
 template <std::size_t N, typename ScoreFunc> void SweepMacroFitGrid(const std::array<MacroFitAxis, N>& axes, int steps, ScoreFunc&& score) {
   const double divisor = static_cast<double>(std::max(steps, 1));
 
@@ -99,20 +82,7 @@ template <std::size_t N, typename ScoreFunc> void SweepMacroFitGrid(const std::a
   }
 }
 
-// A Nelder-Mead simplex: a shape of N + 1 points that reflects the worst of itself through the rest, stretching
-// along whatever direction pays and folding up when none does.
-//
-// The axes have to move together rather than one at a time, because macro knobs trade against each other -- a
-// narrower curve bowed to hold its level longer looks much like a wider one that drops away sooner. The
-// residual's valleys therefore run diagonally through all of them, and sweeping one axis at a time walks into a
-// wall rather than running out of resolution.
-//
-// The initial step per axis matters, because the axes are not equally sharp: a step of a width knob moves
-// harmonics on and off the end of the series, where a shape knob only bends what is already there. So this is
-// per-axis rather than one number, and it is the caller's to tune.
-//
-// Points outside 0..1 are not prevented. A scoring function is expected to clamp, so the simplex may walk past
-// an edge and be drawn back rather than having to know where the edges are.
+// Nelder-Mead with per-axis initial steps. The scorer must clamp out-of-range coordinates.
 template <std::size_t N, typename ScoreFunc>
 void SearchMacroFitSimplex(const MacroFitPoint<N>& start, const MacroFitPoint<N>& steps, ScoreFunc&& score, double smallestSimplex = 1.0e-4) {
   constexpr int kIterations = 200;
@@ -156,7 +126,6 @@ void SearchMacroFitSimplex(const MacroFitPoint<N>& start, const MacroFitPoint<N>
     const double reflectedResidual = score(reflected);
 
     if (reflectedResidual < residuals[lowest]) {
-      // Reflecting beat everything, so the direction is worth following further than the simplex is wide.
       const MacroFitPoint<N> stretched = BlendMacroFitPoints(points[highest], centroid, 3.0);
       const double stretchedResidual = score(stretched);
       const bool stretch = stretchedResidual < reflectedResidual;
@@ -174,7 +143,6 @@ void SearchMacroFitSimplex(const MacroFitPoint<N>& start, const MacroFitPoint<N>
         points[highest] = folded;
         residuals[highest] = foldedResidual;
       } else {
-        // Nothing along that direction helped, so the valley must be narrower than the simplex: shrink it.
         for (std::size_t index = 0; index < points.size(); ++index) {
           if (index == lowest) continue;
 

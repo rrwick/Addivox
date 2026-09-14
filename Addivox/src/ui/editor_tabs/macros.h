@@ -21,35 +21,29 @@ using MacroOscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 
 // Knobs are staggered within the narrow control column. Label boxes overlap, so attach order matters:
 // each overlapping box must precede the knob it covers, or it will swallow that knob's clicks.
-inline constexpr float        kMacroKnobSize = 46.f;  // Matches the main UI's knobs, which solve to 46 in a 50x60 box.
-inline constexpr float    kMacroKnobBoxWidth = 60.f;  // Holds "Odd/Even" with ~1.7px spare either side; see GetMacroKnobBounds.
+inline constexpr float        kMacroKnobSize = 46.f;
+inline constexpr float    kMacroKnobBoxWidth = 60.f;
 inline constexpr float kMacroKnobLabelHeight = 13.f;
 inline constexpr float    kMacroKnobLabelGap =  1.f;
-inline constexpr float   kMacroKnobEdgeSlack =  1.f;  // The gap below the label; see GetMacroKnobBounds.
+inline constexpr float   kMacroKnobEdgeSlack =  1.f;
 
-// A box narrower than its knob would silently shrink the knob rather than overflow, since LabelledKnob fits the
-// knob to whichever of the box's dimensions is smallest.
 static_assert(kMacroKnobBoxWidth >= kMacroKnobSize, "The macro knob box must be at least as wide as the knob it holds");
 
-// Where each knob sits: pixels right and down from the top-left of the macro area, one entry per knob in the
-// order the tab lists them. These are the numbers to tweak, and a tab with more knobs than this adds lines.
+// Knob top-left offsets within the macro area, in descriptor order.
 struct MacroKnobPosition {
   float x{0.f};
   float y{0.f};
 };
 
 inline constexpr std::array<MacroKnobPosition, 4> kMacroKnobPositions{{
-    { 0.f,  10.f},  // Width
-    {48.f,  58.f},  // Shape
-    { 0.f, 106.f},  // Fund
-    {48.f, 154.f},  // Odd/Even
+    { 0.f,  10.f},
+    {48.f,  58.f},
+    { 0.f, 106.f},
+    {48.f, 154.f},
 }};
 
-// 13px Roboto-Black, matching the tab's own controls -- theme::EditorStyles::utilityLabelText ("All notes") and
-// restoreButtonStyle ("Restore") are the same face at the same size.
 inline IText GetMacroKnobLabelText() { return {13.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center}; }
 
-// One row of a tab's knob table. Adding, removing or renaming a macro knob should be this and nothing else.
 struct MacroKnobDescriptor {
   const char* label{""};
   const char* tooltip{""};
@@ -59,7 +53,7 @@ struct MacroKnobDescriptor {
 
 // Registered by each implemented tab. Position storage and recall are shared; only fitting and generation vary.
 struct MacroTabFunctions {
-  int version{0}; // Bump when the generator, normalization, or knob mapping changes.
+  int version{0}; // Bump only when changing a released macro definition.
   std::vector<layout::LabelledKnob*> knobs;
   std::function<void(const MacroOscillatorParameterValues& values)> fitKnobsToValues;
   std::function<MacroOscillatorParameterValues()> generateValues;
@@ -70,6 +64,7 @@ struct MacroTabFunctions {
   }
   MacroSettings ReadSettings() const {
     MacroSettings settings{version, {}};
+    settings.positions.reserve(knobs.size());
     for (auto* knob : knobs) settings.positions.push_back(knob->GetNormalizedValue());
     return settings;
   }
@@ -103,21 +98,12 @@ inline layout::LabelledKnob* CreateMacroKnobControl(const MacroKnobDescriptor& d
 
 // Positions refer to the knob itself. Grow the box for its label and inset the knob from its parent's
 // edges: IGraphics clamps dirty rectangles inside the parent, otherwise leaving a stale edge pixel.
-inline std::vector<IRECT> GetMacroKnobBounds(const IRECT& macroAreaBounds, int numKnobs) {
-  const auto placedKnobs = std::min<std::size_t>(static_cast<std::size_t>(std::max(numKnobs, 0)), kMacroKnobPositions.size());
-
-  std::vector<IRECT> knobBounds;
-  knobBounds.reserve(placedKnobs);
+inline IRECT GetMacroKnobBounds(const IRECT& macroAreaBounds, std::size_t knobIndex) {
+  const auto& position = kMacroKnobPositions[knobIndex];
   const float boxHeight = kMacroKnobSize + kMacroKnobLabelGap + kMacroKnobLabelHeight + kMacroKnobEdgeSlack;
   const float knobInset = (kMacroKnobBoxWidth - kMacroKnobSize) * 0.5f;
-
-  for (std::size_t knobIndex = 0; knobIndex < placedKnobs; ++knobIndex) {
-    const auto& position = kMacroKnobPositions[knobIndex];
-    knobBounds.push_back(
-        IRECT::MakeXYWH(macroAreaBounds.L + position.x - knobInset, macroAreaBounds.T + position.y, kMacroKnobBoxWidth, boxHeight));
-  }
-
-  return knobBounds;
+  return IRECT::MakeXYWH(macroAreaBounds.L + position.x - knobInset, macroAreaBounds.T + position.y, kMacroKnobBoxWidth, boxHeight);
 }
+
 } // namespace editor
 } // namespace plugin_ui

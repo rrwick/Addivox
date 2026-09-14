@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -582,9 +583,24 @@ inline bool ApplyStandardHarmonicAction(SimplePatch& patch, OscillatorParameter 
   return true;
 }
 
-inline bool ApplyScaleAction(SimplePatch& patch, OscillatorParameter parameter, const char* actionName, double minValue, double maxValue,
-                             EditorOscillatorEditScope editScope = EditorOscillatorEditScope::All) {
-  return ApplyStandardHarmonicAction(patch, parameter, actionName, minValue, maxValue, editScope);
+inline bool ApplyBipolarHarmonicAction(SimplePatch& patch, OscillatorParameter parameter, const char* actionName, double limit, double shiftAmount,
+                                       EditorOscillatorEditScope editScope) {
+  if (MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
+    return ApplyStandardHarmonicAction(patch, parameter, actionName, -limit, limit, editScope);
+
+  const bool shiftUp = MatchesActionLabel(actionName, kActionShiftUp);
+  const bool shiftDown = MatchesActionLabel(actionName, kActionShiftDown);
+  const bool invert = MatchesActionLabel(actionName, kActionInvert);
+  if (!(shiftUp || shiftDown || invert)) return false;
+
+  const double offset = shiftUp ? shiftAmount : -shiftAmount;
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+    if (!MatchesOscillatorEditScope(editScope, oscillatorIndex)) continue;
+
+    const double value = patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, invert ? -value : ApplyShiftOffset(value, offset, -limit, limit));
+  }
+  return true;
 }
 
 inline std::size_t GetVariationTabIndex(OscillatorParameter parameter) {
@@ -672,12 +688,8 @@ struct OscillatorTabControlRefs {
   std::shared_ptr<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>> deleteButtons;
   std::shared_ptr<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>> modeToggles;
   std::shared_ptr<std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters>> yTransformControls;
-  // Every child of every page lives in one flat IGraphics control list, and drawing tests only the child's own
-  // hidden flag -- a page being hidden does not hide its children by itself. So un-hiding a control belonging
-  // to a hidden tab draws it on top of the visible one. These let the mode switch skip tabs that are not showing.
+  // IGraphics draws children independently; only change their visibility when their page is visible.
   std::shared_ptr<std::array<IControl*, OscillatorSettings::kNumParameters>> tabPages;
-  // The controls each tab shows in only one of the two modes. Collected at attach time so the mode switch is
-  // one loop rather than a named reference per control.
   std::shared_ptr<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>> handEditOnlyControls;
   std::shared_ptr<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>> macroOnlyControls;
   // Per-tab macro behavior and transient controls; saved positions live in CompoundPatch.
@@ -723,25 +735,12 @@ struct EditorContext {
     return (*model.oscillatorEditModes)[static_cast<std::size_t>(parameter)];
   }
 
-  void SetOscillatorEditMode(OscillatorParameter parameter, EditorOscillatorEditMode editMode) const {
-    (*model.oscillatorEditModes)[static_cast<std::size_t>(parameter)] = editMode;
-  }
-
   EditorOscillatorEditScope GetOscillatorEditScope(OscillatorParameter parameter) const {
     return (*model.oscillatorEditScopes)[static_cast<std::size_t>(parameter)];
   }
 
-  void SetOscillatorEditScope(OscillatorParameter parameter, EditorOscillatorEditScope editScope) const {
-    (*model.oscillatorEditScopes)[static_cast<std::size_t>(parameter)] = editScope;
-  }
-
   bool IsOscillatorEditable(OscillatorParameter parameter, int oscillatorIndex) const {
-    switch (GetOscillatorEditScope(parameter)) {
-    case EditorOscillatorEditScope::Even: return !IsOddHarmonic(oscillatorIndex);
-    case EditorOscillatorEditScope::Odd:  return IsOddHarmonic(oscillatorIndex);
-    case EditorOscillatorEditScope::All:
-    default:                              return true;
-    }
+    return MatchesOscillatorEditScope(GetOscillatorEditScope(parameter), oscillatorIndex);
   }
 
   void ApplyOscillatorEditScopeToValues(OscillatorParameter parameter, const OscillatorParameterValues& sourceValues,
@@ -766,8 +765,7 @@ struct EditorContext {
     return SupportsMacrosMode(parameter) && (*oscillatorTabControls.macroStates)[static_cast<std::size_t>(parameter)].macrosMode;
   }
 
-  // The Y transform for one tab. Every tab's lives in the one array EditorState holds, indexed by parameter, so
-  // an element is handed back through an aliasing shared_ptr that keeps the array alive.
+  // Aliasing shared_ptr keeps the transform array alive.
   std::shared_ptr<EditorLevelTransform> GetTransformRef(OscillatorParameter parameter) const {
     const auto parameterIndex = static_cast<std::size_t>(parameter);
     if (parameterIndex >= oscillatorView.transforms->size()) return nullptr;
@@ -941,10 +939,7 @@ struct EditorContext {
     }
   }
 
-  // Shows or hides the Hand-edits-only controls of whichever tabs are currently on screen. Tabs that are not
-  // showing are deliberately left alone: their children are hidden by the page, and un-hiding them here would
-  // draw them over the visible tab (see OscillatorTabControlRefs::tabPages). Each page re-applies this for
-  // itself when it is shown, which is also what undoes the blanket un-hide IVTabPage::Hide performs.
+  // Never unhide a hidden page's children. Reapply after every IVTabPage::Hide(false), which unhides all children.
   void ApplyMacrosModeVisibility() const {
     for (const auto& descriptor : GetOscillatorTabDescriptors()) {
       const bool macrosMode = IsMacrosMode(descriptor.parameter);
@@ -980,21 +975,6 @@ struct EditorContext {
   bool IsAllKeyNotesEqEnabled() const {
     const auto patchLock = LockPatch();
     return Patch().IsAllKeyNotesEqEnabled();
-  }
-
-  template <typename Action> void ForEachTargetKeyNote(OscillatorParameter parameter, int midiNote, Action&& action) const {
-    // Collect targets under the lock, run the action outside it (actions may send DSP messages).
-    std::vector<int> targetMidiNotes;
-    {
-      const auto patchLock = LockPatch();
-      if (Patch().IsAllKeyNotesEnabled(parameter)) {
-        for (const auto& [keyNoteMidi, _] : Patch().GetKeyNotePatches()) targetMidiNotes.push_back(keyNoteMidi);
-      } else {
-        targetMidiNotes.push_back(midiNote);
-      }
-    }
-
-    for (const int targetMidiNote : targetMidiNotes) std::forward<Action>(action)(targetMidiNote);
   }
 
   void SendOscillatorParameterToDSP(IControl* sourceControl, int midiNote, int oscillatorIndex, OscillatorParameter parameter, double value) const {
@@ -1254,10 +1234,7 @@ struct EditorContext {
 
     if (!std::forward<Action>(action)(updatedPatch)) return;
 
-    OscillatorParameterValues values{};
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      values[static_cast<std::size_t>(oscillatorIndex)] = updatedPatch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
-    }
+    auto values = GetOscillatorParameterValues(updatedPatch, parameter);
     if (applyEditScope) ApplyOscillatorEditScopeToValues(parameter, originalValues, values);
     if (values == originalValues) return;
 
@@ -1324,6 +1301,39 @@ inline KeyNoteActionButtons CreateKeyNoteActionButtons(const std::shared_ptr<Edi
   return {addButton, deleteButton};
 }
 
+template <typename ShapeFunc>
+inline ActionSelectionControl* CreateHarmonicShapeControl(const std::shared_ptr<EditorContext>& context, OscillatorParameter parameter,
+                                                          OscillatorSliderControl* sliderControl, const EditorStyles& styles,
+                                                          std::initializer_list<const char*> shapes, ShapeFunc applyShape) {
+  auto* control = new ActionSelectionControl(IRECT(), "choose shape", shapes, styles.utilityDropdownText, styles.darkTab);
+  control->SetOnSelection([context, parameter, sliderControl, applyShape](const char* selectedText) {
+    if (!selectedText) return;
+
+    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, parameter,
+                                                             [applyShape, selectedText](SimplePatch& patch) { return applyShape(patch, selectedText); });
+  });
+  return control;
+}
+
+template <typename ActionFunc>
+inline ActionSelectionControl* CreateHarmonicActionsControl(const std::shared_ptr<EditorContext>& context, OscillatorParameter parameter,
+                                                            OscillatorSliderControl* sliderControl, const EditorStyles& styles,
+                                                            std::initializer_list<const char*> actions, ActionFunc applyAction) {
+  auto* control = new ActionSelectionControl(IRECT(), "run action", actions, styles.utilityDropdownText, styles.darkTab);
+  control->SetOnSelection([context, parameter, sliderControl, applyAction](const char* selectedText) {
+    if (!selectedText) return;
+
+    const bool applyEditScope = parameter != OscillatorParameter::level || !MatchesActionLabel(selectedText, kActionNormalize);
+    context->ApplyOscillatorParameterActionToSelectedKeyNote(
+        sliderControl, parameter,
+        [context, parameter, applyAction, selectedText](SimplePatch& patch) {
+          return applyAction(patch, selectedText, context->GetOscillatorEditScope(parameter));
+        },
+        applyEditScope);
+  });
+  return control;
+}
+
 inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<EditorContext>& context, const OscillatorTabDescriptor& descriptor,
                                                      const EditorStyles& styles) {
   auto* toggleControl = new IVToggleControl(
@@ -1363,10 +1373,7 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
   return {toggleControl, labelControl};
 }
 
-// IVTabSwitchControl draws every segment's text in one colour, but the selected segment is filled with the
-// accent blue, where the usual light grey sits at roughly 1.3:1 and is barely readable. The near-black control
-// body colour on that fill reaches about 7.3:1, close to the 9.6:1 the unselected segment gets against its own
-// dark body, so the two halves of the switch read with the same weight.
+// Use dark text on the selected accent fill for contrast.
 class EditorModeSwitchControl final : public IVTabSwitchControl {
 public:
   using IVTabSwitchControl::IVTabSwitchControl;
@@ -1380,8 +1387,6 @@ public:
 
 inline IVTabSwitchControl* CreateMacrosModeToggleControl(const std::shared_ptr<EditorContext>& context, const OscillatorTabDescriptor& descriptor,
                                                         const EditorStyles& styles) {
-  // "Macro" and "Detail" name the level the tab is worked at, and neither word is spoken for elsewhere on the
-  // page -- unlike "draw", "shape", "edit" and "all", which all already mean something specific here.
   auto* control = new EditorModeSwitchControl(
       IRECT(),
       [context, parameter = descriptor.parameter](IControl* caller) {
@@ -1434,9 +1439,7 @@ inline void AttachHarmonicTabChildren(IVTabPage* page, const std::shared_ptr<Edi
   page->AddChildControl(sliderControl);
 }
 
-// Macro knobs are attached after the fixed stack, which is exactly what ResizeHarmonicOscillatorTabPage treats
-// its trailing children as. They are hidden here rather than waiting for the mode switch, so that a tab which
-// is never shown cannot leave them drawn over whichever tab is.
+// ResizeHarmonicOscillatorTabPage expects macro knobs after the fixed controls.
 inline std::vector<layout::LabelledKnob*> AttachMacroKnobChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context,
                                                                   const OscillatorTabDescriptor& descriptor,
                                                                   const std::vector<MacroKnobDescriptor>& knobDescriptors) {
@@ -1519,13 +1522,9 @@ inline HarmonicTabLayout GetHarmonicTabLayout(IContainerBase* pTab, const IRECT&
   layout.xRangeMaxBounds = IRECT(rowMid + (kHarmonicTabXRangeHalfGap * 0.5f), layout.xRangeMinBounds.T, rowR, layout.xRangeMinBounds.B);
   layout.xRangeLabelBounds = GetHarmonicTabLabelBounds(layout.xRangeMinBounds, rowL, rowR);
 
-  // The mode toggle hangs above the rest of the stack rather than joining its rhythm: it governs what the
-  // controls below it are, so it keeps a wider gap, and it is positioned from them so it stays put across both
-  // modes. That leaves a column-top margin of whatever the stack does not use, currently 7px.
   const float modeToggleTop = layout.xRangeLabelBounds.T - kHarmonicTabModeToggleGap - kEditorControlHeight;
   layout.modeToggleBounds = IRECT(rowL, modeToggleTop, rowR, modeToggleTop + kEditorControlHeight);
 
-  // Everything the hand-edit stack occupies between the toggle and the fixed footer is the macro knobs' to use.
   layout.macroAreaBounds = IRECT(rowL, layout.modeToggleBounds.B + kHarmonicTabControlGap, rowR,
                                  layout.allKeyNotesToggleBounds.T - kHarmonicTabControlGap);
 
@@ -1548,10 +1547,9 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
   for (int i = 0; i < fixedChildCount; ++i) pTab->GetChild(i)->SetTargetAndDrawRECTs(childBounds[i + firstBoundsIndex]);
 
   // Anything attached past the fixed stack is a macro knob, laid out in the space the stack vacates.
-  const int numMacroKnobs = pTab->NChildren() - fixedChildCount;
-  const auto macroKnobBounds = GetMacroKnobBounds(layout.macroAreaBounds, numMacroKnobs);
-  for (std::size_t i = 0; i < macroKnobBounds.size(); ++i)
-    pTab->GetChild(fixedChildCount + static_cast<int>(i))->SetTargetAndDrawRECTs(macroKnobBounds[i]);
+  const auto numMacroKnobs = std::min(static_cast<std::size_t>(pTab->NChildren() - fixedChildCount), kMacroKnobPositions.size());
+  for (std::size_t i = 0; i < numMacroKnobs; ++i)
+    pTab->GetChild(fixedChildCount + static_cast<int>(i))->SetTargetAndDrawRECTs(GetMacroKnobBounds(layout.macroAreaBounds, i));
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller, const OscillatorTabDescriptor& descriptor) {

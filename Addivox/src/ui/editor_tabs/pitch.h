@@ -48,33 +48,7 @@ inline bool ApplyPitchShape(SimplePatch& patch, const char* shapeName) {
 }
 
 inline bool ApplyPitchAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {
-  constexpr double kPitchMin = -100.0;
-  constexpr double kPitchMax = 100.0;
-  constexpr double kPitchShiftAmount = 1.0;
-
-  if (MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown))
-    return ApplyStandardHarmonicAction(patch, OscillatorParameter::pitch, actionName, kPitchMin, kPitchMax, editScope);
-  if (MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown)) {
-    const double shiftAmount = MatchesActionLabel(actionName, kActionShiftUp) ? kPitchShiftAmount : -kPitchShiftAmount;
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      if (!MatchesOscillatorEditScope(editScope, oscillatorIndex)) continue;
-
-      const double pitch = patch.GetOscillatorSettings(oscillatorIndex).pitch;
-      patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, ApplyShiftOffset(pitch, shiftAmount, kPitchMin, kPitchMax));
-    }
-    return true;
-  }
-  if (MatchesActionLabel(actionName, kActionInvert)) {
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      if (!MatchesOscillatorEditScope(editScope, oscillatorIndex)) continue;
-
-      const double pitch = patch.GetOscillatorSettings(oscillatorIndex).pitch;
-      patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, -pitch);
-    }
-    return true;
-  }
-
-  return false;
+  return ApplyBipolarHarmonicAction(patch, OscillatorParameter::pitch, actionName, 100.0, 1.0, editScope);
 }
 
 inline void AppendPitchTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
@@ -88,24 +62,13 @@ inline void AttachPitchTabChildren(IVTabPage* page, const std::shared_ptr<Editor
   const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-  auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"zero", "alternating", "ramp sharp", "ramp flat", "ramp alternating"},
-                                                     styles.utilityDropdownText, styles.darkTab);
-  setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if (!selectedText) return;
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, OscillatorParameter::pitch,
-                                                             [selectedText](SimplePatch& patch) { return ApplyPitchShape(patch, selectedText); });
-  });
-  auto* actionsControl = new ActionSelectionControl(
-      IRECT(), "run action", {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionInvertMenuLabel},
-      styles.utilityDropdownText, styles.darkTab);
-  actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if (!selectedText) return;
+  auto* setShapeControl = CreateHarmonicShapeControl(context, descriptor.parameter, sliderControl, styles,
+                                                     {"zero", "alternating", "ramp sharp", "ramp flat", "ramp alternating"}, ApplyPitchShape);
+  auto* actionsControl = CreateHarmonicActionsControl(
+      context, descriptor.parameter, sliderControl, styles,
+      {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionInvertMenuLabel}, ApplyPitchAction);
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, OscillatorParameter::pitch, [selectedText, context](SimplePatch& patch) {
-      return ApplyPitchAction(patch, selectedText, context->GetOscillatorEditScope(OscillatorParameter::pitch));
-    });
-  });
   *context->pitchTab.setShapeControl = setShapeControl;
   *context->pitchTab.actionsControl = actionsControl;
 

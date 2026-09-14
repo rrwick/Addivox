@@ -445,32 +445,23 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_pt
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   const auto attackReleaseIndex = GetAttackReleaseTabIndex(descriptor.parameter);
   auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-  auto* setShapeControl = new ActionSelectionControl(
-      IRECT(), "choose shape",
+
+  auto* setShapeControl = CreateHarmonicShapeControl(
+      context, descriptor.parameter, sliderControl, styles,
       descriptor.parameter == OscillatorParameter::attack
           ? std::initializer_list<const char*>{"linear ramp up (slow)", "linear ramp up (fast)", "sqrt ramp up (slow)", "sqrt ramp up (fast)",
                                                "logarithmic ramp up (slow)", "logarithmic ramp up (fast)", "flat"}
           : std::initializer_list<const char*>{"linear ramp down (slow)", "linear ramp down (fast)", "square ramp down (slow)", "square ramp down (fast)",
                                                "exponential ramp down (slow)", "exponential ramp down (fast)", "flat"},
-      styles.utilityDropdownText, styles.darkTab);
-  setShapeControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
-    if (!selectedText) return;
+      [parameter = descriptor.parameter](SimplePatch& patch, const char* shape) { return ApplyAttackReleaseShape(patch, parameter, shape); });
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(
-        sliderControl, parameter, [selectedText, parameter](SimplePatch& patch) { return ApplyAttackReleaseShape(patch, parameter, selectedText); });
-  });
-
-  auto* actionsControl = new ActionSelectionControl(IRECT(), "run action",
-                                                    {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionTowardMaxMenuLabel, kActionAwayFromMaxMenuLabel,
-                                                     kActionBendUpMenuLabel, kActionBendDownMenuLabel},
-                                                    styles.utilityDropdownText, styles.darkTab);
-  actionsControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
-    if (!selectedText) return;
-
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, parameter, [selectedText, parameter, context](SimplePatch& patch) {
-      return ApplyAttackReleaseAction(patch, parameter, selectedText, context->GetOscillatorEditScope(parameter));
-    });
-  });
+  auto* actionsControl =
+      CreateHarmonicActionsControl(context, descriptor.parameter, sliderControl, styles,
+                                   {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionTowardMaxMenuLabel, kActionAwayFromMaxMenuLabel,
+                                    kActionBendUpMenuLabel, kActionBendDownMenuLabel},
+                                   [parameter = descriptor.parameter](SimplePatch& patch, const char* action, EditorOscillatorEditScope scope) {
+                                     return ApplyAttackReleaseAction(patch, parameter, action, scope);
+                                   });
 
   (*context->attackReleaseTab.setShapeControls)[attackReleaseIndex] = setShapeControl;
   (*context->attackReleaseTab.actionsControls)[attackReleaseIndex] = actionsControl;

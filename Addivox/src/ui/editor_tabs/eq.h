@@ -168,40 +168,14 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r) {
   // The EQ editor needs a little more breathing room from the column than the harmonic histograms do.
   constexpr float kEditorGap = 15.f;
 
-  auto innerBounds = r.GetPadded(-static_cast<float>(pTab->As<IVTabPage>()->GetPadding()));
-  auto leftColumnBounds = innerBounds.GetFromLeft(kHarmonicTabLeftInset);
-  auto editorBounds = GetOscillatorSliderBounds(pTab, r, kHarmonicTabLeftInset);
+  const auto layout = GetHarmonicTabLayout(pTab, r);
+  auto editorBounds = layout.sliderBounds;
   editorBounds.L += kEditorGap;
 
-  const float rowL = leftColumnBounds.L + kHarmonicTabSideInset;
-  const float rowR = leftColumnBounds.R - kHarmonicTabSideInset;
-  const float rowMid = (rowL + rowR) * 0.5f;
-  const float buttonRowBottom = leftColumnBounds.B - kHarmonicTabBottomPad;
-  const float buttonRowTop = buttonRowBottom - kEditorControlHeight;
-  auto addButtonBounds = IRECT(rowL, buttonRowTop, rowMid - kTabButtonHalfGap, buttonRowBottom);
-  auto deleteButtonBounds = IRECT(rowMid + kTabButtonHalfGap, buttonRowTop, rowR, buttonRowBottom);
-  const float restoreTop = addButtonBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
-  auto restoreButtonBounds = IRECT(rowL, restoreTop, rowR, restoreTop + kEditorControlHeight);
-  const float allKeyNotesTop = restoreButtonBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
-  auto allKeyNotesToggleBounds = IRECT(rowL, allKeyNotesTop, rowL + kEditorControlHeight, allKeyNotesTop + kEditorControlHeight);
-  auto allKeyNotesLabelBounds = IRECT(allKeyNotesToggleBounds.R + kHarmonicTabToggleLabelGap, allKeyNotesToggleBounds.T, rowR, allKeyNotesToggleBounds.B);
-  const float actionsTop = allKeyNotesToggleBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
-  auto actionsBounds = IRECT(rowL, actionsTop, rowR, actionsTop + kEditorControlHeight);
-  auto actionsLabelBounds = GetHarmonicTabLabelBounds(actionsBounds, rowL, rowR);
-  const float setShapeTop = actionsLabelBounds.T - kHarmonicTabControlGap - kEditorControlHeight;
-  auto setShapeBounds = IRECT(rowL, setShapeTop, rowR, setShapeTop + kEditorControlHeight);
-  auto setShapeLabelBounds = GetHarmonicTabLabelBounds(setShapeBounds, rowL, rowR);
-
-  pTab->GetChild(0)->SetTargetAndDrawRECTs(setShapeLabelBounds);
-  pTab->GetChild(1)->SetTargetAndDrawRECTs(setShapeBounds);
-  pTab->GetChild(2)->SetTargetAndDrawRECTs(actionsLabelBounds);
-  pTab->GetChild(3)->SetTargetAndDrawRECTs(actionsBounds);
-  pTab->GetChild(4)->SetTargetAndDrawRECTs(allKeyNotesToggleBounds);
-  pTab->GetChild(5)->SetTargetAndDrawRECTs(allKeyNotesLabelBounds);
-  pTab->GetChild(6)->SetTargetAndDrawRECTs(restoreButtonBounds);
-  pTab->GetChild(7)->SetTargetAndDrawRECTs(addButtonBounds);
-  pTab->GetChild(8)->SetTargetAndDrawRECTs(deleteButtonBounds);
-  pTab->GetChild(9)->SetTargetAndDrawRECTs(editorBounds);
+  const std::array<IRECT, 10> childBounds{{layout.setShapeLabelBounds, layout.setShapeBounds, layout.actionsLabelBounds, layout.actionsBounds,
+                                         layout.allKeyNotesToggleBounds, layout.allKeyNotesLabelBounds, layout.restoreButtonBounds,
+                                         layout.addButtonBounds, layout.deleteButtonBounds, editorBounds}};
+  for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
 }
 
 inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {

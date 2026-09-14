@@ -61,24 +61,17 @@ inline void AttachVariationTabChildren(IVTabPage* page, const std::shared_ptr<Ed
   const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
   const auto variationIndex = GetVariationTabIndex(descriptor.parameter);
   auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-  auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"zero", "flat", "linear ramp up"}, styles.utilityDropdownText, styles.darkTab);
-  setShapeControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
-    if (!selectedText) return;
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(
-        sliderControl, parameter, [selectedText, parameter](SimplePatch& patch) { return ApplyVariationShape(patch, parameter, selectedText); });
-  });
-  auto* actionsControl = new ActionSelectionControl(IRECT(), "run action",
-                                                    {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionTowardMaxMenuLabel, kActionAwayFromMaxMenuLabel,
-                                                     kActionBendUpMenuLabel, kActionBendDownMenuLabel},
-                                                    styles.utilityDropdownText, styles.darkTab);
-  actionsControl->SetOnSelection([context, sliderControl, parameter = descriptor.parameter](const char* selectedText) {
-    if (!selectedText) return;
-
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, parameter, [selectedText, parameter, context](SimplePatch& patch) {
-      return ApplyVariationAction(patch, parameter, selectedText, context->GetOscillatorEditScope(parameter));
-    });
-  });
+  auto* setShapeControl = CreateHarmonicShapeControl(
+      context, descriptor.parameter, sliderControl, styles, {"zero", "flat", "linear ramp up"},
+      [parameter = descriptor.parameter](SimplePatch& patch, const char* shape) { return ApplyVariationShape(patch, parameter, shape); });
+  auto* actionsControl =
+      CreateHarmonicActionsControl(context, descriptor.parameter, sliderControl, styles,
+                                   {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionTowardMaxMenuLabel, kActionAwayFromMaxMenuLabel,
+                                    kActionBendUpMenuLabel, kActionBendDownMenuLabel},
+                                   [parameter = descriptor.parameter](SimplePatch& patch, const char* action, EditorOscillatorEditScope scope) {
+                                     return ApplyVariationAction(patch, parameter, action, scope);
+                                   });
 
   (*context->variationTab.setShapeControls)[variationIndex] = setShapeControl;
   (*context->variationTab.actionsControls)[variationIndex] = actionsControl;

@@ -268,25 +268,12 @@ inline void AttachBreathTabChildren(IVTabPage* page, const std::shared_ptr<Edito
   auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
 
   auto* setShapeControl =
-      new ActionSelectionControl(IRECT(), "choose shape", {"flat", "linear ramp", "square ramp", "cube ramp"}, styles.utilityDropdownText, styles.darkTab);
-  setShapeControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if (!selectedText) return;
+      CreateHarmonicShapeControl(context, descriptor.parameter, sliderControl, styles, {"flat", "linear ramp", "square ramp", "cube ramp"}, ApplyBreathShape);
 
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, OscillatorParameter::breath_power,
-                                                             [selectedText](SimplePatch& patch) { return ApplyBreathShape(patch, selectedText); });
-  });
-
-  auto* actionsControl = new ActionSelectionControl(IRECT(), "run action",
-                                                    {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionTowardMaxMenuLabel, kActionAwayFromMaxMenuLabel,
-                                                     kActionBendUpMenuLabel, kActionBendDownMenuLabel},
-                                                    styles.utilityDropdownText, styles.darkTab);
-  actionsControl->SetOnSelection([context, sliderControl](const char* selectedText) {
-    if (!selectedText) return;
-
-    context->ApplyOscillatorParameterActionToSelectedKeyNote(sliderControl, OscillatorParameter::breath_power, [selectedText, context](SimplePatch& patch) {
-      return ApplyBreathAction(patch, selectedText, context->GetOscillatorEditScope(OscillatorParameter::breath_power));
-    });
-  });
+  auto* actionsControl = CreateHarmonicActionsControl(context, descriptor.parameter, sliderControl, styles,
+                                                      {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionTowardMaxMenuLabel,
+                                                       kActionAwayFromMaxMenuLabel, kActionBendUpMenuLabel, kActionBendDownMenuLabel},
+                                                      ApplyBreathAction);
 
   *context->breathTab.setShapeControl = setShapeControl;
   *context->breathTab.actionsControl = actionsControl;
