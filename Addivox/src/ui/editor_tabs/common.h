@@ -597,20 +597,9 @@ inline double GetMacrosModeToggleValue(bool macrosMode) { return macrosMode ? 0.
 
 inline bool IsMacrosModeToggleValue(double toggleValue) { return toggleValue < 0.5; }
 
-// Stand-in for the per-tab macro generators of step 3: a smooth exponential rolloff across the harmonic
-// series, unlike anything the tabs normally hold. It is drawn over the dimmed bars but never written to the
-// patch, so the overlay's legibility can be judged before any real generator exists.
-inline OscillatorParameterValues MakePlaceholderMacroCurve(const SliderRange& range) {
-  constexpr double kDecayHarmonics = 20.0;
-  const double asymptote = (range.min < 0.0 && range.max > 0.0) ? 0.0 : range.min;
-
-  OscillatorParameterValues values{};
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    const double decay = std::exp(-static_cast<double>(oscillatorIndex) / kDecayHarmonics);
-    values[static_cast<std::size_t>(oscillatorIndex)] = asymptote + ((range.max - asymptote) * decay);
-  }
-
-  return values;
+inline bool SupportsMacrosMode(OscillatorParameter parameter) {
+  return parameter == OscillatorParameter::level || parameter == OscillatorParameter::breath_power ||
+         parameter == OscillatorParameter::attack || parameter == OscillatorParameter::release;
 }
 
 struct EditorModelRefs {
@@ -773,7 +762,9 @@ struct EditorContext {
     *oscillatorView.xRangeMax = maxOscillator;
   }
 
-  bool IsMacrosMode(OscillatorParameter parameter) const { return (*oscillatorTabControls.macroStates)[static_cast<std::size_t>(parameter)].macrosMode; }
+  bool IsMacrosMode(OscillatorParameter parameter) const {
+    return SupportsMacrosMode(parameter) && (*oscillatorTabControls.macroStates)[static_cast<std::size_t>(parameter)].macrosMode;
+  }
 
   // The Y transform for one tab. Every tab's lives in the one array EditorState holds, indexed by parameter, so
   // an element is handed back through an aliasing shared_ptr that keeps the array alive.
@@ -801,6 +792,7 @@ struct EditorContext {
   }
 
   void SetMacrosMode(OscillatorParameter parameter, bool macrosMode) const {
+    if (!SupportsMacrosMode(parameter)) return;
     const auto index = static_cast<std::size_t>(parameter);
     auto& state = (*oscillatorTabControls.macroStates)[index];
     if (state.macrosMode == macrosMode) return;
@@ -863,13 +855,6 @@ struct EditorContext {
     }
   }
 
-  // A tab with a generator shows the curve its knobs describe; the rest still show the step-2 placeholder, so
-  // an empty Macro mode is not also a blank chart.
-  OscillatorParameterValues GetMacroCurve(const OscillatorTabDescriptor& descriptor) const {
-    const auto& functions = (*oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(descriptor.parameter)];
-    return functions.IsValid() ? functions.generateValues() : MakePlaceholderMacroCurve(descriptor.range);
-  }
-
   // Read metadata before drawing on tab/key-note entry. No fitting or harmonic writes occur here.
   void RecallMacroModes() const {
     const auto patchLock = LockPatch();
@@ -882,7 +867,7 @@ struct EditorContext {
       const auto& functions = (*oscillatorTabControls.macroFunctions)[index];
       state.midiNote = SelectedMidiNote();
       state.savedSettings = saved;
-      state.macrosMode = functions.CanRecall(saved);
+      state.macrosMode = SupportsMacrosMode(descriptor.parameter) && functions.CanRecall(saved);
       if (state.macrosMode) {
         functions.Recall(saved);
         state.knobSettings = saved;
@@ -949,7 +934,8 @@ struct EditorContext {
       SetControlValueSilently((*oscillatorTabControls.modeToggles)[parameterIndex], GetMacrosModeToggleValue(macrosMode));
 
       if (auto* sliderControl = (*oscillatorTabControls.sliderControls)[parameterIndex]) {
-        if (macrosMode && updateCurves) sliderControl->SetMacroCurve(GetMacroCurve(descriptor));
+        const auto& functions = (*oscillatorTabControls.macroFunctions)[parameterIndex];
+        if (macrosMode && updateCurves && functions.IsValid()) sliderControl->SetMacroCurve(functions.generateValues());
         sliderControl->SetMacrosMode(macrosMode);
       }
     }
@@ -1424,7 +1410,7 @@ inline void AttachHarmonicTabChildren(IVTabPage* page, const std::shared_ptr<Edi
     handEditOnlyControls.push_back(control);
   };
 
-  page->AddChildControl(CreateMacrosModeToggleControl(context, descriptor, styles));
+  if (SupportsMacrosMode(descriptor.parameter)) page->AddChildControl(CreateMacrosModeToggleControl(context, descriptor, styles));
   addHandEditOnlyChild(CreateUtilityLabelControl("X range:", styles));
   addHandEditOnlyChild(xRangeControls.minControl);
   addHandEditOnlyChild(xRangeControls.maxControl);
@@ -1546,8 +1532,10 @@ inline HarmonicTabLayout GetHarmonicTabLayout(IContainerBase* pTab, const IRECT&
   return layout;
 }
 
-inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r) {
-  if (pTab->NChildren() < kHarmonicTabChildCount) return;
+inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r, bool hasMacrosMode) {
+  const int firstBoundsIndex = hasMacrosMode ? 0 : 1;
+  const int fixedChildCount = kHarmonicTabChildCount - firstBoundsIndex;
+  if (pTab->NChildren() < fixedChildCount) return;
 
   const auto layout = GetHarmonicTabLayout(pTab, r);
   const std::array<IRECT, kHarmonicTabChildCount> childBounds{
@@ -1556,13 +1544,14 @@ inline void ResizeHarmonicOscillatorTabPage(IContainerBase* pTab, const IRECT& r
        layout.actionsBounds, layout.allKeyNotesToggleBounds, layout.allKeyNotesLabelBounds, layout.restoreButtonBounds, layout.addButtonBounds,
        layout.deleteButtonBounds, layout.sliderBounds}};
 
-  for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
+  // Detail-only tabs omit the toggle child but keep its space, so all other controls stay aligned.
+  for (int i = 0; i < fixedChildCount; ++i) pTab->GetChild(i)->SetTargetAndDrawRECTs(childBounds[i + firstBoundsIndex]);
 
   // Anything attached past the fixed stack is a macro knob, laid out in the space the stack vacates.
-  const int numMacroKnobs = pTab->NChildren() - kHarmonicTabChildCount;
+  const int numMacroKnobs = pTab->NChildren() - fixedChildCount;
   const auto macroKnobBounds = GetMacroKnobBounds(layout.macroAreaBounds, numMacroKnobs);
   for (std::size_t i = 0; i < macroKnobBounds.size(); ++i)
-    pTab->GetChild(kHarmonicTabChildCount + static_cast<int>(i))->SetTargetAndDrawRECTs(macroKnobBounds[i]);
+    pTab->GetChild(fixedChildCount + static_cast<int>(i))->SetTargetAndDrawRECTs(macroKnobBounds[i]);
 }
 
 inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller, const OscillatorTabDescriptor& descriptor) {

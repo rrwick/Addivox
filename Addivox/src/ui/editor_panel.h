@@ -344,7 +344,9 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
                                           const OscillatorTabDescriptor& descriptor) {
   auto* page = new EditorOscillatorTabPage(
       [context, styles, descriptor](IVTabPage* page, const IRECT&) { AttachOscillatorTabChildren(page, context, styles, descriptor); },
-      ResizeHarmonicOscillatorTabPage,
+      [descriptor](IContainerBase* page, const IRECT& bounds) {
+        ResizeHarmonicOscillatorTabPage(page, bounds, SupportsMacrosMode(descriptor.parameter));
+      },
       [context, descriptor](bool isVisible) {
         auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
         if (!control) return;
