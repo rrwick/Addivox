@@ -55,6 +55,10 @@ ARCHS = $(ARCHS_STANDARD_64_BIT)
 // version guaranteed to have it, rather than iPlug2's default of 10.13.
 MACOSX_DEPLOYMENT_TARGET = 10.14
 
+// Xcode 27 treats deployment targets below macOS 12 as errors. Keep the
+// compatibility warning while allowing builds for older Macs (internal Xcode setting).
+__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR = NO
+
 GCC_INCREASE_PRECOMPILED_HEADER_SHARING = NO
 
 // Flags to pass to compiler for all builds
