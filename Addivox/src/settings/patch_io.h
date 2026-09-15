@@ -92,10 +92,10 @@ inline constexpr std::array<OscillatorParameterDescriptor, OscillatorSettings::k
     {"pan", OscillatorParameter::pan},
     {"level_variation_amplitude", OscillatorParameter::level_variation_amplitude},
     {"level_variation_rate", OscillatorParameter::level_variation_rate},
-    {"pitch_variation_amplitude", OscillatorParameter::pitch_variation_amplitude},
-    {"pitch_variation_rate", OscillatorParameter::pitch_variation_rate},
     {"pan_variation_amplitude", OscillatorParameter::pan_variation_amplitude},
     {"pan_variation_rate", OscillatorParameter::pan_variation_rate},
+    {"pitch_variation_amplitude", OscillatorParameter::pitch_variation_amplitude},
+    {"pitch_variation_rate", OscillatorParameter::pitch_variation_rate},
 }};
 
 inline std::string_view Trim(std::string_view text) {
