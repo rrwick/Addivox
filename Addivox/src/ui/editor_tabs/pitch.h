@@ -48,12 +48,12 @@ inline bool ApplyPitchShape(SimplePatch& patch, const char* shapeName) {
 }
 
 inline bool ApplyPitchAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {
-  return ApplyBipolarHarmonicAction(patch, OscillatorParameter::pitch, actionName, 100.0, 1.0, editScope);
+  return ApplyBipolarHarmonicAction(patch, OscillatorParameter::pitch, actionName, 2400.0, 1.0, editScope);
 }
 
 inline void AppendPitchTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
   descriptors.push_back(
-      {kOscillatorTabTitles[4], "Pitch offset", OscillatorParameter::pitch, {-100.0, 100.0}, help_text::oscillator_tabs::Get(OscillatorParameter::pitch)});
+      {kOscillatorTabTitles[4], "Pitch offset", OscillatorParameter::pitch, {-2400.0, 2400.0}, help_text::oscillator_tabs::Get(OscillatorParameter::pitch)});
 }
 
 inline void AttachPitchTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,

@@ -15,15 +15,15 @@ enum class EditorLevelTransform { Linear, SquareRoot, PseudoLog };
 // every tab's transform at startup, and entering Macros mode snaps every tab back to it. Chosen so a typical
 // patch fills the chart instead of crowding the floor -- Level spans four orders of magnitude, so it needs
 // pseudo-log; Breath, the two time tabs and the six variation tabs all sit low in their ranges, where square
-// root lifts them without flattening the top; Pitch and Pan are bipolar and read best undistorted, Pan
-// especially, since its axis maps to a stereo position the listener hears linearly. Display only -- no
+// root lifts them without flattening the top; Pitch uses pseudo-log to keep fine detuning accessible across
+// its two-octave range in each direction; Pan stays linear to match its stereo position. Display only -- no
 // generator depends on it, so it is cheap to revisit. Edit a row and both modes follow.
 inline constexpr std::array<EditorLevelTransform, OscillatorSettings::kNumParameters> kOscillatorTabTransforms{{
     EditorLevelTransform::PseudoLog,  // Level
     EditorLevelTransform::SquareRoot, // Breath
     EditorLevelTransform::SquareRoot, // Attack
     EditorLevelTransform::SquareRoot, // Release
-    EditorLevelTransform::Linear,     // Pitch
+    EditorLevelTransform::PseudoLog,  // Pitch
     EditorLevelTransform::Linear,     // Pan
     EditorLevelTransform::SquareRoot, // LvlVarAmt
     EditorLevelTransform::SquareRoot, // LvlVarRate

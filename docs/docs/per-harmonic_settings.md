@@ -18,7 +18,7 @@ Controls how quickly each harmonic can increase (**Attack**) or decrease (**Rele
 
 ### Pitch
 
-A static pitch offset in cents for each harmonic, added on top of its natural harmonic frequency. Small detuning of individual harmonics can add warmth and movement to the sound.
+A static pitch offset in cents for each harmonic, added on top of its natural harmonic frequency. Small detuning of individual harmonics can add warmth and movement to the sound. Large amounts of detuning can create inharmonic sounds.
 
 ### Pan
 
