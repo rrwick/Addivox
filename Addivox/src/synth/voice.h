@@ -45,7 +45,7 @@ private:
   double GetTargetMidiPitch() const;
   void UpdatePitch();
   void UpdateLevels();
-  void UpdateLevels(const CompoundPatch::ResolvedNoteSpan& noteSpan);
+  void UpdateLevel(int harmonic, const OscillatorSettings& settings, const CompoundPatch::ResolvedNoteSpan& noteSpan);
   void UpdatePitchRate();
   void RefreshNoteDependentState(int lookAheadSamples);
   void AdvanceRenderedPitch(int numSamples);
@@ -54,10 +54,10 @@ private:
   double SmoothBreath(double breath);
   void SnapBreath(double breath);
   static double AdvanceTowards(double current, double target, double maxDelta);
-  static double GetOscillatorBasePitchSemitones(int harmonic, const OscillatorSettings& settings, double fundamentalPitchSemitones,
+  static double GetOscillatorBasePitchSemitones(int harmonic, double pitchOffsetCents, double fundamentalPitchSemitones,
                                                 const GlobalVoiceSettings& globalSettings);
   static double PitchSemitonesToFrequencyHz(double pitchSemitones);
-  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& currentSettings, const OscillatorSettings& futurePitchSettings,
+  void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& currentSettings, double futurePitchOffsetCents,
                                double futureFundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;

@@ -74,8 +74,6 @@ public:
   // (which is in range for every parameter). Applied by SetParameter, so it covers every
   // write path: patch loading, "all key notes" values, and live UI/host edits alike.
   static double SanitizeParameter(Parameter parameter, double value);
-
-  static OscillatorSettings Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t);
 };
 
 class SimplePatch {
@@ -107,12 +105,16 @@ public:
   // Shared nominal waveform normalisation; leaves silence unchanged.
   static bool NormalizeLevels(LevelArray& levels);
 
+  OscillatorSettings InterpolateOscillatorSettings(const SimplePatch& hi, int oscillatorIndex, double t) const;
   static SimplePatch Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t);
 
 private:
   static int ClampOscillatorIndex(int oscillatorIndex);
 
+  void UpdateLevelCoordinates();
+
   OscillatorArray mOscillatorSettings{};
+  LevelArray mLevelCoordinates{}; // Cached pseudo-log coordinates, updated only when levels change.
 };
 
 // Advisory editor metadata. Harmonic arrays remain the complete sound definition.

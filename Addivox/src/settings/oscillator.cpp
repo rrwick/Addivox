@@ -39,6 +39,19 @@ const ParameterDescriptor* GetDescriptor(Parameter parameter) {
   return &kParameterDescriptors[static_cast<std::size_t>(index)];
 }
 
+// Same fixed pseudo-log curve as the Level editor; the midpoint between 0 and 1 is 0.01.
+constexpr double kLevelCurveShape = 9.19023970026918;
+constexpr double kLevelCurveScale = 9800.0;
+constexpr int kLevelTableIntervals = 4096;
+// Built before playback. Linear lookup error is below 6.4e-7 relative to (level + 1/9800).
+const auto kLevelTable = [] {
+  std::array<double, kLevelTableIntervals + 1> table{};
+  for (int i = 0; i <= kLevelTableIntervals; ++i)
+    table[i] = std::expm1(kLevelCurveShape * i / kLevelTableIntervals) / kLevelCurveScale;
+  table.back() = 1.0;
+  return table;
+}();
+
 double Lerp(double lo, double hi, double t) { return lo + (hi - lo) * t; }
 
 using OscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
@@ -210,16 +223,33 @@ double OscillatorSettings::SanitizeParameter(Parameter parameter, double value) 
   return std::clamp(value, descriptor->min, descriptor->max);
 }
 
-OscillatorSettings OscillatorSettings::Interpolate(const OscillatorSettings& lo, const OscillatorSettings& hi, double t) {
-  const double clampedT = std::clamp(t, 0.0, 1.0);
+OscillatorSettings SimplePatch::InterpolateOscillatorSettings(const SimplePatch& hi, int oscillatorIndex, double t) const {
+  const int index = ClampOscillatorIndex(oscillatorIndex);
+  const auto& lower = mOscillatorSettings[index];
+  const auto& upper = hi.mOscillatorSettings[index];
+  if (t <= 0.0) return lower;
+  if (t >= 1.0) return upper;
   OscillatorSettings out{};
-  for (const auto& descriptor : kParameterDescriptors) {
-    out.*(descriptor.member) = Lerp(lo.*(descriptor.member), hi.*(descriptor.member), clampedT);
+  for (const auto& descriptor : kParameterDescriptors)
+    out.*(descriptor.member) = Lerp(lower.*(descriptor.member), upper.*(descriptor.member), t);
+
+  // Preserve identical levels exactly, including silence and "All notes".
+  if (lower.level == upper.level) out.level = lower.level;
+  else {
+    const double position = std::clamp(Lerp(mLevelCoordinates[index], hi.mLevelCoordinates[index], t), 0.0, 1.0) * kLevelTableIntervals;
+    const int cell = std::min(static_cast<int>(position), kLevelTableIntervals - 1);
+    out.level = std::clamp(Lerp(kLevelTable[cell], kLevelTable[cell + 1], position - cell),
+                           std::min(lower.level, upper.level), std::max(lower.level, upper.level));
   }
   return out;
 }
 
-SimplePatch::SimplePatch(const OscillatorArray& oscillatorSettings) : mOscillatorSettings(oscillatorSettings) {}
+SimplePatch::SimplePatch(const OscillatorArray& oscillatorSettings) : mOscillatorSettings(oscillatorSettings) { UpdateLevelCoordinates(); }
+
+void SimplePatch::UpdateLevelCoordinates() {
+  for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic)
+    mLevelCoordinates[harmonic] = std::log1p(kLevelCurveScale * mOscillatorSettings[harmonic].level) / kLevelCurveShape;
+}
 
 int SimplePatch::ClampOscillatorIndex(int oscillatorIndex) { return std::clamp(oscillatorIndex, 0, kNumOscillators - 1); }
 
@@ -228,11 +258,16 @@ const OscillatorSettings& SimplePatch::GetOscillatorSettings(int oscillatorIndex
 const SimplePatch::OscillatorArray& SimplePatch::GetOscillatorSettingsArray() const { return mOscillatorSettings; }
 
 void SimplePatch::SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings) {
-  mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)] = settings;
+  const int index = ClampOscillatorIndex(oscillatorIndex);
+  mOscillatorSettings[index] = settings;
+  mLevelCoordinates[index] = std::log1p(kLevelCurveScale * settings.level) / kLevelCurveShape;
 }
 
 void SimplePatch::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
-  mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)].SetParameter(parameter, value);
+  const int index = ClampOscillatorIndex(oscillatorIndex);
+  mOscillatorSettings[index].SetParameter(parameter, value);
+  if (parameter == Parameter::level)
+    mLevelCoordinates[index] = std::log1p(kLevelCurveScale * mOscillatorSettings[index].level) / kLevelCurveShape;
 }
 
 double SimplePatch::GetLevelWaveformRms() const {
@@ -244,27 +279,35 @@ double SimplePatch::GetLevelWaveformRms() const {
 
 bool SimplePatch::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue) {
   const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::All, minValue, maxValue) : false;
+  const bool changed = descriptor && ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::All, minValue, maxValue);
+  if (changed && parameter == Parameter::level) UpdateLevelCoordinates();
+  return changed;
 }
 
 bool SimplePatch::ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue) {
   const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Even, minValue, maxValue) : false;
+  const bool changed = descriptor && ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Even, minValue, maxValue);
+  if (changed && parameter == Parameter::level) UpdateLevelCoordinates();
+  return changed;
 }
 
 bool SimplePatch::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue) {
   const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Odd, minValue, maxValue) : false;
+  const bool changed = descriptor && ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Odd, minValue, maxValue);
+  if (changed && parameter == Parameter::level) UpdateLevelCoordinates();
+  return changed;
 }
 
 bool SimplePatch::ZeroEvenLevels() {
-  for (int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2) mOscillatorSettings[oscillatorIndex].level = 0.0;
+  for (int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
+    mOscillatorSettings[oscillatorIndex].level = mLevelCoordinates[oscillatorIndex] = 0.0;
 
   return true;
 }
 
 bool SimplePatch::ZeroOddLevels() {
-  for (int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; oscillatorIndex += 2) mOscillatorSettings[oscillatorIndex].level = 0.0;
+  for (int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
+    mOscillatorSettings[oscillatorIndex].level = mLevelCoordinates[oscillatorIndex] = 0.0;
 
   return true;
 }
@@ -291,13 +334,14 @@ bool SimplePatch::NormalizeLevelWaveformRms() {
   for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic) levels[harmonic] = mOscillatorSettings[harmonic].level;
   if (!NormalizeLevels(levels)) return false;
   for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic) mOscillatorSettings[harmonic].level = levels[harmonic];
+  UpdateLevelCoordinates();
   return true;
 }
 
 SimplePatch SimplePatch::Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t) {
   OscillatorArray out{};
   for (int oscillator = 0; oscillator < kNumOscillators; ++oscillator) {
-    out[oscillator] = OscillatorSettings::Interpolate(lo.mOscillatorSettings[oscillator], hi.mOscillatorSettings[oscillator], t);
+    out[oscillator] = lo.InterpolateOscillatorSettings(hi, oscillator, t);
   }
   return SimplePatch{out};
 }
@@ -394,7 +438,7 @@ OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNo
   const OscillatorSettings& lowerSettings = span.lowerPatch->GetOscillatorSettings(oscillatorIndex);
   if (span.t <= 0.0 || span.lowerPatch == span.upperPatch) return lowerSettings;
 
-  return OscillatorSettings::Interpolate(lowerSettings, span.upperPatch->GetOscillatorSettings(oscillatorIndex), span.t);
+  return span.lowerPatch->InterpolateOscillatorSettings(*span.upperPatch, oscillatorIndex, span.t);
 }
 
 double CompoundPatch::EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const {
