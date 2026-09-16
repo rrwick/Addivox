@@ -165,6 +165,7 @@ public:
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
   double EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const;
 
+  bool AddKeyNotePatch(double midiNote);
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
   bool SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,

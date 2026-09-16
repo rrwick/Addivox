@@ -1069,7 +1069,7 @@ struct EditorContext {
     const int midiNote = SelectedMidiNote();
     {
       const auto patchLock = LockPatch();
-      Patch().SetKeyNotePatch(midiNote, Patch().GetPatchForMidiNote(midiNote));
+      Patch().AddKeyNotePatch(midiNote);
     }
     SendKeyNotePatchEditToDSP(caller, editor_messages::kMsgTagAddKeyNotePatch, midiNote);
     SetKeyboardKeyNoteHighlight(midiNote, true);

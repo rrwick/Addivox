@@ -408,6 +408,27 @@ bool CompoundPatch::HasKeyNotePatch(double midiNote) const { return GetKeyNotePa
 
 int CompoundPatch::GetNumKeyNotePatches() const { return static_cast<int>(mKeyNotePatches.size()); }
 
+bool CompoundPatch::AddKeyNotePatch(double midiNote) {
+  const int note = RoundAndClampMidiNote(midiNote);
+  if (HasKeyNotePatch(note)) return false;
+
+  TabMacroSettings macros{};
+  if (!mKeyNotePatches.empty()) {
+    auto upper = mKeyNotePatches.lower_bound(note);
+    auto lower = upper == mKeyNotePatches.begin() ? upper : std::prev(upper);
+    if (upper == mKeyNotePatches.end()) upper = lower;
+    for (auto parameter : OscillatorSettings::AllParameters()) {
+      const auto& settings = GetMacroSettings(lower->first, parameter);
+      if (settings == GetMacroSettings(upper->first, parameter)) macros[ParameterIndex(parameter)] = settings;
+    }
+  }
+
+  SetKeyNotePatch(note, GetPatchForMidiNote(midiNote));
+  for (auto parameter : OscillatorSettings::AllParameters())
+    if (!macros[ParameterIndex(parameter)].positions.empty()) SetMacroSettings(note, parameter, macros[ParameterIndex(parameter)]);
+  return true;
+}
+
 void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch) {
   const int clampedMidiNote = ClampMidiNote(midiNote);
   const EqCurve* keyNoteEqCurve = GetKeyNoteEqCurve(clampedMidiNote);

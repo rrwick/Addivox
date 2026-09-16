@@ -137,11 +137,8 @@ void SynthVoice::SetCompoundPatch(const CompoundPatch& patch) {
 }
 
 std::optional<CompoundPatch> SynthVoice::BuildCompoundPatchWithKeyNoteAdded(double midiNote) const {
-  if (mCompoundPatch.HasKeyNotePatch(midiNote)) return std::nullopt;
-
-  const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
   CompoundPatch updated = mCompoundPatch;
-  updated.SetKeyNotePatch(roundedMidiNote, mCompoundPatch.GetPatchForMidiNote(midiNote));
+  if (!updated.AddKeyNotePatch(midiNote)) return std::nullopt;
   return updated;
 }
 
