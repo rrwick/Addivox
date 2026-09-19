@@ -499,6 +499,7 @@ std::string RelativePathFromDirectory(std::string_view directory, std::string_vi
   if (base.empty() || full.size() <= base.size()) return full;
 
   if (!PathPrefixMatches(full, base)) return full;
+  if (base.back() != '/' && base.back() != '\\' && full[base.size()] != '/' && full[base.size()] != '\\') return full;
 
   std::size_t offset = base.size();
   while (offset < full.size() && (full[offset] == '/' || full[offset] == '\\')) ++offset;
