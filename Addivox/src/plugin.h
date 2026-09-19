@@ -82,6 +82,11 @@ private:
     std::vector<std::string> menuPath;
   };
 
+  void InitializeParams();
+#if IPLUG_EDITOR
+  bool HandleKeyPress(IGraphics* graphics, const IKeyPress& key, bool isUp);
+#endif
+  bool IsActivePatch(const PatchCatalogEntry& entry) const;
   void ApplyPatchDocumentToState(const patch_io::PatchDocument& document);
   void FinalizePatchRecall(bool syncControlValues);
   void EnsureStandaloneStateInitialized();
@@ -112,7 +117,6 @@ private:
   std::string SerializeCurrentPatchSnapshot() const;
   void SetActivePatchCleanSnapshotFromCurrentState();
   void MarkActivePatchDirty();
-  void ClearActivePatchDirty();
   bool ShowAboutBox();
   bool OpenOnlineDocs();
   void LoadBuiltInPatches();

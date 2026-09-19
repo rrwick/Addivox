@@ -76,13 +76,11 @@ EffectsSettings GetEffectsSettingsFromParams(const Addivox& plugin) {
   return effects_settings::Sanitize(settings);
 }
 
-void SetGlobalVoiceSettingsParams(Addivox& plugin, const GlobalVoiceSettings& voiceSettings, bool includeTuning = true, bool includePanShift = true) {
+void SetPatchVoiceSettingsParams(Addivox& plugin, const GlobalVoiceSettings& voiceSettings) {
   const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
   plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
   plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
   plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
-  if (includeTuning) plugin.GetParam(kParamGlobalTuning)->Set(sanitizedVoiceSettings.tuningCents);
-  if (includePanShift) plugin.GetParam(kParamGlobalPanShift)->Set(sanitizedVoiceSettings.panOffset);
   plugin.GetParam(kParamGlobalLevelVariationAmplitudeScale)->Set(sanitizedVoiceSettings.levelVariationAmplitudeScale);
   plugin.GetParam(kParamGlobalLevelVariationRateScale)->Set(sanitizedVoiceSettings.levelVariationRateScale);
   plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitizedVoiceSettings.pitchVariationAmplitudeScale);
@@ -93,18 +91,15 @@ void SetGlobalVoiceSettingsParams(Addivox& plugin, const GlobalVoiceSettings& vo
   plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MaxSec);
 }
 
-void SetEffectsSettingsParams(Addivox& plugin, const EffectsSettings& effectsSettings, bool includeReverb = true) {
+void SetPatchEffectsSettingsParams(Addivox& plugin, const EffectsSettings& effectsSettings) {
   const EffectsSettings sanitizedEffectsSettings = effects_settings::Sanitize(effectsSettings);
   plugin.GetParam(kParamEffectsDrive)->Set(sanitizedEffectsSettings.drive);
   plugin.GetParam(kParamEffectsTone)->Set(sanitizedEffectsSettings.tone);
   plugin.GetParam(kParamEffectsChorus)->Set(sanitizedEffectsSettings.chorus);
-  if (includeReverb) plugin.GetParam(kParamEffectsReverb)->Set(sanitizedEffectsSettings.reverb);
 }
 
 bool IsPatchOwnedParam(int paramIdx) {
-  // These controls intentionally persist across patch changes, so reset should
-  // keep their constructor defaults instead of following the last recalled
-  // patch.
+  // These controls persist across patch changes and retain their constructor defaults.
   switch (paramIdx) {
   case kParamGlobalTuning:
   case kParamGlobalPanShift:
@@ -367,66 +362,21 @@ std::string GetStandaloneSettingsDirectory() {
   return patch_io::detail::JoinPath(appSupportPath.Get(), BUNDLE_NAME);
 }
 
-std::string GetStandaloneBreathCCSourcePath() {
+std::string GetStandaloneSettingsPath(const char* fileName) {
   const std::string settingsDirectory = GetStandaloneSettingsDirectory();
-  if (settingsDirectory.empty()) return {};
-
-  return patch_io::detail::JoinPath(settingsDirectory, "breath_cc_source.txt");
+  return settingsDirectory.empty() ? std::string{} : patch_io::detail::JoinPath(settingsDirectory, fileName);
 }
 
-std::string GetStandaloneStatePath() {
-  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
-  if (settingsDirectory.empty()) return {};
-
-  return patch_io::detail::JoinPath(settingsDirectory, "standalone_state.chunk");
-}
-
-std::string GetStandalonePitchBendRangePath() {
-  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
-  if (settingsDirectory.empty()) return {};
-
-  return patch_io::detail::JoinPath(settingsDirectory, "pitch_bend_range.txt");
-}
-
-std::string GetStandaloneHarmonicVisualizerEnabledPath() {
-  const std::string settingsDirectory = GetStandaloneSettingsDirectory();
-  if (settingsDirectory.empty()) return {};
-
-  return patch_io::detail::JoinPath(settingsDirectory, "harmonic_visualizer_enabled.txt");
-}
-
-bool LoadStandaloneBreathCCSource(BreathCCSource& source) {
-  const std::string path = GetStandaloneBreathCCSourcePath();
+bool LoadStandaloneIntegerSetting(const char* fileName, int& value) {
+  const std::string path = GetStandaloneSettingsPath(fileName);
   if (path.empty()) return false;
 
   std::ifstream stream(path);
-  if (!stream.is_open()) return false;
-
-  int rawValue = static_cast<int>(kDefaultBreathCCSource);
-  stream >> rawValue;
-  if (!stream) return false;
-
-  source = SanitizeBreathCCSource(rawValue);
-  return true;
-}
-
-bool LoadStandalonePitchBendRange(int& pitchBendRange) {
-  const std::string path = GetStandalonePitchBendRangePath();
-  if (path.empty()) return false;
-
-  std::ifstream stream(path);
-  if (!stream.is_open()) return false;
-
-  int rawValue = kDefaultPitchBendRange;
-  stream >> rawValue;
-  if (!stream) return false;
-
-  pitchBendRange = SanitizePitchBendRange(rawValue);
-  return true;
+  return static_cast<bool>(stream >> value);
 }
 
 bool LoadStandaloneStateChunk(IByteChunk& chunk) {
-  const std::string path = GetStandaloneStatePath();
+  const std::string path = GetStandaloneSettingsPath("standalone_state.chunk");
   if (path.empty()) return false;
 
   std::ifstream stream(path, std::ios::binary | std::ios::ate);
@@ -447,7 +397,7 @@ bool LoadStandaloneStateChunk(IByteChunk& chunk) {
 }
 
 bool SaveStandaloneStateChunk(const IByteChunk& chunk) {
-  const std::string path = GetStandaloneStatePath();
+  const std::string path = GetStandaloneSettingsPath("standalone_state.chunk");
   if (path.empty()) return false;
 
   const std::string parentPath = patch_io::detail::ParentPath(path);
@@ -460,21 +410,6 @@ bool SaveStandaloneStateChunk(const IByteChunk& chunk) {
   return stream.good();
 }
 
-bool LoadStandaloneHarmonicVisualizerEnabled(bool& enabled) {
-  const std::string path = GetStandaloneHarmonicVisualizerEnabledPath();
-  if (path.empty()) return false;
-
-  std::ifstream stream(path);
-  if (!stream.is_open()) return false;
-
-  int rawValue = enabled ? 1 : 0;
-  stream >> rawValue;
-  if (!stream) return false;
-
-  enabled = (rawValue != 0);
-  return true;
-}
-
 void DeleteStandaloneSettingsFile(const std::string& path) {
   if (path.empty()) return;
 
@@ -483,12 +418,12 @@ void DeleteStandaloneSettingsFile(const std::string& path) {
   patch_io::detail::DeleteFile(path);
 }
 
-void DeleteStandaloneStateFile() { DeleteStandaloneSettingsFile(GetStandaloneStatePath()); }
+void DeleteStandaloneStateFile() { DeleteStandaloneSettingsFile(GetStandaloneSettingsPath("standalone_state.chunk")); }
 
 void DeleteStandaloneLegacySettingsFiles() {
-  DeleteStandaloneSettingsFile(GetStandaloneBreathCCSourcePath());
-  DeleteStandaloneSettingsFile(GetStandalonePitchBendRangePath());
-  DeleteStandaloneSettingsFile(GetStandaloneHarmonicVisualizerEnabledPath());
+  DeleteStandaloneSettingsFile(GetStandaloneSettingsPath("breath_cc_source.txt"));
+  DeleteStandaloneSettingsFile(GetStandaloneSettingsPath("pitch_bend_range.txt"));
+  DeleteStandaloneSettingsFile(GetStandaloneSettingsPath("harmonic_visualizer_enabled.txt"));
 }
 
 std::string GetTemporaryDirectoryPath() {
@@ -747,6 +682,43 @@ std::string CanonicalizePatchDirtySnapshotToml(const std::string& snapshot) {
 
 Addivox::Addivox(const InstanceInfo& info)
     : iplug::Plugin(info, MakeConfig(kNumParams, kMaxFactoryPatches)), mEditorState(std::make_shared<plugin_ui::EditorState>()) {
+  InitializeParams();
+
+#if IPLUG_EDITOR // http://bit.ly/2S64BDd
+  mMakeGraphicsFunc = [&]() { return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, GetScaleForScreen(PLUG_WIDTH, PLUG_HEIGHT)); };
+
+  mLayoutFunc = [&](IGraphics* pGraphics) {
+    pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
+    pGraphics->AttachSVGBackground("background.svg");
+    pGraphics->EnableMouseOver(true);
+    pGraphics->EnableTooltips(true);
+    pGraphics->EnableMultiTouch(true);
+
+#ifdef OS_WEB
+    pGraphics->AttachPopupMenuControl();
+#endif
+
+    pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
+    pGraphics->LoadFont("Roboto-Bold", ROBOTO_BOLD_FN);
+    pGraphics->LoadFont("Roboto-Black", ROBOTO_BLACK_FN);
+    mEditorContext = plugin_ui::AttachMainControls(pGraphics, mEditorState, kCtrlTagHarmonicVisualizer, kCtrlTagEditorTabs, kCtrlTagKeyboard, kCtrlTagBender,
+                                                   kCtrlTagBreathMeter, kCtrlTagMeter, mPitchBendRange);
+
+    pGraphics->SetKeyHandlerFunc([this, pGraphics](const IKeyPress& key, bool isUp) { return HandleKeyPress(pGraphics, key, isUp); });
+  };
+#endif
+
+  LoadBuiltInPatches();
+  RebuildPatchCatalog();
+  RestoreFactoryPatch(0);
+  if (mActivePatchDisplayName.empty() && NPresets() > 0) mActivePatchDisplayName = GetPresetName(GetCurrentPresetIdx());
+
+  SetPitchBendRange(mPitchBendRange);
+  SetBreathCCSource(kDefaultBreathCCSource);
+  SetPortamentoCC(5);
+}
+
+void Addivox::InitializeParams() {
   const auto formatPseudoLogScaleDisplay = [](double value, WDL_String& str) {
     int decimals = 2;
     if (value >= 10.0) decimals = 1;
@@ -804,124 +776,82 @@ Addivox::Addivox(const InstanceInfo& info)
   GetParam(kParamEffectsReverb)
       ->InitDouble("Reverb", effects_settings::kDefaultReverb, 0., 100.0, 0.1, "", 0, "", iplug::IParam::ShapeLinear(), iplug::IParam::kUnitCustom,
                    formatPercentDisplay);
-
-#if IPLUG_EDITOR // http://bit.ly/2S64BDd
-  mMakeGraphicsFunc = [&]() { return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, GetScaleForScreen(PLUG_WIDTH, PLUG_HEIGHT)); };
-
-  mLayoutFunc = [&](IGraphics* pGraphics) {
-    pGraphics->AttachCornerResizer(EUIResizerMode::Scale, false);
-    pGraphics->AttachSVGBackground("background.svg");
-    pGraphics->EnableMouseOver(true);
-    pGraphics->EnableTooltips(true);
-    pGraphics->EnableMultiTouch(true);
-
-#ifdef OS_WEB
-    pGraphics->AttachPopupMenuControl();
-#endif
-
-    // pGraphics->EnableLiveEdit(true);
-    pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
-    pGraphics->LoadFont("Roboto-Bold", ROBOTO_BOLD_FN);
-    pGraphics->LoadFont("Roboto-Black", ROBOTO_BLACK_FN);
-    mEditorContext = plugin_ui::AttachMainControls(pGraphics, mEditorState, kCtrlTagHarmonicVisualizer, kCtrlTagEditorTabs, kCtrlTagKeyboard, kCtrlTagBender,
-                                                   kCtrlTagBreathMeter, kCtrlTagMeter, mPitchBendRange);
-
-    pGraphics->SetKeyHandlerFunc([this, pGraphics](const IKeyPress& key, bool isUp) {
-      const auto sendQwertyMidi = [this, pGraphics](const IMidiMsg& msg) {
-        SendMidiMsgFromUI(msg);
-        plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
-      };
-
-      const auto releaseHeldQwertyMidiNotes = [&]() {
-        IMidiMsg msg;
-        for (int pitch = 0; pitch < static_cast<int>(mQwertyMidiKeysDown.size()); ++pitch) {
-          if (!mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)]) continue;
-
-          msg.MakeNoteOffMsg(pitch, 0);
-          mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)] = false;
-          sendQwertyMidi(msg);
-        }
-      };
-
-      const bool editMode = mEditorState && mEditorState->editMode;
-      if (editMode && !mWasQwertyKeyboardInEditMode) releaseHeldQwertyMidiNotes();
-      mWasQwertyKeyboardInEditMode = editMode;
-
-      const bool popupExpanded = pGraphics->GetPopupMenuControl() && pGraphics->GetPopupMenuControl()->GetExpanded();
-      const bool textEntryActive = pGraphics->IsInPlatformTextEntry() || (pGraphics->GetControlInTextEntry() != nullptr);
-      const bool modifiersActive = key.S || key.C || key.A;
-
-      if (!isUp && !popupExpanded && !textEntryActive && !modifiersActive) {
-        if (key.VK == kVK_LEFT) {
-          CyclePatchInCurrentGroup(-1);
-          return true;
-        }
-        if (key.VK == kVK_RIGHT) {
-          CyclePatchInCurrentGroup(1);
-          return true;
-        }
-      }
-
-      if (editMode) {
-        if (!isUp && !popupExpanded && !textEntryActive && !modifiersActive) plugin_ui::editor::ApplyKeyboardActionToSelectedTab(mEditorContext, key.VK);
-
-        if (plugin_ui::editor::IsEditorActionShortcutKey(key.VK) || plugin_ui::editor::IsQwertyMidiKeyboardKey(key.VK)) return true;
-
-        return true;
-      }
-
-      const int noteOffset = plugin_ui::editor::GetQwertyMidiNoteOffset(key.VK);
-      IMidiMsg msg;
-
-      if (noteOffset >= 0) {
-        const int pitch = std::clamp(mQwertyMidiBaseNote + noteOffset, 0, 127);
-        const auto pitchIndex = static_cast<std::size_t>(pitch);
-
-        if (!isUp) {
-          if (!mQwertyMidiKeysDown[pitchIndex]) {
-            msg.MakeNoteOnMsg(pitch, 127, 0);
-            mQwertyMidiKeysDown[pitchIndex] = true;
-            sendQwertyMidi(msg);
-          }
-        } else if (mQwertyMidiKeysDown[pitchIndex]) {
-          msg.MakeNoteOffMsg(pitch, 0);
-          mQwertyMidiKeysDown[pitchIndex] = false;
-          sendQwertyMidi(msg);
-        }
-
-        return true;
-      }
-
-      if (key.VK == kVK_Z) {
-        if (!isUp) {
-          mQwertyMidiBaseNote = std::clamp(mQwertyMidiBaseNote - 12, 24, 96);
-          releaseHeldQwertyMidiNotes();
-        }
-        return true;
-      }
-
-      if (key.VK == kVK_X) {
-        if (!isUp) {
-          mQwertyMidiBaseNote = std::clamp(mQwertyMidiBaseNote + 12, 24, 96);
-          releaseHeldQwertyMidiNotes();
-        }
-        return true;
-      }
-
-      return true;
-    });
-  };
-#endif
-
-  LoadBuiltInPatches();
-  RebuildPatchCatalog();
-  RestoreFactoryPatch(0);
-  if (mActivePatchDisplayName.empty() && NPresets() > 0) mActivePatchDisplayName = GetPresetName(GetCurrentPresetIdx());
-
-  SetPitchBendRange(mPitchBendRange);
-  SetBreathCCSource(kDefaultBreathCCSource);
-  SetPortamentoCC(5);
 }
+
+#if IPLUG_EDITOR
+bool Addivox::HandleKeyPress(IGraphics* pGraphics, const IKeyPress& key, bool isUp) {
+  const auto sendQwertyMidi = [this, pGraphics](const IMidiMsg& msg) {
+    SendMidiMsgFromUI(msg);
+    plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
+  };
+
+  const auto releaseHeldQwertyMidiNotes = [&]() {
+    IMidiMsg msg;
+    for (int pitch = 0; pitch < static_cast<int>(mQwertyMidiKeysDown.size()); ++pitch) {
+      if (!mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)]) continue;
+
+      msg.MakeNoteOffMsg(pitch, 0);
+      mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)] = false;
+      sendQwertyMidi(msg);
+    }
+  };
+
+  const bool editMode = mEditorState && mEditorState->editMode;
+  if (editMode && !mWasQwertyKeyboardInEditMode) releaseHeldQwertyMidiNotes();
+  mWasQwertyKeyboardInEditMode = editMode;
+
+  const bool popupExpanded = pGraphics->GetPopupMenuControl() && pGraphics->GetPopupMenuControl()->GetExpanded();
+  const bool textEntryActive = pGraphics->IsInPlatformTextEntry() || (pGraphics->GetControlInTextEntry() != nullptr);
+  const bool modifiersActive = key.S || key.C || key.A;
+
+  if (!isUp && !popupExpanded && !textEntryActive && !modifiersActive) {
+    if (key.VK == kVK_LEFT) {
+      CyclePatchInCurrentGroup(-1);
+      return true;
+    }
+    if (key.VK == kVK_RIGHT) {
+      CyclePatchInCurrentGroup(1);
+      return true;
+    }
+  }
+
+  if (editMode) {
+    if (!isUp && !popupExpanded && !textEntryActive && !modifiersActive) plugin_ui::editor::ApplyKeyboardActionToSelectedTab(mEditorContext, key.VK);
+
+    return true;
+  }
+
+  const int noteOffset = plugin_ui::editor::GetQwertyMidiNoteOffset(key.VK);
+  IMidiMsg msg;
+
+  if (noteOffset >= 0) {
+    const int pitch = std::clamp(mQwertyMidiBaseNote + noteOffset, 0, 127);
+    const auto pitchIndex = static_cast<std::size_t>(pitch);
+
+    if (!isUp) {
+      if (!mQwertyMidiKeysDown[pitchIndex]) {
+        msg.MakeNoteOnMsg(pitch, 127, 0);
+        mQwertyMidiKeysDown[pitchIndex] = true;
+        sendQwertyMidi(msg);
+      }
+    } else if (mQwertyMidiKeysDown[pitchIndex]) {
+      msg.MakeNoteOffMsg(pitch, 0);
+      mQwertyMidiKeysDown[pitchIndex] = false;
+      sendQwertyMidi(msg);
+    }
+
+    return true;
+  }
+
+  if (!isUp && (key.VK == kVK_Z || key.VK == kVK_X)) {
+    const int octaveShift = key.VK == kVK_Z ? -12 : 12;
+    mQwertyMidiBaseNote = std::clamp(mQwertyMidiBaseNote + octaveShift, 24, 96);
+    releaseHeldQwertyMidiNotes();
+  }
+
+  return true;
+}
+#endif
 
 void Addivox::OnHostIdentified() { EnsureStandaloneStateInitialized(); }
 
@@ -991,20 +921,20 @@ void Addivox::EnsureStandaloneStateInitialized() {
   mSuppressStandaloneStatePersistence = true;
 
   int persistedPitchBendRange = kDefaultPitchBendRange;
-  if (LoadStandalonePitchBendRange(persistedPitchBendRange)) {
-    SetPitchBendRange(persistedPitchBendRange);
+  if (LoadStandaloneIntegerSetting("pitch_bend_range.txt", persistedPitchBendRange)) {
+    SetPitchBendRange(SanitizePitchBendRange(persistedPitchBendRange));
     migratedLegacyState = true;
   }
 
-  BreathCCSource persistedSource = kDefaultBreathCCSource;
-  if (LoadStandaloneBreathCCSource(persistedSource)) {
-    SetBreathCCSource(persistedSource);
+  int persistedSource = static_cast<int>(kDefaultBreathCCSource);
+  if (LoadStandaloneIntegerSetting("breath_cc_source.txt", persistedSource)) {
+    SetBreathCCSource(SanitizeBreathCCSource(persistedSource));
     migratedLegacyState = true;
   }
 
-  bool persistedEnabled = kDefaultHarmonicVisualizerEnabled;
-  if (LoadStandaloneHarmonicVisualizerEnabled(persistedEnabled)) {
-    SetHarmonicVisualizerEnabled(persistedEnabled);
+  int persistedEnabled = kDefaultHarmonicVisualizerEnabled ? 1 : 0;
+  if (LoadStandaloneIntegerSetting("harmonic_visualizer_enabled.txt", persistedEnabled)) {
+    SetHarmonicVisualizerEnabled(persistedEnabled != 0);
     migratedLegacyState = true;
   }
 
@@ -1129,8 +1059,8 @@ void Addivox::ApplyPatchDocumentToState(const patch_io::PatchDocument& document)
   mDSP.SetCompoundPatch(document.compoundPatch);
 #endif
 
-  SetGlobalVoiceSettingsParams(*this, document.voiceSettings, false, false);
-  SetEffectsSettingsParams(*this, document.effectsSettings, false);
+  SetPatchVoiceSettingsParams(*this, document.voiceSettings);
+  SetPatchEffectsSettingsParams(*this, document.effectsSettings);
 }
 
 void Addivox::FinalizePatchRecall(bool syncControlValues) {
@@ -1548,9 +1478,7 @@ void Addivox::OnReset() {
   mMeterSender.Reset(GetSampleRate());
 
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
-  if (!mHarmonicVisualizerEnabled.load(std::memory_order_relaxed)) mHarmonicVisualizerBlankPending.store(true, std::memory_order_relaxed);
-  else
-    mHarmonicVisualizerBlankPending.store(false, std::memory_order_relaxed);
+  mHarmonicVisualizerBlankPending.store(!mHarmonicVisualizerEnabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
   mQwertyMidiKeysDown.fill(false);
   mQwertyMidiBaseNote = 48;
   mWasQwertyKeyboardInEditMode = false;
@@ -1937,6 +1865,11 @@ void Addivox::LoadPatchById(int patchId) {
     LoadUserPatchByPath(path);
 }
 
+bool Addivox::IsActivePatch(const PatchCatalogEntry& entry) const {
+  return (entry.source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry.factoryIndex == mActiveFactoryPatchIdx) ||
+         (entry.source == PatchSource::User && mActivePatchSource == PatchSource::User && entry.path == mActivePatchPath);
+}
+
 void Addivox::CyclePatchInCurrentGroup(int direction) {
   if (mPatchCatalog.empty()) RebuildPatchCatalog();
 
@@ -1960,11 +1893,7 @@ void Addivox::CyclePatchInCurrentGroup(int direction) {
 
     int currentIndex = -1;
     for (int i = 0; i < static_cast<int>(groupEntries.size()); ++i) {
-      const PatchCatalogEntry* entry = groupEntries[static_cast<std::size_t>(i)];
-      const bool matches =
-          (entry->source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry->factoryIndex == mActiveFactoryPatchIdx) ||
-          (entry->source == PatchSource::User && mActivePatchSource == PatchSource::User && entry->path == mActivePatchPath);
-      if (matches) {
+      if (IsActivePatch(*groupEntries[static_cast<std::size_t>(i)])) {
         currentIndex = i;
         break;
       }
@@ -2099,8 +2028,6 @@ void Addivox::MarkActivePatchDirty() {
   RefreshEditorUI();
 }
 
-void Addivox::ClearActivePatchDirty() { SetActivePatchCleanSnapshotFromCurrentState(); }
-
 void Addivox::LoadBuiltInPatches() {
   mFactoryPatchPaths.clear();
 
@@ -2146,15 +2073,7 @@ void Addivox::LoadBuiltInPatches() {
   if (numLoadedPatches == 0) {
     patch_io::PatchDocument fallbackDocument;
     fallbackDocument.name = "Init";
-    fallbackDocument.voiceSettings = GlobalVoiceSettings{};
-    fallbackDocument.effectsSettings = EffectsSettings{};
-    fallbackDocument.compoundPatch = CompoundPatch{};
-
-    IByteChunk chunk;
-    if (BuildPatchChunk(fallbackDocument, chunk)) {
-      MakePresetFromChunk(fallbackDocument.name.c_str(), chunk);
-      mFactoryPatchPaths.push_back({});
-    }
+    addPatch(fallbackDocument, {});
   }
 
   PruneUninitializedPresets();
@@ -2190,9 +2109,7 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates) {
           menuEntry.id = entry.id;
           menuEntry.name = entry.name;
           menuEntry.groupPath = entry.menuPath;
-          menuEntry.checked =
-              (entry.source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry.factoryIndex == mActiveFactoryPatchIdx) ||
-              (entry.source == PatchSource::User && mActivePatchSource == PatchSource::User && entry.path == mActivePatchPath);
+          menuEntry.checked = IsActivePatch(entry);
           model.entries.push_back(std::move(menuEntry));
         }
       }
