@@ -92,9 +92,7 @@ public:
 
   bool IsEditable() const { return !IsDisabled(); }
 
-  // Macros mode dims the bars and blocks dragging without touching mBlend, so it stays visually distinct from
-  // the whole-control fade SetEditable applies when no key note is selected. When both apply, the fade simply
-  // covers the dimmed bars and the macro line too, which is the intended combined look.
+  // Dim bars independently of the whole-control fade applied by SetEditable.
   void SetMacrosMode(bool macrosMode) {
     if (mMacrosMode == macrosMode) return;
 
@@ -102,11 +100,8 @@ public:
     SetDirty(false);
   }
 
-  bool IsMacrosMode() const { return mMacrosMode; }
-
   void SetMacroCurve(const ControlState& rangeValues) {
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      mMacroCurve[static_cast<std::size_t>(oscillatorIndex)] = rangeValues[static_cast<std::size_t>(oscillatorIndex)];
+    mMacroCurve = rangeValues;
 
     if (mMacrosMode) SetDirty(false);
   }
@@ -124,11 +119,7 @@ public:
     mRestoreMidiNote = kNoRestoreMidiNote;
   }
 
-  bool HasRestoreState() const { return mHasRestoreState; }
-
   bool HasRestoreStateForMidiNote(int midiNote) const { return mHasRestoreState && (mRestoreMidiNote == midiNote); }
-
-  int GetRestoreMidiNote() const { return mRestoreMidiNote; }
 
   const RestoreState& GetRestoreState() const { return mRestoreState; }
 
@@ -180,7 +171,6 @@ public:
     IColor fillColor = chIdx == mHighlightedTrack ? GetColor(kX1) : GetColor(kFG);
     if (UsesMacrosModeAppearance()) fillColor = ScaleColorOpacity(fillColor, kMacrosModeBarOpacity);
 
-    // The hover highlight says "draggable", so it goes with the dragging.
     const bool drawHoverHighlight = !mMacrosMode && chIdx == mMouseOverTrack;
 
     if (UsesBipolarRange()) {
@@ -237,7 +227,7 @@ public:
   void OnMouseUp(float x, float y, const IMouseMod& mod) override {
     if (mMacrosMode) return;
 
-    if (GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine && mHasDrawLineStartPoint) SnapToMouse(x, y, mDirection, mWidgetBounds);
+    if (GetOscillatorEditMode() == EditorOscillatorEditMode::DrawLine && mDrawLineStartPoint.sliderHit >= 0) SnapToMouse(x, y, mDirection, mWidgetBounds);
 
     Base::OnMouseUp(x, y, mod);
     ResetStepwiseDragState();
@@ -547,11 +537,7 @@ private:
 
   void ResetStepwiseDragState() { mHasPreviousStepwiseDragPoint = false; }
 
-  void ResetDrawLineState() {
-    mHasDrawLineStartPoint = false;
-    mDrawLineStartOscillator = -1;
-    mDrawLineStartControlValue = 0.0;
-  }
+  void ResetDrawLineState() { mDrawLineStartPoint = {}; }
 
   void BeginDrawLineDrag(const MouseEditPoint& startPoint) {
     if (startPoint.sliderHit < 0) return;
@@ -559,49 +545,35 @@ private:
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
       mDrawLineSourceValues[static_cast<std::size_t>(oscillatorIndex)] = GetValue(oscillatorIndex);
 
-    mDrawLineStartOscillator = startPoint.sliderHit;
-    mDrawLineStartControlValue = startPoint.controlValue;
-    mHasDrawLineStartPoint = true;
+    mDrawLineStartPoint = startPoint;
   }
 
   bool HandleSetDrag(int sliderHit, double controlValue) {
-    bool changedValue = false;
-
-    if (sliderHit > -1) {
-      mMouseOverTrack = sliderHit;
-
-      if (IsOscillatorEditable(sliderHit)) {
-        SetValue(controlValue, sliderHit);
-        OnNewValue(sliderHit, GetValue(sliderHit));
-        changedValue = true;
-
-        mSliderHit = sliderHit;
-
-        if (!GetStepped() && mPrevSliderHit != -1) {
-          if (std::abs(mPrevSliderHit - mSliderHit) > 1) {
-            const int lowBounds = std::min(mPrevSliderHit, mSliderHit);
-            const int highBounds = std::max(mPrevSliderHit, mSliderHit);
-
-            for (int oscillatorIndex = lowBounds; oscillatorIndex < highBounds; ++oscillatorIndex) {
-              if (!IsOscillatorEditable(oscillatorIndex)) continue;
-
-              const double frac = static_cast<double>(oscillatorIndex - lowBounds) / static_cast<double>(highBounds - lowBounds);
-              SetValue(iplug::Lerp(GetValue(lowBounds), GetValue(highBounds), frac), oscillatorIndex);
-              OnNewValue(oscillatorIndex, GetValue(oscillatorIndex));
-              changedValue = true;
-            }
-          }
-        }
-
-        mPrevSliderHit = mSliderHit;
-      } else {
-        mSliderHit = -1;
-      }
-    } else {
+    if (sliderHit >= 0) mMouseOverTrack = sliderHit;
+    if (sliderHit < 0 || !IsOscillatorEditable(sliderHit)) {
       mSliderHit = -1;
+      return false;
     }
 
-    return changedValue;
+    SetValue(controlValue, sliderHit);
+    OnNewValue(sliderHit, GetValue(sliderHit));
+    mSliderHit = sliderHit;
+
+    if (!GetStepped() && mPrevSliderHit != -1 && std::abs(mPrevSliderHit - mSliderHit) > 1) {
+      const int lowBounds = std::min(mPrevSliderHit, mSliderHit);
+      const int highBounds = std::max(mPrevSliderHit, mSliderHit);
+
+      for (int oscillatorIndex = lowBounds; oscillatorIndex < highBounds; ++oscillatorIndex) {
+        if (!IsOscillatorEditable(oscillatorIndex)) continue;
+
+        const double frac = static_cast<double>(oscillatorIndex - lowBounds) / static_cast<double>(highBounds - lowBounds);
+        SetValue(iplug::Lerp(GetValue(lowBounds), GetValue(highBounds), frac), oscillatorIndex);
+        OnNewValue(oscillatorIndex, GetValue(oscillatorIndex));
+      }
+    }
+
+    mPrevSliderHit = mSliderHit;
+    return true;
   }
 
   template <typename StepFunc> bool HandleStepwiseDrag(int sliderHit, double cursorControlValue, StepFunc&& applyStep) {
@@ -620,7 +592,6 @@ private:
       changedValue = applyStep(sliderHit, cursorControlValue);
     } else if (mPrevSliderHit == sliderHit) {
       mPreviousStepwiseCursorValue = cursorControlValue;
-      mHasPreviousStepwiseDragPoint = true;
       return false;
     } else {
       const int previousSliderHit = mPrevSliderHit;
@@ -632,7 +603,7 @@ private:
       for (int oscillatorIndex = lowBounds; oscillatorIndex <= highBounds; ++oscillatorIndex) {
         if (oscillatorIndex == previousSliderHit) continue;
 
-        const double frac = span > 0 ? static_cast<double>(std::abs(oscillatorIndex - previousSliderHit)) / static_cast<double>(span) : 1.0;
+        const double frac = static_cast<double>(std::abs(oscillatorIndex - previousSliderHit)) / static_cast<double>(span);
         const double interpolatedCursorValue = iplug::Lerp(previousCursorValue, cursorControlValue, frac);
         changedValue = applyStep(oscillatorIndex, interpolatedCursorValue) || changedValue;
       }
@@ -658,7 +629,7 @@ private:
     else
       mSliderHit = -1;
 
-    if (sliderHit < 0 || !mHasDrawLineStartPoint) return false;
+    if (sliderHit < 0 || mDrawLineStartPoint.sliderHit < 0) return false;
 
     mSliderHit = sliderHit;
     return ApplyDrawLinePreview(sliderHit, cursorControlValue);
@@ -676,11 +647,7 @@ private:
     else
       return false;
 
-    if (std::fabs(nudgedControlValue - currentControlValue) <= kValueComparisonTolerance) return false;
-
-    SetValue(nudgedControlValue, oscillatorIndex);
-    OnNewValue(oscillatorIndex, nudgedControlValue);
-    return true;
+    return ApplyControlValue(oscillatorIndex, nudgedControlValue);
   }
 
   double GetSmoothedControlValue(int oscillatorIndex) const {
@@ -705,21 +672,15 @@ private:
   bool ApplySmoothStep(int oscillatorIndex) {
     if (!IsOscillatorEditable(oscillatorIndex)) return false;
 
-    const double currentControlValue = GetValue(oscillatorIndex);
-    const double smoothedControlValue = GetSmoothedControlValue(oscillatorIndex);
-    if (std::fabs(smoothedControlValue - currentControlValue) <= kValueComparisonTolerance) return false;
-
-    SetValue(smoothedControlValue, oscillatorIndex);
-    OnNewValue(oscillatorIndex, smoothedControlValue);
-    return true;
+    return ApplyControlValue(oscillatorIndex, GetSmoothedControlValue(oscillatorIndex));
   }
 
   bool ApplyDrawLinePreview(int endOscillatorIndex, double endControlValue) {
-    if (mDrawLineStartOscillator < 0) return false;
+    if (mDrawLineStartPoint.sliderHit < 0) return false;
 
     ControlState desiredValues = mDrawLineSourceValues;
-    const int startOscillatorIndex = mDrawLineStartOscillator;
-    const double startControlValue = mDrawLineStartControlValue;
+    const int startOscillatorIndex = mDrawLineStartPoint.sliderHit;
+    const double startControlValue = mDrawLineStartPoint.controlValue;
 
     if (startOscillatorIndex == endOscillatorIndex) {
       if (IsOscillatorEditable(startOscillatorIndex))
@@ -740,18 +701,18 @@ private:
     return ApplyControlState(desiredValues);
   }
 
+  bool ApplyControlValue(int oscillatorIndex, double controlValue) {
+    if (std::fabs(controlValue - GetValue(oscillatorIndex)) <= kValueComparisonTolerance) return false;
+
+    SetValue(controlValue, oscillatorIndex);
+    OnNewValue(oscillatorIndex, controlValue);
+    return true;
+  }
+
   bool ApplyControlState(const ControlState& desiredValues) {
     bool changedValue = false;
-
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      const double currentControlValue = GetValue(oscillatorIndex);
-      const double desiredControlValue = Clamp01(desiredValues[static_cast<std::size_t>(oscillatorIndex)]);
-      if (std::fabs(desiredControlValue - currentControlValue) <= kValueComparisonTolerance) continue;
-
-      SetValue(desiredControlValue, oscillatorIndex);
-      OnNewValue(oscillatorIndex, desiredControlValue);
-      changedValue = true;
-    }
+    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
+      changedValue = ApplyControlValue(oscillatorIndex, Clamp01(desiredValues[static_cast<std::size_t>(oscillatorIndex)])) || changedValue;
 
     return changedValue;
   }
@@ -849,11 +810,7 @@ private:
     if (mOnOscillatorValueChanged) mOnOscillatorValueChanged(oscillatorIndex, FromControlValueToRangeValue(normalizedValue));
   }
 
-  void ApplyBaseValue() {
-    if (mConfig.range.min < 0.0 && mConfig.range.max > 0.0) SetBaseValue(ToControlValueFromRangeValue(0.0));
-    else
-      SetBaseValue(0.0);
-  }
+  void ApplyBaseValue() { SetBaseValue(UsesBipolarRange() ? ToControlValueFromRangeValue(0.0) : 0.0); }
 
   int GetReadoutOscillatorIndex() const {
     if (IsVisibleOscillatorIndex(mMouseOverTrack)) return mMouseOverTrack;
@@ -863,13 +820,7 @@ private:
     return -1;
   }
 
-  // The dimmed bars and the macro line both describe what the knobs would do to this note's array, so they are
-  // drawn only when there is an array for the knobs to drive. SetEditable is the only thing that disables this
-  // control, and it means exactly "this note has no key-note patch": the curve on screen is then an
-  // element-wise interpolation of the neighbouring key notes, which the macro family cannot generally
-  // reproduce, so a fit line drawn over it would report a residual that is an artifact of the interpolation
-  // rather than anything about the patch. Dropping the whole macros appearance leaves the bars rendering
-  // identically in either mode, which is honest, since a non-key note is equally uneditable in both.
+  // Interpolated non-key notes have no editable array for the macro knobs to drive.
   bool UsesMacrosModeAppearance() const { return mMacrosMode && !IsDisabled(); }
 
   bool IsVisibleOscillatorIndex(int oscillatorIndex) const {
@@ -894,8 +845,6 @@ private:
     g.DrawText(MakeReadoutText("Roboto-Black", 12.f, EAlign::Center, EVAlign::Top), harmonicNumber.Get(), bottomBand, &mBlend);
   }
 
-  // The macro line is drawn in the tab's current Y transform, through the centre of each visible bar, so its
-  // distance from the bar tops is exactly the error the first knob move would snap away.
   void DrawMacroCurve(IGraphics& g) const {
     const int nVals = NVals();
     const int visibleMin = std::clamp(mVisibleOscillatorMin, 0, nVals - 1);
@@ -1002,9 +951,7 @@ private:
   IsOscillatorEditableFunc mIsOscillatorEditable{};
   GetOscillatorEditModeFunc mGetOscillatorEditMode{};
   ControlState mDrawLineSourceValues{};
-  int mDrawLineStartOscillator{-1};
-  double mDrawLineStartControlValue{0.0};
-  bool mHasDrawLineStartPoint{false};
+  MouseEditPoint mDrawLineStartPoint{};
   double mPreviousStepwiseCursorValue{0.0};
   bool mHasPreviousStepwiseDragPoint{false};
   bool mMacrosMode{false};
