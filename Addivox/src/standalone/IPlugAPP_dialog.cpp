@@ -65,7 +65,6 @@ void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* in
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
 }
 
-// Refresh after changing the driver or output device.
 void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg) {
 #ifdef OS_WIN
   Button_Enable(GetDlgItem(hwndDlg, IDC_BUTTON_OS_DEV_SETTINGS), mState.mAudioDriverType == kDeviceASIO);
@@ -88,93 +87,60 @@ void IPlugAPPHost::PopulateAudioDialogs(HWND hwndDlg) {
   PopulateDriverSpecificControls(hwndDlg);
 
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_RESETCONTENT, 0, 0);
-  for (int i = 0; i < kNumBufferSizeOptions; i++) {
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_ADDSTRING, 0, (LPARAM)kBufferSizeOptions[i].c_str());
-  }
+  for (const auto& size : kBufferSizeOptions) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_ADDSTRING, 0, (LPARAM)size.c_str());
 
   WDL_String str;
   str.SetFormatted(32, "%i", mState.mBufferSize);
 
-  LRESULT iovsidx = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_FINDSTRINGEXACT, -1, (LPARAM)str.Get());
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_SETCURSEL, iovsidx, 0);
+  const LRESULT selected = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_FINDSTRINGEXACT, -1, (LPARAM)str.Get());
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_SETCURSEL, selected, 0);
 }
 
 bool IPlugAPPHost::PopulateMidiDialogs(HWND hwndDlg) {
   if (!mMidiIn || !mMidiOut) return false;
-  else {
-    for (int i = 0; i < mMidiInputDevNames.size(); i++) {
-      SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_DEV, CB_ADDSTRING, 0, (LPARAM)mMidiInputDevNames[i].c_str());
-    }
 
-    LRESULT indevidx = SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_DEV, CB_FINDSTRINGEXACT, -1, (LPARAM)mState.mMidiInDev.Get());
+  auto populateDevices = [&](int control, const std::vector<std::string>& names, WDL_String& selectedDevice) {
+    for (const auto& name : names) SendDlgItemMessage(hwndDlg, control, CB_ADDSTRING, 0, (LPARAM)name.c_str());
 
-    // if the midi port name wasn't found update the ini file, and set to off
-    if (indevidx == -1) {
-      mState.mMidiInDev.Set("off");
+    LRESULT selected = SendDlgItemMessage(hwndDlg, control, CB_FINDSTRINGEXACT, -1, (LPARAM)selectedDevice.Get());
+    if (selected == CB_ERR) {
+      selectedDevice.Set("off");
       UpdateINI();
-      indevidx = 0;
+      selected = 0;
     }
+    SendDlgItemMessage(hwndDlg, control, CB_SETCURSEL, selected, 0);
+  };
 
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_DEV, CB_SETCURSEL, indevidx, 0);
+  populateDevices(IDC_COMBO_MIDI_IN_DEV, mMidiInputDevNames, mState.mMidiInDev);
+  populateDevices(IDC_COMBO_MIDI_OUT_DEV, mMidiOutputDevNames, mState.mMidiOutDev);
 
-    for (int i = 0; i < mMidiOutputDevNames.size(); i++) {
-      SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_DEV, CB_ADDSTRING, 0, (LPARAM)mMidiOutputDevNames[i].c_str());
-    }
-
-    LRESULT outdevidx = SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_DEV, CB_FINDSTRINGEXACT, -1, (LPARAM)mState.mMidiOutDev.Get());
-
-    // if the midi port name wasn't found update the ini file, and set to off
-    if (outdevidx == -1) {
-      mState.mMidiOutDev.Set("off");
-      UpdateINI();
-      outdevidx = 0;
-    }
-
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_DEV, CB_SETCURSEL, outdevidx, 0);
-
-    // Populate MIDI channel dialogs
-
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_ADDSTRING, 0, (LPARAM) "all");
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_ADDSTRING, 0, (LPARAM) "all");
-
-    WDL_String buf;
-
-    for (int i = 0; i < 16; i++) {
-      buf.SetFormatted(20, "%i", i + 1);
-      SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_ADDSTRING, 0, (LPARAM)buf.Get());
-      SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_ADDSTRING, 0, (LPARAM)buf.Get());
-    }
-
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_SETCURSEL, (LPARAM)mState.mMidiInChan, 0);
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_SETCURSEL, (LPARAM)mState.mMidiOutChan, 0);
-
-    return true;
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_ADDSTRING, 0, (LPARAM) "all");
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_ADDSTRING, 0, (LPARAM) "all");
+  WDL_String channel;
+  for (int i = 1; i <= 16; ++i) {
+    channel.SetFormatted(20, "%i", i);
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_ADDSTRING, 0, (LPARAM)channel.Get());
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_ADDSTRING, 0, (LPARAM)channel.Get());
   }
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_SETCURSEL, mState.mMidiInChan, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_SETCURSEL, mState.mMidiOutChan, 0);
+  return true;
 }
 
-#ifdef OS_WIN
 void IPlugAPPHost::PopulatePreferencesDialog(HWND hwndDlg) {
+#ifdef OS_WIN
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_ADDSTRING, 0, (LPARAM) "DirectSound");
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_ADDSTRING, 0, (LPARAM) "ASIO");
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_ADDSTRING, 0, (LPARAM) "WASAPI");
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_SETCURSEL, mState.mAudioDriverType, 0);
-
-  PopulateAudioDialogs(hwndDlg);
-  PopulateMidiDialogs(hwndDlg);
-}
-
 #elif defined OS_MAC
-void IPlugAPPHost::PopulatePreferencesDialog(HWND hwndDlg) {
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_ADDSTRING, 0, (LPARAM) "CoreAudio");
-  // SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_DRIVER,CB_ADDSTRING,0,(LPARAM)"Jack");
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_SETCURSEL, mState.mAudioDriverType, 0);
-
-  PopulateAudioDialogs(hwndDlg);
-  PopulateMidiDialogs(hwndDlg);
-}
 #else
 #error NOT IMPLEMENTED
 #endif
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_SETCURSEL, mState.mAudioDriverType, 0);
+  PopulateAudioDialogs(hwndDlg);
+  PopulateMidiDialogs(hwndDlg);
+}
 
 WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
   IPlugAPPHost* _this = sInstance.get();
@@ -182,16 +148,16 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
   AppState& mTempState = _this->mTempState;
   AppState& mActiveState = _this->mActiveState;
 
-  auto getComboString = [&](WDL_String& str, int item, WPARAM idx) {
-    std::string tempString;
-    long len = (long)SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXTLEN, idx, 0) + 1;
+  auto selectedIndex = [&](int control) { return (int)SendDlgItemMessage(hwndDlg, control, CB_GETCURSEL, 0, 0); };
+  auto readSelectedDevice = [&](WDL_String& str, int item) {
+    const int idx = selectedIndex(item);
+    const long len = (long)SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXTLEN, idx, 0) + 1;
     if (len <= 0) return;
-    tempString.resize(len);
+    std::string tempString(len, '\0');
     SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXT, idx, (LPARAM)tempString.data());
     str.Set(tempString.c_str());
   };
 
-  int v = 0;
   switch (uMsg) {
   case WM_INITDIALOG:
 #ifdef OS_WIN
@@ -211,7 +177,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
     case IDOK:
       if (mActiveState != mState) _this->TryToChangeAudio();
 
-      EndDialog(hwndDlg, IDOK); // INI file will be changed see MainDialogProc
+      EndDialog(hwndDlg, IDOK); // MainDlgProc saves the settings.
       break;
     case IDAPPLY: _this->TryToChangeAudio(); break;
     case IDCANCEL:
@@ -230,17 +196,15 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
     case IDC_COMBO_AUDIO_DRIVER:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        v = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_GETCURSEL, 0, 0);
-
-        if (v != mState.mAudioDriverType) {
-          mState.mAudioDriverType = v;
+        const int driver = selectedIndex(IDC_COMBO_AUDIO_DRIVER);
+        if (driver != mState.mAudioDriverType) {
+          mState.mAudioDriverType = driver;
 
           _this->TryToChangeAudioDriverType();
           _this->ProbeAudioIO();
 
-          if (_this->mAudioOutputDevIDs.size()) mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevIDs[0]).c_str());
+          if (!_this->mAudioOutputDevIDs.empty()) mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevIDs[0]).c_str());
 
-          // Reset IO
           mState.mAudioOutChanL = 1;
           mState.mAudioOutChanR = 2;
 
@@ -251,10 +215,8 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
     case IDC_COMBO_AUDIO_OUT_DEV:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        int idx = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_GETCURSEL, 0, 0);
-        getComboString(mState.mAudioOutDev, IDC_COMBO_AUDIO_OUT_DEV, idx);
+        readSelectedDevice(mState.mAudioOutDev, IDC_COMBO_AUDIO_OUT_DEV);
 
-        // Reset IO
         mState.mAudioOutChanL = 1;
         mState.mAudioOutChanR = 2;
 
@@ -264,29 +226,26 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
     case IDC_COMBO_AUDIO_OUT_L:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        mState.mAudioOutChanL = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_GETCURSEL, 0, 0) + 1;
+        mState.mAudioOutChanL = selectedIndex(IDC_COMBO_AUDIO_OUT_L) + 1;
 
-        // TEMP
         mState.mAudioOutChanR = mState.mAudioOutChanL + 1;
         SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
-        //
       }
       break;
 
     case IDC_COMBO_AUDIO_OUT_R:
-      if (HIWORD(wParam) == CBN_SELCHANGE) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0); // TEMP
-      mState.mAudioOutChanR = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_GETCURSEL, 0, 0);
+      if (HIWORD(wParam) == CBN_SELCHANGE) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
+      mState.mAudioOutChanR = selectedIndex(IDC_COMBO_AUDIO_OUT_R);
       break;
 
-    case IDC_COMBO_AUDIO_BUF_SIZE: // follow through
+    case IDC_COMBO_AUDIO_BUF_SIZE:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        int iovsidx = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_BUF_SIZE, CB_GETCURSEL, 0, 0);
-        mState.mBufferSize = atoi(kBufferSizeOptions[iovsidx].c_str());
+        mState.mBufferSize = atoi(kBufferSizeOptions[selectedIndex(IDC_COMBO_AUDIO_BUF_SIZE)].c_str());
       }
       break;
     case IDC_COMBO_AUDIO_SR:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        int idx = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_SR, CB_GETCURSEL, 0, 0);
+        int idx = selectedIndex(IDC_COMBO_AUDIO_SR);
         mState.mAudioSR = (uint32_t)SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_SR, CB_GETITEMDATA, idx, 0);
       }
       break;
@@ -294,7 +253,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
     case IDC_BUTTON_OS_DEV_SETTINGS:
       if (HIWORD(wParam) == BN_CLICKED) {
 #ifdef OS_WIN
-        if ((_this->mState.mAudioDriverType == kDeviceASIO) && (_this->mDAC->isStreamRunning() == true)) // TODO: still not right
+        if (mState.mAudioDriverType == kDeviceASIO && _this->mDAC->isStreamRunning())
           ASIOControlPanel();
 #elif defined OS_MAC
         if (SWELL_GetOSXVersion() >= 0x1200) {
@@ -310,26 +269,24 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
     case IDC_COMBO_MIDI_IN_DEV:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        int idx = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_DEV, CB_GETCURSEL, 0, 0);
-        getComboString(mState.mMidiInDev, IDC_COMBO_MIDI_IN_DEV, idx);
+        readSelectedDevice(mState.mMidiInDev, IDC_COMBO_MIDI_IN_DEV);
         _this->SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
       }
       break;
 
     case IDC_COMBO_MIDI_OUT_DEV:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        int idx = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_DEV, CB_GETCURSEL, 0, 0);
-        getComboString(mState.mMidiOutDev, IDC_COMBO_MIDI_OUT_DEV, idx);
+        readSelectedDevice(mState.mMidiOutDev, IDC_COMBO_MIDI_OUT_DEV);
         _this->SelectMIDIDevice(ERoute::kOutput, mState.mMidiOutDev.Get());
       }
       break;
 
     case IDC_COMBO_MIDI_IN_CHAN:
-      if (HIWORD(wParam) == CBN_SELCHANGE) mState.mMidiInChan = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_GETCURSEL, 0, 0);
+      if (HIWORD(wParam) == CBN_SELCHANGE) mState.mMidiInChan = selectedIndex(IDC_COMBO_MIDI_IN_CHAN);
       break;
 
     case IDC_COMBO_MIDI_OUT_CHAN:
-      if (HIWORD(wParam) == CBN_SELCHANGE) mState.mMidiOutChan = (int)SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_OUT_CHAN, CB_GETCURSEL, 0, 0);
+      if (HIWORD(wParam) == CBN_SELCHANGE) mState.mMidiOutChan = selectedIndex(IDC_COMBO_MIDI_OUT_CHAN);
       break;
 
     default: break;
@@ -340,27 +297,56 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
   return TRUE;
 }
 
-static void ClientResize(HWND hWnd, int width, int height) {
-  RECT rcClient, rcWindow;
-  POINT ptDiff;
-  int screenwidth, screenheight;
-  int x, y;
-
-  screenwidth = GetSystemMetrics(SM_CXSCREEN);
-  screenheight = GetSystemMetrics(SM_CYSCREEN);
-  x = (screenwidth / 2) - (width / 2);
-  y = (screenheight / 2) - (height / 2);
-
-  GetClientRect(hWnd, &rcClient);
-  GetWindowRect(hWnd, &rcWindow);
-
-  ptDiff.x = (rcWindow.right - rcWindow.left) - rcClient.right;
-  ptDiff.y = (rcWindow.bottom - rcWindow.top) - rcClient.bottom;
-
-  SetWindowPos(hWnd, 0, x, y, width + ptDiff.x, height + ptDiff.y, 0);
+static POINT WindowFrameSize(HWND hwnd) {
+  RECT client, window;
+  GetClientRect(hwnd, &client);
+  GetWindowRect(hwnd, &window);
+  return {(window.right - window.left) - client.right, (window.bottom - window.top) - client.bottom};
 }
 
-// static
+static void ClientResize(HWND hwnd, int width, int height) {
+  const int x = GetSystemMetrics(SM_CXSCREEN) / 2 - width / 2;
+  const int y = GetSystemMetrics(SM_CYSCREEN) / 2 - height / 2;
+  const POINT frame = WindowFrameSize(hwnd);
+  SetWindowPos(hwnd, 0, x, y, width + frame.x, height + frame.y, 0);
+}
+
+#ifdef ID_SCREENSHOT
+static void SaveScreenshot(HWND hwndDlg) {
+  WDL_String path;
+  char timestamp[32];
+  time_t now = time(nullptr);
+  strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", localtime(&now));
+
+#ifdef OS_WIN
+  char tempPath[MAX_PATH];
+  GetTempPathA(MAX_PATH, tempPath);
+  path.SetFormatted(512, "%s%s_screenshot_%s.png", tempPath, PLUG_NAME, timestamp);
+#elif defined OS_MAC
+  const char* tmpDir = getenv("TMPDIR");
+  path.SetFormatted(512, "%s%s_screenshot_%s.png", tmpDir ? tmpDir : "/tmp/", PLUG_NAME, timestamp);
+#endif
+
+  if (SaveWindowScreenshot(gHWND, path.Get())) {
+    WDL_String msg;
+    msg.SetFormatted(512, "Screenshot saved to:\n%s\n\nOpen it?", path.Get());
+    int result = MessageBox(hwndDlg, msg.Get(), "Screenshot Saved", MB_YESNO);
+
+    if (result == IDYES) {
+#ifdef OS_WIN
+      ShellExecuteA(NULL, "open", path.Get(), NULL, NULL, SW_SHOWNORMAL);
+#elif defined OS_MAC
+      WDL_String cmd;
+      cmd.SetFormatted(1024, "open \"%s\"", path.Get());
+      system(cmd.Get());
+#endif
+    }
+  } else {
+    MessageBox(hwndDlg, "Failed to save screenshot", "Error", MB_OK);
+  }
+}
+#endif
+
 WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
   IPlugAPPHost* pAppHost = IPlugAPPHost::sInstance.get();
 
@@ -377,9 +363,9 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
     ShowWindow(hwndDlg, SW_SHOW);
 
-    // If in screenshot mode, start timer to take screenshot after UI initializes
+    // Let the UI initialize before capturing it.
     if (pAppHost->IsScreenshotMode()) {
-      SetTimer(hwndDlg, IDT_SCREENSHOT_TIMER, 500, nullptr); // 500ms delay
+      SetTimer(hwndDlg, IDT_SCREENSHOT_TIMER, 500, nullptr);
     }
 
     return 1;
@@ -390,7 +376,6 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
 
       SaveWindowScreenshot(gHWND, pAppHost->GetScreenshotPath());
 
-      // Exit the application
       DestroyWindow(hwndDlg);
       return 0;
     }
@@ -418,24 +403,14 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     case ID_ABOUT: {
       IPlugAPP* pPlug = pAppHost->GetPlug();
 
-      bool pluginOpensAboutBox = pPlug->OnHostRequestingAboutBox();
-
-      if (pluginOpensAboutBox == false) {
-        WDL_String info;
-        info.Append(PLUG_COPYRIGHT_STR "\nBuilt on " __DATE__);
-        MessageBox(hwndDlg, info.Get(), PLUG_NAME, MB_OK);
-      }
+      if (!pPlug->OnHostRequestingAboutBox()) MessageBox(hwndDlg, PLUG_COPYRIGHT_STR "\nBuilt on " __DATE__, PLUG_NAME, MB_OK);
 
       return 0;
     }
     case ID_HELP: {
       IPlugAPP* pPlug = pAppHost->GetPlug();
 
-      bool pluginOpensHelp = pPlug->OnHostRequestingProductHelp();
-
-      if (pluginOpensHelp == false) {
-        MessageBox(hwndDlg, "See the manual", PLUG_NAME, MB_OK);
-      }
+      if (!pPlug->OnHostRequestingProductHelp()) MessageBox(hwndDlg, "See the manual", PLUG_NAME, MB_OK);
       return 0;
     }
     case ID_PREFERENCES: {
@@ -446,103 +421,37 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
       return 0;
     }
 #ifdef ID_SCREENSHOT
-    case ID_SCREENSHOT: {
-      // Generate filename with timestamp
-      WDL_String path;
-      char timestamp[32];
-      time_t now = time(nullptr);
-      strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", localtime(&now));
-
-// Get temp directory
-#ifdef OS_WIN
-      char tempPath[MAX_PATH];
-      GetTempPathA(MAX_PATH, tempPath);
-      path.SetFormatted(512, "%s%s_screenshot_%s.png", tempPath, PLUG_NAME, timestamp);
-#elif defined OS_MAC
-      const char* tmpDir = getenv("TMPDIR");
-      path.SetFormatted(512, "%s%s_screenshot_%s.png", tmpDir ? tmpDir : "/tmp/", PLUG_NAME, timestamp);
-#endif
-
-      if (SaveWindowScreenshot(gHWND, path.Get())) {
-        WDL_String msg;
-        msg.SetFormatted(512, "Screenshot saved to:\n%s\n\nOpen it?", path.Get());
-        int result = MessageBox(hwndDlg, msg.Get(), "Screenshot Saved", MB_YESNO);
-
-        if (result == IDYES) {
-#ifdef OS_WIN
-          ShellExecuteA(NULL, "open", path.Get(), NULL, NULL, SW_SHOWNORMAL);
-#elif defined OS_MAC
-          WDL_String cmd;
-          cmd.SetFormatted(1024, "open \"%s\"", path.Get());
-          system(cmd.Get());
-#endif
-        }
-      } else {
-        MessageBox(hwndDlg, "Failed to save screenshot", "Error", MB_OK);
-      }
-
-      return 0;
-    }
+    case ID_SCREENSHOT: SaveScreenshot(hwndDlg); return 0;
 #endif
 #if defined _DEBUG && !defined NO_IGRAPHICS
-    case ID_LIVE_EDIT: {
-      IGEditorDelegate* pPlug = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
-
-      if (pPlug) {
-        IGraphics* pGraphics = pPlug->GetUI();
-
-        if (pGraphics) {
-          bool enabled = pGraphics->LiveEditEnabled();
-          pGraphics->EnableLiveEdit(!enabled);
-          CheckMenuItem(GET_MENU(), ID_LIVE_EDIT, (MF_BYCOMMAND | enabled) ? MF_UNCHECKED : MF_CHECKED);
-        }
-      }
-
-      return 0;
-    }
-    case ID_SHOW_DRAWN: {
-      IGEditorDelegate* pPlug = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
-
-      if (pPlug) {
-        IGraphics* pGraphics = pPlug->GetUI();
-
-        if (pGraphics) {
-          bool enabled = pGraphics->ShowAreaDrawnEnabled();
-          pGraphics->ShowAreaDrawn(!enabled);
-          CheckMenuItem(GET_MENU(), ID_SHOW_DRAWN, (MF_BYCOMMAND | enabled) ? MF_UNCHECKED : MF_CHECKED);
-        }
-      }
-
-      return 0;
-    }
-    case ID_SHOW_BOUNDS: {
-      IGEditorDelegate* pPlug = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
-
-      if (pPlug) {
-        IGraphics* pGraphics = pPlug->GetUI();
-
-        if (pGraphics) {
-          bool enabled = pGraphics->ShowControlBoundsEnabled();
-          pGraphics->ShowControlBounds(!enabled);
-          CheckMenuItem(GET_MENU(), ID_SHOW_BOUNDS, (MF_BYCOMMAND | enabled) ? MF_UNCHECKED : MF_CHECKED);
-        }
-      }
-
-      return 0;
-    }
+    case ID_LIVE_EDIT:
+    case ID_SHOW_DRAWN:
+    case ID_SHOW_BOUNDS:
     case ID_SHOW_FPS: {
-      IGEditorDelegate* pPlug = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
+      auto* editor = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
+      IGraphics* graphics = editor ? editor->GetUI() : nullptr;
+      if (!graphics) return 0;
 
-      if (pPlug) {
-        IGraphics* pGraphics = pPlug->GetUI();
-
-        if (pGraphics) {
-          bool enabled = pGraphics->ShowingFPSDisplay();
-          pGraphics->ShowFPSDisplay(!enabled);
-          CheckMenuItem(GET_MENU(), ID_SHOW_FPS, (MF_BYCOMMAND | enabled) ? MF_UNCHECKED : MF_CHECKED);
-        }
+      bool enabled = false;
+      switch (LOWORD(wParam)) {
+      case ID_LIVE_EDIT:
+        enabled = graphics->LiveEditEnabled();
+        graphics->EnableLiveEdit(!enabled);
+        break;
+      case ID_SHOW_DRAWN:
+        enabled = graphics->ShowAreaDrawnEnabled();
+        graphics->ShowAreaDrawn(!enabled);
+        break;
+      case ID_SHOW_BOUNDS:
+        enabled = graphics->ShowControlBoundsEnabled();
+        graphics->ShowControlBounds(!enabled);
+        break;
+      case ID_SHOW_FPS:
+        enabled = graphics->ShowingFPSDisplay();
+        graphics->ShowFPSDisplay(!enabled);
+        break;
       }
-
+      CheckMenuItem(GET_MENU(), LOWORD(wParam), (MF_BYCOMMAND | enabled) ? MF_UNCHECKED : MF_CHECKED);
       return 0;
     }
 #endif
@@ -571,19 +480,10 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
   }
 #ifdef OS_WIN
   case WM_DPICHANGED: {
-    WORD dpi = HIWORD(wParam);
     RECT* rect = (RECT*)lParam;
     float scale = GetScaleForHWND(hwndDlg);
 
-    POINT ptDiff;
-    RECT rcClient;
-    RECT rcWindow;
-
-    GetClientRect(hwndDlg, &rcClient);
-    GetWindowRect(hwndDlg, &rcWindow);
-
-    ptDiff.x = (rcWindow.right - rcWindow.left) - rcClient.right;
-    ptDiff.y = (rcWindow.bottom - rcWindow.top) - rcClient.bottom;
+    const POINT frame = WindowFrameSize(hwndDlg);
 
 #ifndef NO_IGRAPHICS
     IGEditorDelegate* pPlug = dynamic_cast<IGEditorDelegate*>(pAppHost->GetPlug());
@@ -602,7 +502,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     int w = pPlug->GetEditorWidth();
     int h = pPlug->GetEditorHeight();
 
-    SetWindowPos(hwndDlg, 0, rect->left, rect->top, w + ptDiff.x, h + ptDiff.y, 0);
+    SetWindowPos(hwndDlg, 0, rect->left, rect->top, w + frame.x, h + frame.y, 0);
 
     return 0;
   }
