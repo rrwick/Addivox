@@ -12,7 +12,6 @@
 #include <limits>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace plugin_ui {
 using namespace iplug;
@@ -33,14 +32,10 @@ public:
   const EqCurve& GetCurve() const { return mCurve; }
 
   void SetEditable(bool editable) {
-    if (IsEditable() == editable) {
-      if (!editable) ClearDraggedPointSelection();
-      return;
-    }
-
-    SetDisabled(!editable);
+    const bool changed = IsEditable() != editable;
+    if (changed) SetDisabled(!editable);
     if (!editable) ClearDraggedPointSelection();
-    SetDirty(false);
+    if (changed) SetDirty(false);
   }
 
   bool IsEditable() const { return !IsDisabled(); }
@@ -67,11 +62,7 @@ public:
     mRestoreCurve = EqCurve{};
   }
 
-  bool HasRestoreState() const { return mHasRestoreState; }
-
   bool HasRestoreStateForMidiNote(int midiNote) const { return mHasRestoreState && (mRestoreMidiNote == midiNote); }
-
-  int GetRestoreMidiNote() const { return mRestoreMidiNote; }
 
   const EqCurve& GetRestoreState() const { return mRestoreCurve; }
 
@@ -82,9 +73,6 @@ public:
     g.DrawRoundRect(colour::visualizer::kFrame, mRECT, kCornerRadius, &mBlend, 1.f);
 
     const IRECT plotBounds = GetPlotBounds();
-    const IRECT gainLabelBounds = GetGainLabelBounds();
-    const IRECT frequencyLabelBounds = GetFrequencyLabelBounds();
-    const IText axisText{11.f, colour::visualizer::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle};
 
     DrawFrequencyGrid(g, plotBounds);
     DrawGainGrid(g, plotBounds);
@@ -92,15 +80,7 @@ public:
 
     if (IsEditable()) DrawPoints(g, plotBounds);
 
-    for (std::size_t i = 0; i < kYAxisDbLabels.size(); ++i) {
-      const float y = YFromDb(kYAxisDbLabels[i], plotBounds);
-      g.DrawText(axisText, kYAxisLabelStrings[i], IRECT(gainLabelBounds.L, y - 7.f, gainLabelBounds.R, y + 7.f), nullptr);
-    }
-
-    for (std::size_t i = 0; i < kFrequencyLabelsHz.size(); ++i) {
-      const float x = XFromFrequency(kFrequencyLabelsHz[i], plotBounds);
-      g.DrawText(axisText, kFrequencyLabelStrings[i], IRECT(x - 30.f, frequencyLabelBounds.T, x + 30.f, frequencyLabelBounds.B), nullptr);
-    }
+    DrawAxisLabels(g, plotBounds);
 
     if (IsEditable()) DrawDraggedPointValueBubble(g, plotBounds);
   }
@@ -157,14 +137,10 @@ private:
     const int hitPointIndex = HitTestPoint(x, y);
     if (hitPointIndex >= 0 && static_cast<std::size_t>(hitPointIndex) < points.size()) {
       points.erase(points.begin() + hitPointIndex);
-      mCurve.SetPoints(std::move(points));
-      ClearDraggedPointSelection();
-      NotifyCurveChanged();
-      return;
+    } else {
+      const IRECT plotBounds = GetPlotBounds();
+      points.push_back({FrequencyFromX(x, plotBounds), GainDbFromY(y, plotBounds)});
     }
-
-    const IRECT plotBounds = GetPlotBounds();
-    points.push_back({FrequencyFromX(x, plotBounds), GainDbFromY(y, plotBounds)});
     mCurve.SetPoints(std::move(points));
     ClearDraggedPointSelection();
     NotifyCurveChanged();
@@ -192,7 +168,6 @@ private:
   static constexpr std::array<const char*, 6> kYAxisLabelStrings{"mute", "-24", "-12", "0", "+12", "+24"};
 
   static bool IsMajorGridFrequency(float frequencyHz) {
-    // Returns true if the frequency is a power of 10.
     const float log10 = std::log10(frequencyHz);
     return std::fabs(log10 - std::round(log10)) < 0.01;
   }
@@ -257,14 +232,20 @@ private:
     return IRECT(innerBounds.L + kLeftLabelWidth, innerBounds.T + 8.f, innerBounds.R - 8.f, innerBounds.B - kBottomLabelHeight);
   }
 
-  IRECT GetGainLabelBounds() const {
-    const IRECT plotBounds = GetPlotBounds();
-    return IRECT(mRECT.L + 4.f, plotBounds.T, plotBounds.L - 6.f, plotBounds.B);
-  }
+  void DrawAxisLabels(IGraphics& g, const IRECT& plotBounds) const {
+    const IText axisText{11.f, colour::visualizer::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle};
+    const IRECT gainLabelBounds{mRECT.L + 4.f, plotBounds.T, plotBounds.L - 6.f, plotBounds.B};
+    const IRECT frequencyLabelBounds{plotBounds.L, plotBounds.B + 2.f, plotBounds.R, mRECT.B - 2.f};
 
-  IRECT GetFrequencyLabelBounds() const {
-    const IRECT plotBounds = GetPlotBounds();
-    return IRECT(plotBounds.L, plotBounds.B + 2.f, plotBounds.R, mRECT.B - 2.f);
+    for (std::size_t i = 0; i < kYAxisDbLabels.size(); ++i) {
+      const float y = YFromDb(kYAxisDbLabels[i], plotBounds);
+      g.DrawText(axisText, kYAxisLabelStrings[i], IRECT(gainLabelBounds.L, y - 7.f, gainLabelBounds.R, y + 7.f), nullptr);
+    }
+
+    for (std::size_t i = 0; i < kFrequencyLabelsHz.size(); ++i) {
+      const float x = XFromFrequency(kFrequencyLabelsHz[i], plotBounds);
+      g.DrawText(axisText, kFrequencyLabelStrings[i], IRECT(x - 30.f, frequencyLabelBounds.T, x + 30.f, frequencyLabelBounds.B), nullptr);
+    }
   }
 
   void DrawFrequencyGrid(IGraphics& g, const IRECT& plotBounds) const {
@@ -278,33 +259,30 @@ private:
   void DrawGainGrid(IGraphics& g, const IRECT& plotBounds) const {
     for (const double gainDb : kYAxisDbLabels) {
       const float y = YFromDb(gainDb, plotBounds);
-      const IColor color = (std::fabs(gainDb) < 0.01f) ? colour::visualizer::kCenterLine : colour::visualizer::kGridMinor;
-      g.DrawLine(color, plotBounds.L, y, plotBounds.R, y, &mBlend, (std::fabs(gainDb) < 0.01f) ? 1.1f : 1.f);
+      const bool isZeroDb = std::fabs(gainDb) < 0.01f;
+      const IColor color = isZeroDb ? colour::visualizer::kCenterLine : colour::visualizer::kGridMinor;
+      g.DrawLine(color, plotBounds.L, y, plotBounds.R, y, &mBlend, isZeroDb ? 1.1f : 1.f);
     }
   }
 
   void DrawCurve(IGraphics& g, const IRECT& plotBounds) const {
-    const auto drawSmoothedCurve = [&](const EqCurve& curve, const IColor& color, float thickness) {
-      const int numSamples = std::max(2, static_cast<int>(std::ceil(plotBounds.W())));
-      for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
-        const float t = (numSamples <= 1) ? 0.f : static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
-        const float x = plotBounds.L + (t * plotBounds.W());
-        const float y = YFromDb(curve.EvaluateDb(FrequencyFromX(x, plotBounds)), plotBounds);
-        if (sampleIndex == 0) g.PathMoveTo(x, y);
-        else
-          g.PathLineTo(x, y);
-      }
+    const int numSamples = std::max(2, static_cast<int>(std::ceil(plotBounds.W())));
+    for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
+      const float t = static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
+      const float x = plotBounds.L + (t * plotBounds.W());
+      const float y = YFromDb(mCurve.EvaluateDb(FrequencyFromX(x, plotBounds)), plotBounds);
+      if (sampleIndex == 0) g.PathMoveTo(x, y);
+      else
+        g.PathLineTo(x, y);
+    }
 
-      IStrokeOptions strokeOptions;
-      strokeOptions.mCapOption = ELineCap::Round;
-      strokeOptions.mJoinOption = ELineJoin::Round;
-      g.PathStroke(color, thickness, strokeOptions, &mBlend);
-    };
-
-    const IColor glowColor = colour::ui::kAccentPrimary.WithOpacity(70);
-    const IColor lineColor = colour::ui::kAccentPrimary;
-    drawSmoothedCurve(mCurve, glowColor, kCurveThicknessPx + 3.f);
-    drawSmoothedCurve(mCurve, lineColor, kCurveThicknessPx);
+    IStrokeOptions strokeOptions;
+    strokeOptions.mCapOption = ELineCap::Round;
+    strokeOptions.mJoinOption = ELineJoin::Round;
+    strokeOptions.mPreserve = true;
+    g.PathStroke(colour::ui::kAccentPrimary.WithOpacity(70), kCurveThicknessPx + 3.f, strokeOptions, &mBlend);
+    strokeOptions.mPreserve = false;
+    g.PathStroke(colour::ui::kAccentPrimary, kCurveThicknessPx, strokeOptions, &mBlend);
   }
 
   void DrawPoints(IGraphics& g, const IRECT& plotBounds) const {
@@ -337,19 +315,13 @@ private:
     const double normalizedGainDb = (std::abs(roundedGainDb) < 0.05) ? 0.0 : roundedGainDb;
 
     std::array<char, 24> buffer{};
-    if (normalizedGainDb > 0.0) std::snprintf(buffer.data(), buffer.size(), "+%.1f dB", normalizedGainDb);
-    else
-      std::snprintf(buffer.data(), buffer.size(), "%.1f dB", normalizedGainDb);
+    std::snprintf(buffer.data(), buffer.size(), normalizedGainDb > 0.0 ? "+%.1f dB" : "%.1f dB", normalizedGainDb);
 
     return std::string{buffer.data()};
   }
 
   void DrawDraggedPointValueBubble(IGraphics& g, const IRECT& plotBounds) const {
-    if (mDraggedPointIndex == kNoPointIndex) return;
-
-    if (mDraggedPointIndex < 0 || static_cast<std::size_t>(mDraggedPointIndex) >= mCurve.GetPoints().size()) {
-      return;
-    }
+    if (mDraggedPointIndex < 0 || static_cast<std::size_t>(mDraggedPointIndex) >= mCurve.GetPoints().size()) return;
 
     constexpr float kBubbleCornerRadius = 6.f;
     constexpr float kBubblePaddingX = 8.f;
@@ -478,18 +450,8 @@ private:
   }
 
   void SyncDraggedPointIndexFromDraggedPoint() {
-    if (!mHasDraggedPoint) {
-      mDraggedPointIndex = kNoPointIndex;
-      return;
-    }
-
-    const int draggedPointIndex = FindPointIndexMatchingDraggedPoint();
-    if (draggedPointIndex == kNoPointIndex) {
-      ClearDraggedPointSelection();
-      return;
-    }
-
-    mDraggedPointIndex = draggedPointIndex;
+    mDraggedPointIndex = FindPointIndexMatchingDraggedPoint();
+    if (mDraggedPointIndex == kNoPointIndex) ClearDraggedPointSelection();
   }
 
   void ClearDraggedPointSelection() {
