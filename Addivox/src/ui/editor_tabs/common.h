@@ -429,12 +429,6 @@ inline ITextControl* CreateUtilityLabelControl(const char* text, const EditorSty
   return control;
 }
 
-inline ITextControl* CreateEditModeLabelControl(const EditorStyles& styles) {
-  auto* control = CreateUtilityLabelControl("Edit mode:", styles);
-  control->SetTooltip(help_text::oscillator_tabs::kEditMode);
-  return control;
-}
-
 inline std::size_t GetAttackReleaseTabIndex(OscillatorParameter parameter) { return parameter == OscillatorParameter::release ? 1u : 0u; }
 
 inline bool IsVariationParameter(OscillatorParameter parameter) {
@@ -607,8 +601,7 @@ inline std::size_t GetVariationTabIndex(OscillatorParameter parameter) {
   return static_cast<std::size_t>(static_cast<int>(parameter) - static_cast<int>(OscillatorParameter::level_variation_amplitude));
 }
 
-// "Macro" is the left segment (index 0) and "Detail" the right (index 1), so the mode toggle's value runs
-// opposite to the macros-mode flag. These keep that inversion in one place.
+// "Macro" is the left segment (0); "Detail" is the right (1).
 inline double GetMacrosModeToggleValue(bool macrosMode) { return macrosMode ? 0.0 : 1.0; }
 
 inline bool IsMacrosModeToggleValue(double toggleValue) { return toggleValue < 0.5; }
@@ -638,22 +631,7 @@ struct OscillatorViewRefs {
   std::shared_ptr<std::array<EditorLevelTransform, OscillatorSettings::kNumParameters>> transforms;
 };
 
-struct LevelTabRefs {
-  std::shared_ptr<ActionSelectionControl*> setShapeControl;
-  std::shared_ptr<ActionSelectionControl*> actionsControl;
-};
-
-struct BreathTabRefs {
-  std::shared_ptr<ActionSelectionControl*> setShapeControl;
-  std::shared_ptr<ActionSelectionControl*> actionsControl;
-};
-
-struct PitchTabRefs {
-  std::shared_ptr<ActionSelectionControl*> setShapeControl;
-  std::shared_ptr<ActionSelectionControl*> actionsControl;
-};
-
-struct PanTabRefs {
+struct HarmonicActionControlRefs {
   std::shared_ptr<ActionSelectionControl*> setShapeControl;
   std::shared_ptr<ActionSelectionControl*> actionsControl;
 };
@@ -705,10 +683,10 @@ struct EditorContext {
   int editorTabsTag = kNoTag;
   EditorModelRefs model;
   OscillatorViewRefs oscillatorView;
-  LevelTabRefs levelTab;
-  BreathTabRefs breathTab;
-  PitchTabRefs pitchTab;
-  PanTabRefs panTab;
+  HarmonicActionControlRefs levelTab;
+  HarmonicActionControlRefs breathTab;
+  HarmonicActionControlRefs pitchTab;
+  HarmonicActionControlRefs panTab;
   VariationTabRefs variationTab;
   AttackReleaseTabRefs attackReleaseTab;
   EqTabRefs eqTab;
@@ -887,9 +865,7 @@ struct EditorContext {
     }
   }
 
-  // A knob move regenerates the whole array and writes it. Deliberately lighter than
-  // ApplyOscillatorParameterActionToSelectedKeyNote: no edit scope, since Macro mode hides it, and no
-  // RefreshOscillatorTabs, since this runs on every mouse-move of a drag and nothing else on the page changes.
+  // Macro drags bypass the hidden edit scope and avoid refreshing unrelated controls on every mouse move.
   void ApplyMacroKnobsToSelectedKeyNote(OscillatorParameter parameter) const {
     const auto parameterIndex = static_cast<std::size_t>(parameter);
     const auto& functions = (*oscillatorTabControls.macroFunctions)[parameterIndex];
@@ -921,9 +897,6 @@ struct EditorContext {
     sliderControl->SetDirty(false);
   }
 
-  // Pushes each tab's mode onto its toggle and slider's dimmed-bar and
-  // macro-line rendering. Both are safe to set on a tab that is not showing, since neither changes what is
-  // hidden. Which controls a tab shows is ApplyMacrosModeVisibility's job.
   void SyncMacrosModeControls(bool updateCurves = false) const {
     for (const auto& descriptor : GetOscillatorTabDescriptors()) {
       const bool macrosMode = IsMacrosMode(descriptor.parameter);
@@ -977,42 +950,26 @@ struct EditorContext {
     return Patch().IsAllKeyNotesEqEnabled();
   }
 
-  void SendOscillatorParameterToDSP(IControl* sourceControl, int midiNote, int oscillatorIndex, OscillatorParameter parameter, double value) const {
+  template <typename Payload> void SendPayloadToDSP(IControl* sourceControl, int msgTag, const Payload& payload) const {
     if (!sourceControl) return;
 
-    if (auto* delegate = sourceControl->GetDelegate()) {
-      editor_messages::SetKeyNoteOscillatorParameterPayload payload;
-      payload.midiNote = midiNote;
-      payload.oscillatorIndex = oscillatorIndex;
-      payload.parameter = static_cast<int>(parameter);
-      payload.value = value;
-      delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetKeyNoteOscillatorParameter, editorTabsTag, sizeof(payload), &payload);
-    }
+    if (auto* delegate = sourceControl->GetDelegate()) delegate->SendArbitraryMsgFromUI(msgTag, editorTabsTag, sizeof(payload), &payload);
+  }
+
+  void SendOscillatorParameterToDSP(IControl* sourceControl, int midiNote, int oscillatorIndex, OscillatorParameter parameter, double value) const {
+    const editor_messages::SetKeyNoteOscillatorParameterPayload payload{midiNote, oscillatorIndex, static_cast<int>(parameter), value};
+    SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteOscillatorParameter, payload);
   }
 
   void SendOscillatorParameterValuesToDSP(IControl* sourceControl, int midiNote, OscillatorParameter parameter,
-                                          const std::array<double, SimplePatch::kNumOscillators>& values) const {
-    if (!sourceControl) return;
-
-    if (auto* delegate = sourceControl->GetDelegate()) {
-      editor_messages::SetKeyNoteOscillatorParameterValuesPayload payload;
-      payload.midiNote = midiNote;
-      payload.parameter = static_cast<int>(parameter);
-      payload.values = values;
-      delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues, editorTabsTag, sizeof(payload), &payload);
-    }
+                                          const OscillatorParameterValues& values) const {
+    const editor_messages::SetKeyNoteOscillatorParameterValuesPayload payload{midiNote, static_cast<int>(parameter), values};
+    SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues, payload);
   }
 
   void SendAllKeyNotesEnabledToDSP(IControl* sourceControl, OscillatorParameter parameter, bool enabled, int midiNote) const {
-    if (!sourceControl) return;
-
-    if (auto* delegate = sourceControl->GetDelegate()) {
-      editor_messages::SetAllKeyNotesEnabledPayload payload;
-      payload.parameter = static_cast<int>(parameter);
-      payload.enabled = enabled ? 1 : 0;
-      payload.midiNote = midiNote;
-      delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetAllKeyNotesEnabled, editorTabsTag, sizeof(payload), &payload);
-    }
+    const editor_messages::SetAllKeyNotesEnabledPayload payload{static_cast<int>(parameter), enabled ? 1 : 0, midiNote};
+    SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetAllKeyNotesEnabled, payload);
   }
 
   void SendEqCurveToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const {
@@ -1026,23 +983,11 @@ struct EditorContext {
   }
 
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const {
-    if (!sourceControl) return;
-
-    if (auto* delegate = sourceControl->GetDelegate()) {
-      editor_messages::SetAllKeyNotesEqEnabledPayload payload;
-      payload.enabled = enabled ? 1 : 0;
-      delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetAllKeyNotesEqEnabled, editorTabsTag, sizeof(payload), &payload);
-    }
+    SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetAllKeyNotesEqEnabled, editor_messages::SetAllKeyNotesEqEnabledPayload{enabled ? 1 : 0});
   }
 
   void SendKeyNotePatchEditToDSP(IControl* sourceControl, int msgTag, int midiNote) const {
-    if (!sourceControl) return;
-
-    if (auto* delegate = sourceControl->GetDelegate()) {
-      editor_messages::KeyNotePatchPayload payload;
-      payload.midiNote = midiNote;
-      delegate->SendArbitraryMsgFromUI(msgTag, editorTabsTag, sizeof(payload), &payload);
-    }
+    SendPayloadToDSP(sourceControl, msgTag, editor_messages::KeyNotePatchPayload{midiNote});
   }
 
   void SetKeyboardKeyNoteHighlight(int midiNote, bool highlighted) const {
@@ -1107,14 +1052,10 @@ struct EditorContext {
   }
 
   void SetHarmonicActionControlsDisabled(bool disabled) const {
-    SetDisabledState(*levelTab.setShapeControl,   disabled);
-    SetDisabledState(*levelTab.actionsControl,    disabled);
-    SetDisabledState(*breathTab.setShapeControl,  disabled);
-    SetDisabledState(*breathTab.actionsControl,   disabled);
-    SetDisabledState(*pitchTab.setShapeControl,   disabled);
-    SetDisabledState(*pitchTab.actionsControl,    disabled);
-    SetDisabledState(*panTab.setShapeControl,     disabled);
-    SetDisabledState(*panTab.actionsControl,      disabled);
+    for (const auto* tab : {&levelTab, &breathTab, &pitchTab, &panTab}) {
+      SetDisabledState(*tab->setShapeControl, disabled);
+      SetDisabledState(*tab->actionsControl, disabled);
+    }
     for (auto* control : *variationTab.setShapeControls)     SetDisabledState(control, disabled);
     for (auto* control : *variationTab.actionsControls)      SetDisabledState(control, disabled);
     for (auto* control : *attackReleaseTab.setShapeControls) SetDisabledState(control, disabled);
@@ -1126,6 +1067,63 @@ struct EditorContext {
     }
   }
 
+  void DisableTabsForInvalidMidiNote() const {
+    for (std::size_t i = 0; i < oscillatorTabControls.sliderControls->size(); ++i) {
+      if (auto* control = (*oscillatorTabControls.sliderControls)[i]) control->SetEditable(false);
+
+      if (auto* toggle = (*oscillatorTabControls.allKeyNotesToggles)[i]) {
+        SetControlValueSilently(toggle, IsAllKeyNotesEnabled(static_cast<OscillatorParameter>(i)) ? 1.0 : 0.0);
+        SetDisabledState(toggle, true);
+      }
+
+      SetDisabledState((*oscillatorTabControls.restoreButtons)[i], true);
+    }
+
+    SetHarmonicActionControlsDisabled(true);
+
+    if (eqTab.editorControl && *eqTab.editorControl) {
+      (*eqTab.editorControl)->SetCurve(EqCurve{});
+      (*eqTab.editorControl)->SetEditable(false);
+    }
+
+    SetDisabledState(*eqTab.setShapeControl, true);
+    SetDisabledState(*eqTab.actionsControl, true);
+    if (eqTab.allKeyNotesToggle && *eqTab.allKeyNotesToggle) {
+      (*eqTab.allKeyNotesToggle)->SetValue(IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
+      (*eqTab.allKeyNotesToggle)->SetDirty(false);
+      SetDisabledState(*eqTab.allKeyNotesToggle, true);
+    }
+    SetDisabledState(*eqTab.restoreButton, true);
+  }
+
+  void RefreshHarmonicTab(const OscillatorTabDescriptor& descriptor, const SimplePatch& selectedPatch, int midiNote, bool editable) const {
+    const auto parameterIndex = static_cast<std::size_t>(descriptor.parameter);
+    auto* control = (*oscillatorTabControls.sliderControls)[parameterIndex];
+    if (!control) return;
+
+    bool sliderChanged = false;
+    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+      const double value = selectedPatch.GetOscillatorSettings(oscillatorIndex).GetParameter(descriptor.parameter);
+      if (AreNearlyEqual(control->GetOscillatorValue(oscillatorIndex), value)) continue;
+
+      control->SetOscillatorValue(oscillatorIndex, value);
+      sliderChanged = true;
+    }
+
+    if (!control->IsHidden() && !control->HasRestoreStateForMidiNote(midiNote)) CaptureOscillatorRestoreState(descriptor.parameter);
+
+    control->SetEditable(editable);
+    if (sliderChanged) control->SetDirty(false);
+
+    if (auto* toggle = (*oscillatorTabControls.allKeyNotesToggles)[parameterIndex]) {
+      SetControlValueSilently(toggle, IsAllKeyNotesEnabled(descriptor.parameter) ? 1.0 : 0.0);
+      SetDisabledState(toggle, !editable);
+    }
+
+    auto* restoreButton = (*oscillatorTabControls.restoreButtons)[parameterIndex];
+    SetDisabledState(restoreButton, !(editable && control->HasRestoreStateForMidiNote(midiNote)));
+  }
+
   void RefreshOscillatorTabs() const {
     // Whole-body lock is safe here: this only reads the patch and updates controls, never the params mutex.
     const auto patchLock = LockPatch();
@@ -1135,32 +1133,7 @@ struct EditorContext {
     SyncXRangeNumberBoxes();
 
     if (!HasValidSelectedMidiNote()) {
-      for (std::size_t i = 0; i < oscillatorTabControls.sliderControls->size(); ++i) {
-        if (auto* control = (*oscillatorTabControls.sliderControls)[i]) control->SetEditable(false);
-
-        if (auto* toggle = (*oscillatorTabControls.allKeyNotesToggles)[i]) {
-          SetControlValueSilently(toggle, IsAllKeyNotesEnabled(static_cast<OscillatorParameter>(i)) ? 1.0 : 0.0);
-          SetDisabledState(toggle, true);
-        }
-
-        SetDisabledState((*oscillatorTabControls.restoreButtons)[i], true);
-      }
-
-      SetHarmonicActionControlsDisabled(true);
-
-      if (eqTab.editorControl && *eqTab.editorControl) {
-        (*eqTab.editorControl)->SetCurve(EqCurve{});
-        (*eqTab.editorControl)->SetEditable(false);
-      }
-
-      SetDisabledState(*eqTab.setShapeControl, true);
-      SetDisabledState(*eqTab.actionsControl, true);
-      if (eqTab.allKeyNotesToggle && *eqTab.allKeyNotesToggle) {
-        (*eqTab.allKeyNotesToggle)->SetValue(IsAllKeyNotesEqEnabled() ? 1.0 : 0.0);
-        (*eqTab.allKeyNotesToggle)->SetDirty(false);
-        SetDisabledState(*eqTab.allKeyNotesToggle, true);
-      }
-      SetDisabledState(*eqTab.restoreButton, true);
+      DisableTabsForInvalidMidiNote();
       return;
     }
 
@@ -1173,32 +1146,7 @@ struct EditorContext {
     SetDisabledState(*eqTab.setShapeControl, !editable);
     SetDisabledState(*eqTab.actionsControl, !editable);
 
-    for (const auto& descriptor : GetOscillatorTabDescriptors()) {
-      auto* control = (*oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
-      if (!control) continue;
-
-      bool sliderChanged = false;
-      for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-        const double value = selectedPatch.GetOscillatorSettings(oscillatorIndex).GetParameter(descriptor.parameter);
-        if (AreNearlyEqual(control->GetOscillatorValue(oscillatorIndex), value)) continue;
-
-        control->SetOscillatorValue(oscillatorIndex, value);
-        sliderChanged = true;
-      }
-
-      if (!control->IsHidden() && !control->HasRestoreStateForMidiNote(midiNote)) CaptureOscillatorRestoreState(descriptor.parameter);
-
-      control->SetEditable(editable);
-      if (sliderChanged) control->SetDirty(false);
-
-      if (auto* toggle = (*oscillatorTabControls.allKeyNotesToggles)[static_cast<std::size_t>(descriptor.parameter)]) {
-        SetControlValueSilently(toggle, IsAllKeyNotesEnabled(descriptor.parameter) ? 1.0 : 0.0);
-        SetDisabledState(toggle, !editable);
-      }
-
-      auto* restoreButton = (*oscillatorTabControls.restoreButtons)[static_cast<std::size_t>(descriptor.parameter)];
-      SetDisabledState(restoreButton, !(editable && control->HasRestoreStateForMidiNote(midiNote)));
-    }
+    for (const auto& descriptor : GetOscillatorTabDescriptors()) RefreshHarmonicTab(descriptor, selectedPatch, midiNote, editable);
 
     if (eqTab.editorControl && *eqTab.editorControl) {
       const EqCurve* keyNoteEqCurve = Patch().GetKeyNoteEqCurve(midiNote);
@@ -1347,7 +1295,7 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
         bool haveKeyNotePatch = false;
         {
           const auto patchLock = context->LockPatch();
-          if (const SimplePatch* keyNotePatch = context->Patch().GetKeyNotePatch(midiNote)) {
+          if (context->Patch().GetKeyNotePatch(midiNote)) {
             haveKeyNotePatch = true;
             context->Patch().SetAllKeyNotesEnabled(parameter, enable, midiNote);
           }
@@ -1422,7 +1370,7 @@ inline void AttachHarmonicTabChildren(IVTabPage* page, const std::shared_ptr<Edi
   addHandEditOnlyChild(CreateUtilityLabelControl("Y transform:", styles, help_text::oscillator_tabs::kYTransform));
   (*context->oscillatorTabControls.yTransformControls)[static_cast<std::size_t>(descriptor.parameter)] = yTransformControl;
   addHandEditOnlyChild(yTransformControl);
-  addHandEditOnlyChild(CreateEditModeLabelControl(styles));
+  addHandEditOnlyChild(CreateUtilityLabelControl("Edit mode:", styles, help_text::oscillator_tabs::kEditMode));
   addHandEditOnlyChild(CreateEditModeControl(context->model.oscillatorEditModes, descriptor, styles));
   addHandEditOnlyChild(CreateEditModeScopeControl(context->model.oscillatorEditScopes, descriptor, styles));
   addHandEditOnlyChild(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kHarmonicSetShape));
