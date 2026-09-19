@@ -137,8 +137,6 @@ private:
   }
 
   static PointList SanitizePoints(PointList points) {
-    if (points.empty()) return {};
-
     for (auto& point : points) {
       point.frequencyHz = ClampFrequencyHz(point.frequencyHz);
       point.gainDb = ClampGainDb(point.gainDb);
@@ -169,31 +167,26 @@ private:
     for (std::size_t i = 0; i < mPoints.size(); ++i) mLogFrequencies[i] = LogFrequency(mPoints[i].frequencyHz);
 
     const std::size_t numSegments = mPoints.size() - 1;
-    std::vector<double> h(numSegments);
-    std::vector<double> d(numSegments);
+    std::vector<double> widths(numSegments);
+    std::vector<double> slopes(numSegments);
     for (std::size_t i = 0; i < numSegments; ++i) {
-      h[i] = mLogFrequencies[i + 1] - mLogFrequencies[i];
-      d[i] = (mPoints[i + 1].gainDb - mPoints[i].gainDb) / h[i];
+      widths[i] = mLogFrequencies[i + 1] - mLogFrequencies[i];
+      slopes[i] = (mPoints[i + 1].gainDb - mPoints[i].gainDb) / widths[i];
     }
 
     mTangents.resize(mPoints.size());
-    if (mPoints.size() == 2) {
-      mTangents[0] = 0.0;
-      mTangents[1] = 0.0;
-      return;
-    }
 
     // The curve is flat outside the first and last point, so the spline should meet those edges with zero slope rather than forming a corner.
     mTangents.front() = 0.0;
     for (std::size_t i = 1; i + 1 < mPoints.size(); ++i) {
-      if ((d[i - 1] * d[i]) <= 0.0) {
+      if ((slopes[i - 1] * slopes[i]) <= 0.0) {
         mTangents[i] = 0.0;
         continue;
       }
 
-      const double w1 = (2.0 * h[i]) + h[i - 1];
-      const double w2 = h[i] + (2.0 * h[i - 1]);
-      mTangents[i] = (w1 + w2) / ((w1 / d[i - 1]) + (w2 / d[i]));
+      const double w1 = (2.0 * widths[i]) + widths[i - 1];
+      const double w2 = widths[i] + (2.0 * widths[i - 1]);
+      mTangents[i] = (w1 + w2) / ((w1 / slopes[i - 1]) + (w2 / slopes[i]));
     }
     mTangents.back() = 0.0;
   }
@@ -229,13 +222,11 @@ private:
   }
 
   double EvaluateResponseLut(double frequencyHz) const {
-    if (mResponseLut.empty()) return 0.0;
-
     const double position = NormalizedLogFrequency(frequencyHz) * static_cast<double>(mResponseLut.size() - 1);
     const std::size_t lowerIndex = static_cast<std::size_t>(position);
     const std::size_t upperIndex = std::min(lowerIndex + 1, mResponseLut.size() - 1);
     const double fraction = position - static_cast<double>(lowerIndex);
-    return ClampGainDb(Lerp(mResponseLut[lowerIndex], mResponseLut[upperIndex], fraction));
+    return Lerp(mResponseLut[lowerIndex], mResponseLut[upperIndex], fraction);
   }
 
   PointList mPoints{};

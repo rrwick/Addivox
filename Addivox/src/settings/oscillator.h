@@ -1,10 +1,3 @@
-// Oscillator-level settings are stored in three levels:
-// - OscillatorSettings: settings for a single oscillator.
-// - SimplePatch: settings for all 100 oscillators in a patch.
-// - CompoundPatch: a collection of SimplePatches for different MIDI notes, with
-// interpolation
-//       between them.
-
 #pragma once
 
 #include "eq.h"
@@ -65,14 +58,10 @@ public:
     return parameters;
   }
 
-  static const char* GetParameterName(Parameter parameter);
-  static const char* GetParameterUnit(Parameter parameter);
   double GetParameter(Parameter parameter) const;
   void SetParameter(Parameter parameter, double value);
 
-  // Clamps value to the valid range for parameter, and replaces non-finite input with 0.0
-  // (which is in range for every parameter). Applied by SetParameter, so it covers every
-  // write path: patch loading, "all key notes" values, and live UI/host edits alike.
+  // Clamps to the parameter range; non-finite values become zero.
   static double SanitizeParameter(Parameter parameter, double value);
 };
 
@@ -93,14 +82,7 @@ public:
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
   const OscillatorArray& GetOscillatorSettingsArray() const;
-  void SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings);
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
-  double GetLevelWaveformRms() const;
-  bool ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
-  bool ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
-  bool ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue);
-  bool ZeroEvenLevels();
-  bool ZeroOddLevels();
   bool NormalizeLevelWaveformRms();
   // Shared nominal waveform normalisation; leaves silence unchanged.
   static bool NormalizeLevels(LevelArray& levels);
@@ -151,7 +133,6 @@ public:
   CompoundPatch();
   explicit CompoundPatch(std::initializer_list<KeyNotePatch> keyNotePatches);
 
-  OscillatorSettings GetOscillatorSettings(double midiNote, int oscillatorIndex) const;
   SimplePatch GetPatchForMidiNote(double midiNote) const;
   const SimplePatch* GetKeyNotePatch(double midiNote) const;
   EqCurve GetEqCurveForMidiNote(double midiNote) const;
@@ -170,8 +151,8 @@ public:
   bool AddKeyNotePatch(double midiNote);
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
   bool SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
-  bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
-                                           const std::array<double, SimplePatch::kNumOscillators>& values, const MacroSettings& macros = {});
+  bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values,
+                                           const MacroSettings& macros = {});
   const MacroSettings& GetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter) const;
   void SetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter, const MacroSettings& macros);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
@@ -187,7 +168,6 @@ private:
   static int RoundAndClampMidiNote(double midiNote);
   static std::size_t ParameterIndex(OscillatorSettings::Parameter parameter);
   void ApplyAllKeyNotesValues(SimplePatch& patch) const;
-  void ApplyAllKeyNotesValues(SimplePatch& patch, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) const;
   const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
   void SetAllKeyNoteEqCurves(const EqCurve& curve);
 

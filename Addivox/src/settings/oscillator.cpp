@@ -2,35 +2,32 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 
 namespace {
 using Parameter = OscillatorSettings::Parameter;
-using MemberPtr = double OscillatorSettings::*;
 
 struct ParameterDescriptor {
-  const char* name;
-  const char* unit;
-  MemberPtr member;
+  double OscillatorSettings::* member;
   double min;
   double max;
 };
 
 // Bounds mirror the ranges the UI sliders for these parameters allow (see
 // ui/editor_tabs/{level,breath,attack_release,pitch,pan,variation}.h).
-constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{
-    {{"Level", "", &OscillatorSettings::level, 0.0, 1.0},
-     {"Breath power", "", &OscillatorSettings::breath_power, 0.0, 100.0},
-     {"Attack", "s", &OscillatorSettings::attack, 0.0, 1.0},
-     {"Release", "s", &OscillatorSettings::release, 0.0, 1.0},
-     {"Pitch", "cents", &OscillatorSettings::pitch, -2400.0, 2400.0},
-     {"Pan", "", &OscillatorSettings::pan, -1.0, 1.0},
-     {"Level variation amount", "", &OscillatorSettings::level_variation_amplitude, 0.0, 10.0},
-     {"Level variation rate", "Hz", &OscillatorSettings::level_variation_rate, 0.0, 10.0},
-     {"Pitch variation amount", "cents", &OscillatorSettings::pitch_variation_amplitude, 0.0, 10.0},
-     {"Pitch variation rate", "Hz", &OscillatorSettings::pitch_variation_rate, 0.0, 10.0},
-     {"Pan variation amount", "", &OscillatorSettings::pan_variation_amplitude, 0.0, 10.0},
-     {"Pan variation rate", "Hz", &OscillatorSettings::pan_variation_rate, 0.0, 10.0}}};
+constexpr std::array<ParameterDescriptor, OscillatorSettings::kNumParameters> kParameterDescriptors{{
+    {&OscillatorSettings::level,                        0.0,    1.0},
+    {&OscillatorSettings::breath_power,                 0.0,  100.0},
+    {&OscillatorSettings::attack,                       0.0,    1.0},
+    {&OscillatorSettings::release,                      0.0,    1.0},
+    {&OscillatorSettings::pitch,                    -2400.0, 2400.0},
+    {&OscillatorSettings::pan,                         -1.0,    1.0},
+    {&OscillatorSettings::level_variation_amplitude,    0.0,   10.0},
+    {&OscillatorSettings::level_variation_rate,         0.0,   10.0},
+    {&OscillatorSettings::pitch_variation_amplitude,    0.0,   10.0},
+    {&OscillatorSettings::pitch_variation_rate,         0.0,   10.0},
+    {&OscillatorSettings::pan_variation_amplitude,      0.0,   10.0},
+    {&OscillatorSettings::pan_variation_rate,           0.0,   10.0},
+}};
 
 const ParameterDescriptor* GetDescriptor(Parameter parameter) {
   const int index = static_cast<int>(parameter);
@@ -65,13 +62,17 @@ OscillatorParameterValues GetParameterValues(const SimplePatch& patch, Parameter
   return values;
 }
 
-// Sanitizes values destined for the "all key notes" shared-value cache, which is stored and
-// read back (including on patch save) without going through OscillatorSettings::SetParameter.
 OscillatorParameterValues SanitizeParameterValues(Parameter parameter, const OscillatorParameterValues& values) {
   OscillatorParameterValues sanitized{};
   for (std::size_t i = 0; i < values.size(); ++i) sanitized[i] = OscillatorSettings::SanitizeParameter(parameter, values[i]);
 
   return sanitized;
+}
+
+void SetParameterValues(SimplePatch& patch, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) {
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
+  }
 }
 
 constexpr double kLevelWaveformRmsEpsilon = 1.0e-12;
@@ -113,70 +114,6 @@ double GetLevelWaveformPeakBound(const SimplePatch::LevelArray& levels) {
   return peak + curvatureBound * kLevelPeakPhaseStep * kLevelPeakPhaseStep / 8.0;
 }
 
-enum class HarmonicParity { All, Even, Odd };
-
-bool MatchesParity(int oscillatorIndex, HarmonicParity parity) {
-  switch (parity) {
-  case HarmonicParity::All:  return true;
-  case HarmonicParity::Even: return (oscillatorIndex % 2) == 1;
-  case HarmonicParity::Odd:  return (oscillatorIndex % 2) == 0;
-  }
-
-  return false;
-}
-
-bool IsMirroredBipolarRange(double minValue, double maxValue) {
-  if (minValue >= 0.0 || maxValue <= 0.0) return false;
-
-  const double minMagnitude = std::fabs(minValue);
-  const double maxMagnitude = std::fabs(maxValue);
-  const double tolerance = std::max({1.0, minMagnitude, maxMagnitude}) * 1.0e-9;
-  return std::fabs(minMagnitude - maxMagnitude) <= tolerance;
-}
-
-// Scale the odds of a normalized value so reciprocal scale factors undo each
-// other while the result remains inside the finite range.
-double ScaleNormalizedBoundedValue(double normalizedValue, double scale) {
-  const double clampedValue = std::clamp(normalizedValue, 0.0, 1.0);
-  if (!std::isfinite(scale) || scale <= 0.0 || clampedValue <= 0.0 || clampedValue >= 1.0) return clampedValue;
-
-  const double denominator = 1.0 + ((scale - 1.0) * clampedValue);
-  return std::clamp((clampedValue * scale) / denominator, 0.0, 1.0);
-}
-
-double ScaleParameterValue(double value, double scale, double minValue, double maxValue) {
-  if (std::isfinite(minValue) && std::isfinite(maxValue) && maxValue > minValue) {
-    if (IsMirroredBipolarRange(minValue, maxValue)) {
-      const double maxMagnitude = std::max(std::fabs(minValue), std::fabs(maxValue));
-      if (maxMagnitude <= 0.0) return 0.0;
-
-      const double sign = (value < 0.0) ? -1.0 : 1.0;
-      const double normalizedMagnitude = std::clamp(std::fabs(value) / maxMagnitude, 0.0, 1.0);
-      const double scaledMagnitude = ScaleNormalizedBoundedValue(normalizedMagnitude, scale);
-      return std::clamp(sign * scaledMagnitude * maxMagnitude, minValue, maxValue);
-    }
-
-    const double range = maxValue - minValue;
-    const double normalizedValue = std::clamp((value - minValue) / range, 0.0, 1.0);
-    const double scaledNormalizedValue = ScaleNormalizedBoundedValue(normalizedValue, scale);
-    return minValue + (scaledNormalizedValue * range);
-  }
-
-  return std::clamp(value * scale, minValue, maxValue);
-}
-
-bool ScaleParameters(SimplePatch::OscillatorArray& oscillatorSettings, MemberPtr member, double scale, HarmonicParity parity,
-                     double minValue = -std::numeric_limits<double>::infinity(), double maxValue = std::numeric_limits<double>::infinity()) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    if (MatchesParity(oscillatorIndex, parity)) {
-      auto& value = oscillatorSettings[oscillatorIndex].*member;
-      value = ScaleParameterValue(value, scale, minValue, maxValue);
-    }
-  }
-
-  return true;
-}
-
 const SimplePatch& GetDefaultPatch() {
   static const SimplePatch patch = [] {
     SimplePatch::OscillatorArray oscillatorSettings{};
@@ -194,16 +131,6 @@ const EqCurve& GetDefaultEqCurve() {
 }
 } // namespace
 
-const char* OscillatorSettings::GetParameterName(Parameter parameter) {
-  const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? descriptor->name : "";
-}
-
-const char* OscillatorSettings::GetParameterUnit(Parameter parameter) {
-  const auto* descriptor = GetDescriptor(parameter);
-  return descriptor ? descriptor->unit : "";
-}
-
 double OscillatorSettings::GetParameter(Parameter parameter) const {
   const auto* descriptor = GetDescriptor(parameter);
   return descriptor ? this->*(descriptor->member) : 0.0;
@@ -216,9 +143,7 @@ void OscillatorSettings::SetParameter(Parameter parameter, double value) {
 
 double OscillatorSettings::SanitizeParameter(Parameter parameter, double value) {
   const auto* descriptor = GetDescriptor(parameter);
-  if (!descriptor) return 0.0;
-
-  if (!std::isfinite(value)) return 0.0;
+  if (!descriptor || !std::isfinite(value)) return 0.0;
 
   return std::clamp(value, descriptor->min, descriptor->max);
 }
@@ -257,59 +182,11 @@ const OscillatorSettings& SimplePatch::GetOscillatorSettings(int oscillatorIndex
 
 const SimplePatch::OscillatorArray& SimplePatch::GetOscillatorSettingsArray() const { return mOscillatorSettings; }
 
-void SimplePatch::SetOscillatorSettings(int oscillatorIndex, const OscillatorSettings& settings) {
-  const int index = ClampOscillatorIndex(oscillatorIndex);
-  mOscillatorSettings[index] = settings;
-  mLevelCoordinates[index] = std::log1p(kLevelCurveScale * settings.level) / kLevelCurveShape;
-}
-
 void SimplePatch::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
   const int index = ClampOscillatorIndex(oscillatorIndex);
   mOscillatorSettings[index].SetParameter(parameter, value);
   if (parameter == Parameter::level)
     mLevelCoordinates[index] = std::log1p(kLevelCurveScale * mOscillatorSettings[index].level) / kLevelCurveShape;
-}
-
-double SimplePatch::GetLevelWaveformRms() const {
-  double sumSquares = 0.0;
-  for (const auto& settings : mOscillatorSettings) sumSquares += settings.level * settings.level;
-
-  return std::sqrt(sumSquares * 0.5);
-}
-
-bool SimplePatch::ScaleOscillatorParameterAll(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue) {
-  const auto* descriptor = GetDescriptor(parameter);
-  const bool changed = descriptor && ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::All, minValue, maxValue);
-  if (changed && parameter == Parameter::level) UpdateLevelCoordinates();
-  return changed;
-}
-
-bool SimplePatch::ScaleOscillatorParameterEven(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue) {
-  const auto* descriptor = GetDescriptor(parameter);
-  const bool changed = descriptor && ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Even, minValue, maxValue);
-  if (changed && parameter == Parameter::level) UpdateLevelCoordinates();
-  return changed;
-}
-
-bool SimplePatch::ScaleOscillatorParameterOdd(OscillatorSettings::Parameter parameter, double scale, double minValue, double maxValue) {
-  const auto* descriptor = GetDescriptor(parameter);
-  const bool changed = descriptor && ScaleParameters(mOscillatorSettings, descriptor->member, scale, HarmonicParity::Odd, minValue, maxValue);
-  if (changed && parameter == Parameter::level) UpdateLevelCoordinates();
-  return changed;
-}
-
-bool SimplePatch::ZeroEvenLevels() {
-  for (int oscillatorIndex = 1; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
-    mOscillatorSettings[oscillatorIndex].level = mLevelCoordinates[oscillatorIndex] = 0.0;
-
-  return true;
-}
-
-bool SimplePatch::ZeroOddLevels() {
-  for (int oscillatorIndex = 0; oscillatorIndex < kNumOscillators; oscillatorIndex += 2)
-    mOscillatorSettings[oscillatorIndex].level = mLevelCoordinates[oscillatorIndex] = 0.0;
-
-  return true;
 }
 
 bool SimplePatch::NormalizeLevels(LevelArray& levels) {
@@ -359,10 +236,6 @@ CompoundPatch::CompoundPatch(std::initializer_list<KeyNotePatch> keyNotePatches)
     mKeyNotePatches[ClampMidiNote(midiNote)] = patch;
     mKeyNoteEqCurves[ClampMidiNote(midiNote)] = GetDefaultEqCurve();
   }
-}
-
-OscillatorSettings CompoundPatch::GetOscillatorSettings(double midiNote, int oscillatorIndex) const {
-  return InterpolateOscillatorSettings(ResolveNoteSpan(midiNote), oscillatorIndex);
 }
 
 SimplePatch CompoundPatch::GetPatchForMidiNote(double midiNote) const {
@@ -483,17 +356,17 @@ void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch) {
   ApplyAllKeyNotesValues(updatedPatch);
   mKeyNotePatches[clampedMidiNote] = updatedPatch;
   mKeyNoteMacros.erase(clampedMidiNote);
-  mKeyNoteEqCurves[clampedMidiNote] = eqCurve;
+  mKeyNoteEqCurves[clampedMidiNote] = std::move(eqCurve);
 }
 
 bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
-  const int clampedNote = RoundAndClampMidiNote(midiNote);
-  if (mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end()) return false;
+  const auto keyNote = mKeyNotePatches.find(RoundAndClampMidiNote(midiNote));
+  if (keyNote == mKeyNotePatches.end()) return false;
 
   // SimplePatch::SetOscillatorParameter() clamps internally, but mAllKeyNotesValues below is indexed directly, so clamp here too.
   const int clampedOscillatorIndex = std::clamp(oscillatorIndex, 0, SimplePatch::kNumOscillators - 1);
 
-  const double previous = mKeyNotePatches[clampedNote].GetOscillatorSettings(clampedOscillatorIndex).GetParameter(parameter);
+  const double previous = keyNote->second.GetOscillatorSettings(clampedOscillatorIndex).GetParameter(parameter);
   if (previous != OscillatorSettings::SanitizeParameter(parameter, value)) SetMacroSettings(midiNote, parameter, {});
 
   if (IsAllKeyNotesEnabled(parameter)) {
@@ -501,21 +374,21 @@ bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillato
     sharedValues[static_cast<std::size_t>(clampedOscillatorIndex)] = OscillatorSettings::SanitizeParameter(parameter, value);
     for (auto& [_, patch] : mKeyNotePatches) patch.SetOscillatorParameter(clampedOscillatorIndex, parameter, value);
   } else
-    mKeyNotePatches[clampedNote].SetOscillatorParameter(clampedOscillatorIndex, parameter, value);
+    keyNote->second.SetOscillatorParameter(clampedOscillatorIndex, parameter, value);
 
   return true;
 }
 
-bool CompoundPatch::SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
-                                                        const std::array<double, SimplePatch::kNumOscillators>& values, const MacroSettings& macros) {
-  const int clampedNote = RoundAndClampMidiNote(midiNote);
-  if (mKeyNotePatches.find(clampedNote) == mKeyNotePatches.end()) return false;
+bool CompoundPatch::SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values,
+                                                        const MacroSettings& macros) {
+  const auto keyNote = mKeyNotePatches.find(RoundAndClampMidiNote(midiNote));
+  if (keyNote == mKeyNotePatches.end()) return false;
 
   if (IsAllKeyNotesEnabled(parameter)) {
     mAllKeyNotesValues[ParameterIndex(parameter)] = SanitizeParameterValues(parameter, values);
-    for (auto& [_, patch] : mKeyNotePatches) ApplyAllKeyNotesValues(patch, parameter, values);
+    for (auto& [_, patch] : mKeyNotePatches) SetParameterValues(patch, parameter, values);
   } else
-    ApplyAllKeyNotesValues(mKeyNotePatches[clampedNote], parameter, values);
+    SetParameterValues(keyNote->second, parameter, values);
 
   SetMacroSettings(midiNote, parameter, macros);
   return true;
@@ -554,7 +427,7 @@ void CompoundPatch::EnableAllKeyNotes(OscillatorSettings::Parameter parameter, c
   mAllKeyNotesEnabled[parameterIndex] = true;
   mAllKeyNotesMacros[parameterIndex] = macros;
 
-  for (auto& [_, patch] : mKeyNotePatches) ApplyAllKeyNotesValues(patch, parameter, values);
+  for (auto& [_, patch] : mKeyNotePatches) SetParameterValues(patch, parameter, values);
 }
 
 void CompoundPatch::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote) {
@@ -608,13 +481,7 @@ void CompoundPatch::ClearKeyNotePatches() {
 
 void CompoundPatch::ApplyAllKeyNotesValues(SimplePatch& patch) const {
   for (auto parameter : OscillatorSettings::AllParameters()) {
-    if (IsAllKeyNotesEnabled(parameter)) ApplyAllKeyNotesValues(patch, parameter, GetAllKeyNotesValues(parameter));
-  }
-}
-
-void CompoundPatch::ApplyAllKeyNotesValues(SimplePatch& patch, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) const {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
+    if (IsAllKeyNotesEnabled(parameter)) SetParameterValues(patch, parameter, GetAllKeyNotesValues(parameter));
   }
 }
 

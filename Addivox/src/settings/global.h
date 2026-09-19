@@ -1,7 +1,6 @@
 #pragma once
 
 struct GlobalVoiceSettings {
-  // These are global voice settings applied across the oscillators in a patch.
   double                       levelScale {1.0};
   double                      attackScale {1.0};
   double                     releaseScale {1.0};
