@@ -630,9 +630,15 @@ bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* portName) {
   }
 
   // Keep the concrete RtMidi type: openPort's default name differs for input and output.
-  auto openPort = [port](auto* midi, const char* virtualPortName) {
+  auto openPort = [this, input, port](auto* midi, const char* virtualPortName) {
     if (!midi) return false;
     midi->closePort();
+    if (input) {
+      IMidiMsg allNotesOff;
+      allNotesOff.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0.0);
+      // With input closed, enqueue after its pending messages and before the new input can send any.
+      mIPlug->mMidiMsgsFromCallback.Push(allNotesOff);
+    }
     if (port == 0) return true;
 #if defined OS_WIN
     midi->openPort(port - 1);
