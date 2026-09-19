@@ -49,22 +49,6 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo*, Rt
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_SR, CB_SETCURSEL, index, 0);
 }
 
-void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* info) {
-  WDL_String buf;
-
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_RESETCONTENT, 0, 0);
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_RESETCONTENT, 0, 0);
-
-  for (unsigned int channel = 1; channel <= info->outputChannels; ++channel) {
-    buf.SetFormatted(20, "%u", channel);
-    if (channel < info->outputChannels) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_ADDSTRING, 0, (LPARAM)buf.Get());
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_ADDSTRING, 0, (LPARAM)buf.Get());
-  }
-
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_SETCURSEL, mState.mAudioOutChanL - 1, 0);
-  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
-}
-
 void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg) {
 #ifdef OS_WIN
   Button_Enable(GetDlgItem(hwndDlg, IDC_BUTTON_OS_DEV_SETTINGS), mState.mAudioDriverType == kDeviceASIO);
@@ -79,7 +63,6 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg) {
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_SETCURSEL, selected, 0);
   RtAudio::DeviceInfo info;
   if (!mAudioOutputDevIDs.empty()) info = mDAC->getDeviceInfo(mAudioOutputDevIDs[selected]);
-  PopulateAudioOutputList(hwndDlg, &info);
   PopulateSampleRateList(hwndDlg, nullptr, &info);
 }
 
@@ -205,9 +188,6 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
           if (!_this->mAudioOutputDevIDs.empty()) mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevIDs[0]).c_str());
 
-          mState.mAudioOutChanL = 1;
-          mState.mAudioOutChanR = 2;
-
           _this->PopulateAudioDialogs(hwndDlg);
         }
       }
@@ -217,25 +197,8 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
       if (HIWORD(wParam) == CBN_SELCHANGE) {
         readSelectedDevice(mState.mAudioOutDev, IDC_COMBO_AUDIO_OUT_DEV);
 
-        mState.mAudioOutChanL = 1;
-        mState.mAudioOutChanR = 2;
-
         _this->PopulateDriverSpecificControls(hwndDlg);
       }
-      break;
-
-    case IDC_COMBO_AUDIO_OUT_L:
-      if (HIWORD(wParam) == CBN_SELCHANGE) {
-        mState.mAudioOutChanL = selectedIndex(IDC_COMBO_AUDIO_OUT_L) + 1;
-
-        mState.mAudioOutChanR = mState.mAudioOutChanL + 1;
-        SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
-      }
-      break;
-
-    case IDC_COMBO_AUDIO_OUT_R:
-      if (HIWORD(wParam) == CBN_SELCHANGE) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
-      mState.mAudioOutChanR = selectedIndex(IDC_COMBO_AUDIO_OUT_R);
       break;
 
     case IDC_COMBO_AUDIO_BUF_SIZE:

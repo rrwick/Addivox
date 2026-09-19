@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
+#include <vector>
 
 #if defined OS_WIN
 #include <cstdint>
@@ -45,6 +46,8 @@ std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 namespace {
 std::optional<IPlugAPPHost::AppState> gLastWorkingAudioState;
 std::unique_ptr<RtAudio>               gPreservedAudio;
+// Only used for mono devices; resized while the audio stream is stopped.
+std::vector<double> gMonoRenderBuffer;
 
 constexpr UINT    kAudioRecoveryDelayMilliseconds = 100;
 std::atomic<bool> gAudioRecoveryPending{false};
@@ -257,8 +260,6 @@ void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::
   destination.mAudioDriverType = source.mAudioDriverType;
   destination.mAudioSR = source.mAudioSR;
   destination.mBufferSize = source.mBufferSize;
-  destination.mAudioOutChanL = source.mAudioOutChanL;
-  destination.mAudioOutChanR = source.mAudioOutChanR;
 }
 } // namespace
 
@@ -379,9 +380,6 @@ bool IPlugAPPHost::InitState() {
     GetPrivateProfileString("audio", "outdev", "Built-in Output", buf, STRBUFSZ, mINIPath.Get());
     mState.mAudioOutDev.Set(buf);
 
-    mState.mAudioOutChanL = GetPrivateProfileInt("audio", "out1", 1, mINIPath.Get()); // 1 is first audio output
-    mState.mAudioOutChanR = GetPrivateProfileInt("audio", "out2", 2, mINIPath.Get());
-
     mState.mBufferSize = GetPrivateProfileInt("audio", "buffer", 512, mINIPath.Get());
     mState.mAudioSR = GetPrivateProfileInt("audio", "sr", 44100, mINIPath.Get());
 
@@ -407,11 +405,6 @@ void IPlugAPPHost::UpdateINI() {
   WritePrivateProfileString("audio", "driver", buf, ini);
 
   WritePrivateProfileString("audio", "outdev", mState.mAudioOutDev.Get(), ini);
-
-  sprintf(buf, "%u", mState.mAudioOutChanL);
-  WritePrivateProfileString("audio", "out1", buf, ini);
-  sprintf(buf, "%u", mState.mAudioOutChanR);
-  WritePrivateProfileString("audio", "out2", buf, ini);
 
   WDL_String str;
   str.SetFormatted(32, "%i", mState.mBufferSize);
@@ -497,7 +490,7 @@ bool IPlugAPPHost::AudioSettingsInStateAreEqual(AppState& first, AppState& secon
   // Matching settings must still restart audio if a failed driver change stopped it.
   return mDAC && mDAC->isStreamRunning() && first.mAudioDriverType == second.mAudioDriverType &&
          std::string_view(first.mAudioOutDev.Get()) == second.mAudioOutDev.Get() && first.mAudioSR == second.mAudioSR &&
-         first.mBufferSize == second.mBufferSize && first.mAudioOutChanL == second.mAudioOutChanL && first.mAudioOutChanR == second.mAudioOutChanR;
+         first.mBufferSize == second.mBufferSize;
 }
 
 bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& first, AppState& second) {
@@ -701,12 +694,12 @@ bool IPlugAPPHost::InitAudio(uint32_t, uint32_t outID, uint32_t sr, uint32_t iov
 
   CloseAudio();
 
+  const RtAudio::DeviceInfo outInfo = mDAC->getDeviceInfo(outID);
   RtAudio::StreamParameters oParams;
   oParams.deviceId = outID;
-  oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput);
+  oParams.nChannels = std::min(2u, outInfo.outputChannels);
   oParams.firstChannel = 0;
 
-  const RtAudio::DeviceInfo outInfo = mDAC->getDeviceInfo(outID);
   sr = NegotiateSampleRate(outInfo, sr);
 
   mBufferSize = iovs; // mBufferSize may get changed by stream
@@ -753,9 +746,10 @@ bool IPlugAPPHost::InitAudio(uint32_t, uint32_t outID, uint32_t sr, uint32_t iov
   mIPlug->SetSampleRate(mSampleRate);
   mIPlug->OnReset();
 
+  gMonoRenderBuffer.resize(oParams.nChannels == 1 ? 2 * size_t(mBufferSize) : 0);
   mOutputBufPtrs.Empty();
 
-  for (int i = 0; i < oParams.nChannels; i++) {
+  for (int i = 0; i < GetPlug()->MaxNChannels(ERoute::kOutput); i++) {
     mOutputBufPtrs.Add(nullptr); // will be set in callback
   }
 
@@ -820,11 +814,24 @@ static void ApplyFades(double* pBuffer, int nChans, int nFrames, bool down) {
   }
 }
 
+static void RenderMonoOutput(IPlugAPP& plug, double* output, uint32_t frames) {
+  const uint32_t capacity = static_cast<uint32_t>(gMonoRenderBuffer.size() / 2);
+  double* stereo[] = {gMonoRenderBuffer.data(), gMonoRenderBuffer.data() + capacity};
+  while (frames > 0) {
+    const uint32_t count = std::min(frames, capacity);
+    plug.AppProcess(nullptr, stereo, static_cast<int>(count));
+    for (uint32_t i = 0; i < count; ++i) output[i] = 0.5 * (stereo[0][i] + stereo[1][i]);
+    output += count;
+    frames -= count;
+  }
+}
+
 // static
 int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void*, uint32_t nFrames, double, RtAudioStreamStatus, void* pUserData) {
   auto& host = *static_cast<IPlugAPPHost*>(pUserData);
 
-  const int outputChannels = host.GetPlug()->MaxNChannels(ERoute::kOutput);
+  const bool mono = !gMonoRenderBuffer.empty();
+  const int outputChannels = mono ? 1 : host.GetPlug()->MaxNChannels(ERoute::kOutput);
 
   double* pOutputBufferD = static_cast<double*>(pOutputBuffer);
 
@@ -833,11 +840,12 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void*, uint32_t nFrames, do
   const bool doFade = host.mVecWait == APP_N_VECTOR_WAIT || host.mAudioEnding;
 
   if (readyToProcess && !host.mAudioDone) {
-    for (int c = 0; c < outputChannels; c++) {
-      host.mOutputBufPtrs.Set(c, pOutputBufferD + (c * nFrames));
+    if (mono) {
+      RenderMonoOutput(*host.mIPlug, pOutputBufferD, nFrames);
+    } else {
+      for (int c = 0; c < outputChannels; c++) host.mOutputBufPtrs.Set(c, pOutputBufferD + (c * nFrames));
+      host.mIPlug->AppProcess(nullptr, host.mOutputBufPtrs.GetList(), static_cast<int>(nFrames));
     }
-
-    host.mIPlug->AppProcess(nullptr, host.mOutputBufPtrs.GetList(), static_cast<int>(nFrames));
     host.mSamplesElapsed += nFrames;
 
     for (int c = 0; c < outputChannels; c++) {
