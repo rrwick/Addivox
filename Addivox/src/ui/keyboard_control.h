@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <array>
 #include <functional>
-#include <initializer_list>
 
 namespace plugin_ui {
 using namespace iplug;
@@ -22,9 +21,7 @@ public:
 
     mEditMode = editMode;
 
-    if (mEditMode) {
-      EndMouseNoteIfNeeded();
-    }
+    if (mEditMode) EndMouseNoteIfNeeded();
 
     SetDirty(false);
   }
@@ -44,10 +41,6 @@ public:
     SetDirty(false);
   }
 
-  template <size_t N> void SetHighlightedMidiNotes(const std::array<int, N>& midiNotes) { ReplaceHighlightedMidiNotes(midiNotes); }
-
-  void SetHighlightedMidiNotes(std::initializer_list<int> midiNotes) { ReplaceHighlightedMidiNotes(midiNotes); }
-
   void SetSelectedMidiNote(int midiNote) {
     const int selectedMidiNote = IsMidiNoteInRange(midiNote) ? midiNote : -1;
     if (mSelectedMidiNote == selectedMidiNote) return;
@@ -57,11 +50,7 @@ public:
     SetDirty(false);
   }
 
-  int GetSelectedMidiNote() const { return mSelectedMidiNote; }
-
   void SetOnSelectedMidiNoteChanged(SelectedMidiNoteChangedFunc func) { mOnSelectedMidiNoteChanged = func; }
-
-  void ClearSelectedMidiNote() { SetSelectedMidiNote(-1); }
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override {
     if (mEditMode) {
@@ -120,11 +109,6 @@ private:
     float l = 0.f;
     float r = 0.f;
   };
-
-  template <typename TMidiNotes> void ReplaceHighlightedMidiNotes(const TMidiNotes& midiNotes) {
-    ClearHighlightedMidiNotes();
-    for (const int midiNote : midiNotes) SetHighlightedMidiNote(midiNote, true);
-  }
 
   static bool IsValidMidiNote(int midiNote) { return midiNote >= 0 && midiNote <= 127; }
 

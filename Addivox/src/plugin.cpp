@@ -2084,8 +2084,8 @@ void Addivox::RefreshEditorUI(bool resetOscillatorRestoreStates) {
 #if IPLUG_EDITOR
   if (!GetUI() || !mEditorContext) return;
 
-  if (mEditorContext->title.patchManagerControl && *mEditorContext->title.patchManagerControl) {
-    if (auto* patchManager = dynamic_cast<plugin_ui::layout::PatchManagerControl*>(*mEditorContext->title.patchManagerControl)) {
+  if (mEditorContext->patchManagerControl) {
+    if (auto* patchManager = dynamic_cast<plugin_ui::layout::PatchManagerControl*>(mEditorContext->patchManagerControl)) {
       plugin_ui::layout::PatchMenuModel model;
       {
         const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);

@@ -2,7 +2,6 @@
 
 #include "IControls.h"
 #include "colour.h"
-#include "control_utils.h"
 #include "help_text.h"
 #include "theme.h"
 
@@ -14,17 +13,6 @@ using namespace iplug;
 using namespace igraphics;
 
 namespace layout {
-struct KnobAssets {
-  ISVG fixed;
-  ISVG rotating;
-};
-
-struct KnobValueSpec {
-  IRECT knobBounds;
-  IRECT valueBounds;
-  int paramIdx = kNoParameter;
-};
-
 class LayeredSVGKnobControl : public IKnobControlBase {
 public:
   LayeredSVGKnobControl(const IRECT& bounds, const ISVG& fixedSVG, const ISVG& rotatingSVG, int paramIdx = kNoParameter, float startAngle = -135.f,
@@ -35,27 +23,6 @@ public:
     g.DrawSVG(mFixedSVG, mRECT, &mBlend);
     DrawValueArc(g);
     g.DrawRotatedSVG(mRotatingSVG, mRECT.MW(), mRECT.MH(), mRECT.W(), mRECT.H(), AngleForValue(), &mBlend);
-  }
-
-  void SetFixedSVG(const ISVG& fixedSVG) {
-    mFixedSVG = fixedSVG;
-    SetDirty(false);
-  }
-
-  void SetRotatingSVG(const ISVG& rotatingSVG) {
-    mRotatingSVG = rotatingSVG;
-    SetDirty(false);
-  }
-
-  void SetAngleRange(float startAngle, float endAngle) {
-    mStartAngle = startAngle;
-    mEndAngle = endAngle;
-    SetDirty(false);
-  }
-
-  void SetValueArcThickness(float valueArcThickness) {
-    mValueArcThickness = std::max(0.f, valueArcThickness);
-    SetDirty(false);
   }
 
   // A knob with no plugin parameter behind it has no default to snap back to and no range to read the value
@@ -84,7 +51,7 @@ public:
 private:
   static constexpr float kArcRadiusRatio = 0.44f;
 
-  float AngleForValue() const { return mStartAngle + static_cast<float>(GetValue()) * (mEndAngle - mStartAngle); }
+  float AngleForValue() const { return AngleForNormalizedValue(GetValue()); }
 
   float AngleForNormalizedValue(double normalizedValue) const { return mStartAngle + static_cast<float>(normalizedValue) * (mEndAngle - mStartAngle); }
 
@@ -97,8 +64,6 @@ private:
 
     return mUnboundArcStartValue;
   }
-
-  IColor ValueArcColor() const { return colour::visualizer::kKnob; }
 
   void DrawValueArc(IGraphics& g) {
     if (mValueArcThickness <= 0.f) return;
@@ -116,7 +81,7 @@ private:
     const float radius = std::min(mRECT.W(), mRECT.H()) * kArcRadiusRatio;
     g.PathClear();
     g.PathArc(mRECT.MW(), mRECT.MH(), radius, angleMin, angleMax);
-    g.PathStroke(ValueArcColor(), mValueArcThickness, options, &mBlend);
+    g.PathStroke(colour::visualizer::kKnob, mValueArcThickness, options, &mBlend);
   }
 
   ISVG mFixedSVG;
@@ -159,13 +124,10 @@ public:
   }
 
   void Draw(IGraphics& g) override {
-    if (ShouldShowValue()) {
-      if (const IParam* param = GetParam()) param->GetDisplay(mStr);
-      else
-        mStr.Set(mLabel.Get());
-    } else {
+    const IParam* param = GetParam();
+    if (ShouldShowValue() && param) param->GetDisplay(mStr);
+    else
       mStr.Set(mLabel.Get());
-    }
 
     ITextControl::Draw(g);
   }
@@ -214,8 +176,7 @@ private:
   KnobReadoutControl* mReadoutControl = nullptr;
 };
 
-// How an unbound knob -- one with no automatable plugin parameter behind it -- carries its value. The knob
-// control itself is the storage; this says where it starts, how it reads out, and who to tell when it moves.
+// Knobs without an automatable plugin parameter store a normalized value.
 struct UnboundKnobSpec {
   double defaultValue = 0.0; // Normalised 0..1, what a double-tap returns to.
   bool bipolar = false;      // Draws the value arc out from the centre rather than from the left.
@@ -234,9 +195,7 @@ public:
     mLabel.Set(label ? label : "");
   }
 
-  // Presentation overrides for knobs in tighter quarters than the main panel's. Both must be set before the
-  // knob is attached, since that is when the child controls are built. Capping the knob independently of the
-  // cell lets a narrow knob keep a label wider than itself.
+  // Set before attachment; labels may be wider than their knobs.
   void SetLabelStyle(const IText& text, float textHeight) {
     mLabelText = text;
     mLabelHeight = std::max(0.f, textHeight);
@@ -244,8 +203,7 @@ public:
 
   void SetMaxKnobSize(float maxKnobSize) { mMaxKnobSize = std::max(0.f, maxKnobSize); }
 
-  // Unbound knobs only: moves the knob without calling back, which is how a fit pushes its result in. The
-  // spec's default is left alone, since that is where a double-tap still belongs.
+  // Unbound knobs only; preserves the double-tap default.
   void SetNormalizedValueSilently(double normalizedValue) {
     mUnboundValue = std::clamp(normalizedValue, 0.0, 1.0);
     if (!mKnobControl) return;
@@ -274,8 +232,7 @@ public:
     mKnobControl = new InteractiveLayeredSVGKnobControl(IRECT(), fixedSVG, rotatingSVG, mParamIdx, -150.f, 150.f);
     mReadoutControl = new KnobReadoutControl(IRECT(), mParamIdx, mLabel.Get(), mLabelText);
 
-    // An unbound knob's text stays the label even while it is being dragged: there is no parameter value worth
-    // reading out, only a position, so the readout is never wired up to it.
+    // Unbound knobs keep their labels while dragged.
     if (mParamIdx == kNoParameter) ApplyUnboundSpec();
     else
       mKnobControl->SetReadoutControl(mReadoutControl);
@@ -304,7 +261,6 @@ private:
     mKnobControl->SetUnboundArcStartValue(mUnboundSpec.bipolar ? 0.5 : 0.0);
     mKnobControl->SetValue(mUnboundValue);
 
-    // Captures the callback by value rather than capturing this, so the action holds nothing that outlives it.
     mKnobControl->SetActionFunction([onValueChanged = mUnboundSpec.onValueChanged](IControl* caller) {
       if (onValueChanged) onValueChanged(caller->GetValue());
     });
@@ -339,22 +295,5 @@ private:
   KnobReadoutControl* mReadoutControl = nullptr;
 };
 
-inline void SetTooltipIfPresent(IControl* control, const char* tooltip) {
-  if (control && tooltip && tooltip[0] != '\0') control->SetTooltip(tooltip);
-}
-
-inline void AttachKnob(IGraphics* pGraphics, const KnobAssets& assets, const IRECT& bounds, int paramIdx, const char* tooltip = nullptr) {
-  auto* control = new LayeredSVGKnobControl(bounds, assets.fixed, assets.rotating, paramIdx);
-  SetTooltipIfPresent(control, tooltip);
-  pGraphics->AttachControl(control);
-}
-
-inline void AttachKnobWithValue(IGraphics* pGraphics, const KnobAssets& assets, const KnobValueSpec& spec, const IText& valueText) {
-  const char* const tooltip = help_text::main_ui::GetParam(spec.paramIdx);
-  auto* valueControl = MakePassiveControl(new ICaptionControl(spec.valueBounds, spec.paramIdx, valueText, COLOR_TRANSPARENT, true));
-  SetTooltipIfPresent(valueControl, tooltip);
-  pGraphics->AttachControl(valueControl);
-  AttachKnob(pGraphics, assets, spec.knobBounds, spec.paramIdx, tooltip);
-}
 } // namespace layout
 } // namespace plugin_ui

@@ -30,7 +30,7 @@ public:
 
   bool IsHit(float x, float y) const override {
     UpdateLayout();
-    return mLinkHitRECT.Contains(x, y);
+    return mLinkRECT.Contains(x, y);
   }
 
   void OnMouseDown(float x, float y, const IMouseMod& mod) override {
@@ -56,7 +56,6 @@ private:
   void UpdateLayout() const {
     if (mLayoutValid || !GetUI()) return;
 
-    const IText rowText = theme::AboutMetaText().WithAlign(EAlign::Near);
     const IText labelText = theme::AboutMetaText().WithAlign(EAlign::Near);
     const IText linkText = theme::AboutLinkText().WithAlign(EAlign::Near);
 
@@ -64,9 +63,9 @@ private:
     IRECT labelBounds;
     IRECT linkBoundsInRow;
     IRECT linkBounds;
-    GetUI()->MeasureText(rowText, kFullText, rowBounds);
+    GetUI()->MeasureText(labelText, kFullText, rowBounds);
     GetUI()->MeasureText(labelText, kLabelText, labelBounds);
-    GetUI()->MeasureText(rowText, kLinkText, linkBoundsInRow);
+    GetUI()->MeasureText(labelText, kLinkText, linkBoundsInRow);
     GetUI()->MeasureText(linkText, kLinkText, linkBounds);
 
     float spaceWidth = rowBounds.W() - labelBounds.W() - linkBoundsInRow.W();
@@ -77,7 +76,6 @@ private:
 
     mLabelRECT = IRECT::MakeXYWH(left, mRECT.T, labelBounds.W(), mRECT.H());
     mLinkRECT = IRECT::MakeXYWH(left + labelBounds.W() + spaceWidth, mRECT.T, linkBounds.W(), mRECT.H());
-    mLinkHitRECT = mLinkRECT;
     mLayoutValid = true;
   }
 
@@ -89,7 +87,6 @@ private:
   mutable bool mLayoutValid = false;
   mutable IRECT mLabelRECT;
   mutable IRECT mLinkRECT;
-  mutable IRECT mLinkHitRECT;
 };
 } // namespace layout
 } // namespace plugin_ui

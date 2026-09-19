@@ -41,27 +41,21 @@ inline bool ApplyVariationAction(SimplePatch& patch, OscillatorParameter paramet
 }
 
 inline void AppendVariationTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
-  static constexpr std::array<std::pair<const char*, OscillatorParameter>, 6> kEntries{{
-      {"Level variation amount", OscillatorParameter::level_variation_amplitude},
-      {"Level variation rate",   OscillatorParameter::level_variation_rate},
-      {"Pitch variation amount", OscillatorParameter::pitch_variation_amplitude},
-      {"Pitch variation rate",   OscillatorParameter::pitch_variation_rate},
-      {"Pan variation amount",   OscillatorParameter::pan_variation_amplitude},
-      {"Pan variation rate",     OscillatorParameter::pan_variation_rate},
+  static constexpr std::array<OscillatorParameter, 6> kParameters{{
+      OscillatorParameter::level_variation_amplitude,
+      OscillatorParameter::level_variation_rate,
+      OscillatorParameter::pitch_variation_amplitude,
+      OscillatorParameter::pitch_variation_rate,
+      OscillatorParameter::pan_variation_amplitude,
+      OscillatorParameter::pan_variation_rate,
   }};
-  for (std::size_t i = 0; i < kEntries.size(); ++i)
-    descriptors.push_back({kOscillatorTabTitles[6 + i], kEntries[i].first, kEntries[i].second, {0.0, 10.0},
-                           help_text::oscillator_tabs::Get(kEntries[i].second)});
+  for (std::size_t i = 0; i < kParameters.size(); ++i)
+    descriptors.push_back({kOscillatorTabTitles[6 + i], kParameters[i], {0.0, 10.0}, help_text::oscillator_tabs::Get(kParameters[i])});
 }
 
 inline void AttachVariationTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                        const OscillatorTabDescriptor& descriptor, IVButtonControl* restoreButton, IVButtonControl* addButton,
                                        IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
-  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  const auto variationIndex = GetVariationTabIndex(descriptor.parameter);
-  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-
   auto* setShapeControl = CreateHarmonicShapeControl(
       context, descriptor.parameter, sliderControl, styles, {"zero", "flat", "linear ramp up"},
       [parameter = descriptor.parameter](SimplePatch& patch, const char* shape) { return ApplyVariationShape(patch, parameter, shape); });
@@ -73,11 +67,8 @@ inline void AttachVariationTabChildren(IVTabPage* page, const std::shared_ptr<Ed
                                      return ApplyVariationAction(patch, parameter, action, scope);
                                    });
 
-  (*context->variationTab.setShapeControls)[variationIndex] = setShapeControl;
-  (*context->variationTab.actionsControls)[variationIndex] = actionsControl;
-
-  AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
-                            restoreButton, addButton, deleteButton, sliderControl);
+  AttachHarmonicTabChildren(page, context, styles, descriptor, setShapeControl, actionsControl, restoreButton, addButton, deleteButton,
+                            sliderControl);
 }
 } // namespace editor
 } // namespace plugin_ui

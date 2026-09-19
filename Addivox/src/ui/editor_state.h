@@ -11,13 +11,7 @@ namespace plugin_ui {
 
 enum class EditorLevelTransform { Linear, SquareRoot, PseudoLog };
 
-// The Y transform each per-harmonic tab uses. This one table is the single place the choice is made: it seeds
-// every tab's transform at startup, and entering Macros mode snaps every tab back to it. Chosen so a typical
-// patch fills the chart instead of crowding the floor -- Level spans four orders of magnitude, so it needs
-// pseudo-log; Breath, the two time tabs and the six variation tabs all sit low in their ranges, where square
-// root lifts them without flattening the top; Pitch uses pseudo-log to keep fine detuning accessible across
-// its two-octave range in each direction; Pan stays linear to match its stereo position. Display only -- no
-// generator depends on it, so it is cheap to revisit. Edit a row and both modes follow.
+// Display transforms used at startup and when entering Macro mode.
 inline constexpr std::array<EditorLevelTransform, OscillatorSettings::kNumParameters> kOscillatorTabTransforms{{
     EditorLevelTransform::PseudoLog,  // Level
     EditorLevelTransform::SquareRoot, // Breath

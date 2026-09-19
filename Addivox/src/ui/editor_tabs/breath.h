@@ -235,7 +235,7 @@ inline std::vector<MacroKnobDescriptor> GetBreathMacroKnobDescriptors() {
 
 inline void RegisterBreathMacroFunctions(const std::shared_ptr<EditorContext>& context, const std::vector<layout::LabelledKnob*>& knobs) {
   if (knobs.size() != 4) return;
-  auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(OscillatorParameter::breath_power)];
+  auto& functions = context->oscillatorTabControls.macroFunctions[static_cast<std::size_t>(OscillatorParameter::breath_power)];
   functions.version = 1; // Adds Odd/Even chart-height offsets, capped at 100.
   functions.knobs = knobs;
   functions.generateValues = [knobs]() {
@@ -252,21 +252,13 @@ inline void RegisterBreathMacroFunctions(const std::shared_ptr<EditorContext>& c
 }
 
 inline void AppendBreathTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
-  descriptors.push_back({kOscillatorTabTitles[1],
-                         "Breath power",
-                         OscillatorParameter::breath_power,
-                         {0.0, 100.0},
+  descriptors.push_back({kOscillatorTabTitles[1], OscillatorParameter::breath_power, {0.0, 100.0},
                          help_text::oscillator_tabs::Get(OscillatorParameter::breath_power)});
 }
 
 inline void AttachBreathTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                     const OscillatorTabDescriptor& descriptor, IVButtonControl* restoreButton, IVButtonControl* addButton,
                                     IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
-  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-
-  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-
   auto* setShapeControl =
       CreateHarmonicShapeControl(context, descriptor.parameter, sliderControl, styles, {"flat", "linear ramp", "square ramp", "cube ramp"}, ApplyBreathShape);
 
@@ -275,11 +267,8 @@ inline void AttachBreathTabChildren(IVTabPage* page, const std::shared_ptr<Edito
                                                        kActionAwayFromMaxMenuLabel, kActionBendUpMenuLabel, kActionBendDownMenuLabel},
                                                       ApplyBreathAction);
 
-  *context->breathTab.setShapeControl = setShapeControl;
-  *context->breathTab.actionsControl = actionsControl;
-
-  AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
-                            restoreButton, addButton, deleteButton, sliderControl);
+  AttachHarmonicTabChildren(page, context, styles, descriptor, setShapeControl, actionsControl, restoreButton, addButton, deleteButton,
+                            sliderControl);
 
   RegisterBreathMacroFunctions(context, AttachMacroKnobChildren(page, context, descriptor, GetBreathMacroKnobDescriptors()));
 }

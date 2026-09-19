@@ -29,8 +29,6 @@ public:
     SetDirty(false);
   }
 
-  const EqCurve& GetCurve() const { return mCurve; }
-
   void SetEditable(bool editable) {
     const bool changed = IsEditable() != editable;
     if (changed) SetDisabled(!editable);

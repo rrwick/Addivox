@@ -391,7 +391,7 @@ inline std::vector<MacroKnobDescriptor> GetReleaseMacroKnobDescriptors() {
 inline void RegisterAttackReleaseMacroFunctions(const std::shared_ptr<EditorContext>& context, OscillatorParameter parameter,
                                                const std::vector<layout::LabelledKnob*>& knobs) {
   if (knobs.size() != 4) return;
-  auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(parameter)];
+  auto& functions = context->oscillatorTabControls.macroFunctions[static_cast<std::size_t>(parameter)];
   functions.version = 1; // Slope uses a fixed harmonic distance, independent of Position.
   functions.knobs = knobs;
   functions.generateValues = [knobs, parameter]() {
@@ -415,19 +415,14 @@ inline void RegisterAttackReleaseMacroFunctions(const std::shared_ptr<EditorCont
 
 inline void AppendAttackReleaseTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
   descriptors.push_back(
-      {kOscillatorTabTitles[2], "Attack time", OscillatorParameter::attack, {0.0, kAttackReleaseMaxTimeSec}, help_text::oscillator_tabs::Get(OscillatorParameter::attack)});
+      {kOscillatorTabTitles[2], OscillatorParameter::attack, {0.0, kAttackReleaseMaxTimeSec}, help_text::oscillator_tabs::Get(OscillatorParameter::attack)});
   descriptors.push_back(
-      {kOscillatorTabTitles[3], "Release time", OscillatorParameter::release, {0.0, kAttackReleaseMaxTimeSec}, help_text::oscillator_tabs::Get(OscillatorParameter::release)});
+      {kOscillatorTabTitles[3], OscillatorParameter::release, {0.0, kAttackReleaseMaxTimeSec}, help_text::oscillator_tabs::Get(OscillatorParameter::release)});
 }
 
 inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                            const OscillatorTabDescriptor& descriptor, IVButtonControl* restoreButton, IVButtonControl* addButton,
                                            IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
-  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  const auto attackReleaseIndex = GetAttackReleaseTabIndex(descriptor.parameter);
-  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-
   auto* setShapeControl = CreateHarmonicShapeControl(
       context, descriptor.parameter, sliderControl, styles,
       descriptor.parameter == OscillatorParameter::attack
@@ -445,11 +440,8 @@ inline void AttachAttackReleaseTabChildren(IVTabPage* page, const std::shared_pt
                                      return ApplyAttackReleaseAction(patch, parameter, action, scope);
                                    });
 
-  (*context->attackReleaseTab.setShapeControls)[attackReleaseIndex] = setShapeControl;
-  (*context->attackReleaseTab.actionsControls)[attackReleaseIndex] = actionsControl;
-
-  AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
-                            restoreButton, addButton, deleteButton, sliderControl);
+  AttachHarmonicTabChildren(page, context, styles, descriptor, setShapeControl, actionsControl, restoreButton, addButton, deleteButton,
+                            sliderControl);
 
   const auto macroDescriptors = descriptor.parameter == OscillatorParameter::release ? GetReleaseMacroKnobDescriptors() : GetAttackMacroKnobDescriptors();
   RegisterAttackReleaseMacroFunctions(context, descriptor.parameter, AttachMacroKnobChildren(page, context, descriptor, macroDescriptors));

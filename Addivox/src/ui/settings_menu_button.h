@@ -3,6 +3,7 @@
 #include "../midi/breath_control.h"
 #include "IControls.h"
 #include "colour.h"
+#include "control_utils.h"
 #include "editor_messages.h"
 #include "pitch_bend_range_menu.h"
 #include "theme.h"
@@ -28,14 +29,7 @@ public:
       : IVButtonControl(bounds, EmptyClickActionFunc, "", theme::AboutIconButtonStyle(), false, false, EVShape::Ellipse), mGearIcon(gearIcon),
         mBreathCCSource(breathCCSource), mPortamentoCC(portamentoCC), mPitchBendRange(pitchBendRange), mHarmonicVisualizerEnabled(harmonicVisualizerEnabled) {
     SetTooltip("Settings");
-    SetActionFunction([this](IControl* caller) {
-      if (caller) {
-        caller->SetValue(0.);
-        caller->SetDirty(false);
-      }
-
-      OpenMenu();
-    });
+    SetActionFunction(MakeImmediateButtonAction([this](IControl*) { OpenMenu(); }));
   }
 
   void DrawWidget(IGraphics& g) override {

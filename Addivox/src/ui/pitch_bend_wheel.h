@@ -30,8 +30,6 @@ public:
 
   void SetPitchBendRange(int pitchBendRange) { mPitchBendRange = pitchBendRange; }
 
-  int GetPitchBendRange() const { return mPitchBendRange; }
-
   void Draw(IGraphics& g) override {
     IRECT handleBounds = mRECT.GetPadded(-10.f);
     const float stepSize = handleBounds.H() / static_cast<float>(kNumRungs);
@@ -79,16 +77,9 @@ public:
     SetDirty(false);
   }
 
-  void OnMouseWheel(float x, float y, const IMouseMod& mod, float d) override {
-    (void)x;
-    (void)y;
-    (void)mod;
-    (void)d;
-  }
+  void OnMouseWheel(float, float, const IMouseMod&, float) override {}
 
-  void OnPopupMenuSelection(IPopupMenu* pSelectedMenu, int valIdx) override {
-    (void)valIdx;
-
+  void OnPopupMenuSelection(IPopupMenu* pSelectedMenu, int) override {
     int selectedRange = 0;
     if (!TryGetPitchBendRangeFromMenu(pSelectedMenu, selectedRange)) return;
 

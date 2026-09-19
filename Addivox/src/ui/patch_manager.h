@@ -3,6 +3,7 @@
 #include "IControls.h"
 #include "IVPresetManagerControls.h"
 #include "colour.h"
+#include "control_utils.h"
 #include "editor_messages.h"
 #include "help_text.h"
 
@@ -26,16 +27,6 @@ inline const char* DefaultShowInFileBrowserLabel() {
 #endif
 }
 
-template <typename Callback> inline IActionFunction MakeImmediatePatchButtonAction(Callback&& callback) {
-  return [cb = std::forward<Callback>(callback)](IControl* caller) mutable {
-    if (caller) {
-      caller->SetValue(0.);
-      caller->SetDirty(false);
-    }
-
-    cb(caller);
-  };
-}
 } // namespace detail
 
 struct PatchMenuEntry {
@@ -86,17 +77,17 @@ public:
     SetTooltip(help_text::main_ui::kPatchManager);
 
     auto* previousPatchButton =
-        new PatchArrowButtonControl(IRECT(), detail::MakeImmediatePatchButtonAction(prevPatchFunc), PatchArrowButtonControl::Direction::Left, mStyle);
+        new PatchArrowButtonControl(IRECT(), MakeImmediateButtonAction(prevPatchFunc), PatchArrowButtonControl::Direction::Left, mStyle);
     previousPatchButton->SetTooltip(help_text::main_ui::kPreviousPatch);
     AddChildControl(previousPatchButton);
 
     auto* nextPatchButton =
-        new PatchArrowButtonControl(IRECT(), detail::MakeImmediatePatchButtonAction(nextPatchFunc), PatchArrowButtonControl::Direction::Right, mStyle);
+        new PatchArrowButtonControl(IRECT(), MakeImmediateButtonAction(nextPatchFunc), PatchArrowButtonControl::Direction::Right, mStyle);
     nextPatchButton->SetTooltip(help_text::main_ui::kNextPatch);
     AddChildControl(nextPatchButton);
 
     AddChildControl(mPatchNameButton =
-                        new IVButtonControl(IRECT(), detail::MakeImmediatePatchButtonAction(choosePatchFunc), "Choose Patch...", patchNameStyle));
+                        new IVButtonControl(IRECT(), MakeImmediateButtonAction(choosePatchFunc), "Choose Patch...", patchNameStyle));
     mPatchNameButton->SetTooltip(help_text::main_ui::kPatchManager);
 
     OnResize();

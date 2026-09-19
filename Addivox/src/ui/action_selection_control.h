@@ -30,9 +30,7 @@ public:
 
   void SetOnSelection(SelectionFunc func) { mOnSelection = std::move(func); }
 
-  // Updates what the control displays without running the selection callback, keeping the popup menu's own
-  // chosen item in step so the tick stays on the right row. For when something other than a click changes the
-  // value the control reflects.
+  // Sync the caption and menu checkmark without invoking the selection callback.
   void SetSelectedText(const char* selectedText) {
     if (!selectedText || selectedText[0] == '\0') return;
 

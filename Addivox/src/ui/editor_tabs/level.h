@@ -379,7 +379,7 @@ inline LevelMacroKnobs ReadLevelMacroKnobs(const std::vector<layout::LabelledKno
 inline void RegisterLevelMacroFunctions(const std::shared_ptr<EditorContext>& context, const std::vector<layout::LabelledKnob*>& knobControls) {
   if (knobControls.size() != static_cast<std::size_t>(kNumLevelMacroKnobs)) return;
 
-  auto& functions = (*context->oscillatorTabControls.macroFunctions)[static_cast<std::size_t>(OscillatorParameter::level)];
+  auto& functions = context->oscillatorTabControls.macroFunctions[static_cast<std::size_t>(OscillatorParameter::level)];
 
   functions.version = 1;
   functions.knobs = knobControls;
@@ -397,17 +397,12 @@ inline void RegisterLevelMacroFunctions(const std::shared_ptr<EditorContext>& co
 
 inline void AppendLevelTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
   descriptors.push_back(
-      {kOscillatorTabTitles[0], "Level", OscillatorParameter::level, {0.0, 1.0}, help_text::oscillator_tabs::Get(OscillatorParameter::level)});
+      {kOscillatorTabTitles[0], OscillatorParameter::level, {0.0, 1.0}, help_text::oscillator_tabs::Get(OscillatorParameter::level)});
 }
 
 inline void AttachLevelTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                    const OscillatorTabDescriptor& descriptor, IVButtonControl* restoreButton, IVButtonControl* addButton,
                                    IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
-  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-
-  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-
   auto* setShapeControl =
       CreateHarmonicShapeControl(context, descriptor.parameter, sliderControl, styles,
                                  {"sine", "saw", "square", "triangle", "flat", "octaves", "octaves+fifths", "octaves+fifths+thirds"}, ApplyLevelShape);
@@ -418,11 +413,8 @@ inline void AttachLevelTabChildren(IVTabPage* page, const std::shared_ptr<Editor
                                     kActionBendUpMenuLabel, kActionBendDownMenuLabel, kActionNormalizeMenuLabel},
                                    ApplyLevelAction);
 
-  *context->levelTab.setShapeControl = setShapeControl;
-  *context->levelTab.actionsControl = actionsControl;
-
-  AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
-                            restoreButton, addButton, deleteButton, sliderControl);
+  AttachHarmonicTabChildren(page, context, styles, descriptor, setShapeControl, actionsControl, restoreButton, addButton, deleteButton,
+                            sliderControl);
 
   RegisterLevelMacroFunctions(context, AttachMacroKnobChildren(page, context, descriptor, GetLevelMacroKnobDescriptors()));
 }

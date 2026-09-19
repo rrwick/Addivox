@@ -219,7 +219,7 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
   labelControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
   labelControl->DisablePrompt(true);
 
-  *context->eqTab.allKeyNotesToggle = toggleControl;
+  context->eqTab.allKeyNotesToggle = toggleControl;
   return {toggleControl, labelControl};
 }
 
@@ -232,7 +232,7 @@ inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IC
     if (!context->Patch().HasKeyNotePatch(midiNote)) return;
   }
 
-  auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
+  auto* control = context->eqTab.editorControl;
   if (!control || !control->HasRestoreStateForMidiNote(midiNote)) return;
 
   const EqCurve& restoreState = control->GetRestoreState();
@@ -280,12 +280,12 @@ inline void AttachEqTabChildren(IVTabPage* page, const std::shared_ptr<EditorCon
 
   restoreButton->SetAnimationEndActionFunction([context](IControl* caller) { RestoreEqTabValues(context, caller); });
 
-  *context->eqTab.setShapeControl = setShapeControl;
-  *context->eqTab.actionsControl = actionsControl;
-  *context->eqTab.restoreButton = restoreButton;
-  *context->eqTab.addButton = keyNoteActionButtons.addButton;
-  *context->eqTab.deleteButton = keyNoteActionButtons.deleteButton;
-  *context->eqTab.editorControl = editorControl;
+  context->eqTab.setShapeControl = setShapeControl;
+  context->eqTab.actionsControl = actionsControl;
+  context->eqTab.restoreButton = restoreButton;
+  context->eqTab.addButton = keyNoteActionButtons.addButton;
+  context->eqTab.deleteButton = keyNoteActionButtons.deleteButton;
+  context->eqTab.editorControl = editorControl;
 
   page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kEqSetShape));
   page->AddChildControl(setShapeControl);
@@ -307,14 +307,11 @@ inline IVTabPage* CreateEqTabPage(const std::shared_ptr<EditorContext>& context,
       },
       ResizeEqTabPage,
       [context](bool isVisible) {
-        auto* control = context->eqTab.editorControl ? *context->eqTab.editorControl : nullptr;
+        auto* control = context->eqTab.editorControl;
         if (!control) return;
 
-        if (isVisible) {
-          if (context->HasValidSelectedMidiNote()) control->CaptureRestoreState(context->SelectedMidiNote());
-          else
-            control->ClearRestoreState();
-        } else
+        if (isVisible && context->HasValidSelectedMidiNote()) control->CaptureRestoreState(context->SelectedMidiNote());
+        else
           control->ClearRestoreState();
 
         context->RefreshOscillatorTabs();

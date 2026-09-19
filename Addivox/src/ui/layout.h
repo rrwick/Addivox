@@ -5,6 +5,7 @@
 #include "IControls.h"
 #include "about_built_with_control.h"
 #include "colour.h"
+#include "control_utils.h"
 #include "editor_panel.h"
 #include "help_text.h"
 #include "knob.h"
@@ -38,17 +39,6 @@ inline bool ShowAboutBox(IGraphics* pGraphics, int aboutBoxTag) {
 
   aboutBox->Show();
   return true;
-}
-
-template <typename Callback> inline IActionFunction MakeImmediateButtonAction(Callback&& callback) {
-  return [cb = std::forward<Callback>(callback)](IControl* caller) mutable {
-    if (caller) {
-      caller->SetValue(0.);
-      caller->SetDirty(false);
-    }
-
-    cb(caller);
-  };
 }
 
 inline void AttachPassiveText(IGraphics* pGraphics, const IRECT& bounds, const char* text, const IText& style, const char* tooltip = nullptr) {
@@ -98,27 +88,20 @@ inline void AttachTitleControls(IGraphics* pGraphics, const std::shared_ptr<edit
   pGraphics->AttachControl(aboutButton);
   pGraphics->AttachControl(settingsButton);
   pGraphics->AttachControl(patchManagerControl);
-  *context->title.patchManagerControl = patchManagerControl;
+  context->patchManagerControl = patchManagerControl;
 }
 
 struct PanelResources {
-  explicit PanelResources(IGraphics* pGraphics)
-      : knobAssets{pGraphics->LoadSVG("knob-fixed.svg"), pGraphics->LoadSVG("knob-rotating.svg")}, aboutLogo(pGraphics->LoadSVG("about-logo.svg")) {}
+  explicit PanelResources(IGraphics* pGraphics) : aboutLogo(pGraphics->LoadSVG("about-logo.svg")) {}
 
-  float knobSize = 52.f;
   IVStyle meterStyle = theme::MeterStyle();
-  IVStyle vizEditButtonStyle = theme::VizEditButtonStyle();
   IVStyle mainPanelModeSwitchStyle = theme::MainPanelModeSwitchStyle();
   IVStyle numberBoxStyle = theme::BaseStyle(false, false).WithValueText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
   IVStyle portamentoRangeSliderStyle = theme::PortamentoRangeSliderStyle();
   IText compactLabelText = theme::CompactLabelText();
-  IText compactValueText = theme::CompactValueText();
   IText portamentoValueText = theme::PortamentoValueText();
-  KnobAssets knobAssets;
   ISVG aboutLogo;
 };
-
-inline PanelResources MakePanelResources(IGraphics* pGraphics) { return PanelResources(pGraphics); }
 
 inline void AttachOutputMeterControls(IGraphics* pGraphics, const PanelResources& resources, int breathMeterTag, int outMeterTag) {
   AttachPassiveText(pGraphics, positions::kBreathLabel, "Breath", resources.compactLabelText, help_text::main_ui::kBreathMeter);
@@ -186,10 +169,6 @@ inline KeyboardControl* GetKeyboardControl(IGraphics* pGraphics, int keyboardTag
   return nullptr;
 }
 
-inline void SetKeyboardKeyNoteHighlight(IGraphics* pGraphics, int keyboardTag, int midiNote, bool highlighted) {
-  if (auto* keyboard = GetKeyboardControl(pGraphics, keyboardTag)) keyboard->SetHighlightedMidiNote(midiNote, highlighted);
-}
-
 inline void RefreshKeyboardKeyNoteHighlights(KeyboardControl* keyboardControl, const CompoundPatch& compoundPatch) {
   keyboardControl->ClearHighlightedMidiNotes();
   for (int midiNote = CompoundPatch::kMinMidiNote; midiNote <= CompoundPatch::kMaxMidiNote; ++midiNote)
@@ -242,7 +221,7 @@ inline void AttachKeyboardControls(IGraphics* pGraphics, const std::shared_ptr<e
   });
   keyboardControl->SetSelectedMidiNote(context->SelectedMidiNote());
   keyboardControl->SetTooltip(help_text::main_ui::kKeyboard);
-  *context->keyboardControl = keyboardControl;
+  context->keyboardControl = keyboardControl;
 
   auto* wheelControl = new PitchBendWheelControl(positions::kPitchBendWheel, initialPitchBendRange);
   wheelControl->SetTooltip(help_text::main_ui::kPitchBendWheel);
@@ -250,7 +229,7 @@ inline void AttachKeyboardControls(IGraphics* pGraphics, const std::shared_ptr<e
   pGraphics->AttachControl(keyboardControl, keyboardTag);
 }
 
-inline void AttachEnvelopeControls(IGraphics* pGraphics, const PanelResources&) {
+inline void AttachEnvelopeControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kEnvelopeLabel, "ENVELOPE");
   pGraphics->AttachControl(new LabelledKnob(positions::kAttackKnob, kParamGlobalAttackScale, "Attack", 3.f));
   pGraphics->AttachControl(new LabelledKnob(positions::kReleaseKnob, kParamGlobalReleaseScale, "Release", 5.f));
@@ -277,7 +256,7 @@ inline void AttachPitchControls(IGraphics* pGraphics, const PanelResources& reso
   pGraphics->AttachControl(portamentoControl);
 }
 
-inline void AttachVariationControls(IGraphics* pGraphics, const PanelResources&) {
+inline void AttachVariationControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kVariationLabel, "VARIATION");
   pGraphics->AttachControl(new LabelledKnob(positions::kLevelAmountKnob, kParamGlobalLevelVariationAmplitudeScale, "LvlAmt"));
   pGraphics->AttachControl(new LabelledKnob(positions::kLevelRateKnob, kParamGlobalLevelVariationRateScale, "LvlRate"));
@@ -287,13 +266,13 @@ inline void AttachVariationControls(IGraphics* pGraphics, const PanelResources&)
   pGraphics->AttachControl(new LabelledKnob(positions::kPitchRateKnob, kParamGlobalPitchVariationRateScale, "PchRate"));
 }
 
-inline void AttachOutputControls(IGraphics* pGraphics, const PanelResources&) {
+inline void AttachOutputControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kOutputLabel, "OUTPUT");
   pGraphics->AttachControl(new LabelledKnob(positions::kPanKnob, kParamGlobalPanShift, "Pan"));
   pGraphics->AttachControl(new LabelledKnob(positions::kLevelKnob, kParamGlobalLevel, "Level"));
 }
 
-inline void AttachEffectsControls(IGraphics* pGraphics, const PanelResources&) {
+inline void AttachEffectsControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kEffectsLabel, "EFFECTS");
   pGraphics->AttachControl(new LabelledKnob(positions::kDriveKnob, kParamEffectsDrive, "Drive"));
   pGraphics->AttachControl(new LabelledKnob(positions::kToneKnob, kParamEffectsTone, "Tone"));
@@ -305,17 +284,17 @@ inline void AttachEffectsControls(IGraphics* pGraphics, const PanelResources&) {
 inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGraphics, const std::shared_ptr<EditorState>& editorState,
                                                                  int harmonicVisualizerTag, int editorTabsTag, int keyboardTag, int benderTag,
                                                                  int breathMeterTag, int outMeterTag, int initialPitchBendRange) {
-  const layout::PanelResources resources = layout::MakePanelResources(pGraphics);
+  const layout::PanelResources resources(pGraphics);
 
   auto context = AttachEditorMainControls(pGraphics, editorState, harmonicVisualizerTag, editorTabsTag);
   layout::AttachTitleControls(pGraphics, context, kCtrlTagAboutBox);
   layout::AttachOutputMeterControls(pGraphics, resources, breathMeterTag, outMeterTag);
   const auto vizEditPanel = layout::AttachVizEditControls(pGraphics, resources, context, harmonicVisualizerTag, editorTabsTag, keyboardTag);
-  layout::AttachEnvelopeControls(pGraphics, resources);
+  layout::AttachEnvelopeControls(pGraphics);
   layout::AttachPitchControls(pGraphics, resources);
-  layout::AttachVariationControls(pGraphics, resources);
-  layout::AttachOutputControls(pGraphics, resources);
-  layout::AttachEffectsControls(pGraphics, resources);
+  layout::AttachVariationControls(pGraphics);
+  layout::AttachOutputControls(pGraphics);
+  layout::AttachEffectsControls(pGraphics);
   layout::AttachKeyboardControls(pGraphics, context, keyboardTag, benderTag, initialPitchBendRange);
   layout::AttachAboutBoxControl(pGraphics, resources, kCtrlTagAboutBox);
   context->RefreshEditorActionButtons();

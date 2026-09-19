@@ -54,27 +54,20 @@ inline bool ApplyPanAction(SimplePatch& patch, const char* actionName, EditorOsc
 
 inline void AppendPanTabDescriptors(std::vector<OscillatorTabDescriptor>& descriptors) {
   descriptors.push_back(
-      {kOscillatorTabTitles[5], "Pan offset", OscillatorParameter::pan, {-1.0, 1.0}, help_text::oscillator_tabs::Get(OscillatorParameter::pan)});
+      {kOscillatorTabTitles[5], OscillatorParameter::pan, {-1.0, 1.0}, help_text::oscillator_tabs::Get(OscillatorParameter::pan)});
 }
 
 inline void AttachPanTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                  const OscillatorTabDescriptor& descriptor, IVButtonControl* restoreButton, IVButtonControl* addButton,
                                  IVButtonControl* deleteButton, OscillatorSliderControl* sliderControl) {
-  const auto xRangeControls = CreateXRangeControls(context, descriptor, styles);
-  const auto allKeyNotesControls = CreateAllKeyNotesControls(context, descriptor, styles);
-  auto* yTransformControl = CreateYTransformControl(context->GetTransformRef(descriptor.parameter), sliderControl, styles);
-
   auto* setShapeControl = CreateHarmonicShapeControl(context, descriptor.parameter, sliderControl, styles,
                                                      {"zero", "ramp right", "ramp left", "ramp alternating", "full alternating"}, ApplyPanShape);
   auto* actionsControl = CreateHarmonicActionsControl(
       context, descriptor.parameter, sliderControl, styles,
       {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionInvertMenuLabel}, ApplyPanAction);
 
-  *context->panTab.setShapeControl = setShapeControl;
-  *context->panTab.actionsControl = actionsControl;
-
-  AttachHarmonicTabChildren(page, context, styles, descriptor, xRangeControls, yTransformControl, setShapeControl, actionsControl, allKeyNotesControls,
-                            restoreButton, addButton, deleteButton, sliderControl);
+  AttachHarmonicTabChildren(page, context, styles, descriptor, setShapeControl, actionsControl, restoreButton, addButton, deleteButton,
+                            sliderControl);
 }
 } // namespace editor
 } // namespace plugin_ui

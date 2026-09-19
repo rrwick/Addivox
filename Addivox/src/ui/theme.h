@@ -41,24 +41,11 @@ inline IText CompactLabelText(EAlign align = EAlign::Near) { return {14.f, colou
 
 inline IText SectionLabelText(float angle = -90.f) { return {22.f, colour::ui::kLabelText, "Roboto-Black", EAlign::Center, EVAlign::Middle, angle}; }
 
-inline IText CompactValueText(EAlign align = EAlign::Near) { return {14.f, colour::ui::kValueText, "Roboto-Black", align}; }
-
 inline IText PortamentoValueText() { return {12.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center}; }
-
-inline IVStyle VizEditButtonStyle() {
-  return BaseStyle(true, false).WithLabelText(IText(16.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle));
-}
 
 inline IVStyle PatchManagerStyle() {
   return BaseStyle(true, false)
       .WithLabelText(IText(15.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))
-      .WithColor(kFG, colour::ui::kControlBody)
-      .WithColor(kHL, colour::editor::kHoverOverlay);
-}
-
-inline IVStyle PatchActionButtonStyle() {
-  return BaseStyle(true, false)
-      .WithLabelText(IText(14.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Center, EVAlign::Middle))
       .WithColor(kFG, colour::ui::kControlBody)
       .WithColor(kHL, colour::editor::kHoverOverlay);
 }
@@ -76,8 +63,6 @@ inline IVStyle MainPanelModeSwitchStyle() { return BaseStyle(false, false).WithC
 
 inline IVStyle PortamentoRangeSliderStyle() { return BaseStyle(false, false).WithColor(kFG, colour::ui::kValueText).WithColor(kHL, colour::ui::kValueText); }
 
-inline IText AboutTitleText() { return {40.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle}; }
-
 inline IText AboutMetaText(float size = 22.f) { return {size, colour::ui::kLabelText, "Roboto-Regular", EAlign::Center, EVAlign::Middle}; }
 
 inline IText AboutLinkText() { return {22.f, colour::ui::kAccentPrimary, "Roboto-Regular", EAlign::Center, EVAlign::Middle}; }
@@ -93,8 +78,6 @@ struct EditorStyles {
                           .WithColor(kHL, colour::editor::kHoverOverlay);
   IVStyle sliderStyle =
       BaseStyle(false, false).WithColor(kBG, darkSurface).WithColor(kFG, barColor).WithColor(kX1, barColor).WithColor(kHL, colour::editor::kHoverOverlay);
-  IText tabTitleText{16.f, colour::ui::kValueText, "Roboto-Bold", EAlign::Near, EVAlign::Top};
-  IText descriptionText{13.f, colour::ui::kLabelText, "Roboto-Regular", EAlign::Near, EVAlign::Top};
   IVStyle restoreButtonStyle = BaseStyle(true, false)
                                    .WithLabelText(IText(13.f, colour::ui::kValueText, "Roboto-Black", EAlign::Center, EVAlign::Middle))
                                    .WithColor(kFG, darkTab)
