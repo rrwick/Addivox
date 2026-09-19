@@ -28,7 +28,6 @@ public:
   using VisibilityChangedFunc = std::function<void(bool isVisible)>;
   using ReapplyChildVisibilityFunc = std::function<void()>;
 
-  // reapplyChildVisibilityFunc is optional: the EQ page has no mode-hidden controls to restore.
   EditorOscillatorTabPage(TabAttachFunc attachFunc, ResizeFunc resizeFunc, VisibilityChangedFunc visibilityChangedFunc,
                           ReapplyChildVisibilityFunc reapplyChildVisibilityFunc = nullptr)
       : IVTabPage(std::move(attachFunc), std::move(resizeFunc)), mVisibilityChangedFunc(std::move(visibilityChangedFunc)),
@@ -39,9 +38,7 @@ public:
     IVTabPage::Hide(hide);
     const bool isHidden = IsHidden();
 
-    // IVTabPage::Hide un-hides every child indiscriminately, so anything hidden for another reason has to be
-    // re-applied afterwards. This runs on every call rather than only on a change, because clicking the tab
-    // that is already selected still un-hides the children without changing the page's own hidden state.
+    // Hide(false) unhides every child, even when reselecting the current tab. Restore mode-specific visibility each time.
     if (mReapplyChildVisibilityFunc) mReapplyChildVisibilityFunc();
 
     if (wasHidden != isHidden && mVisibilityChangedFunc) mVisibilityChangedFunc(!isHidden);
@@ -102,16 +99,14 @@ public:
     for (const auto& page : pages) AddPage(page.first, GetOscillatorTabDescriptionForTitle(page.first), page.second);
   }
 
-  ~EditorTabbedPagesControl() { mPages.Empty(false); }
-
   void Hide(bool hide) override {
     if (hide) {
       ForAllChildrenFunc([hide](int childIdx, IControl* child) { child->Hide(hide); });
     } else {
-      ForAllPagesFunc([](IVTabPage* page) { page->Hide(true); });
+      for (auto* page : mPages) page->Hide(true);
 
       GetTabSwitchControl()->Hide(false);
-      GetPage(GetTabSwitchControl()->GetSelectedIdx())->Hide(false);
+      mPages[GetTabSwitchControl()->GetSelectedIdx()]->Hide(false);
     }
 
     IControl::Hide(hide);
@@ -135,14 +130,14 @@ public:
 
     GetTabSwitchControl()->SetShape(EVShape::EndsRounded);
 
-    ForAllPagesFunc([&](IVTabPage* page) {
+    for (auto* page : mPages) {
       AddChildControl(page);
       page->SetTargetAndDrawRECTs(GetPageArea());
       page->Hide(true);
-    });
+    }
 
     GetTabSwitchControl()->Hide(false);
-    GetPage(0)->Hide(false);
+    mPages.front()->Hide(false);
   }
 
   void OnStyleChanged() override {
@@ -161,42 +156,32 @@ public:
     if (NChildren()) {
       GetTabSwitchControl()->SetTargetAndDrawRECTs(GetTabBarArea());
 
-      ForAllPagesFunc([&](IVTabPage* page) { page->SetTargetAndDrawRECTs(GetPageArea()); });
+      for (auto* page : mPages) page->SetTargetAndDrawRECTs(GetPageArea());
     }
   }
 
-  float GetTabHeight() const { return mTabBarHeight; }
+  IRECT GetPageArea() const { return mWidgetBounds.GetReducedFromTop(mTabBarHeight); }
 
-  IRECT GetPageArea() const { return mWidgetBounds.GetReducedFromTop(GetTabHeight()); }
-
-  IRECT GetTabBarArea() const { return mWidgetBounds.GetFromTop(GetTabHeight()).FracRectHorizontal(mTabBarFrac, mTabsAlign == EAlign::Far); }
+  IRECT GetTabBarArea() const { return mWidgetBounds.GetFromTop(mTabBarHeight).FracRectHorizontal(mTabBarFrac, mTabsAlign == EAlign::Far); }
 
 private:
   void AddPage(const char* pageName, const char* pageTooltip, IVTabPage* page) {
     page->SetLabelStr(pageName);
     mPageNames.push_back(pageName);
     mPageTooltips.push_back(pageTooltip ? pageTooltip : "");
-    mPages.Add(page);
-  }
-
-  void ForAllPagesFunc(const std::function<void(IVTabPage* page)>& func) {
-    for (int i = 0; i < mPages.GetSize(); ++i) func(mPages.Get(i));
+    mPages.push_back(page);
   }
 
   EditorTooltipTabSwitchControl* GetTabSwitchControl() { return GetChild(0)->As<EditorTooltipTabSwitchControl>(); }
 
-  IVTabPage* GetPage(int pageIndex) { return mPages.Get(pageIndex); }
-
   void ShowSelectedPage() {
-    ForAllPagesFunc([&](IVTabPage* page) {
-      const bool hide = std::strcmp(GetTabSwitchControl()->GetSelectedLabelStr(), page->GetLabelStr()) != 0;
-      page->Hide(hide);
-    });
+    const char* selectedTitle = GetTabSwitchControl()->GetSelectedLabelStr();
+    for (auto* page : mPages) page->Hide(std::strcmp(selectedTitle, page->GetLabelStr()) != 0);
 
     if (IBubbleControl* bubbleControl = GetUI()->GetBubbleControl()) bubbleControl->Hide(true);
   }
 
-  WDL_PtrList<IVTabPage> mPages;
+  std::vector<IVTabPage*> mPages;
   std::vector<const char*> mPageNames;
   std::vector<const char*> mPageTooltips;
   float mTabBarHeight;
@@ -245,19 +230,6 @@ inline const OscillatorTabDescriptor* FindOscillatorTabDescriptorForTitle(const 
   return nullptr;
 }
 
-inline const OscillatorTabDescriptor* GetSelectedOscillatorTabDescriptor(const std::shared_ptr<EditorContext>& context) {
-  if (!context) return nullptr;
-
-  const auto& tabTitles = GetEditorTabTitlesInDisplayOrder();
-  const int selectedTabIndex = context->SelectedTabIndex();
-  if (selectedTabIndex < 0 || selectedTabIndex >= static_cast<int>(tabTitles.size())) return nullptr;
-
-  const char* selectedTitle = tabTitles[static_cast<std::size_t>(selectedTabIndex)];
-  if (!selectedTitle || std::strcmp(selectedTitle, kEqTabTitle) == 0) return nullptr;
-
-  return FindOscillatorTabDescriptorForTitle(selectedTitle);
-}
-
 inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext>& context, int keyVK) {
   if (!context || !context->IsEditMode()) return;
 
@@ -277,7 +249,7 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
     return;
   }
 
-  const auto* descriptor = GetSelectedOscillatorTabDescriptor(context);
+  const auto* descriptor = FindOscillatorTabDescriptorForTitle(selectedTitle);
   if (!descriptor || context->IsMacrosMode(descriptor->parameter)) return;
 
   const char* actionName = GetEditorActionShortcutActionName(descriptor->parameter, keyVK);
@@ -344,19 +316,14 @@ inline IVTabPage* CreateOscillatorTabPage(const std::shared_ptr<EditorContext>& 
                                           const OscillatorTabDescriptor& descriptor) {
   auto* page = new EditorOscillatorTabPage(
       [context, styles, descriptor](IVTabPage* page, const IRECT&) { AttachOscillatorTabChildren(page, context, styles, descriptor); },
-      [descriptor](IContainerBase* page, const IRECT& bounds) {
-        ResizeHarmonicOscillatorTabPage(page, bounds, SupportsMacrosMode(descriptor.parameter));
-      },
+      [descriptor](IContainerBase* page, const IRECT& bounds) { ResizeHarmonicOscillatorTabPage(page, bounds, SupportsMacrosMode(descriptor.parameter)); },
       [context, descriptor](bool isVisible) {
         auto* control = (*context->oscillatorTabControls.sliderControls)[static_cast<std::size_t>(descriptor.parameter)];
         if (!control) return;
 
         (*context->oscillatorTabControls.macroStates)[static_cast<std::size_t>(descriptor.parameter)].midiNote = -1;
-        if (isVisible) {
-          if (context->HasValidSelectedMidiNote()) context->CaptureOscillatorRestoreState(descriptor.parameter);
-          else
-            control->ClearRestoreState();
-        } else
+        if (isVisible && context->HasValidSelectedMidiNote()) context->CaptureOscillatorRestoreState(descriptor.parameter);
+        else
           control->ClearRestoreState();
 
         context->RefreshOscillatorTabs();
@@ -399,75 +366,66 @@ inline void RestoreSelectedTab(IContainerBase* editorTabsControl, const std::sha
   tabSwitch->SetDirty(false);
 }
 
+inline void BindEditorState(EditorContext& context, const std::shared_ptr<EditorState>& editorState) {
+  context.model.patchMutex = {editorState, &editorState->patchMutex};
+  context.model.compoundPatch = {editorState, &editorState->compoundPatch};
+  context.model.breathCCSource = {editorState, &editorState->breathCCSource};
+  context.model.portamentoCC = {editorState, &editorState->portamentoCC};
+  context.model.pitchBendRange = {editorState, &editorState->pitchBendRange};
+  context.model.harmonicVisualizerEnabled = {editorState, &editorState->harmonicVisualizerEnabled};
+  context.model.selectedMidiNote = {editorState, &editorState->selectedMidiNote};
+  context.model.selectedTabIndex = {editorState, &editorState->selectedTabIndex};
+  context.model.editMode = {editorState, &editorState->editMode};
+  context.model.oscillatorEditModes = {editorState, &editorState->oscillatorEditModes};
+  context.model.oscillatorEditScopes = {editorState, &editorState->oscillatorEditScopes};
+  context.oscillatorView.xRangeMin = {editorState, &editorState->oscillatorXRangeMin};
+  context.oscillatorView.xRangeMax = {editorState, &editorState->oscillatorXRangeMax};
+  context.oscillatorView.transforms = {editorState, &editorState->oscillatorTransforms};
+}
+
+inline void InitializeEditorControls(EditorContext& context) {
+  context.oscillatorTabControls.sliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.xRangeMinControls = std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.xRangeMaxControls = std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.allKeyNotesToggles = std::make_shared<std::array<IVToggleControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.restoreButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.addButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.deleteButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.modeToggles = std::make_shared<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.yTransformControls = std::make_shared<std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.handEditOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.macroOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.macroFunctions = std::make_shared<std::array<MacroTabFunctions, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.macroStates = std::make_shared<std::array<MacroTabState, OscillatorSettings::kNumParameters>>();
+  context.oscillatorTabControls.tabPages = std::make_shared<std::array<IControl*, OscillatorSettings::kNumParameters>>();
+  context.levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.breathTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.pitchTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.pitchTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.panTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.panTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.variationTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 6>>();
+  context.variationTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 6>>();
+  context.attackReleaseTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
+  context.attackReleaseTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
+  context.eqTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.eqTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
+  context.eqTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
+  context.eqTab.restoreButton = std::make_shared<IVButtonControl*>(nullptr);
+  context.eqTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
+  context.eqTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
+  context.eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
+  context.keyboardControl = std::make_shared<KeyboardControl*>(nullptr);
+  context.title.patchManagerControl = std::make_shared<IControl*>(nullptr);
+}
+
 inline std::shared_ptr<EditorContext> CreateEditorContext(const std::shared_ptr<EditorState>& editorState, int editorTabsTag) {
   auto context = std::make_shared<EditorContext>();
   context->editorTabsTag = editorTabsTag;
-  context->model.patchMutex = std::shared_ptr<std::recursive_mutex>(editorState, &editorState->patchMutex);
-  context->model.compoundPatch = std::shared_ptr<CompoundPatch>(editorState, &editorState->compoundPatch);
-  context->model.breathCCSource = std::shared_ptr<BreathCCSource>(editorState, &editorState->breathCCSource);
-  context->model.portamentoCC = std::shared_ptr<int>(editorState, &editorState->portamentoCC);
-  context->model.pitchBendRange = std::shared_ptr<int>(editorState, &editorState->pitchBendRange);
-  context->model.harmonicVisualizerEnabled = std::shared_ptr<bool>(editorState, &editorState->harmonicVisualizerEnabled);
-  context->model.selectedMidiNote = std::shared_ptr<int>(editorState, &editorState->selectedMidiNote);
-  context->model.selectedTabIndex = std::shared_ptr<int>(editorState, &editorState->selectedTabIndex);
-  context->model.editMode = std::shared_ptr<bool>(editorState, &editorState->editMode);
-  context->model.oscillatorEditModes =
-      std::shared_ptr<std::array<EditorOscillatorEditMode, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditModes);
-  context->model.oscillatorEditScopes =
-      std::shared_ptr<std::array<EditorOscillatorEditScope, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorEditScopes);
-  context->oscillatorView.xRangeMin = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMin);
-  context->oscillatorView.xRangeMax = std::shared_ptr<int>(editorState, &editorState->oscillatorXRangeMax);
-  context->oscillatorView.transforms =
-      std::shared_ptr<std::array<EditorLevelTransform, OscillatorSettings::kNumParameters>>(editorState, &editorState->oscillatorTransforms);
-  context->oscillatorTabControls.sliderControls = std::make_shared<std::array<OscillatorSliderControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.sliderControls->fill(nullptr);
-  context->oscillatorTabControls.xRangeMinControls = std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.xRangeMinControls->fill(nullptr);
-  context->oscillatorTabControls.xRangeMaxControls = std::make_shared<std::array<IVNumberBoxControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.xRangeMaxControls->fill(nullptr);
-  context->oscillatorTabControls.allKeyNotesToggles = std::make_shared<std::array<IVToggleControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.allKeyNotesToggles->fill(nullptr);
-  context->oscillatorTabControls.restoreButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.restoreButtons->fill(nullptr);
-  context->oscillatorTabControls.addButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.addButtons->fill(nullptr);
-  context->oscillatorTabControls.deleteButtons = std::make_shared<std::array<IVButtonControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.deleteButtons->fill(nullptr);
-  context->oscillatorTabControls.modeToggles = std::make_shared<std::array<IVTabSwitchControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.modeToggles->fill(nullptr);
-  context->oscillatorTabControls.yTransformControls = std::make_shared<std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.yTransformControls->fill(nullptr);
-  context->oscillatorTabControls.handEditOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.macroOnlyControls = std::make_shared<std::array<std::vector<IControl*>, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.macroFunctions = std::make_shared<std::array<MacroTabFunctions, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.macroStates = std::make_shared<std::array<MacroTabState, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.tabPages = std::make_shared<std::array<IControl*, OscillatorSettings::kNumParameters>>();
-  context->oscillatorTabControls.tabPages->fill(nullptr);
-  context->levelTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->levelTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->breathTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->breathTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->pitchTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->pitchTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->panTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->panTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->variationTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 6>>();
-  context->variationTab.setShapeControls->fill(nullptr);
-  context->variationTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 6>>();
-  context->variationTab.actionsControls->fill(nullptr);
-  context->attackReleaseTab.setShapeControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
-  context->attackReleaseTab.setShapeControls->fill(nullptr);
-  context->attackReleaseTab.actionsControls = std::make_shared<std::array<ActionSelectionControl*, 2>>();
-  context->attackReleaseTab.actionsControls->fill(nullptr);
-  context->eqTab.setShapeControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->eqTab.actionsControl = std::make_shared<ActionSelectionControl*>(nullptr);
-  context->eqTab.allKeyNotesToggle = std::make_shared<IVToggleControl*>(nullptr);
-  context->eqTab.restoreButton = std::make_shared<IVButtonControl*>(nullptr);
-  context->eqTab.addButton = std::make_shared<IVButtonControl*>(nullptr);
-  context->eqTab.deleteButton = std::make_shared<IVButtonControl*>(nullptr);
-  context->eqTab.editorControl = std::make_shared<EqEditorControl*>(nullptr);
-  context->keyboardControl = std::make_shared<KeyboardControl*>(nullptr);
-  context->title.patchManagerControl = std::make_shared<IControl*>(nullptr);
+  BindEditorState(*context, editorState);
+  InitializeEditorControls(*context);
 
   *context->oscillatorView.xRangeMin = std::clamp(*context->oscillatorView.xRangeMin, 1, SimplePatch::kNumOscillators);
   *context->oscillatorView.xRangeMax = std::clamp(*context->oscillatorView.xRangeMax, *context->oscillatorView.xRangeMin, SimplePatch::kNumOscillators);
