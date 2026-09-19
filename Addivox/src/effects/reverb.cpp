@@ -16,9 +16,8 @@ constexpr double kInputHighpassBaseHz = 160.0;
 constexpr double kInputHighpassRangeHz = 75.0;
 constexpr double kMinimumLoopDampingHz = 1700.0;
 constexpr int kNumEarlyTaps = 8;
-constexpr int kNumDiffusers = 4;
+constexpr int kNumInputDiffusers = 6;
 constexpr int kNumDelayLines = 8;
-constexpr int kNumTailDiffusers = 2;
 constexpr int kNumLateDiffuserStages = 2;
 
 using DelayValueArray = std::array<double, kNumDelayLines>;
@@ -27,10 +26,8 @@ using StereoPair = std::array<double, 2>;
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapTimesMs{4.9, 7.3, 10.8, 15.1, 21.4, 29.2, 39.7, 53.6};
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsL{0.62, 0.48, 0.34, 0.24, 0.17, 0.12, 0.09, 0.07};
 constexpr std::array<double, kNumEarlyTaps> kEarlyTapGainsR{0.10, 0.15, 0.23, 0.36, 0.47, 0.31, 0.19, 0.11};
-constexpr std::array<double, kNumDiffusers> kDiffuserDelayMs{4.8, 7.2, 10.9, 15.7};
-constexpr std::array<double, kNumDiffusers> kDiffuserFeedbacks{0.72, 0.68, 0.63, 0.57};
-constexpr std::array<double, kNumTailDiffusers> kTailDiffuserDelayMs{20.6, 31.4};
-constexpr std::array<double, kNumTailDiffusers> kTailDiffuserFeedbacks{0.56, 0.48};
+constexpr std::array<double, kNumInputDiffusers> kInputDiffuserDelayMs{4.8, 7.2, 10.9, 15.7, 20.6, 31.4};
+constexpr std::array<double, kNumInputDiffusers> kInputDiffuserFeedbacks{0.72, 0.68, 0.63, 0.57, 0.56, 0.48};
 constexpr std::array<std::array<double, kNumDelayLines>, kNumLateDiffuserStages> kLateDiffuserDelayMs{{
     {1.7, 2.3, 3.1, 4.2, 5.4, 6.8, 8.6, 10.7},
     {2.9, 4.1, 5.3, 6.7, 8.4, 10.5, 12.8, 15.6},
@@ -124,11 +121,8 @@ void effects::Reverb::Reset(double sampleRate, int blockSize) {
   mEarlyDelay.Resize(static_cast<int>(std::ceil(dsp::MillisecondsToSamples((kEarlyTapTimesMs.back() * kMaxEarlyTapScale) + 2.0, mSampleRate))) + 2);
   mPreDelay.Resize(static_cast<int>(std::ceil(dsp::MillisecondsToSamples(kMaxPreDelayMs, mSampleRate))) + 2);
 
-  for (std::size_t i = 0; i < mDiffusers.size(); ++i)
-    mDiffusers[i].Reset(mSampleRate, kDiffuserDelayMs[i], kDiffuserFeedbacks[i]);
-
-  for (std::size_t i = 0; i < mTailDiffusers.size(); ++i)
-    mTailDiffusers[i].Reset(mSampleRate, kTailDiffuserDelayMs[i], kTailDiffuserFeedbacks[i]);
+  for (std::size_t i = 0; i < mInputDiffusers.size(); ++i)
+    mInputDiffusers[i].Reset(mSampleRate, kInputDiffuserDelayMs[i], kInputDiffuserFeedbacks[i]);
 
   for (std::size_t i = 0; i < mLateDiffusers.size(); ++i) {
     for (std::size_t stage = 0; stage < mLateDiffusers[i].size(); ++stage)
@@ -145,7 +139,7 @@ void effects::Reverb::Reset(double sampleRate, int blockSize) {
   mActive = false;
   Clear();
   UpdateTargetParameters();
-  SnapCurrentParametersToTargets(true);
+  InitializeCurrentParameters();
 }
 
 void effects::Reverb::Clear() {
@@ -157,9 +151,7 @@ void effects::Reverb::Clear() {
   mEarlyDelay.Clear();
   mPreDelay.Clear();
 
-  for (auto& diffuser : mDiffusers) diffuser.Clear();
-
-  for (auto& diffuser : mTailDiffusers) diffuser.Clear();
+  for (auto& diffuser : mInputDiffusers) diffuser.Clear();
 
   ClearLateDiffusers();
 
@@ -187,7 +179,7 @@ void effects::Reverb::SetAmount(double amount) {
 
   if (!mActive) {
     Clear();
-    SnapCurrentParametersToTargets(true);
+    InitializeCurrentParameters();
     mActive = true;
   }
 }
@@ -231,13 +223,13 @@ void effects::Reverb::UpdateTargetParameters() {
   }
 }
 
-void effects::Reverb::SnapCurrentParametersToTargets(bool startWetAtZero) {
-  mEarlyMix = startWetAtZero ? 0.0 : mTargetEarlyMix;
-  mLateMix = startWetAtZero ? 0.0 : mTargetLateMix;
+void effects::Reverb::InitializeCurrentParameters() {
+  mEarlyMix = 0.0;
+  mLateMix = 0.0;
   mWetMix = mEarlyMix + mLateMix;
-  mEarlySideScale = startWetAtZero ? 0.0 : mTargetEarlySideScale;
-  mLateSideScale = startWetAtZero ? 0.0 : mTargetLateSideScale;
-  mAmbientBloom = startWetAtZero ? 0.0 : mTargetAmbientBloom;
+  mEarlySideScale = 0.0;
+  mLateSideScale = 0.0;
+  mAmbientBloom = 0.0;
   mPreDelaySamples = mTargetPreDelaySamples;
   mInputLowpass.coefficient = mTargetInputLowpassCoefficient;
   mInputHighpass.coefficient = mTargetInputHighpassCoefficient;
@@ -289,11 +281,7 @@ bool effects::Reverb::HasStoredSignal() const {
       mEarlyDelay.HasSignal() || mPreDelay.HasSignal())
     return true;
 
-  for (const auto& diffuser : mDiffusers) {
-    if (diffuser.delay.HasSignal()) return true;
-  }
-
-  for (const auto& diffuser : mTailDiffusers) {
+  for (const auto& diffuser : mInputDiffusers) {
     if (diffuser.delay.HasSignal()) return true;
   }
 
@@ -340,12 +328,7 @@ effects::Reverb::StereoPair effects::Reverb::ProcessLateReverb(double diffused, 
     const double dampedOutput = mLoopDampingFilters[i].Process(delayOutput);
     feedbackOutputs[i] = dampedOutput;
 
-    double ambientOutput = dampedOutput;
-    if (mAmbientBloom > kAmbientClearThreshold) {
-      for (auto& lateDiffuser : mLateDiffusers[i]) ambientOutput = lateDiffuser.Process(ambientOutput);
-    }
-
-    ambientOutputs[i] = ambientOutput;
+    ambientOutputs[i] = mAmbientBloom > kAmbientClearThreshold ? ProcessDiffuserChain(mLateDiffusers[i], dampedOutput) : dampedOutput;
   }
 
   const auto mixedFeedback = Hadamard8(feedbackOutputs);
@@ -369,6 +352,22 @@ void effects::Reverb::ClearLateDiffusers() {
   for (auto& lateDiffuserStages : mLateDiffusers) {
     for (auto& lateDiffuser : lateDiffuserStages) lateDiffuser.Clear();
   }
+}
+
+effects::Reverb::StereoPair effects::Reverb::ProcessWetSample(double dryLeft, double dryRight) {
+  const double mid = 0.5 * (dryLeft + dryRight);
+  const double side = 0.5 * (dryLeft - dryRight);
+
+  double conditioned = mInputLowpass.Process(mid);
+  conditioned = mInputHighpass.Process(conditioned);
+
+  const auto early = ProcessEarlyReflections(conditioned, side);
+  const double predelayed = mPreDelay.Read(mPreDelaySamples);
+  mPreDelay.Write(conditioned);
+  const double diffused = ProcessDiffuserChain(mInputDiffusers, predelayed);
+  const auto late = ProcessLateReverb(diffused, side);
+
+  return {mOutputLowpassLeft.Process((mEarlyMix * early[0]) + late[0]), mOutputLowpassRight.Process((mEarlyMix * early[1]) + late[1])};
 }
 
 void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames) {
@@ -400,20 +399,7 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames) {
 
     const double dryLeft = outputs[0][sampleIndex];
     const double dryRight = outputs[1][sampleIndex];
-    const double mid = 0.5 * (dryLeft + dryRight);
-    const double side = 0.5 * (dryLeft - dryRight);
-
-    double conditioned = mInputLowpass.Process(mid);
-    conditioned = mInputHighpass.Process(conditioned);
-
-    const auto early = ProcessEarlyReflections(conditioned, side);
-    const double predelayed = mPreDelay.Read(mPreDelaySamples);
-    mPreDelay.Write(conditioned);
-    const double diffused = ProcessDiffuserChain(mTailDiffusers, ProcessDiffuserChain(mDiffusers, predelayed));
-    const auto late = ProcessLateReverb(diffused, side);
-
-    const double wetLeft = mOutputLowpassLeft.Process((mEarlyMix * early[0]) + late[0]);
-    const double wetRight = mOutputLowpassRight.Process((mEarlyMix * early[1]) + late[1]);
+    const auto [wetLeft, wetRight] = ProcessWetSample(dryLeft, dryRight);
     if (wetLeft != 0.0 || wetRight != 0.0) wetBlockSilent = false;
 
     outputs[0][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal(dryLeft + wetLeft));

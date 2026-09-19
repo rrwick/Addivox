@@ -16,9 +16,8 @@ public:
 
 private:
   static constexpr int kNumEarlyTaps = 8;
-  static constexpr int kNumDiffusers = 4;
+  static constexpr int kNumInputDiffusers = 6;
   static constexpr int kNumDelayLines = 8;
-  static constexpr int kNumTailDiffusers = 2;
   static constexpr int kNumLateDiffuserStages = 2;
   using DelayLine = dsp::DelayLine;
   using OnePoleLowpass = dsp::OnePoleLowpass;
@@ -36,8 +35,7 @@ private:
 
   using EarlyTapArray = std::array<double, kNumEarlyTaps>;
   using DelayValueArray = std::array<double, kNumDelayLines>;
-  using DiffuserArray = std::array<AllpassDiffuser, kNumDiffusers>;
-  using TailDiffuserArray = std::array<AllpassDiffuser, kNumTailDiffusers>;
+  using InputDiffuserArray = std::array<AllpassDiffuser, kNumInputDiffusers>;
   using LateDiffuserStageArray = std::array<AllpassDiffuser, kNumLateDiffuserStages>;
   using LateDiffuserArray = std::array<LateDiffuserStageArray, kNumDelayLines>;
   using DelayLineArray = std::array<DelayLine, kNumDelayLines>;
@@ -45,13 +43,14 @@ private:
   using StereoPair = std::array<double, 2>;
 
   void UpdateTargetParameters();
-  void SnapCurrentParametersToTargets(bool startWetAtZero);
+  void InitializeCurrentParameters();
   void SmoothParameters();
   void AdvanceSilentBlock(int nFrames);
   bool HasStoredSignal() const;
   StereoPair ProcessEarlyReflections(double conditioned, double side);
   StereoPair ProcessLateReverb(double diffused, double side);
   void ClearLateDiffusers();
+  StereoPair ProcessWetSample(double dryLeft, double dryRight);
 
   double mSampleRate{dsp::kDefaultSampleRate};
   double mAmount{0.0};
@@ -85,8 +84,7 @@ private:
   OnePoleLowpass mOutputLowpassRight;
   EarlyTapArray mEarlyTapSamples{};
   EarlyTapArray mTargetEarlyTapSamples{};
-  DiffuserArray mDiffusers{};
-  TailDiffuserArray mTailDiffusers{};
+  InputDiffuserArray mInputDiffusers{};
   LateDiffuserArray mLateDiffusers{};
   DelayLineArray mDelayLines{};
   FilterArray mLoopDampingFilters{};
