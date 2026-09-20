@@ -38,13 +38,13 @@ public:
     mSynth.Reset();
     mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
     mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
-    mDrive.Reset(sampleRate, blockSize);
+    mDrive.Reset(sampleRate);
     mDrive.SetAmount(mEffectsSettings.drive);
-    mTone.Reset(sampleRate, blockSize);
+    mTone.Reset(sampleRate);
     mTone.SetAmount(mEffectsSettings.tone);
-    mChorus.Reset(sampleRate, blockSize);
+    mChorus.Reset(sampleRate);
     mChorus.SetAmount(mEffectsSettings.chorus);
-    mReverb.Reset(sampleRate, blockSize);
+    mReverb.Reset(sampleRate);
     mReverb.SetAmount(mEffectsSettings.reverb);
   }
 

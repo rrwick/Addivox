@@ -5,12 +5,11 @@
 #include "IPlugConstants.h"
 
 #include <array>
-#include <cstdint>
 
 namespace effects {
 class Chorus {
 public:
-  void Reset(double sampleRate, int blockSize);
+  void Reset(double sampleRate);
   void Clear();
   void SetAmount(double amount);
   bool IsActive() const { return mActive; }
@@ -18,6 +17,7 @@ public:
 
 private:
   static constexpr int kNumVoices = 8;
+  static constexpr double kWetToneCutoffHz = 10000.0;
   using DelayLine = dsp::DelayLine;
   using OnePoleLowpass = dsp::OnePoleLowpass;
   using OnePoleHighpass = dsp::OnePoleHighpass;
@@ -26,12 +26,27 @@ private:
     DelayLine delay;
     OnePoleLowpass toneFilter;
     double modPosition{0.0};
-    uint32_t modSeed{0u};
     dsp::CachedNoise1D noiseCache;
   };
 
-  void InitializeVoiceStates();
+  struct VoiceParameters {
+    double scaleLeft{0.0};
+    double scaleRight{0.0};
+    double phaseIncrement{0.0};
+    double baseDelaySamples{0.0};
+  };
+
+  struct Parameters {
+    double dryMix{1.0};
+    double wetMix{0.0};
+    double depthSamples{0.0};
+    std::array<VoiceParameters, kNumVoices> voices{};
+  };
+
+  Parameters ComputeParameters(double amount) const;
+  std::array<double, 2> ProcessWetSample(double monoInput, const Parameters& parameters);
   void AdvanceSilentBlock(int nFrames);
+  void DeactivateIfBypassed();
   bool HasStoredSignal() const;
 
   double mSampleRate{dsp::kDefaultSampleRate};
@@ -41,6 +56,7 @@ private:
   bool mHasStoredSignal{false};
   double mAmountSmoothingCoefficient{1.0};
   double mToneSmoothingCoefficient{1.0};
+  double mWetToneCoefficient{dsp::CutoffHzToCoefficient(mSampleRate, kWetToneCutoffHz)};
   OnePoleHighpass mInputHighpass;
   std::array<VoiceState, kNumVoices> mVoices{};
 };

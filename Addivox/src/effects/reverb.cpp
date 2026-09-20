@@ -1,4 +1,5 @@
 #include "reverb.h"
+#include "shared.h"
 
 #include <algorithm>
 #include <cmath>
@@ -97,8 +98,6 @@ void effects::Reverb::AllpassDiffuser::Reset(double sampleRate, double delayMs, 
   Clear();
 }
 
-void effects::Reverb::AllpassDiffuser::Clear() { delay.Clear(); }
-
 double effects::Reverb::AllpassDiffuser::Process(double input) {
   const double delayed = delay.Read(delaySamples);
   const double output = delayed - (feedback * input);
@@ -106,9 +105,7 @@ double effects::Reverb::AllpassDiffuser::Process(double input) {
   return dsp::FlushDenormal(output);
 }
 
-void effects::Reverb::Reset(double sampleRate, int blockSize) {
-  (void)blockSize;
-
+void effects::Reverb::Reset(double sampleRate) {
   constexpr double kMaxEarlyTapScale = 1.55;
   constexpr double kMaxPreDelayMs = 44.0;
   constexpr double kMaxDelayScale = 2.50;
@@ -135,10 +132,9 @@ void effects::Reverb::Reset(double sampleRate, int blockSize) {
     mModPhaseIncrement[i] = (2.0 * dsp::kPi * kModRateHz[i]) / mSampleRate;
   }
 
-  mAmount = 0.0;
   mActive = false;
   Clear();
-  UpdateTargetParameters();
+  UpdateTargetParameters(0.0);
   InitializeCurrentParameters();
 }
 
@@ -163,10 +159,9 @@ void effects::Reverb::Clear() {
 }
 
 void effects::Reverb::SetAmount(double amount) {
-  mAmount = std::clamp(amount, 0.0, 100.0);
+  amount = std::clamp(amount, 0.0, 100.0);
 
-  if (mAmount <= kBypassThreshold) {
-    mTargetWetMix = 0.0;
+  if (amount <= kBypassThreshold) {
     mTargetEarlyMix = 0.0;
     mTargetLateMix = 0.0;
     mTargetEarlySideScale = 0.0;
@@ -175,7 +170,7 @@ void effects::Reverb::SetAmount(double amount) {
     return;
   }
 
-  UpdateTargetParameters();
+  UpdateTargetParameters(amount);
 
   if (!mActive) {
     Clear();
@@ -184,8 +179,8 @@ void effects::Reverb::SetAmount(double amount) {
   }
 }
 
-void effects::Reverb::UpdateTargetParameters() {
-  const double r = std::clamp(mAmount * 0.01, 0.0, 1.0);
+void effects::Reverb::UpdateTargetParameters(double amount) {
+  const double r = std::clamp(amount * 0.01, 0.0, 1.0);
   const double rSquared = r * r;
   const double bloom = std::pow(r, 10.0);
   const double wetMix = 0.63 * r;
@@ -201,7 +196,6 @@ void effects::Reverb::UpdateTargetParameters() {
 
   mTargetEarlyMix = wetMix * earlyFraction;
   mTargetLateMix = wetMix - mTargetEarlyMix;
-  mTargetWetMix = mTargetEarlyMix + mTargetLateMix;
   mTargetEarlySideScale = 0.18 - (0.09 * r);
   mTargetLateSideScale = 0.02 + (0.24 * r);
   mTargetAmbientBloom = bloom;
@@ -226,7 +220,6 @@ void effects::Reverb::UpdateTargetParameters() {
 void effects::Reverb::InitializeCurrentParameters() {
   mEarlyMix = 0.0;
   mLateMix = 0.0;
-  mWetMix = mEarlyMix + mLateMix;
   mEarlySideScale = 0.0;
   mLateSideScale = 0.0;
   mAmbientBloom = 0.0;
@@ -247,7 +240,6 @@ void effects::Reverb::InitializeCurrentParameters() {
 void effects::Reverb::SmoothParameters() {
   SmoothTowards(mEarlyMix, mTargetEarlyMix, mMixSmoothingCoefficient);
   SmoothTowards(mLateMix, mTargetLateMix, mMixSmoothingCoefficient);
-  mWetMix = mEarlyMix + mLateMix;
   SmoothTowards(mEarlySideScale, mTargetEarlySideScale, mMixSmoothingCoefficient);
   SmoothTowards(mLateSideScale, mTargetLateSideScale, mMixSmoothingCoefficient);
   SmoothTowards(mAmbientBloom, mTargetAmbientBloom, mStructureSmoothingCoefficient);
@@ -370,25 +362,23 @@ effects::Reverb::StereoPair effects::Reverb::ProcessWetSample(double dryLeft, do
   return {mOutputLowpassLeft.Process((mEarlyMix * early[0]) + late[0]), mOutputLowpassRight.Process((mEarlyMix * early[1]) + late[1])};
 }
 
+void effects::Reverb::DeactivateIfBypassed() {
+  if (mTargetEarlyMix + mTargetLateMix <= kBypassThreshold && mEarlyMix + mLateMix <= 1.0e-4) {
+    Clear();
+    mActive = false;
+  }
+}
+
 void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames) {
   if (!mActive || nFrames <= 0) return;
 
-  bool inputBlockSilent = true;
-  for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
-    if (outputs[0][sampleIndex] != 0.0 || outputs[1][sampleIndex] != 0.0) {
-      inputBlockSilent = false;
-      mHasStoredSignal = true;
-      break;
-    }
-  }
+  const bool inputBlockSilent = IsStereoBlockSilent(outputs, nFrames);
+  if (!inputBlockSilent) mHasStoredSignal = true;
 
   if (inputBlockSilent && !mHasStoredSignal) {
     AdvanceSilentBlock(nFrames);
 
-    if (mTargetWetMix <= kBypassThreshold && mWetMix <= 1.0e-4) {
-      Clear();
-      mActive = false;
-    }
+    DeactivateIfBypassed();
 
     return;
   }
@@ -406,10 +396,7 @@ void effects::Reverb::ProcessBlock(iplug::sample** outputs, int nFrames) {
     outputs[1][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal(dryRight + wetRight));
   }
 
-  if (mTargetWetMix <= kBypassThreshold && mWetMix <= 1.0e-4) {
-    Clear();
-    mActive = false;
-  }
+  DeactivateIfBypassed();
 
   if (mTargetAmbientBloom <= kBypassThreshold && mAmbientBloom <= kAmbientClearThreshold) ClearLateDiffusers();
 

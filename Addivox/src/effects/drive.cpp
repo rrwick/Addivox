@@ -1,4 +1,5 @@
 #include "drive.h"
+#include "shared.h"
 
 #include <algorithm>
 #include <cmath>
@@ -36,10 +37,8 @@ double effects::Drive::DCBlocker::Process(double input) {
   return previousOutput;
 }
 
-void effects::Drive::Reset(double sampleRate, int blockSize) {
-  (void)blockSize;
-
-  const double baseSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
+void effects::Drive::Reset(double sampleRate) {
+  const double baseSampleRate = sampleRate > 0.0 ? sampleRate : dsp::kDefaultSampleRate;
 
   mOversampledRate = baseSampleRate * static_cast<double>(kOversamplingFactor);
   mAmountSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(baseSampleRate, kAmountSmoothingTimeSeconds);
@@ -91,7 +90,7 @@ void effects::Drive::SetAmount(double amount) {
 }
 
 effects::Drive::Parameters effects::Drive::ComputeParameters(double amount) const {
-  const double t = std::clamp(amount * 0.01, 0.0, 1.0); // convert from [0, 100] to [0, 1]
+  const double t = std::clamp(amount * 0.01, 0.0, 1.0);
   const double tSquared = t * t;
   const double density = (0.35 * t) + (0.65 * tSquared);
   const double drive = 1.0 + (26.0 * density);
@@ -148,6 +147,24 @@ double effects::Drive::ProcessOversampledSample(ChannelState& channel, double in
   return dsp::FlushDenormal(input + (parameters.blend * (processed - input)));
 }
 
+double effects::Drive::ProcessSample(ChannelState& channel, double input, const Parameters& parameters) {
+  std::array<double, 2> upsampled2x{};
+  std::array<double, 4> upsampled4x{};
+  std::array<double, 2> downsampled2x{};
+
+  channel.upsampler2x.process_sample(upsampled2x[0], upsampled2x[1], input);
+  channel.upsampler4x.process_sample(upsampled4x[0], upsampled4x[1], upsampled2x[0]);
+  channel.upsampler4x.process_sample(upsampled4x[2], upsampled4x[3], upsampled2x[1]);
+
+  for (double& oversampledSample : upsampled4x) {
+    oversampledSample = ProcessOversampledSample(channel, oversampledSample, parameters);
+  }
+
+  downsampled2x[0] = channel.downsampler4x.process_sample(upsampled4x.data());
+  downsampled2x[1] = channel.downsampler4x.process_sample(upsampled4x.data() + 2);
+  return channel.downsampler2x.process_sample(downsampled2x.data());
+}
+
 void effects::Drive::DeactivateIfBypassed() {
   if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
     mCurrentAmount = 0.0;
@@ -162,26 +179,20 @@ void effects::Drive::AdvanceSilentBlock(int nFrames) {
   for (int frame = 0; frame < nFrames; ++frame) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
     mCurrentActiveMix = dsp::SmoothValue(mCurrentActiveMix, mTargetActiveMix, mActivationSmoothingCoefficient);
-    const Parameters parameters = ComputeParameters(mCurrentAmount);
-    for (auto& channel : mChannels) {
-      channel.toneFilter.coefficient = parameters.toneCoefficient;
-      channel.previousShaperInput = 0.0;
-      channel.shaperStateInitialized = true;
-    }
+  }
+  const Parameters parameters = ComputeParameters(mCurrentAmount);
+  for (auto& channel : mChannels) {
+    channel.toneFilter.coefficient = parameters.toneCoefficient;
+    channel.previousShaperInput = 0.0;
+    channel.shaperStateInitialized = true;
   }
 }
 
 void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames) {
   if (!mActive || nFrames <= 0) return;
 
-  bool inputBlockSilent = true;
-  for (int frame = 0; frame < nFrames; ++frame) {
-    if (outputs[0][frame] != 0.0 || outputs[1][frame] != 0.0) {
-      inputBlockSilent = false;
-      mHasStoredSignal = true;
-      break;
-    }
-  }
+  const bool inputBlockSilent = IsStereoBlockSilent(outputs, nFrames);
+  if (!inputBlockSilent) mHasStoredSignal = true;
 
   if (inputBlockSilent && !mHasStoredSignal) {
     AdvanceSilentBlock(nFrames);
@@ -203,33 +214,13 @@ void effects::Drive::ProcessBlock(iplug::sample** outputs, int nFrames) {
     for (std::size_t channelIndex = 0; channelIndex < mChannels.size(); ++channelIndex) {
       ChannelState& channel = mChannels[channelIndex];
       const double input = outputs[channelIndex][frame];
-      std::array<double, 2> upsampled2x{};
-      std::array<double, 4> upsampled4x{};
-      std::array<double, 2> downsampled2x{};
-
-      channel.upsampler2x.process_sample(upsampled2x[0], upsampled2x[1], input);
-      channel.upsampler4x.process_sample(upsampled4x[0], upsampled4x[1], upsampled2x[0]);
-      channel.upsampler4x.process_sample(upsampled4x[2], upsampled4x[3], upsampled2x[1]);
-
-      for (double& oversampledSample : upsampled4x) {
-        oversampledSample = ProcessOversampledSample(channel, oversampledSample, parameters);
-      }
-
-      downsampled2x[0] = channel.downsampler4x.process_sample(upsampled4x.data());
-      downsampled2x[1] = channel.downsampler4x.process_sample(upsampled4x.data() + 2);
-      const double processed = channel.downsampler2x.process_sample(downsampled2x.data());
+      const double processed = ProcessSample(channel, input, parameters);
       const double output = input + (activeMix * (processed - input));
       outputs[channelIndex][frame] = static_cast<iplug::sample>(dsp::FlushDenormal(output));
     }
   }
 
-  if (inputBlockSilent) {
-    bool outputSilent = true;
-    for (int frame = 0; frame < nFrames && outputSilent; ++frame) {
-      outputSilent = (outputs[0][frame] == 0.0 && outputs[1][frame] == 0.0);
-    }
-    if (outputSilent) mHasStoredSignal = false;
-  }
+  if (inputBlockSilent && IsStereoBlockSilent(outputs, nFrames)) mHasStoredSignal = false;
 
   DeactivateIfBypassed();
 }

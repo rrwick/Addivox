@@ -13,14 +13,13 @@
 namespace effects {
 class Drive {
 public:
-  void Reset(double sampleRate, int blockSize);
+  void Reset(double sampleRate);
   void Clear();
   void SetAmount(double amount);
   bool IsActive() const { return mActive; }
   void ProcessBlock(iplug::sample** outputs, int nFrames);
 
 private:
-  static constexpr double kDefaultSampleRate = 44100.0;
   static constexpr int kNumChannels = 2;
   static constexpr int kOversamplingFactor = 4;
   static constexpr int kFirstStageNumCoefs = 12;
@@ -66,9 +65,10 @@ private:
   static double EvaluateShaper(double input, const Parameters& parameters);
   static double EvaluateShaperAntiderivative(double input, const Parameters& parameters);
   static double EvaluateShaperAdaa(ChannelState& channel, double input, const Parameters& parameters);
+  static double ProcessSample(ChannelState& channel, double input, const Parameters& parameters);
   static double ProcessOversampledSample(ChannelState& channel, double input, const Parameters& parameters);
 
-  double mOversampledRate{kDefaultSampleRate * kOversamplingFactor};
+  double mOversampledRate{dsp::kDefaultSampleRate * kOversamplingFactor};
   double mAmountSmoothingCoefficient{1.0};
   double mActivationSmoothingCoefficient{1.0};
   double mTargetAmount{0.0};

@@ -8,7 +8,7 @@
 namespace effects {
 class Reverb {
 public:
-  void Reset(double sampleRate, int blockSize);
+  void Reset(double sampleRate);
   void Clear();
   void SetAmount(double amount);
   bool IsActive() const { return mActive; }
@@ -25,7 +25,7 @@ private:
 
   struct AllpassDiffuser {
     void Reset(double sampleRate, double delayMs, double feedback);
-    void Clear();
+    void Clear() { delay.Clear(); }
     double Process(double input);
 
     DelayLine delay;
@@ -42,10 +42,11 @@ private:
   using FilterArray = std::array<OnePoleLowpass, kNumDelayLines>;
   using StereoPair = std::array<double, 2>;
 
-  void UpdateTargetParameters();
+  void UpdateTargetParameters(double amount);
   void InitializeCurrentParameters();
   void SmoothParameters();
   void AdvanceSilentBlock(int nFrames);
+  void DeactivateIfBypassed();
   bool HasStoredSignal() const;
   StereoPair ProcessEarlyReflections(double conditioned, double side);
   StereoPair ProcessLateReverb(double diffused, double side);
@@ -53,19 +54,16 @@ private:
   StereoPair ProcessWetSample(double dryLeft, double dryRight);
 
   double mSampleRate{dsp::kDefaultSampleRate};
-  double mAmount{0.0};
   bool mActive{false};
   double mMixSmoothingCoefficient{1.0};
   double mToneSmoothingCoefficient{1.0};
   double mStructureSmoothingCoefficient{1.0};
-  double mWetMix{0.0};
   double mEarlyMix{0.0};
   double mLateMix{0.0};
   double mEarlySideScale{0.0};
   double mLateSideScale{0.0};
   double mAmbientBloom{0.0};
   double mPreDelaySamples{0.0};
-  double mTargetWetMix{0.0};
   double mTargetEarlyMix{0.0};
   double mTargetLateMix{0.0};
   double mTargetEarlySideScale{0.0};

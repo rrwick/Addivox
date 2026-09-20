@@ -1,4 +1,5 @@
 #include "tone.h"
+#include "shared.h"
 
 #include <algorithm>
 #include <cmath>
@@ -24,12 +25,6 @@ double effects::Tone::ShapeAmount(double amount) {
 
 double effects::Tone::DbToLinear(double decibels) { return std::pow(10.0, decibels / 20.0); }
 
-std::complex<double> effects::Tone::EvaluateLowpassResponse(double coefficient, double angularFrequency) {
-  const double pole = 1.0 - coefficient;
-  const std::complex<double> unitDelay = std::polar(1.0, -angularFrequency);
-  return coefficient / (1.0 - (pole * unitDelay));
-}
-
 effects::Tone::BandGains effects::Tone::ComputeBandGains(double amount) {
   BandGains bandGains{};
   const double slopeDbPerOctave = kMaxSlopeDbPerOctave * ShapeAmount(amount);
@@ -41,9 +36,7 @@ effects::Tone::BandGains effects::Tone::ComputeBandGains(double amount) {
   return bandGains;
 }
 
-void effects::Tone::Reset(double sampleRate, int blockSize) {
-  (void)blockSize;
-
+void effects::Tone::Reset(double sampleRate) {
   mSampleRate = sampleRate > 0.0 ? sampleRate : dsp::kDefaultSampleRate;
   mAmountSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kAmountSmoothingTimeSeconds);
   mActivationSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kActivationSmoothingTimeSeconds);
@@ -81,10 +74,7 @@ void effects::Tone::SetAmount(double amount) {
 
 effects::Tone::Parameters effects::Tone::ComputeParameters(double amount) const {
   const double clampedAmount = std::clamp(amount, -1.0, 1.0);
-  Parameters parameters;
-  parameters.bandGains = ComputeBandGains(clampedAmount);
-  parameters.trim = LookupTrim(clampedAmount);
-  return parameters;
+  return {ComputeBandGains(clampedAmount), LookupTrim(clampedAmount)};
 }
 
 double effects::Tone::ComputeTrimForAmount(double amount) const {
@@ -113,9 +103,12 @@ double effects::Tone::ComputeTrimForAmount(double amount) const {
 std::complex<double> effects::Tone::EvaluateTiltResponse(const BandGains& bandGains, double angularFrequency) const {
   // Each crossover contributes the difference between neighboring band gains, so the sum reconstructs the full tilt.
   std::complex<double> response = bandGains.back();
+  const std::complex<double> unitDelay = std::polar(1.0, -angularFrequency);
 
   for (std::size_t index = 0; index < mCrossoverCoefficients.size(); ++index) {
-    response += (bandGains[index] - bandGains[index + 1]) * EvaluateLowpassResponse(mCrossoverCoefficients[index], angularFrequency);
+    const double coefficient = mCrossoverCoefficients[index];
+    const auto lowpassResponse = coefficient / (1.0 - ((1.0 - coefficient) * unitDelay));
+    response += (bandGains[index] - bandGains[index + 1]) * lowpassResponse;
   }
 
   return response;
@@ -175,28 +168,26 @@ bool effects::Tone::HasStoredSignal() const {
   return false;
 }
 
+void effects::Tone::DeactivateIfBypassed() {
+  if (std::abs(mTargetAmount) <= kBypassThreshold && std::abs(mCurrentAmount) <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
+    mCurrentAmount = 0.0;
+    mCurrentActiveMix = 0.0;
+    mTargetActiveMix = 0.0;
+    mActive = false;
+    Clear();
+  }
+}
+
 void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames) {
   if (!mActive || nFrames <= 0) return;
 
-  bool inputBlockSilent = true;
-  for (int frame = 0; frame < nFrames; ++frame) {
-    if (outputs[0][frame] != 0.0 || outputs[1][frame] != 0.0) {
-      inputBlockSilent = false;
-      mHasStoredSignal = true;
-      break;
-    }
-  }
+  const bool inputBlockSilent = IsStereoBlockSilent(outputs, nFrames);
+  if (!inputBlockSilent) mHasStoredSignal = true;
 
   if (inputBlockSilent && !mHasStoredSignal) {
     AdvanceSilentBlock(nFrames);
 
-    if (std::abs(mTargetAmount) <= kBypassThreshold && std::abs(mCurrentAmount) <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
-      mCurrentAmount = 0.0;
-      mCurrentActiveMix = 0.0;
-      mTargetActiveMix = 0.0;
-      mActive = false;
-      Clear();
-    }
+    DeactivateIfBypassed();
 
     return;
   }
@@ -221,13 +212,7 @@ void effects::Tone::ProcessBlock(iplug::sample** outputs, int nFrames) {
     }
   }
 
-  if (std::abs(mTargetAmount) <= kBypassThreshold && std::abs(mCurrentAmount) <= kBypassThreshold && mCurrentActiveMix <= kBypassThreshold) {
-    mCurrentAmount = 0.0;
-    mCurrentActiveMix = 0.0;
-    mTargetActiveMix = 0.0;
-    mActive = false;
-    Clear();
-  }
+  DeactivateIfBypassed();
 
   if (inputBlockSilent && !HasStoredSignal()) mHasStoredSignal = false;
 }

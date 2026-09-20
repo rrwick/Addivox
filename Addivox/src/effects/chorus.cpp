@@ -1,21 +1,19 @@
 #include "chorus.h"
-
-#include "../dsp/gradient_noise.h"
+#include "shared.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace {
 constexpr double kBypassThreshold = 1.0e-6;
 constexpr int kNumVoices = 8;
-using VoiceLevels = std::array<double, kNumVoices>;
 
 constexpr double kLegacyVoiceCount = 4.0;
 constexpr double kWetNormalization = 0.48;
 constexpr double kAmountSmoothingTimeSeconds = 0.030;
 constexpr double kToneSmoothingTimeSeconds = 0.045;
 constexpr double kInitialVoiceToneCutoffHz = 12000.0;
-constexpr double kWetToneCutoffHz = 10000.0;
 constexpr double kInputHighpassCutoffHz = 120.0;
 constexpr double kMaxBaseDelayMs = 24.0;
 constexpr double kMaxDepthMs = 18.0;
@@ -30,18 +28,6 @@ struct VoiceSetup {
   uint32_t seed;
 };
 
-struct ChorusParameters {
-  double dryMix{1.0};
-  double wetMix{0.0};
-  double baseDelaySamples{0.0};
-  double depthSamples{0.0};
-  double width{0.0};
-  double rateScale{0.0};
-  double toneCoefficient{1.0};
-  VoiceLevels voiceLevels{};
-  double voiceMixScale{0.0};
-};
-
 constexpr std::array<VoiceSetup, kNumVoices> kVoiceSetups{{
     {0.0, 0.17, -0.10, 0x51A3C0DEu},
     {1.8, 0.23, 0.10, 0x79B4E281u},
@@ -53,7 +39,7 @@ constexpr std::array<VoiceSetup, kNumVoices> kVoiceSetups{{
     {14.2, 0.49, 0.92, 0xE57AC918u},
 }};
 
-constexpr double kMaxVoiceDelayOffsetMs = kVoiceSetups[kNumVoices - 1].delayOffsetMs;
+constexpr double kMaxVoiceDelayOffsetMs = kVoiceSetups.back().delayOffsetMs;
 
 double ComputeVoiceLevel(double knob, int voiceIndex) {
   if (knob <= 0.0) return 0.0;
@@ -62,54 +48,41 @@ double ComputeVoiceLevel(double knob, int voiceIndex) {
   return std::pow(std::clamp(knob, 0.0, 1.0), exponent);
 }
 
-double ComputeVoiceMixScale(const VoiceLevels& voiceLevels) {
-  double sumSquares = 0.0;
-
-  for (const double level : voiceLevels) sumSquares += level * level;
-
-  if (sumSquares <= 0.0) return 0.0;
-
-  // Keep the wet level referenced to the old fully-on 4-voice chorus.
-  return kWetNormalization * std::sqrt(kLegacyVoiceCount / sumSquares);
-}
-
-ChorusParameters ComputeParameters(double amount, double sampleRate) {
-  const double knob = std::clamp(amount * 0.01, 0.0, 1.0); // convert from [0, 100] to [0, 1]
-  const double sqrtKnob = std::sqrt(knob);
-
-  ChorusParameters parameters;
-  parameters.dryMix = 1.0 - (0.50 * knob);
-  parameters.wetMix = 1.0 * knob;
-  parameters.baseDelaySamples = dsp::MillisecondsToSamples(10.0 + (20.0 * knob), sampleRate);
-  parameters.depthSamples = dsp::MillisecondsToSamples(10.0 * sqrtKnob, sampleRate);
-  parameters.width = 1.5 * knob;
-  parameters.rateScale = 1.0 + (2.0 * knob);
-  parameters.toneCoefficient = dsp::CutoffHzToCoefficient(sampleRate, kWetToneCutoffHz);
-
-  for (std::size_t i = 0; i < parameters.voiceLevels.size(); ++i)
-    parameters.voiceLevels[i] = ComputeVoiceLevel(knob, static_cast<int>(i));
-
-  parameters.voiceMixScale = ComputeVoiceMixScale(parameters.voiceLevels);
-  return parameters;
-}
 } // namespace
 
-void effects::Chorus::InitializeVoiceStates() {
-  for (std::size_t i = 0; i < mVoices.size(); ++i) {
-    VoiceState& voice = mVoices[i];
-    const VoiceSetup& setup = kVoiceSetups[i];
-    voice.modSeed = setup.seed;
-    voice.modPosition = (dsp::HashToSignedUnitFloat(voice.modSeed ^ 0xB8C9F52Du) + 1.0) * 100.0 + (17.0 * static_cast<double>(i));
-    voice.noiseCache.reset();
+effects::Chorus::Parameters effects::Chorus::ComputeParameters(double amount) const {
+  const double knob = std::clamp(amount * 0.01, 0.0, 1.0);
+  const double baseDelaySamples = dsp::MillisecondsToSamples(10.0 + (20.0 * knob), mSampleRate);
+  const double width = 1.5 * knob;
+  const double rateScale = 1.0 + (2.0 * knob);
+  std::array<double, kNumVoices> voiceLevels{};
+  double sumSquares = 0.0;
+  for (std::size_t i = 0; i < voiceLevels.size(); ++i) {
+    voiceLevels[i] = ComputeVoiceLevel(knob, static_cast<int>(i));
+    sumSquares += voiceLevels[i] * voiceLevels[i];
   }
+  // Keep the wet level referenced to the old fully-on 4-voice chorus.
+  const double voiceMixScale = sumSquares <= 0.0 ? 0.0 : kWetNormalization * std::sqrt(kLegacyVoiceCount / sumSquares);
+
+  Parameters parameters;
+  parameters.dryMix = 1.0 - (0.50 * knob);
+  parameters.wetMix = knob;
+  parameters.depthSamples = dsp::MillisecondsToSamples(10.0 * std::sqrt(knob), mSampleRate);
+  for (std::size_t i = 0; i < parameters.voices.size(); ++i) {
+    const auto& setup = kVoiceSetups[i];
+    const auto panGains = dsp::PanToGains(setup.panPosition * width);
+    const double voiceMix = voiceLevels[i] * voiceMixScale;
+    parameters.voices[i] = {panGains[0] * voiceMix, panGains[1] * voiceMix, setup.baseRateHz * rateScale / mSampleRate,
+                            baseDelaySamples + dsp::MillisecondsToSamples(setup.delayOffsetMs, mSampleRate)};
+  }
+  return parameters;
 }
 
-void effects::Chorus::Reset(double sampleRate, int blockSize) {
-  (void)blockSize;
-
+void effects::Chorus::Reset(double sampleRate) {
   mSampleRate = sampleRate > 0.0 ? sampleRate : dsp::kDefaultSampleRate;
   mAmountSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kAmountSmoothingTimeSeconds);
   mToneSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kToneSmoothingTimeSeconds);
+  mWetToneCoefficient = dsp::CutoffHzToCoefficient(mSampleRate, kWetToneCutoffHz);
   mTargetAmount = 0.0;
   mCurrentAmount = 0.0;
   mActive = false;
@@ -129,9 +102,11 @@ void effects::Chorus::Reset(double sampleRate, int blockSize) {
 void effects::Chorus::Clear() {
   mHasStoredSignal = false;
   mInputHighpass.Clear();
-  InitializeVoiceStates();
 
-  for (auto& voice : mVoices) {
+  for (std::size_t i = 0; i < mVoices.size(); ++i) {
+    auto& voice = mVoices[i];
+    voice.modPosition = (dsp::HashToSignedUnitFloat(kVoiceSetups[i].seed ^ 0xB8C9F52Du) + 1.0) * 100.0 + (17.0 * static_cast<double>(i));
+    voice.noiseCache.reset();
     voice.delay.Clear();
     voice.toneFilter.Clear();
   }
@@ -150,13 +125,13 @@ void effects::Chorus::SetAmount(double amount) {
 void effects::Chorus::AdvanceSilentBlock(int nFrames) {
   for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
     mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
-    const ChorusParameters parameters = ComputeParameters(mCurrentAmount, mSampleRate);
+    const double rateScale = 1.0 + (2.0 * std::clamp(mCurrentAmount * 0.01, 0.0, 1.0));
 
     for (std::size_t i = 0; i < mVoices.size(); ++i) {
       VoiceState& voice = mVoices[i];
       const VoiceSetup& setup = kVoiceSetups[i];
-      voice.modPosition += (setup.baseRateHz * parameters.rateScale) / mSampleRate;
-      voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
+      voice.modPosition += (setup.baseRateHz * rateScale) / mSampleRate;
+      voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, mWetToneCoefficient, mToneSmoothingCoefficient);
     }
   }
 }
@@ -171,80 +146,66 @@ bool effects::Chorus::HasStoredSignal() const {
   return false;
 }
 
-void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
-  if (!mActive || nFrames <= 0) return;
-
-  bool inputBlockSilent = true;
-  for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
-    if (outputs[0][sampleIndex] != 0.0 || outputs[1][sampleIndex] != 0.0) {
-      inputBlockSilent = false;
-      mHasStoredSignal = true;
-      break;
-    }
-  }
-
-  if (inputBlockSilent && !mHasStoredSignal) {
-    AdvanceSilentBlock(nFrames);
-
-    if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold) {
-      mCurrentAmount = 0.0;
-      mActive = false;
-      Clear();
-    }
-
-    return;
-  }
-
-  ChorusParameters parameters{};
-  double prevAmount = -1.0;
-  std::array<double, kNumVoices> voiceScaleLeft{};
-  std::array<double, kNumVoices> voiceScaleRight{};
-  std::array<double, kNumVoices> voicePhaseIncrement{};
-  std::array<double, kNumVoices> voiceBaseDelaySamples{};
-  for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
-    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
-    if (mCurrentAmount != prevAmount) {
-      parameters = ComputeParameters(mCurrentAmount, mSampleRate);
-      prevAmount = mCurrentAmount;
-      for (std::size_t i = 0; i < kNumVoices; ++i) {
-        const auto panGains = dsp::PanToGains(kVoiceSetups[i].panPosition * parameters.width);
-        const double voiceMix = parameters.voiceLevels[i] * parameters.voiceMixScale;
-        voiceScaleLeft[i] = panGains[0] * voiceMix;
-        voiceScaleRight[i] = panGains[1] * voiceMix;
-        voicePhaseIncrement[i] = kVoiceSetups[i].baseRateHz * parameters.rateScale / mSampleRate;
-        voiceBaseDelaySamples[i] = parameters.baseDelaySamples + dsp::MillisecondsToSamples(kVoiceSetups[i].delayOffsetMs, mSampleRate);
-      }
-    }
-    const double monoInput = mInputHighpass.Process(0.5 * (outputs[0][sampleIndex] + outputs[1][sampleIndex]));
-
-    double wetLeft = 0.0;
-    double wetRight = 0.0;
-
-    for (std::size_t i = 0; i < mVoices.size(); ++i) {
-      VoiceState& voice = mVoices[i];
-      voice.modPosition += voicePhaseIncrement[i];
-      voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, parameters.toneCoefficient, mToneSmoothingCoefficient);
-
-      const double noise = voice.noiseCache.evaluate(voice.modPosition, voice.modSeed);
-      const double delaySamples = std::max(1.0, voiceBaseDelaySamples[i] + (parameters.depthSamples * noise));
-      const double delayed = voice.toneFilter.Process(voice.delay.Read(delaySamples));
-
-      wetLeft += delayed * voiceScaleLeft[i];
-      wetRight += delayed * voiceScaleRight[i];
-      voice.delay.Write(monoInput);
-    }
-
-    outputs[0][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal((outputs[0][sampleIndex] * parameters.dryMix) +
-                                                                            (wetLeft * parameters.wetMix)));
-    outputs[1][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal((outputs[1][sampleIndex] * parameters.dryMix) +
-                                                                            (wetRight * parameters.wetMix)));
-  }
-
+void effects::Chorus::DeactivateIfBypassed() {
   if (mTargetAmount <= kBypassThreshold && mCurrentAmount <= kBypassThreshold) {
     mCurrentAmount = 0.0;
     mActive = false;
     Clear();
   }
+}
+
+std::array<double, 2> effects::Chorus::ProcessWetSample(double monoInput, const Parameters& parameters) {
+  double wetLeft = 0.0;
+  double wetRight = 0.0;
+
+  for (std::size_t i = 0; i < mVoices.size(); ++i) {
+    VoiceState& voice = mVoices[i];
+    const auto& voiceParameters = parameters.voices[i];
+    voice.modPosition += voiceParameters.phaseIncrement;
+    voice.toneFilter.coefficient = dsp::SmoothValue(voice.toneFilter.coefficient, mWetToneCoefficient, mToneSmoothingCoefficient);
+
+    const double noise = voice.noiseCache.evaluate(voice.modPosition, kVoiceSetups[i].seed);
+    const double delaySamples = std::max(1.0, voiceParameters.baseDelaySamples + (parameters.depthSamples * noise));
+    const double delayed = voice.toneFilter.Process(voice.delay.Read(delaySamples));
+
+    wetLeft += delayed * voiceParameters.scaleLeft;
+    wetRight += delayed * voiceParameters.scaleRight;
+    voice.delay.Write(monoInput);
+  }
+  return {wetLeft, wetRight};
+}
+
+void effects::Chorus::ProcessBlock(iplug::sample** outputs, int nFrames) {
+  if (!mActive || nFrames <= 0) return;
+
+  const bool inputBlockSilent = IsStereoBlockSilent(outputs, nFrames);
+  if (!inputBlockSilent) mHasStoredSignal = true;
+
+  if (inputBlockSilent && !mHasStoredSignal) {
+    AdvanceSilentBlock(nFrames);
+
+    DeactivateIfBypassed();
+
+    return;
+  }
+
+  Parameters parameters{};
+  double prevAmount = -1.0;
+  for (int sampleIndex = 0; sampleIndex < nFrames; ++sampleIndex) {
+    mCurrentAmount = dsp::SmoothValue(mCurrentAmount, mTargetAmount, mAmountSmoothingCoefficient);
+    if (mCurrentAmount != prevAmount) {
+      parameters = ComputeParameters(mCurrentAmount);
+      prevAmount = mCurrentAmount;
+    }
+    const double monoInput = mInputHighpass.Process(0.5 * (outputs[0][sampleIndex] + outputs[1][sampleIndex]));
+
+    const auto [wetLeft, wetRight] = ProcessWetSample(monoInput, parameters);
+
+    outputs[0][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal((outputs[0][sampleIndex] * parameters.dryMix) + (wetLeft * parameters.wetMix)));
+    outputs[1][sampleIndex] = static_cast<iplug::sample>(dsp::FlushDenormal((outputs[1][sampleIndex] * parameters.dryMix) + (wetRight * parameters.wetMix)));
+  }
+
+  DeactivateIfBypassed();
 
   if (inputBlockSilent && !HasStoredSignal()) mHasStoredSignal = false;
 }

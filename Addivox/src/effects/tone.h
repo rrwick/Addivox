@@ -9,7 +9,7 @@
 namespace effects {
 class Tone {
 public:
-  void Reset(double sampleRate, int blockSize);
+  void Reset(double sampleRate);
   void Clear();
   void SetAmount(double amount);
   bool IsActive() const { return mActive; }
@@ -34,11 +34,11 @@ private:
 
   static double ShapeAmount(double amount);
   static double DbToLinear(double decibels);
-  static std::complex<double> EvaluateLowpassResponse(double coefficient, double angularFrequency);
   static BandGains ComputeBandGains(double amount);
 
   Parameters ComputeParameters(double amount) const;
   void AdvanceSilentBlock(int nFrames);
+  void DeactivateIfBypassed();
   bool HasStoredSignal() const;
   double ComputeTrimForAmount(double amount) const;
   std::complex<double> EvaluateTiltResponse(const BandGains& bandGains, double angularFrequency) const;
