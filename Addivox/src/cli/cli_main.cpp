@@ -80,9 +80,10 @@ void PrintUsage(std::ostream& stream) {
 bool ParseIntArgument(std::string_view text, int& value) {
   if (text.empty()) return false;
 
+  const std::string numericText{text};
   errno = 0;
   char* end = nullptr;
-  const long parsed = std::strtol(std::string{text}.c_str(), &end, 10);
+  const long parsed = std::strtol(numericText.c_str(), &end, 10);
   if (errno != 0 || !end || *end != '\0' || parsed < static_cast<long>(std::numeric_limits<int>::min()) ||
       parsed > static_cast<long>(std::numeric_limits<int>::max())) {
     return false;
@@ -95,9 +96,10 @@ bool ParseIntArgument(std::string_view text, int& value) {
 bool ParseDoubleArgument(std::string_view text, double& value) {
   if (text.empty()) return false;
 
+  const std::string numericText{text};
   errno = 0;
   char* end = nullptr;
-  const double parsed = std::strtod(std::string{text}.c_str(), &end);
+  const double parsed = std::strtod(numericText.c_str(), &end);
   if (errno != 0 || !end || *end != '\0') return false;
 
   value = parsed;
