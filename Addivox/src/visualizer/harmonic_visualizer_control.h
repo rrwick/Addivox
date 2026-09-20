@@ -44,10 +44,25 @@ public:
     const float centerY = barPlot.MH();
     const float channelHeight = (barPlot.H() * 0.5f) - 1.f;
 
-    auto drawBarSegment = [&](float x, float y0, float y1, const IColor& harmonicColor, float height) {
-      if (height <= 0.f) return;
+    struct BarCore {
+      float x, y0, y1, visibility;
+    };
+    std::array<BarCore, 2 * HarmonicVisualizerFrame::kNumHarmonics> barCores;
+    std::size_t numBarCores = 0;
 
-      DrawGlowingVerticalLine(g, x, y0, y1, harmonicColor, plugin_ui::colour::visualizer::kHarmonicCore, baseBlendWeight, VisibilityForHeightPixels(height));
+    auto drawBarSegment = [&](float x, float y0, float y1, const IColor& harmonicColor, float height) {
+      if (height <= 0.f || std::fabs(y1 - y0) <= 0.1f) return;
+
+      const float visibility = std::clamp(VisibilityForHeightPixels(height), 0.f, 1.f);
+      if (visibility <= 0.f) return;
+
+      for (std::size_t pass = 0; pass < kGlowThicknesses.size(); ++pass) {
+        const IColor passColor = harmonicColor.WithOpacity(kGlowOpacities[pass] * visibility);
+        const IBlend passBlend{EBlend::Add, kGlowBlendWeights[pass] * baseBlendWeight * visibility};
+        DrawRoundedVerticalStroke(g, x, y0, y1, passColor, kGlowThicknesses[pass], passBlend);
+      }
+
+      barCores[numBarCores++] = {x, y0, y1, visibility};
     };
 
     for (const float frequencyHz : kGridFrequenciesHz) {
@@ -78,8 +93,21 @@ public:
       const float leftHeight = leftNormHeight * channelHeight;
       const float rightHeight = rightNormHeight * channelHeight;
 
-      drawBarSegment(x, centerY - rightHeight, centerY, harmonicColor, rightHeight);
-      drawBarSegment(x, centerY, centerY + leftHeight, harmonicColor, leftHeight);
+      // Fully visible halves can share one stroke stack, avoiding duplicate strokes and overlapping caps at the centre.
+      if (VisibilityForHeightPixels(leftHeight) == 1.f && VisibilityForHeightPixels(rightHeight) == 1.f) {
+        drawBarSegment(x, centerY - rightHeight, centerY + leftHeight, harmonicColor, std::max(leftHeight, rightHeight));
+      } else {
+        drawBarSegment(x, centerY - rightHeight, centerY, harmonicColor, rightHeight);
+        drawBarSegment(x, centerY, centerY + leftHeight, harmonicColor, leftHeight);
+      }
+    }
+
+    // Draw cores after all additive glows to avoid a Metal pipeline change for every bar segment.
+    for (std::size_t i = 0; i < numBarCores; ++i) {
+      const auto& core = barCores[i];
+      const IColor coreColor = plugin_ui::colour::visualizer::kHarmonicCore.WithOpacity(core.visibility);
+      const IBlend coreBlend{EBlend::SrcOver, baseBlendWeight * core.visibility};
+      DrawRoundedVerticalStroke(g, core.x, core.y0, core.y1, coreColor, kCoreThicknessPx, coreBlend);
     }
 
     for (std::size_t i = 0; i < kAxisLabelFrequenciesHz.size(); ++i)
@@ -179,25 +207,6 @@ private:
     if (h >= kFadeEndPx) return 1.f;
 
     return Smoothstep(kFadeStartPx, kFadeEndPx, h);
-  }
-
-  static void DrawGlowingVerticalLine(IGraphics& g, float x, float y0, float y1, const IColor& glowColor, const IColor& coreColor, float baseBlendWeight,
-                                      float visibility) {
-    if (std::fabs(y1 - y0) <= 0.1f) return;
-
-    const float clampedVisibility = std::clamp(visibility, 0.f, 1.f);
-    if (clampedVisibility <= 0.f) return;
-
-    // 5-pass stack: 4 additive glow layers + 1 bright core.
-    for (std::size_t pass = 0; pass < kGlowThicknesses.size(); ++pass) {
-      const IColor passColor = glowColor.WithOpacity(kGlowOpacities[pass] * clampedVisibility);
-      const IBlend passBlend{EBlend::Add, kGlowBlendWeights[pass] * baseBlendWeight * clampedVisibility};
-      DrawRoundedVerticalStroke(g, x, y0, y1, passColor, kGlowThicknesses[pass], passBlend);
-    }
-
-    const IColor coreColorScaled = coreColor.WithOpacity(clampedVisibility);
-    const IBlend coreBlend{EBlend::SrcOver, baseBlendWeight * clampedVisibility};
-    DrawRoundedVerticalStroke(g, x, y0, y1, coreColorScaled, kCoreThicknessPx, coreBlend);
   }
 
   static bool IsMajorGridFrequency(float frequencyHz) {
