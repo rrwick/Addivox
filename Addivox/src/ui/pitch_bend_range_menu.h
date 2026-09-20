@@ -15,8 +15,8 @@ struct PitchBendRangeMenuItem {
 };
 
 // The fixed choices offered by both the settings menu and the pitch bend wheel's right-click menu.
-inline constexpr PitchBendRangeMenuItem kPitchBendRangeMenuItems[] = {{"Off", 0},     {"1 semitone", 1}, {"2 semitones", 2}, {"Fifth", 7},
-                                                                      {"Octave", 12}, {"2 octaves", 24}, {"4 octaves", 48}};
+inline constexpr PitchBendRangeMenuItem kPitchBendRangeMenuItems[] = {{"Off", 0},     {"1 Semitone", 1}, {"2 Semitones", 2}, {"Fifth", 7},
+                                                                      {"Octave", 12}, {"2 Octaves", 24}, {"4 Octaves", 48}};
 
 /** Fills a menu with the pitch bend range choices, checking the one matching currentSemitones (none if it is not a listed value). */
 inline void PopulatePitchBendRangeMenu(IPopupMenu& menu, int currentSemitones) {
