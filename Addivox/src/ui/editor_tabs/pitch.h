@@ -37,14 +37,7 @@ inline bool TryGetPitchShapeValue(const char* shapeName, int oscillatorIndex, do
 }
 
 inline bool ApplyPitchShape(SimplePatch& patch, const char* shapeName) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double value = 0.0;
-    if (!TryGetPitchShapeValue(shapeName, oscillatorIndex, value)) return false;
-
-    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pitch, value);
-  }
-
-  return true;
+  return ApplyHarmonicShape(patch, OscillatorParameter::pitch, shapeName, TryGetPitchShapeValue);
 }
 
 inline bool ApplyPitchAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {

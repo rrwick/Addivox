@@ -133,16 +133,10 @@ struct BreathCCValueUpdate {
 
 class BreathCCInputTracker {
 public:
-  void Reset() {
-    for (int channel = 0; channel < kNumMidiChannels; ++channel) ResetChannel(channel);
-  }
+  void Reset() { mChannels.fill(ChannelState{}); }
 
   void ResetChannel(int channel) {
-    ChannelState& state = mChannels[static_cast<std::size_t>(std::clamp(channel, 0, kNumMidiChannels - 1))];
-    state.msbValue = 127;
-    state.lsbValue = 0;
-    state.hasMSB = false;
-    state.hasLSB = false;
+    mChannels[static_cast<std::size_t>(std::clamp(channel, 0, kNumMidiChannels - 1))] = ChannelState{};
   }
 
   BreathCCValueUpdate HandleMessage(BreathCCSource source, const iplug::IMidiMsg& msg) {

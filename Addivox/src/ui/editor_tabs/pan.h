@@ -38,14 +38,7 @@ inline bool TryGetPanShapeValue(const char* shapeName, int oscillatorIndex, doub
 }
 
 inline bool ApplyPanShape(SimplePatch& patch, const char* shapeName) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double value = 0.0;
-    if (!TryGetPanShapeValue(shapeName, oscillatorIndex, value)) return false;
-
-    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::pan, value);
-  }
-
-  return true;
+  return ApplyHarmonicShape(patch, OscillatorParameter::pan, shapeName, TryGetPanShapeValue);
 }
 
 inline bool ApplyPanAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {

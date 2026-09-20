@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace {
 void PrintUsage(std::ostream& stream) {
@@ -146,22 +147,68 @@ bool ReadParsedValue(int argc, char** argv, int& index, ValueT& value, ParseFunc
 
   return true;
 }
-} // namespace
 
-int main(int argc, char** argv) {
-  HeadlessRenderOptions options;
-  std::string errorMessage;
+template <typename ValueT, typename ParseFunc>
+bool ReadParsedValue(int argc, char** argv, int& index, std::optional<ValueT>& value, ParseFunc&& parse, std::string_view label,
+                     std::string& errorMessage) {
+  ValueT parsed{};
+  if (!ReadParsedValue(argc, argv, index, parsed, std::forward<ParseFunc>(parse), label, errorMessage)) return false;
+  value = parsed;
+  return true;
+}
+
+std::string_view CanonicalOption(std::string_view option) {
+  if (option == "--tuning-cents" || option == "--pitch" || option == "--pitch-offset") return "--tuning";
+  if (option == "--pan-offset") return "--pan";
+  if (option == "--sample-rate") return "--sample_rate";
+  if (option == "--wav-format") return "--wav_format";
+  return option;
+}
+
+std::optional<double>* FindDoubleOption(HeadlessRenderOptions& options, std::string_view name) {
+  struct Option {
+    std::string_view name;
+    std::optional<double> HeadlessRenderOptions::* member;
+  };
+  static constexpr Option kOptions[]{
+      {"--reverb",       &HeadlessRenderOptions::reverb},
+      {"--drive",        &HeadlessRenderOptions::drive},
+      {"--tone",         &HeadlessRenderOptions::tone},
+      {"--chorus",       &HeadlessRenderOptions::chorus},
+      {"--attack",       &HeadlessRenderOptions::attackScale},
+      {"--release",      &HeadlessRenderOptions::releaseScale},
+      {"--level",        &HeadlessRenderOptions::levelScale},
+      {"--tuning",       &HeadlessRenderOptions::tuningCents},
+      {"--pan",          &HeadlessRenderOptions::panOffset},
+      {"--port_min",     &HeadlessRenderOptions::portamentoTimeAtCC5MinSec},
+      {"--port_max",     &HeadlessRenderOptions::portamentoTimeAtCC5MaxSec},
+      {"--lvl_var_amt",  &HeadlessRenderOptions::levelVariationAmplitudeScale},
+      {"--lvl_var_rate", &HeadlessRenderOptions::levelVariationRateScale},
+      {"--pan_var_amt",  &HeadlessRenderOptions::panVariationAmplitudeScale},
+      {"--pan_var_rate", &HeadlessRenderOptions::panVariationRateScale},
+      {"--pch_var_amt",  &HeadlessRenderOptions::pitchVariationAmplitudeScale},
+      {"--pch_var_rate", &HeadlessRenderOptions::pitchVariationRateScale},
+  };
+  for (const auto& option : kOptions)
+    if (option.name == name) return &(options.*option.member);
+  return nullptr;
+}
+
+struct PlaybackArguments {
   std::string midiPath;
   std::optional<int> note;
   std::optional<double> seconds;
   std::optional<int> breath;
+  bool showHelp{false};
+};
 
+bool ParseArguments(int argc, char** argv, HeadlessRenderOptions& options, PlaybackArguments& playback, std::string& errorMessage) {
   for (int index = 1; index < argc; ++index) {
-    const std::string_view argument = argv[index];
+    const std::string_view argument = CanonicalOption(argv[index]);
 
     if (argument == "-h" || argument == "--help") {
-      PrintUsage(std::cout);
-      return 0;
+      playback.showHelp = true;
+      return true;
     }
     if (argument == "-p" || argument == "--patch") {
       if (!ReadStringValue(argc, argv, index, options.patchPath, errorMessage)) break;
@@ -172,34 +219,26 @@ int main(int argc, char** argv) {
       continue;
     }
     if (argument == "--midi") {
-      if (!ReadStringValue(argc, argv, index, midiPath, errorMessage)) break;
+      if (!ReadStringValue(argc, argv, index, playback.midiPath, errorMessage)) break;
       continue;
     }
     if (argument == "--note") {
-      int value = 0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseIntArgument, "--note", errorMessage)) break;
-      note = value;
+      if (!ReadParsedValue(argc, argv, index, playback.note, ParseIntArgument, argument, errorMessage)) break;
       continue;
     }
     if (argument == "--seconds") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--seconds", errorMessage)) {
-        break;
-      }
-      seconds = value;
+      if (!ReadParsedValue(argc, argv, index, playback.seconds, ParseDoubleArgument, argument, errorMessage)) break;
       continue;
     }
     if (argument == "--breath") {
-      int value = 0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseIntArgument, "--breath", errorMessage)) break;
-      breath = value;
+      if (!ReadParsedValue(argc, argv, index, playback.breath, ParseIntArgument, argument, errorMessage)) break;
       continue;
     }
-    if (argument == "--sample_rate" || argument == "--sample-rate") {
+    if (argument == "--sample_rate") {
       if (!ReadParsedValue(argc, argv, index, options.sampleRate, ParseIntArgument, "--sample_rate", errorMessage)) break;
       continue;
     }
-    if (argument == "--wav_format" || argument == "--wav-format") {
+    if (argument == "--wav_format") {
       if (!ReadParsedValue(argc, argv, index, options.waveFileFormat, ParseWaveFormatArgument, "--wav_format", errorMessage)) {
         break;
       }
@@ -213,114 +252,12 @@ int main(int argc, char** argv) {
       options.numOutputChannels = 2;
       continue;
     }
-    if (argument == "--reverb") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--reverb", errorMessage)) break;
-      options.reverb = value;
-      continue;
-    }
-    if (argument == "--drive") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--drive", errorMessage)) break;
-      options.drive = value;
-      continue;
-    }
-    if (argument == "--tone") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--tone", errorMessage)) break;
-      options.tone = value;
-      continue;
-    }
-    if (argument == "--chorus") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--chorus", errorMessage)) break;
-      options.chorus = value;
-      continue;
-    }
-    if (argument == "--attack") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--attack", errorMessage)) break;
-      options.attackScale = value;
-      continue;
-    }
-    if (argument == "--release") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--release", errorMessage)) break;
-      options.releaseScale = value;
-      continue;
-    }
-    if (argument == "--level") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--level", errorMessage)) break;
-      options.levelScale = value;
-      continue;
-    }
-    if (argument == "--tuning" || argument == "--tuning-cents" || argument == "--pitch" || argument == "--pitch-offset") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--tuning", errorMessage)) {
-        break;
-      }
-      options.tuningCents = value;
-      continue;
-    }
-    if (argument == "--pan" || argument == "--pan-offset") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan", errorMessage)) break;
-      options.panOffset = value;
-      continue;
-    }
-    if (argument == "--port_min") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--port_min", errorMessage)) break;
-      options.portamentoTimeAtCC5MinSec = value;
-      continue;
-    }
-    if (argument == "--port_max") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--port_max", errorMessage)) break;
-      options.portamentoTimeAtCC5MaxSec = value;
-      continue;
-    }
     if (argument == "--transpose") {
-      int value = 0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseIntArgument, "--transpose", errorMessage)) break;
-      options.transposeSemitones = value;
+      if (!ReadParsedValue(argc, argv, index, options.transposeSemitones, ParseIntArgument, argument, errorMessage)) break;
       continue;
     }
-    if (argument == "--lvl_var_amt") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--lvl_var_amt", errorMessage)) break;
-      options.levelVariationAmplitudeScale = value;
-      continue;
-    }
-    if (argument == "--lvl_var_rate") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--lvl_var_rate", errorMessage)) break;
-      options.levelVariationRateScale = value;
-      continue;
-    }
-    if (argument == "--pan_var_amt") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan_var_amt", errorMessage)) break;
-      options.panVariationAmplitudeScale = value;
-      continue;
-    }
-    if (argument == "--pan_var_rate") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pan_var_rate", errorMessage)) break;
-      options.panVariationRateScale = value;
-      continue;
-    }
-    if (argument == "--pch_var_amt") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pch_var_amt", errorMessage)) break;
-      options.pitchVariationAmplitudeScale = value;
-      continue;
-    }
-    if (argument == "--pch_var_rate") {
-      double value = 0.0;
-      if (!ReadParsedValue(argc, argv, index, value, ParseDoubleArgument, "--pch_var_rate", errorMessage)) break;
-      options.pitchVariationRateScale = value;
+    if (auto* value = FindDoubleOption(options, argument)) {
+      if (!ReadParsedValue(argc, argv, index, *value, ParseDoubleArgument, argument, errorMessage)) break;
       continue;
     }
 
@@ -328,10 +265,22 @@ int main(int argc, char** argv) {
     break;
   }
 
-  if (!errorMessage.empty()) {
+  return errorMessage.empty();
+}
+} // namespace
+
+int main(int argc, char** argv) {
+  HeadlessRenderOptions options;
+  PlaybackArguments playback;
+  std::string errorMessage;
+  if (!ParseArguments(argc, argv, options, playback, errorMessage)) {
     std::cerr << errorMessage << "\n\n";
     PrintUsage(std::cerr);
     return 1;
+  }
+  if (playback.showHelp) {
+    PrintUsage(std::cout);
+    return 0;
   }
 
   if (options.patchPath.empty()) {
@@ -346,8 +295,9 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  const int singleNoteOptionCount = static_cast<int>(note.has_value()) + static_cast<int>(seconds.has_value()) + static_cast<int>(breath.has_value());
-  const bool hasMidi = !midiPath.empty();
+  const int singleNoteOptionCount =
+      static_cast<int>(playback.note.has_value()) + static_cast<int>(playback.seconds.has_value()) + static_cast<int>(playback.breath.has_value());
+  const bool hasMidi = !playback.midiPath.empty();
 
   if (hasMidi && singleNoteOptionCount > 0) {
     std::cerr << "Cannot combine --midi with --note, --seconds, or --breath\n";
@@ -366,7 +316,7 @@ int main(int argc, char** argv) {
   }
 
   if (hasMidi) {
-    if (!RenderMidiFileToWav(options, midiPath, &errorMessage)) {
+    if (!RenderMidiFileToWav(options, playback.midiPath, &errorMessage)) {
       std::cerr << errorMessage << '\n';
       return 1;
     }
@@ -374,9 +324,9 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  options.note = *note;
-  options.durationSeconds = *seconds;
-  options.breathMidiValue = *breath;
+  options.note = *playback.note;
+  options.durationSeconds = *playback.seconds;
+  options.breathMidiValue = *playback.breath;
 
   if (!RenderPatchNoteToWav(options, &errorMessage)) {
     std::cerr << errorMessage << '\n';

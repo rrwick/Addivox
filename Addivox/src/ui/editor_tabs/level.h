@@ -81,14 +81,7 @@ inline bool TryGetLevelShapeValue(const char* shapeName, int oscillatorIndex, do
 }
 
 inline bool ApplyLevelShape(SimplePatch& patch, const char* shapeName) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double level = 0.0;
-    if (!TryGetLevelShapeValue(shapeName, oscillatorIndex, level)) return false;
-
-    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::level, level);
-  }
-
-  return patch.NormalizeLevelWaveformRms();
+  return ApplyHarmonicShape(patch, OscillatorParameter::level, shapeName, TryGetLevelShapeValue) && patch.NormalizeLevelWaveformRms();
 }
 
 inline bool ApplyLevelAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {

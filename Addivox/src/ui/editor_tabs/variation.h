@@ -26,14 +26,11 @@ inline bool TryGetVariationShapeValue(const char* shapeName, int oscillatorIndex
 }
 
 inline bool ApplyVariationShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double value = 0.0;
-    if (!TryGetVariationShapeValue(shapeName, oscillatorIndex, value)) return false;
-
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, 10.0));
-  }
-
-  return true;
+  return ApplyHarmonicShape(patch, parameter, shapeName, [](const char* shape, int index, double& value) {
+    if (!TryGetVariationShapeValue(shape, index, value)) return false;
+    value = std::clamp(value, 0.0, 10.0);
+    return true;
+  });
 }
 
 inline bool ApplyVariationAction(SimplePatch& patch, OscillatorParameter parameter, const char* actionName, EditorOscillatorEditScope editScope) {

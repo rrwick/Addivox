@@ -180,68 +180,42 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathC
   position = chunk.Get(&rawHarmonicVisualizerEnabled, position);
   if (position >= 0) harmonicVisualizerEnabled = (rawHarmonicVisualizerEnabled != 0);
 
+  // Optional fields leave the cursor unchanged when absent, preserving older state chunks.
+  const auto readInt = [&](int32_t& value) {
+    if (position < 0) return false;
+    const int nextPosition = chunk.Get(&value, position);
+    if (nextPosition < 0) return false;
+    position = nextPosition;
+    return true;
+  };
+  const auto readString = [&](std::string& value) {
+    if (position < 0) return false;
+    WDL_String text;
+    const int nextPosition = chunk.GetStr(text, position);
+    if (nextPosition < 0) return false;
+    value = text.Get();
+    position = nextPosition;
+    return true;
+  };
+
   int32_t rawPitchBendRange = static_cast<int32_t>(pitchBendRange);
-  if (position >= 0) {
-    const int nextPosition = chunk.Get(&rawPitchBendRange, position);
-    if (nextPosition >= 0) {
-      pitchBendRange = SanitizePitchBendRange(rawPitchBendRange);
-      position = nextPosition;
-    }
-  }
+  if (readInt(rawPitchBendRange)) pitchBendRange = SanitizePitchBendRange(rawPitchBendRange);
 
   int32_t rawPatchDirty = patchDirty ? 1 : 0;
-  if (position >= 0) {
-    const int nextPosition = chunk.Get(&rawPatchDirty, position);
-    if (nextPosition >= 0) {
-      patchDirty = (rawPatchDirty != 0);
-      position = nextPosition;
-    }
-  }
+  if (readInt(rawPatchDirty)) patchDirty = (rawPatchDirty != 0);
 
-  WDL_String rawPatchCleanSnapshot;
-  if (position >= 0) {
-    const int nextPosition = chunk.GetStr(rawPatchCleanSnapshot, position);
-    if (nextPosition >= 0) {
-      patchCleanSnapshot = rawPatchCleanSnapshot.Get();
-      position = nextPosition;
-    }
-  }
+  readString(patchCleanSnapshot);
 
   int32_t rawPatchSource = activePatchSource;
-  if (position >= 0) {
-    const int nextPosition = chunk.Get(&rawPatchSource, position);
-    if (nextPosition >= 0) {
-      activePatchSource = rawPatchSource;
-      position = nextPosition;
-    }
-  }
+  if (readInt(rawPatchSource)) activePatchSource = rawPatchSource;
 
   int32_t rawFactoryPatchIdx = activeFactoryPatchIdx;
-  if (position >= 0) {
-    const int nextPosition = chunk.Get(&rawFactoryPatchIdx, position);
-    if (nextPosition >= 0) {
-      activeFactoryPatchIdx = rawFactoryPatchIdx;
-      position = nextPosition;
-    }
-  }
+  if (readInt(rawFactoryPatchIdx)) activeFactoryPatchIdx = rawFactoryPatchIdx;
 
-  WDL_String rawPatchPath;
-  if (position >= 0) {
-    const int nextPosition = chunk.GetStr(rawPatchPath, position);
-    if (nextPosition >= 0) {
-      activePatchPath = rawPatchPath.Get();
-      position = nextPosition;
-    }
-  }
-
-  WDL_String rawPatchGroupKey;
-  if (position >= 0) {
-    const int nextPosition = chunk.GetStr(rawPatchGroupKey, position);
-    if (nextPosition >= 0) {
-      activePatchGroupKey = rawPatchGroupKey.Get();
-      int32_t rawPortamentoCC = 5;
-      if (chunk.Get(&rawPortamentoCC, nextPosition) >= 0) portamentoCC = rawPortamentoCC == 65 ? 65 : 5;
-    }
+  readString(activePatchPath);
+  if (readString(activePatchGroupKey)) {
+    int32_t rawPortamentoCC = 5;
+    if (readInt(rawPortamentoCC)) portamentoCC = rawPortamentoCC == 65 ? 65 : 5;
   }
 
   return true;
@@ -1627,28 +1601,19 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     return updated;
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagAddKeyNotePatch && dataSize == sizeof(editor_messages::KeyNotePatchPayload) && pData) {
+  if (ctrlTag == kCtrlTagEditorTabs &&
+      (msgTag == editor_messages::kMsgTagAddKeyNotePatch || msgTag == editor_messages::kMsgTagRemoveKeyNotePatch) &&
+      dataSize == sizeof(editor_messages::KeyNotePatchPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
-    // Build the updated patch off the real-time lock (it allocates a map entry), then commit it with a cheap move under the lock.
-    auto updatedCompoundPatch = mDSP.mSynth.GetVoice().BuildCompoundPatchWithKeyNoteAdded(payload->midiNote);
+    // Build outside the audio lock; commit with a move under the lock.
+    auto& voice = mDSP.mSynth.GetVoice();
+    auto updatedCompoundPatch = msgTag == editor_messages::kMsgTagAddKeyNotePatch
+                                    ? voice.BuildCompoundPatchWithKeyNoteAdded(payload->midiNote)
+                                    : voice.BuildCompoundPatchWithKeyNoteRemoved(payload->midiNote);
     if (!updatedCompoundPatch) return false;
 
     ENTER_PARAMS_MUTEX
-    mDSP.mSynth.GetVoice().CommitCompoundPatch(std::move(*updatedCompoundPatch));
-    LEAVE_PARAMS_MUTEX
-    MarkActivePatchDirty();
-    MarkStandaloneStateDirty();
-    return true;
-  }
-
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagRemoveKeyNotePatch && dataSize == sizeof(editor_messages::KeyNotePatchPayload) &&
-      pData) {
-    const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
-    auto updatedCompoundPatch = mDSP.mSynth.GetVoice().BuildCompoundPatchWithKeyNoteRemoved(payload->midiNote);
-    if (!updatedCompoundPatch) return false;
-
-    ENTER_PARAMS_MUTEX
-    mDSP.mSynth.GetVoice().CommitCompoundPatch(std::move(*updatedCompoundPatch));
+    voice.CommitCompoundPatch(std::move(*updatedCompoundPatch));
     LEAVE_PARAMS_MUTEX
     MarkActivePatchDirty();
     MarkStandaloneStateDirty();

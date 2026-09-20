@@ -34,14 +34,7 @@ inline bool TryGetBreathShapeValue(const char* shapeName, int oscillatorIndex, d
 }
 
 inline bool ApplyBreathShape(SimplePatch& patch, const char* shapeName) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double value = 0.0;
-    if (!TryGetBreathShapeValue(shapeName, oscillatorIndex, value)) return false;
-
-    patch.SetOscillatorParameter(oscillatorIndex, OscillatorParameter::breath_power, value);
-  }
-
-  return true;
+  return ApplyHarmonicShape(patch, OscillatorParameter::breath_power, shapeName, TryGetBreathShapeValue);
 }
 
 inline bool ApplyBreathAction(SimplePatch& patch, const char* actionName, EditorOscillatorEditScope editScope) {

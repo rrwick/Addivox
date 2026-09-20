@@ -58,14 +58,9 @@ inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter, const c
 }
 
 inline bool ApplyAttackReleaseShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double value = 0.0;
-    if (!TryGetAttackReleaseShapeValue(parameter, shapeName, oscillatorIndex, value)) return false;
-
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, std::clamp(value, 0.0, kAttackReleaseMaxTimeSec));
-  }
-
-  return true;
+  return ApplyHarmonicShape(patch, parameter, shapeName, [parameter](const char* shape, int index, double& value) {
+    return TryGetAttackReleaseShapeValue(parameter, shape, index, value);
+  });
 }
 
 inline bool ApplyAttackReleaseAction(SimplePatch& patch, OscillatorParameter parameter, const char* actionName, EditorOscillatorEditScope editScope) {

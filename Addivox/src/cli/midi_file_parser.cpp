@@ -27,7 +27,6 @@ struct TempoEvent {
 struct ActiveNote {
   int channel{0};
   int note{0};
-  uint64_t startTick{0};
 };
 
 class ByteReader {
@@ -315,7 +314,7 @@ bool NormalizeMonophonic(std::vector<RawEvent>& events, uint64_t trackEndTick, s
     }
 
     normalizedEvents.push_back(event);
-    activeNote = ActiveNote{event.message.Channel(), event.message.NoteNumber(), event.tick};
+    activeNote = ActiveNote{event.message.Channel(), event.message.NoteNumber()};
   }
 
   if (!sawNoteOn) {

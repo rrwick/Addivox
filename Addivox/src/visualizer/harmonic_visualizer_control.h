@@ -134,6 +134,9 @@ public:
 
 private:
   struct LogFrequencyMapping {
+    LogFrequencyMapping(float minimumHz, float maximumHz)
+        : minHz(minimumHz), maxHz(maximumHz), logMin(std::log(minimumHz)), invLogSpan(1.f / (std::log(maximumHz) - logMin)) {}
+
     float minHz;
     float maxHz;
     float logMin;
@@ -145,20 +148,12 @@ private:
   };
 
   static const LogFrequencyMapping& XFrequencyMapping() {
-    static const LogFrequencyMapping mapping = [] {
-      const float logMin = std::log(kMinFrequencyHzX);
-      const float logMax = std::log(kMaxFrequencyHzX);
-      return LogFrequencyMapping{kMinFrequencyHzX, kMaxFrequencyHzX, logMin, 1.f / (logMax - logMin)};
-    }();
+    static const LogFrequencyMapping mapping{kMinFrequencyHzX, kMaxFrequencyHzX};
     return mapping;
   }
 
   static const LogFrequencyMapping& ColorFrequencyMapping() {
-    static const LogFrequencyMapping mapping = [] {
-      const float logMin = std::log(kMinFrequencyHzColor);
-      const float logMax = std::log(kMaxFrequencyHzColor);
-      return LogFrequencyMapping{kMinFrequencyHzColor, kMaxFrequencyHzColor, logMin, 1.f / (logMax - logMin)};
-    }();
+    static const LogFrequencyMapping mapping{kMinFrequencyHzColor, kMaxFrequencyHzColor};
     return mapping;
   }
 

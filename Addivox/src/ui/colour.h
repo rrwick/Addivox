@@ -10,7 +10,6 @@ using namespace igraphics;
 
 namespace colour {
 namespace ui {
-static const IColor  kPanelBackground{255,  27,  42,  56};  // Main window background behind all controls
 static const IColor      kControlBody{255,  20,  22,  28};  // Base fill for vector controls (knob body, meter track background)
 static const IColor     kControlFrame{255,  88,  96, 110};  // Outline/frame color for vector controls
 static const IColor    kAccentPrimary{255, 118, 168, 230};  // Primary accent used for active/pressed states and indicator tracks

@@ -7,7 +7,6 @@
 #endif
 
 namespace addivox_demo {
-inline constexpr bool kEnabled = ADDIVOX_DEMO != 0;
 inline constexpr const char* kVisualizerTitle = "DEMO MODE";
 inline constexpr const char* kLimitationsText = "White-key notes only. Transposition is disabled.";
 inline constexpr const char* kAboutText = "DEMO MODE: white-key notes only, transposition is disabled.";

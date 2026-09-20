@@ -76,43 +76,22 @@ bool ValidateOptionalNonNegative(const char* label, const std::optional<double>&
   return true;
 }
 
-void WriteUint16LE(std::ofstream& stream, uint16_t value) {
-  const std::array<char, 2> bytes{
-      static_cast<char>(value & 0xFFu),
-      static_cast<char>((value >> 8) & 0xFFu),
-  };
-  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-}
-
-void WriteUint32LE(std::ofstream& stream, uint32_t value) {
-  const std::array<char, 4> bytes{
-      static_cast<char>(value & 0xFFu),
-      static_cast<char>((value >> 8) & 0xFFu),
-      static_cast<char>((value >> 16) & 0xFFu),
-      static_cast<char>((value >> 24) & 0xFFu),
-  };
-  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-}
-
-void WriteUint64LE(std::ofstream& stream, uint64_t value) {
-  const std::array<char, 8> bytes{
-      static_cast<char>(value & 0xFFu),         static_cast<char>((value >> 8) & 0xFFu),  static_cast<char>((value >> 16) & 0xFFu),
-      static_cast<char>((value >> 24) & 0xFFu), static_cast<char>((value >> 32) & 0xFFu), static_cast<char>((value >> 40) & 0xFFu),
-      static_cast<char>((value >> 48) & 0xFFu), static_cast<char>((value >> 56) & 0xFFu),
-  };
+template <std::size_t NumBytes> void WriteLittleEndian(std::ofstream& stream, uint64_t value) {
+  std::array<char, NumBytes> bytes{};
+  for (std::size_t i = 0; i < bytes.size(); ++i) bytes[i] = static_cast<char>((value >> (8 * i)) & 0xFFu);
   stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 }
 
 void WriteFloat32LE(std::ofstream& stream, float value) {
   uint32_t bits = 0;
   std::memcpy(&bits, &value, sizeof(bits));
-  WriteUint32LE(stream, bits);
+  WriteLittleEndian<4>(stream, bits);
 }
 
 void WriteFloat64LE(std::ofstream& stream, double value) {
   uint64_t bits = 0;
   std::memcpy(&bits, &value, sizeof(bits));
-  WriteUint64LE(stream, bits);
+  WriteLittleEndian<8>(stream, bits);
 }
 
 WaveFormatDescriptor DescribeWaveFileFormat(WaveFileFormat waveFileFormat) {
@@ -141,31 +120,21 @@ int32_t QuantizePcmSample(double sample, int bitsPerSample) {
   return static_cast<int32_t>(std::llround(sample * static_cast<double>(maxValue)));
 }
 
-void WriteInt24LE(std::ofstream& stream, int32_t value) {
-  const uint32_t bits = static_cast<uint32_t>(value);
-  const std::array<char, 3> bytes{
-      static_cast<char>(bits & 0xFFu),
-      static_cast<char>((bits >> 8) & 0xFFu),
-      static_cast<char>((bits >> 16) & 0xFFu),
-  };
-  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-}
-
 bool WriteWaveSampleData(std::ofstream& stream, const std::vector<double>& samples, WaveFileFormat waveFileFormat) {
   switch (waveFileFormat) {
   case WaveFileFormat::Pcm16:
     for (const double sample : samples) {
       const int16_t value = static_cast<int16_t>(QuantizePcmSample(sample, 16));
-      WriteUint16LE(stream, static_cast<uint16_t>(value));
+      WriteLittleEndian<2>(stream, static_cast<uint16_t>(value));
     }
     return stream.good();
 
   case WaveFileFormat::Pcm24:
-    for (const double sample : samples) WriteInt24LE(stream, QuantizePcmSample(sample, 24));
+    for (const double sample : samples) WriteLittleEndian<3>(stream, QuantizePcmSample(sample, 24));
     return stream.good();
 
   case WaveFileFormat::Pcm32:
-    for (const double sample : samples) WriteUint32LE(stream, static_cast<uint32_t>(QuantizePcmSample(sample, 32)));
+    for (const double sample : samples) WriteLittleEndian<4>(stream, static_cast<uint32_t>(QuantizePcmSample(sample, 32)));
     return stream.good();
 
   case WaveFileFormat::Float32:
@@ -225,26 +194,26 @@ bool WriteWaveFile(std::string_view path, const std::vector<double>& samples, in
   const uint16_t blockAlign = static_cast<uint16_t>(numChannels * format.bytesPerSample);
 
   stream.write("RIFF", 4);
-  WriteUint32LE(stream, static_cast<uint32_t>(riffChunkSize64));
+  WriteLittleEndian<4>(stream, static_cast<uint32_t>(riffChunkSize64));
   stream.write("WAVE", 4);
 
   stream.write("fmt ", 4);
-  WriteUint32LE(stream, 16u);
-  WriteUint16LE(stream, format.formatTag);
-  WriteUint16LE(stream, static_cast<uint16_t>(numChannels));
-  WriteUint32LE(stream, static_cast<uint32_t>(sampleRate));
-  WriteUint32LE(stream, byteRate);
-  WriteUint16LE(stream, blockAlign);
-  WriteUint16LE(stream, format.bitsPerSample);
+  WriteLittleEndian<4>(stream, 16u);
+  WriteLittleEndian<2>(stream, format.formatTag);
+  WriteLittleEndian<2>(stream, static_cast<uint16_t>(numChannels));
+  WriteLittleEndian<4>(stream, static_cast<uint32_t>(sampleRate));
+  WriteLittleEndian<4>(stream, byteRate);
+  WriteLittleEndian<2>(stream, blockAlign);
+  WriteLittleEndian<2>(stream, format.bitsPerSample);
 
   if (format.isFloatingPoint) {
     stream.write("fact", 4);
-    WriteUint32LE(stream, 4u);
-    WriteUint32LE(stream, sampleFrames);
+    WriteLittleEndian<4>(stream, 4u);
+    WriteLittleEndian<4>(stream, sampleFrames);
   }
 
   stream.write("data", 4);
-  WriteUint32LE(stream, dataChunkSize);
+  WriteLittleEndian<4>(stream, dataChunkSize);
   if (!WriteWaveSampleData(stream, samples, waveFileFormat)) {
     SetErrorMessage(errorMessage, "Failed while writing the WAV file");
     return false;
@@ -462,8 +431,8 @@ bool RenderScheduledEventsToWav(const HeadlessRenderOptions& options, const std:
   std::vector<double> renderedSamples;
   renderedSamples.reserve(static_cast<std::size_t>((lastEventFrame + maxTailFrames + kRenderBlockSize) * options.numOutputChannels));
 
-  std::vector<iplug::sample> leftBlock(static_cast<std::size_t>(kRenderBlockSize), 0.0);
-  std::vector<iplug::sample> rightBlock(static_cast<std::size_t>(kRenderBlockSize), 0.0);
+  std::array<iplug::sample, kRenderBlockSize> leftBlock{};
+  std::array<iplug::sample, kRenderBlockSize> rightBlock{};
   iplug::sample* outputs[2] = {leftBlock.data(), rightBlock.data()};
 
   std::size_t nextEventIndex = 0;

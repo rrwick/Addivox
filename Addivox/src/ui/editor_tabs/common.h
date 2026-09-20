@@ -254,6 +254,16 @@ inline OscillatorParameterValues GetOscillatorParameterValues(const SimplePatch&
   return values;
 }
 
+template <typename ShapeValueFunc>
+inline bool ApplyHarmonicShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName, ShapeValueFunc&& getValue) {
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
+    double value = 0.0;
+    if (!getValue(shapeName, oscillatorIndex, value)) return false;
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, value);
+  }
+  return true;
+}
+
 inline ActionSelectionControl* CreateYTransformControl(const std::shared_ptr<EditorLevelTransform>& transform, OscillatorSliderControl* sliderControl,
                                                        const EditorStyles& styles) {
   auto* control = new ActionSelectionControl(IRECT(), GetLevelTransformLabel(*transform), {"linear", "square root", "pseudo-log"}, styles.utilityDropdownText,
@@ -469,8 +479,6 @@ inline int GetQwertyMidiNoteOffset(int keyVK) {
   default:    return -1;
   }
 }
-
-inline bool IsQwertyMidiOctaveKey(int keyVK) { return keyVK == kVK_Z || keyVK == kVK_X; }
 
 inline bool MatchesOscillatorEditScope(EditorOscillatorEditScope editScope, int oscillatorIndex) {
   switch (editScope) {
