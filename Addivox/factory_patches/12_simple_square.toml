@@ -2,17 +2,17 @@ format_version = 1
 name = "Simple Square"
 
 [voice_settings]
-levelScale = 1.0
+portamentoTimeAtCC5MinSec = 0.001
+portamentoTimeAtCC5MaxSec = 0.025
 attackScale = 1.0
 releaseScale = 1.0
 levelVariationAmplitudeScale = 0.0
 levelVariationRateScale = 1.0
-pitchVariationAmplitudeScale = 0.0
-pitchVariationRateScale = 1.0
 panVariationAmplitudeScale = 0.0
 panVariationRateScale = 1.0
-portamentoTimeAtCC5MinSec = 0.001
-portamentoTimeAtCC5MaxSec = 0.025
+pitchVariationAmplitudeScale = 0.0
+pitchVariationRateScale = 1.0
+levelScale = 1.0
 
 [effects_settings]
 drive = 0.0

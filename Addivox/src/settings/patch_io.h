@@ -64,17 +64,17 @@ struct OscillatorParameterDescriptor {
 };
 
 inline constexpr std::array<GlobalVoiceSettingDescriptor, 11> kGlobalVoiceSettingDescriptors{{
-    {"levelScale", &GlobalVoiceSettings::levelScale},
+    {"portamentoTimeAtCC5MinSec", &GlobalVoiceSettings::portamentoTimeAtCC5MinSec},
+    {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
     {"attackScale", &GlobalVoiceSettings::attackScale},
     {"releaseScale", &GlobalVoiceSettings::releaseScale},
     {"levelVariationAmplitudeScale", &GlobalVoiceSettings::levelVariationAmplitudeScale},
     {"levelVariationRateScale", &GlobalVoiceSettings::levelVariationRateScale},
-    {"pitchVariationAmplitudeScale", &GlobalVoiceSettings::pitchVariationAmplitudeScale},
-    {"pitchVariationRateScale", &GlobalVoiceSettings::pitchVariationRateScale},
     {"panVariationAmplitudeScale", &GlobalVoiceSettings::panVariationAmplitudeScale},
     {"panVariationRateScale", &GlobalVoiceSettings::panVariationRateScale},
-    {"portamentoTimeAtCC5MinSec", &GlobalVoiceSettings::portamentoTimeAtCC5MinSec},
-    {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
+    {"pitchVariationAmplitudeScale", &GlobalVoiceSettings::pitchVariationAmplitudeScale},
+    {"pitchVariationRateScale", &GlobalVoiceSettings::pitchVariationRateScale},
+    {"levelScale", &GlobalVoiceSettings::levelScale},
 }};
 
 inline constexpr std::array<EffectsSettingDescriptor, 3> kEffectsSettingDescriptors{{
