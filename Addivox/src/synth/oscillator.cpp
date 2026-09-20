@@ -208,7 +208,7 @@ void Oscillator::UpdatePitchTarget(double pitchNoise) { mTargetPitch = std::max(
 
 void Oscillator::UpdateLevelTarget(double levelNoise) { mTargetLevel = mBaseLevel * std::max(0.0, 1.0 + (mLevelVariation.amplitude * levelNoise)); }
 
-void Oscillator::UpdatePanTargetGains(double panNoise) {
+inline void Oscillator::UpdatePanTargetGains(double panNoise) {
   if (panNoise == 0.0) {
     mTargetPanLeftGain = mBasePanLeftGain;
     mTargetPanRightGain = mBasePanRightGain;
@@ -219,6 +219,8 @@ void Oscillator::UpdatePanTargetGains(double panNoise) {
 }
 
 void Oscillator::SmoothVariationParameters(VariationState& variation) {
+  if (variation.amplitude == variation.targetAmplitude && variation.rateHz == variation.targetRateHz) return;
+
   const double amplitudeDelta = variation.targetAmplitude - variation.amplitude;
   variation.amplitude += mVariationParameterSmoothingCoefficient * amplitudeDelta;
   if (amplitudeDelta <= kVariationParameterEpsilon && amplitudeDelta >= -kVariationParameterEpsilon) variation.amplitude = variation.targetAmplitude;
@@ -226,8 +228,6 @@ void Oscillator::SmoothVariationParameters(VariationState& variation) {
   const double rateDelta = variation.targetRateHz - variation.rateHz;
   variation.rateHz += mVariationParameterSmoothingCoefficient * rateDelta;
   if (rateDelta <= kVariationParameterEpsilon && rateDelta >= -kVariationParameterEpsilon) variation.rateHz = variation.targetRateHz;
-
-  variation.positionIncrement = variation.rateHz * mInverseSampleRate;
 }
 
 bool Oscillator::IsVariationActiveNow(const VariationState& variation) {
@@ -240,12 +240,18 @@ double Oscillator::CurrentVariationNoise(VariationState& variation, uint32_t see
   return variation.noiseCache.evaluate(variation.position, seed);
 }
 
+#if defined(_MSC_VER)
+__forceinline
+#elif defined(__clang__) || defined(__GNUC__)
+__attribute__((always_inline)) inline
+#endif
 double Oscillator::ProcessVariation(VariationState& variation, uint32_t seed) {
   SmoothVariationParameters(variation);
+  const double positionIncrement = variation.rateHz * mInverseSampleRate;
   if (!IsVariationActiveNow(variation)) return 0.0;
 
   const double noise = variation.noiseCache.evaluate(variation.position, seed);
-  variation.position += variation.positionIncrement;
+  variation.position += positionIncrement;
   return noise;
 }
 

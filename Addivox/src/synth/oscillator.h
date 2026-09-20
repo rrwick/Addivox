@@ -106,7 +106,6 @@ private:
     double targetRateHz{0.0};
     std::atomic<double> pendingTargetRateHz{0.0};
     double position{0.0};
-    double positionIncrement{0.0};
     dsp::CachedNoise1D noiseCache;
 
     void InvalidateNoiseCache() { noiseCache.reset(); }
