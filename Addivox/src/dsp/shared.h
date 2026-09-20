@@ -68,7 +68,7 @@ inline std::array<double, 2> PanToGains(double pan) {
 
 struct DelayLine {
   void Resize(int size) {
-    buffer.assign(static_cast<std::size_t>(std::max(2, size)), 0.0);
+    buffer.assign(static_cast<std::size_t>(std::max(3, size)), 0.0);
     writeIndex = 0;
   }
 
