@@ -8,13 +8,10 @@
 
 namespace plugin_dsp {
 
-// Drives a peak-style level meter. For each channel, tracks a peak envelope with instant
-// attack and exponential decay, sampled at full audio rate, and sends it to a UI control
-// via ISender's queue whenever it changes.
+// Sends block peaks to the UI, with instant attack and exponential decay between peaks.
 template <int MAXNC = 2, int QUEUE_SIZE = 64> class PeakEnvelopeSender : public iplug::ISender<MAXNC, QUEUE_SIZE, float> {
 public:
-  // fallTimeMs is roughly how long the envelope takes to fall from full scale to inaudible
-  // once the signal stops producing new peaks.
+  // fallTimeMs is the time to decay by 60 dB without new peaks.
   void Reset(double sampleRate, double fallTimeMs = 200.0) {
     const double safeSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
     const double samples = std::max(1.0, fallTimeMs * 0.001 * safeSampleRate);
@@ -30,19 +27,16 @@ public:
     for (int c = chanOffset; c < chanOffset + nChans; ++c) {
       float envelope = mEnvelope[c];
 
-      // Report the highest level reached at any point in the block rather than the envelope's
-      // end-of-block value, so a brief peak early in a large block cannot decay away unseen.
+      // Include the starting envelope so peaks remain visible across block boundaries.
       float blockPeak = envelope;
 
       for (int s = 0; s < nFrames; ++s) {
-        const float absVal = std::fabs(static_cast<float>(inputs[c][s]));
-        envelope = (absVal > envelope) ? absVal : (envelope * mDecayPerSample);
-        if (absVal > blockPeak) blockPeak = absVal;
+        const float magnitude = std::fabs(static_cast<float>(inputs[c][s]));
+        envelope = (magnitude > envelope) ? magnitude : (envelope * mDecayPerSample);
+        blockPeak = std::max(blockPeak, magnitude);
       }
 
-      // Snap to exact silence below an inaudible floor rather than letting the exponential
-      // decay approach zero forever, which would eventually multiply denormal floats every
-      // sample (slow on many CPUs) and never let the changed check settle.
+      // Stop sending updates at silence and avoid denormal decay.
       if (envelope < kFloorLevel) envelope = 0.0f;
       if (blockPeak < kFloorLevel) blockPeak = 0.0f;
 

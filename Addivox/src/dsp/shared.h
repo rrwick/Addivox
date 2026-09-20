@@ -23,9 +23,8 @@ inline double ExponentialSmoothingCoefficient(double sampleRate, double timeSeco
   return 1.0 - std::exp(-1.0 / (sampleRate * timeSeconds));
 }
 
-inline double CutoffHzToCoefficient(double sampleRate, double cutoffHz, double minimumCutoffHz = 1.0, double maximumCutoffScale = 0.49,
-                                    double defaultSampleRate = kDefaultSampleRate) {
-  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : defaultSampleRate;
+inline double CutoffHzToCoefficient(double sampleRate, double cutoffHz, double minimumCutoffHz = 1.0, double maximumCutoffScale = 0.49) {
+  const double safeSampleRate = sampleRate > 0.0 ? sampleRate : kDefaultSampleRate;
   const double safeCutoff = std::clamp(cutoffHz, minimumCutoffHz, maximumCutoffScale * safeSampleRate);
   return 1.0 - std::exp((-2.0 * kPi * safeCutoff) / safeSampleRate);
 }
@@ -62,10 +61,9 @@ inline void PanToGains(double pan, double& leftGain, double& rightGain) {
 }
 
 inline std::array<double, 2> PanToGains(double pan) {
-  double leftGain = 0.0;
-  double rightGain = 0.0;
-  PanToGains(pan, leftGain, rightGain);
-  return {leftGain, rightGain};
+  std::array<double, 2> gains{};
+  PanToGains(pan, gains[0], gains[1]);
+  return gains;
 }
 
 struct DelayLine {
@@ -79,19 +77,13 @@ struct DelayLine {
     writeIndex = 0;
   }
 
-  bool HasSignal() const {
-    for (const double sample : buffer) {
-      if (sample != 0.0) return true;
-    }
-
-    return false;
-  }
+  bool HasSignal() const { return std::any_of(buffer.begin(), buffer.end(), [](double sample) { return sample != 0.0; }); }
 
   void Write(double input) {
     if (buffer.empty()) return;
 
     buffer[static_cast<std::size_t>(writeIndex)] = FlushDenormal(input);
-    writeIndex = (writeIndex + 1) % static_cast<int>(buffer.size());
+    if (++writeIndex == static_cast<int>(buffer.size())) writeIndex = 0;
   }
 
   double Read(double delaySamples) const {
@@ -102,7 +94,7 @@ struct DelayLine {
     if (readPos < 0.0) readPos += static_cast<double>(buffer.size());
 
     const int index0 = static_cast<int>(readPos);
-    const int index1 = (index0 + 1) % static_cast<int>(buffer.size());
+    const int index1 = index0 + 1 == static_cast<int>(buffer.size()) ? 0 : index0 + 1;
     const double frac = readPos - static_cast<double>(index0);
     const double sample0 = buffer[static_cast<std::size_t>(index0)];
     const double sample1 = buffer[static_cast<std::size_t>(index1)];
@@ -114,16 +106,10 @@ struct DelayLine {
 };
 
 struct OnePoleLowpass {
-  void SetCutoffHz(double sampleRate, double cutoffHz, double minimumCutoffHz = 1.0, double maximumCutoffScale = 0.49,
-                   double defaultSampleRate = kDefaultSampleRate) {
-    coefficient = CutoffHzToCoefficient(sampleRate, cutoffHz, minimumCutoffHz, maximumCutoffScale, defaultSampleRate);
-  }
-
   void Clear() { state = 0.0; }
 
   double Process(double input) {
-    state += coefficient * (input - state);
-    state = FlushDenormal(state);
+    state = FlushDenormal(SmoothValue(state, input, coefficient));
     return state;
   }
 
@@ -132,16 +118,10 @@ struct OnePoleLowpass {
 };
 
 struct OnePoleHighpass {
-  void SetCutoffHz(double sampleRate, double cutoffHz, double minimumCutoffHz = 1.0, double maximumCutoffScale = 0.49,
-                   double defaultSampleRate = kDefaultSampleRate) {
-    coefficient = CutoffHzToCoefficient(sampleRate, cutoffHz, minimumCutoffHz, maximumCutoffScale, defaultSampleRate);
-  }
-
   void Clear() { lowState = 0.0; }
 
   double Process(double input) {
-    lowState += coefficient * (input - lowState);
-    lowState = FlushDenormal(lowState);
+    lowState = FlushDenormal(SmoothValue(lowState, input, coefficient));
     return input - lowState;
   }
 
