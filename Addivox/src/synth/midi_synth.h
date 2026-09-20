@@ -1,12 +1,7 @@
 #pragma once
 
-/**
- * @file
- * @copydoc MidiSynth
- */
-
 #include <array>
-#include <stdint.h>
+#include <cstdint>
 
 #include "../demo_mode.h"
 #include "../midi/breath_control.h"
@@ -15,17 +10,13 @@
 
 BEGIN_IPLUG_NAMESPACE
 
-/** A monophonic synthesiser base class that owns a concrete voice type. */
+// A monophonic synthesiser that owns a concrete voice type.
 template <typename VoiceT> class MidiSynth {
 public:
-  /** This defines the size in samples of a single block of processing that will
-   * be done by the synth. */
   static constexpr int kDefaultBlockSize = 32;
   static constexpr int kDefaultPitchBendRange = 2;
 
-public:
   MidiSynth(int blockSize = kDefaultBlockSize) : mMidiQueue(blockSize) {
-    mMidiState = MonoMidiState{0x7F, 0x7F, 0xFF, 0xFF, kDefaultPitchBendRange, 0.0, 1.0, 0.0};
     mBreathCCSources.fill(kDefaultBreathCCSource);
     mBreathCCInputTracker.Reset();
     ClearVoiceControls();
@@ -52,8 +43,6 @@ public:
     mVoice.SetSampleRate(sampleRate);
   }
 
-  /** Set the pitch bend range in semitones for the active mono channel state.
-   */
   void SetPitchBendRange(int pitchBendRange) {
     mMidiState.pitchBendRange = static_cast<uint8_t>(Clip(pitchBendRange, 0, 96));
 
@@ -81,36 +70,23 @@ public:
     mBreathCCInputTracker.ResetChannel(static_cast<int>(index));
   }
 
-  /** Processes a block of audio samples
-   * @param outputs Pointer to output Arrays
-   * @param nFrames The number of sample frames to process */
   void ProcessBlock(sample** outputs, int nFrames) {
-    if (mVoice.IsActive() || !mMidiQueue.Empty()) {
-      int startIndex = 0;
+    if (!mVoice.IsActive() && mMidiQueue.Empty()) return;
 
-      while (startIndex < nFrames) {
-        // Apply any events scheduled for the current sample before rendering audio.
-        while (!mMidiQueue.Empty()) {
-          IMidiMsg msg = mMidiQueue.Peek();
-          if (msg.mOffset > startIndex) break;
-
-          if (IsRPNMessage(msg)) HandleRPN(msg);
-          else
-            HandlePerformanceMessage(msg);
-
-          mMidiQueue.Remove();
-        }
-
-        int renderEnd = nFrames;
-        if (!mMidiQueue.Empty()) renderEnd = Clip(static_cast<int>(mMidiQueue.Peek().mOffset), startIndex, nFrames);
-
-        const int numFrames = renderEnd - startIndex;
-        if (mVoice.IsActive()) mVoice.ProcessSamplesAccumulating(outputs, startIndex, numFrames);
-        startIndex = renderEnd;
+    int startIndex = 0;
+    while (startIndex < nFrames) {
+      // Apply events at the current sample before rendering audio.
+      while (!mMidiQueue.Empty() && mMidiQueue.Peek().mOffset <= startIndex) {
+        HandleMidiMessage(mMidiQueue.Peek());
+        mMidiQueue.Remove();
       }
 
-      mMidiQueue.Flush(nFrames);
+      const int renderEnd = mMidiQueue.Empty() ? nFrames : Clip(static_cast<int>(mMidiQueue.Peek().mOffset), startIndex, nFrames);
+      if (mVoice.IsActive()) mVoice.ProcessSamplesAccumulating(outputs, startIndex, renderEnd - startIndex);
+      startIndex = renderEnd;
     }
+
+    mMidiQueue.Flush(nFrames);
   }
 
   const VoiceT& GetVoice() const { return mVoice; }
@@ -119,125 +95,93 @@ public:
 
 private:
   struct MonoMidiState {
-    uint8_t paramMSB;
-    uint8_t paramLSB;
-    uint8_t valueMSB;
-    uint8_t valueLSB;
-    uint8_t pitchBendRange; // in semitones
-    double currentPitchBend;
-    double currentBreath;
-    double currentPortamento;
+    uint8_t paramMSB{0x7F};
+    uint8_t paramLSB{0x7F};
+    uint8_t pitchBendRange{kDefaultPitchBendRange}; // in semitones
+    double currentPitchBend{0.0};
+    double currentBreath{1.0};
+    double currentPortamento{0.0};
   };
 
-  static bool IsRPNMessage(const IMidiMsg& msg) {
-    if (msg.StatusMsg() != IMidiMsg::kControlChange) return false;
-
-    const int cc = msg.mData1;
-    return (cc == 0x62) || (cc == 0x63) || (cc == 0x64) || (cc == 0x65) || (cc == 0x26) || (cc == 0x06);
+  void HandleMidiMessage(const IMidiMsg& msg) {
+    switch (msg.StatusMsg()) {
+    case IMidiMsg::kNoteOn: HandleNoteOn(msg); break;
+    case IMidiMsg::kNoteOff:
+      if (IsActiveNote(msg.Channel(), msg.NoteNumber())) StopVoice();
+      break;
+    case IMidiMsg::kPitchWheel:    PitchBend(msg.Channel(), static_cast<double>(msg.PitchWheel()) * mMidiState.pitchBendRange); break;
+    case IMidiMsg::kControlChange: HandleControlChange(msg); break;
+    default:                       break;
+    }
   }
 
-  void HandlePerformanceMessage(const IMidiMsg& msg) {
+  void HandleNoteOn(const IMidiMsg& msg) {
     const int channel = msg.Channel();
     const int key = msg.NoteNumber();
-    const IMidiMsg::EStatusMsg status = msg.StatusMsg();
-
-    switch (status) {
-    case IMidiMsg::kNoteOn: {
-      if (msg.Velocity() == 0) {
-        if (IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key))) StopVoice();
-      } else {
+    if (msg.Velocity() == 0) {
+      if (IsActiveNote(channel, key)) StopVoice();
+      return;
+    }
 #if ADDIVOX_DEMO
-        if (!addivox_demo::IsWhiteKeyMidiNote(key)) break;
+    if (!addivox_demo::IsWhiteKeyMidiNote(key)) return;
 #endif
 
-        mActiveChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
-        mActiveKey = static_cast<uint8_t>(Clip(key, 0, 127));
+    mActiveChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
+    mActiveKey = static_cast<uint8_t>(Clip(key, 0, 127));
+    mBreathGateOpen = mMidiState.currentBreath >= kBreathGateOnThreshold;
+    if (mBreathGateOpen) StartVoice(channel, key);
+    else
+      mVoice.Stop(); // Keep the note assigned so breath can trigger it later.
+  }
 
-        if (mMidiState.currentBreath >= kBreathGateOnThreshold) {
-          mBreathGateOpen = true;
-          StartVoice(channel, key, static_cast<double>(key));
-        } else {
-          // Keep note assignment active so breath can trigger the note later.
-          mBreathGateOpen = false;
-          mVoice.Stop();
-        }
-      }
-      break;
+  void HandleControlChange(const IMidiMsg& msg) {
+    switch (msg.mData1) {
+    case 0x62:
+    case 0x63:
+    case 0x64:
+    case 0x65:
+    case 0x26:
+    case 0x06: HandleRPN(msg); return;
+    default:   break;
     }
-    case IMidiMsg::kNoteOff: {
-      if (IsActiveNote(static_cast<uint8_t>(channel), static_cast<uint8_t>(key))) StopVoice();
-      break;
-    }
-    case IMidiMsg::kPitchWheel: {
-      const double bendRange = static_cast<double>(mMidiState.pitchBendRange);
-      const double bend = static_cast<double>(msg.PitchWheel()) * bendRange;
-      PitchBend(channel, bend);
-      break;
-    }
-    case IMidiMsg::kControlChange: {
-      const BreathCCValueUpdate breathUpdate = mBreathCCInputTracker.HandleMessage(mBreathCCSources[static_cast<std::size_t>(Clip(channel, 0, 15))], msg);
-      if (breathUpdate.consumed) {
-        if (breathUpdate.hasValue) Breath(channel, breathUpdate.value);
-        break;
-      }
 
-      if (msg.mData1 == 120) { StopVoice(); break; }  // CC 120 = All Sound Off
-
-      switch (msg.ControlChangeIdx()) {
-      case IMidiMsg::kPortamentoTime:
-      case IMidiMsg::kPortamentoOnOff:
-        if (msg.mData1 == mPortamentoCC) Portamento(channel, mPortamentoCC == 65 ? (msg.mData2 >= 64 ? 1.0 : 0.0) : msg.mData2 / 127.0);
-        break;
-      case IMidiMsg::kAllNotesOff:    StopVoice(); break;
-      default:                        break;
-      }
-      break;
+    const int channel = msg.Channel();
+    const auto breathUpdate = mBreathCCInputTracker.HandleMessage(mBreathCCSources[static_cast<std::size_t>(Clip(channel, 0, 15))], msg);
+    if (breathUpdate.consumed) {
+      if (breathUpdate.hasValue) Breath(channel, breathUpdate.value);
+      return;
     }
-    default: break;
+
+    switch (msg.mData1) {
+    case IMidiMsg::kPortamentoTime:
+    case IMidiMsg::kPortamentoOnOff:
+      if (msg.mData1 == mPortamentoCC) Portamento(channel, mPortamentoCC == 65 ? (msg.mData2 >= 64 ? 1.0 : 0.0) : msg.mData2 / 127.0);
+      break;
+    case 120: // All Sound Off
+    case IMidiMsg::kAllNotesOff: StopVoice(); break;
+    default:                     break;
     }
   }
 
   void HandleRPN(const IMidiMsg& msg) {
-    const int channel = msg.Channel();
-    if (mActiveKey != kNoKey && channel != mActiveChannel) return;
-
-    MonoMidiState& state = mMidiState;
-
-    const uint8_t valueByte = msg.mData2;
-    int param = 0;
+    if (!AcceptsChannel(msg.Channel())) return;
 
     switch (msg.mData1) {
-    case 0x62: // Selecting an NRPN deselects any RPN, so NRPN data entry is not misapplied as RPN data.
-    case 0x63:
-      state.paramMSB = state.paramLSB = 0x7F;
-      state.valueMSB = state.valueLSB = 0xFF;
+    case 0x62: // Selecting an NRPN deselects the RPN, preventing NRPN data from changing the pitch bend range.
+    case 0x63: mMidiState.paramMSB = mMidiState.paramLSB = 0x7F; break;
+    case 0x64: mMidiState.paramLSB = msg.mData2; break;
+    case 0x65: mMidiState.paramMSB = msg.mData2; break;
+    case 0x06:
+      // RPN 0 is pitch bend range: MSB is semitones; the cents LSB is ignored.
+      if (mMidiState.paramMSB == 0 && mMidiState.paramLSB == 0) SetPitchBendRange(msg.mData2 & 0x7F);
       break;
-    case 0x64:
-      state.paramLSB = valueByte;
-      state.valueMSB = state.valueLSB = 0xFF;
-      break;
-    case 0x65:
-      state.paramMSB = valueByte;
-      state.valueMSB = state.valueLSB = 0xFF;
-      break;
-    case 0x26: state.valueLSB = valueByte; break;
-    case 0x06: {
-      // When value MSB arrives we apply the RPN value.
-      state.valueMSB = valueByte;
-      param = ((state.paramMSB & 0xFF) << 7) + (state.paramLSB & 0xFF);
-
-      if (param == 0) // RPN 0 : pitch bend range (MSB is semitones; the LSB is cents, which Addivox ignores)
-        SetPitchBendRange(state.valueMSB & 0x7F);
-
-      break;
-    }
     default: break;
     }
   }
 
-  void StartVoice(int channel, int key, double pitch) {
+  void StartVoice(int channel, int key) {
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
-    mVoice.Start(pitch, mMidiState.currentPitchBend, mMidiState.currentBreath);
+    mVoice.Start(static_cast<double>(key), mMidiState.currentPitchBend, mMidiState.currentBreath);
     mActiveChannel = static_cast<uint8_t>(channel);
     mActiveKey = static_cast<uint8_t>(key);
   }
@@ -249,9 +193,7 @@ private:
   }
 
   void PitchBend(int channel, double value) {
-    const uint8_t bendChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
-
-    if (mActiveKey != kNoKey && !IsActiveChannel(bendChannel)) return;
+    if (!AcceptsChannel(channel)) return;
 
     mMidiState.currentPitchBend = value;
 
@@ -259,9 +201,7 @@ private:
   }
 
   void Breath(int channel, double value) {
-    const uint8_t breathChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
-
-    if (mActiveKey != kNoKey && !IsActiveChannel(breathChannel)) return;
+    if (!AcceptsChannel(channel)) return;
 
     mMidiState.currentBreath = value;
 
@@ -276,22 +216,20 @@ private:
       }
     } else if (value >= kBreathGateOnThreshold) {
       mBreathGateOpen = true;
-      StartVoice(static_cast<int>(mActiveChannel), static_cast<int>(mActiveKey), static_cast<double>(mActiveKey));
+      StartVoice(mActiveChannel, mActiveKey);
     }
   }
 
   void Portamento(int channel, double value) {
-    const uint8_t portamentoChannel = static_cast<uint8_t>(Clip(channel, 0, 15));
-
-    if (mActiveKey != kNoKey && !IsActiveChannel(portamentoChannel)) return;
+    if (!AcceptsChannel(channel)) return;
 
     mMidiState.currentPortamento = Clip(value, 0.0, 1.0);
     mVoice.SetPortamentoControl(mMidiState.currentPortamento);
   }
 
-  bool IsActiveChannel(uint8_t channel) const { return mActiveKey != kNoKey && mActiveChannel == channel; }
+  bool AcceptsChannel(int channel) const { return mActiveKey == kNoKey || mActiveChannel == Clip(channel, 0, 15); }
 
-  bool IsActiveNote(uint8_t channel, uint8_t key) const { return IsActiveChannel(channel) && mActiveKey == key; }
+  bool IsActiveNote(int channel, int key) const { return mActiveKey != kNoKey && mActiveChannel == channel && mActiveKey == key; }
 
   void ClearVoiceControls() {
     mVoice.Clear();

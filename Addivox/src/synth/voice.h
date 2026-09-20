@@ -47,28 +47,21 @@ private:
   void UpdateLevels();
   void UpdateLevel(int harmonic, const OscillatorSettings& settings, const CompoundPatch::ResolvedNoteSpan& noteSpan);
   void UpdatePitchRate();
-  void RefreshNoteDependentState(int lookAheadSamples);
-  void AdvanceRenderedPitch(int numSamples);
+  void RefreshNoteDependentState();
   double PredictRenderedMidiPitch(int numSamples) const;
   double GetPortamentoTimeSec() const;
-  double SmoothBreath(double breath);
+  static double ShapeBreath(double breath);
   void SnapBreath(double breath);
   static double AdvanceTowards(double current, double target, double maxDelta);
   static double GetOscillatorBasePitchSemitones(int harmonic, double pitchOffsetCents, double fundamentalPitchSemitones,
                                                 const GlobalVoiceSettings& globalSettings);
-  static double PitchSemitonesToFrequencyHz(double pitchSemitones);
   void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& currentSettings, double futurePitchOffsetCents,
                                double futureFundamentalPitchSemitones);
 
   static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;
   static constexpr int kNoteControlIntervalSamples = 8;
 
-  // Breath CCs arrive as discrete steps (typically a few ms apart), and with
-  // short attack/release times the level envelope reproduces that staircase as
-  // audible zipper noise. Each new breath value is therefore approached with a
-  // linear ramp lasting this many seconds, advanced at the control-tick rate.
-  // 0 disables the ramp (breath changes apply immediately). Note on/off snaps
-  // rather than ramps, so articulation speed is unaffected.
+  // Ramp between breath CCs at control ticks to avoid zipper noise. Note on/off snaps for immediate articulation.
   static constexpr double kBreathRampTimeSec = 0.002;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
