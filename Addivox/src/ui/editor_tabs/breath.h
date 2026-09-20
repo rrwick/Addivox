@@ -12,25 +12,17 @@ inline bool TryGetBreathShapeValue(const char* shapeName, int oscillatorIndex, d
 
   if (std::strcmp(shapeName, "flat") == 0) {
     value = 1.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "linear ramp") == 0) {
+  } else if (std::strcmp(shapeName, "linear ramp") == 0) {
     value = harmonicNumber;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "square ramp") == 0) {
+  } else if (std::strcmp(shapeName, "square ramp") == 0) {
     value = 1.0 + ((harmonicNumber * harmonicNumber) / 101.01010101010101);
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "cube ramp") == 0) {
+  } else if (std::strcmp(shapeName, "cube ramp") == 0) {
     value = 1.0 + ((harmonicNumber * harmonicNumber * harmonicNumber) / 10101.010101010101);
-    return true;
+  } else {
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 inline bool ApplyBreathShape(SimplePatch& patch, const char* shapeName) {

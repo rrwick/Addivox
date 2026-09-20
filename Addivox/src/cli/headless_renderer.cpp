@@ -293,40 +293,23 @@ void ApplyPatchAndOverrides(SynthEngine& engine, const patch_io::PatchDocument& 
   GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
   EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
 
-  if (options.levelScale) voiceSettings.levelScale = *options.levelScale;
-
-  if (options.attackScale) voiceSettings.attackScale = *options.attackScale;
-
-  if (options.releaseScale) voiceSettings.releaseScale = *options.releaseScale;
-
-  if (options.tuningCents) voiceSettings.tuningCents = *options.tuningCents;
-
-  if (options.panOffset) voiceSettings.panOffset = *options.panOffset;
-
-  if (options.levelVariationAmplitudeScale) voiceSettings.levelVariationAmplitudeScale = *options.levelVariationAmplitudeScale;
-
-  if (options.levelVariationRateScale) voiceSettings.levelVariationRateScale = *options.levelVariationRateScale;
-
-  if (options.pitchVariationAmplitudeScale) voiceSettings.pitchVariationAmplitudeScale = *options.pitchVariationAmplitudeScale;
-
-  if (options.pitchVariationRateScale) voiceSettings.pitchVariationRateScale = *options.pitchVariationRateScale;
-
-  if (options.panVariationAmplitudeScale) voiceSettings.panVariationAmplitudeScale = *options.panVariationAmplitudeScale;
-
-  if (options.panVariationRateScale) voiceSettings.panVariationRateScale = *options.panVariationRateScale;
-
-  if (options.portamentoTimeAtCC5MinSec) voiceSettings.portamentoTimeAtCC5MinSec = *options.portamentoTimeAtCC5MinSec;
-
-  if (options.portamentoTimeAtCC5MaxSec) voiceSettings.portamentoTimeAtCC5MaxSec = *options.portamentoTimeAtCC5MaxSec;
-
-  if (options.drive) effectsSettings.drive = *options.drive;
-
-  if (options.tone) effectsSettings.tone = *options.tone;
-
-  if (options.chorus) effectsSettings.chorus = *options.chorus;
-
-  if (options.reverb) effectsSettings.reverb = *options.reverb;
-
+  voiceSettings.levelScale = options.levelScale.value_or(voiceSettings.levelScale);
+  voiceSettings.attackScale = options.attackScale.value_or(voiceSettings.attackScale);
+  voiceSettings.releaseScale = options.releaseScale.value_or(voiceSettings.releaseScale);
+  voiceSettings.tuningCents = options.tuningCents.value_or(voiceSettings.tuningCents);
+  voiceSettings.panOffset = options.panOffset.value_or(voiceSettings.panOffset);
+  voiceSettings.levelVariationAmplitudeScale = options.levelVariationAmplitudeScale.value_or(voiceSettings.levelVariationAmplitudeScale);
+  voiceSettings.levelVariationRateScale = options.levelVariationRateScale.value_or(voiceSettings.levelVariationRateScale);
+  voiceSettings.pitchVariationAmplitudeScale = options.pitchVariationAmplitudeScale.value_or(voiceSettings.pitchVariationAmplitudeScale);
+  voiceSettings.pitchVariationRateScale = options.pitchVariationRateScale.value_or(voiceSettings.pitchVariationRateScale);
+  voiceSettings.panVariationAmplitudeScale = options.panVariationAmplitudeScale.value_or(voiceSettings.panVariationAmplitudeScale);
+  voiceSettings.panVariationRateScale = options.panVariationRateScale.value_or(voiceSettings.panVariationRateScale);
+  voiceSettings.portamentoTimeAtCC5MinSec = options.portamentoTimeAtCC5MinSec.value_or(voiceSettings.portamentoTimeAtCC5MinSec);
+  voiceSettings.portamentoTimeAtCC5MaxSec = options.portamentoTimeAtCC5MaxSec.value_or(voiceSettings.portamentoTimeAtCC5MaxSec);
+  effectsSettings.drive = options.drive.value_or(effectsSettings.drive);
+  effectsSettings.tone = options.tone.value_or(effectsSettings.tone);
+  effectsSettings.chorus = options.chorus.value_or(effectsSettings.chorus);
+  effectsSettings.reverb = options.reverb.value_or(effectsSettings.reverb);
   engine.mGlobalVoiceSettings = global_settings::Sanitize(voiceSettings);
   engine.mEffectsSettings = effects_settings::Sanitize(effectsSettings);
   engine.mTransposeSemitones = static_cast<double>(options.transposeSemitones.value_or(0));

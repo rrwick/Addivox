@@ -245,15 +245,6 @@ inline void SetControlValueSilently(IControl* control, double value, int valIdx 
 
 inline int RoundOscillatorRangeValue(double value) { return std::clamp(static_cast<int>(std::lround(value)), 1, SimplePatch::kNumOscillators); }
 
-inline OscillatorParameterValues GetOscillatorParameterValues(const SimplePatch& patch, OscillatorParameter parameter) {
-  OscillatorParameterValues values{};
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    values[static_cast<std::size_t>(oscillatorIndex)] = patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
-  }
-
-  return values;
-}
-
 template <typename ShapeValueFunc>
 inline bool ApplyHarmonicShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName, ShapeValueFunc&& getValue) {
   for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
@@ -738,7 +729,7 @@ struct EditorContext {
           const auto patchLock = LockPatch();
           if (const auto* patch = HasValidSelectedMidiNote() ? Patch().GetKeyNotePatch(SelectedMidiNote()) : nullptr) {
             editable = true;
-            values = GetOscillatorParameterValues(*patch, parameter);
+            values = patch->GetParameterValues(parameter);
             saved = Patch().GetMacroSettings(SelectedMidiNote(), parameter);
           }
         }
@@ -1126,12 +1117,12 @@ struct EditorContext {
       if (!keyNotePatch) return;
 
       updatedPatch = *keyNotePatch;
-      originalValues = GetOscillatorParameterValues(*keyNotePatch, parameter);
+      originalValues = keyNotePatch->GetParameterValues(parameter);
     }
 
     if (!std::forward<Action>(action)(updatedPatch)) return;
 
-    auto values = GetOscillatorParameterValues(updatedPatch, parameter);
+    auto values = updatedPatch.GetParameterValues(parameter);
     if (applyEditScope) ApplyOscillatorEditScopeToValues(parameter, originalValues, values);
     if (values == originalValues) return;
 

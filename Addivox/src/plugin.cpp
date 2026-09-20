@@ -1525,20 +1525,26 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
 #endif
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameter &&
-      dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetKeyNoteOscillatorParameterPayload*>(pData);
-    if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
-
-    const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+  const auto applyPatchEdit = [this](auto&& edit) {
     ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
+    const bool updated = edit(mDSP.mSynth.GetVoice());
     LEAVE_PARAMS_MUTEX
     if (updated) {
       MarkActivePatchDirty();
       MarkStandaloneStateDirty();
     }
     return updated;
+  };
+
+  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameter &&
+      dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterPayload) && pData) {
+    const auto* payload = static_cast<const editor_messages::SetKeyNoteOscillatorParameterPayload*>(pData);
+    if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
+
+    const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
+    return applyPatchEdit([&](SynthVoice& voice) {
+      return voice.SetKeyNoteOscillatorParameter(payload->midiNote, payload->oscillatorIndex, parameter, payload->value);
+    });
   }
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues &&
@@ -1547,14 +1553,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values);
-    LEAVE_PARAMS_MUTEX
-    if (updated) {
-      MarkActivePatchDirty();
-      MarkStandaloneStateDirty();
-    }
-    return updated;
+    return applyPatchEdit([&](SynthVoice& voice) { return voice.SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values); });
   }
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteEqCurve && dataSize > 0 && pData) {
@@ -1562,14 +1561,7 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     EqCurve curve;
     if (!editor_messages::DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve)) return false;
 
-    ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().SetKeyNoteEqCurve(midiNote, curve);
-    LEAVE_PARAMS_MUTEX
-    if (updated) {
-      MarkActivePatchDirty();
-      MarkStandaloneStateDirty();
-    }
-    return updated;
+    return applyPatchEdit([&](SynthVoice& voice) { return voice.SetKeyNoteEqCurve(midiNote, curve); });
   }
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEnabled &&
@@ -1578,27 +1570,13 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
-    ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote);
-    LEAVE_PARAMS_MUTEX
-    if (updated) {
-      MarkActivePatchDirty();
-      MarkStandaloneStateDirty();
-    }
-    return updated;
+    return applyPatchEdit([&](SynthVoice& voice) { return voice.SetAllKeyNotesEnabled(parameter, payload->enabled != 0, payload->midiNote); });
   }
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEqEnabled &&
       dataSize == sizeof(editor_messages::SetAllKeyNotesEqEnabledPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
-    ENTER_PARAMS_MUTEX
-    const bool updated = mDSP.mSynth.GetVoice().SetAllKeyNotesEqEnabled(payload->enabled != 0);
-    LEAVE_PARAMS_MUTEX
-    if (updated) {
-      MarkActivePatchDirty();
-      MarkStandaloneStateDirty();
-    }
-    return updated;
+    return applyPatchEdit([&](SynthVoice& voice) { return voice.SetAllKeyNotesEqEnabled(payload->enabled != 0); });
   }
 
   if (ctrlTag == kCtrlTagEditorTabs &&

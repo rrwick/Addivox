@@ -11,30 +11,19 @@ inline bool TryGetPanShapeValue(const char* shapeName, int oscillatorIndex, doub
 
   if (std::strcmp(shapeName, "zero") == 0) {
     value = 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "ramp right") == 0) {
+  } else if (std::strcmp(shapeName, "ramp right") == 0) {
     value = rampValue;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "ramp left") == 0) {
+  } else if (std::strcmp(shapeName, "ramp left") == 0) {
     value = -rampValue;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "ramp alternating") == 0) {
+  } else if (std::strcmp(shapeName, "ramp alternating") == 0) {
     value = ((oscillatorIndex % 2) == 1 ? 1.0 : -1.0) * rampValue;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "full alternating") == 0) {
+  } else if (std::strcmp(shapeName, "full alternating") == 0) {
     value = (oscillatorIndex % 2) == 0 ? 1.0 : -1.0;
-    return true;
+  } else {
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 inline bool ApplyPanShape(SimplePatch& patch, const char* shapeName) {

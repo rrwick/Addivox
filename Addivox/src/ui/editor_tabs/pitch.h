@@ -10,30 +10,19 @@ inline bool TryGetPitchShapeValue(const char* shapeName, int oscillatorIndex, do
 
   if (std::strcmp(shapeName, "zero") == 0) {
     value = 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "alternating") == 0) {
+  } else if (std::strcmp(shapeName, "alternating") == 0) {
     value = (oscillatorIndex % 2) == 0 ? -10.0 : 10.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "ramp sharp") == 0) {
+  } else if (std::strcmp(shapeName, "ramp sharp") == 0) {
     value = centsOffset;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "ramp flat") == 0) {
+  } else if (std::strcmp(shapeName, "ramp flat") == 0) {
     value = -centsOffset;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "ramp alternating") == 0) {
+  } else if (std::strcmp(shapeName, "ramp alternating") == 0) {
     value = ((oscillatorIndex % 2) == 1 ? 1.0 : -1.0) * centsOffset;
-    return true;
+  } else {
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 inline bool ApplyPitchShape(SimplePatch& patch, const char* shapeName) {

@@ -23,14 +23,10 @@ public:
     for (int i = 0; i < kNumOutputs; i++) memset(outputs[i], 0, nFrames * sizeof(sample));
 
     mSynth.ProcessBlock(outputs, nFrames);
-
-    if (mDrive.IsActive()) mDrive.ProcessBlock(outputs, nFrames);
-
-    if (mTone.IsActive()) mTone.ProcessBlock(outputs, nFrames);
-
-    if (mChorus.IsActive()) mChorus.ProcessBlock(outputs, nFrames);
-
-    if (mReverb.IsActive()) mReverb.ProcessBlock(outputs, nFrames);
+    mDrive.ProcessBlock(outputs, nFrames);
+    mTone.ProcessBlock(outputs, nFrames);
+    mChorus.ProcessBlock(outputs, nFrames);
+    mReverb.ProcessBlock(outputs, nFrames);
   }
 
   void Reset(double sampleRate, int blockSize) {

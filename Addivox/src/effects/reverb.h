@@ -11,7 +11,6 @@ public:
   void Reset(double sampleRate);
   void Clear();
   void SetAmount(double amount);
-  bool IsActive() const { return mActive; }
   void ProcessBlock(iplug::sample** outputs, int nFrames);
 
 private:

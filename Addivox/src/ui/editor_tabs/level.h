@@ -29,44 +29,23 @@ inline bool TryGetLevelShapeValue(const char* shapeName, int oscillatorIndex, do
 
   if (std::strcmp(shapeName, "sine") == 0) {
     level = (oscillatorIndex == 0) ? 1.0 : 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "saw") == 0) {
+  } else if (std::strcmp(shapeName, "saw") == 0) {
     level = 1.0 / harmonicNumber;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "square") == 0) {
+  } else if (std::strcmp(shapeName, "square") == 0) {
     level = (oscillatorIndex % 2 == 0) ? (1.0 / harmonicNumber) : 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "triangle") == 0) {
+  } else if (std::strcmp(shapeName, "triangle") == 0) {
     level = (oscillatorIndex % 2 == 0) ? (1.0 / (harmonicNumber * harmonicNumber)) : 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "flat") == 0) {
+  } else if (std::strcmp(shapeName, "flat") == 0) {
     level = 1.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "octaves") == 0) {
+  } else if (std::strcmp(shapeName, "octaves") == 0) {
     level = IsOctavesHarmonic(harmonicIndex) ? 1.0 : 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "octaves+fifths") == 0) {
+  } else if (std::strcmp(shapeName, "octaves+fifths") == 0) {
     if (IsOctavesHarmonic(harmonicIndex)) level = 1.0;
     else if (IsOctavesAndFifthsHarmonic(harmonicIndex))
       level = 0.5;
     else
       level = 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "octaves+fifths+thirds") == 0) {
+  } else if (std::strcmp(shapeName, "octaves+fifths+thirds") == 0) {
     if (IsOctavesHarmonic(harmonicIndex)) level = 1.0;
     else if (IsOctavesAndFifthsHarmonic(harmonicIndex))
       level = 0.5;
@@ -74,10 +53,11 @@ inline bool TryGetLevelShapeValue(const char* shapeName, int oscillatorIndex, do
       level = 0.25;
     else
       level = 0.0;
-    return true;
+  } else {
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 inline bool ApplyLevelShape(SimplePatch& patch, const char* shapeName) {

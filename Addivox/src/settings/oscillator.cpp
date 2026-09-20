@@ -53,15 +53,6 @@ double Lerp(double lo, double hi, double t) { return lo + (hi - lo) * t; }
 
 using OscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
 
-OscillatorParameterValues GetParameterValues(const SimplePatch& patch, Parameter parameter) {
-  OscillatorParameterValues values{};
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    values[static_cast<std::size_t>(oscillatorIndex)] = patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
-  }
-
-  return values;
-}
-
 OscillatorParameterValues SanitizeParameterValues(Parameter parameter, const OscillatorParameterValues& values) {
   OscillatorParameterValues sanitized{};
   for (std::size_t i = 0; i < values.size(); ++i) sanitized[i] = OscillatorSettings::SanitizeParameter(parameter, values[i]);
@@ -181,6 +172,12 @@ int SimplePatch::ClampOscillatorIndex(int oscillatorIndex) { return std::clamp(o
 const OscillatorSettings& SimplePatch::GetOscillatorSettings(int oscillatorIndex) const { return mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)]; }
 
 const SimplePatch::OscillatorArray& SimplePatch::GetOscillatorSettingsArray() const { return mOscillatorSettings; }
+
+SimplePatch::OscillatorParameterValues SimplePatch::GetParameterValues(OscillatorSettings::Parameter parameter) const {
+  OscillatorParameterValues values{};
+  for (int i = 0; i < kNumOscillators; ++i) values[i] = mOscillatorSettings[i].GetParameter(parameter);
+  return values;
+}
 
 void SimplePatch::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
   const int index = ClampOscillatorIndex(oscillatorIndex);
@@ -443,7 +440,7 @@ void CompoundPatch::SetAllKeyNotesEnabled(OscillatorSettings::Parameter paramete
   const int sourceNote =
       HasKeyNotePatch(sourceMidiNote) ? RoundAndClampMidiNote(sourceMidiNote) : (mKeyNotePatches.empty() ? kMinMidiNote : mKeyNotePatches.begin()->first);
   if (const auto* sourcePatch = GetKeyNotePatch(sourceNote))
-    EnableAllKeyNotes(parameter, GetParameterValues(*sourcePatch, parameter), GetMacroSettings(sourceNote, parameter));
+    EnableAllKeyNotes(parameter, sourcePatch->GetParameterValues(parameter), GetMacroSettings(sourceNote, parameter));
   else
     mAllKeyNotesEnabled[index] = true;
 }

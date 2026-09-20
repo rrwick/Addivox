@@ -9,20 +9,15 @@ inline bool TryGetVariationShapeValue(const char* shapeName, int oscillatorIndex
 
   if (std::strcmp(shapeName, "zero") == 0) {
     value = 0.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "flat") == 0) {
+  } else if (std::strcmp(shapeName, "flat") == 0) {
     value = 1.0;
-    return true;
-  }
-
-  if (std::strcmp(shapeName, "linear ramp up") == 0) {
+  } else if (std::strcmp(shapeName, "linear ramp up") == 0) {
     value = harmonicNumber / 10.0;
-    return true;
+  } else {
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 inline bool ApplyVariationShape(SimplePatch& patch, OscillatorParameter parameter, const char* shapeName) {

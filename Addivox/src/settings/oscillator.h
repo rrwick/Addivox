@@ -74,7 +74,8 @@ public:
   static constexpr double kLevelWaveformPeakDbFS = -0.25;
   inline static const double kLevelWaveformPeak = std::pow(10.0, kLevelWaveformPeakDbFS / 20.0);
   inline static const double kReferenceLevelWaveformRms = std::pow(10.0, kReferenceLevelWaveformRmsDbFS / 20.0);
-  using LevelArray = std::array<double, kNumOscillators>;
+  using OscillatorParameterValues = std::array<double, kNumOscillators>;
+  using LevelArray = OscillatorParameterValues;
   using OscillatorArray = std::array<OscillatorSettings, kNumOscillators>;
 
   SimplePatch() = default;
@@ -82,6 +83,7 @@ public:
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
   const OscillatorArray& GetOscillatorSettingsArray() const;
+  OscillatorParameterValues GetParameterValues(OscillatorSettings::Parameter parameter) const;
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   bool NormalizeLevelWaveformRms();
   // Shared nominal waveform normalisation; leaves silence unchanged.
@@ -117,7 +119,7 @@ struct MacroSettings {
 class CompoundPatch {
 public:
   using KeyNotePatch = std::pair<int, SimplePatch>;
-  using OscillatorParameterValues = std::array<double, SimplePatch::kNumOscillators>;
+  using OscillatorParameterValues = SimplePatch::OscillatorParameterValues;
 
   struct ResolvedNoteSpan {
     const SimplePatch* lowerPatch{nullptr};
