@@ -7,8 +7,7 @@ namespace plugin_ui {
 namespace help_text {
 namespace main_ui {
 inline constexpr const char *kKeyboard =
-    "Click the keyboard to play notes in VIS mode and choose which note patch you are editing in EDIT mode. "
-    "Computer-keyboard note triggers are active in VIS mode only.";
+    "Click the keyboard to play notes in VIS mode and choose which note patch you are editing in EDIT mode.";
 
 inline constexpr const char *kPitchBendWheel =
     "Bends the pitch of held notes. Right click to set the pitch bend range.";
@@ -29,16 +28,16 @@ inline constexpr const char *kBreathMeter =
     "Shows the current breath input level.";
 
 inline constexpr const char *kMainOutputMeter =
-    "Shows the main stereo output level. Red bars at the top indicate the signal is above 0 dB and may clip when rendered or passed to later processing.";
+    "Shows the main stereo output level. Red bars at the top indicate the signal is at or above 0 dBFS and may clip when rendered or passed to later processing.";
 
 inline constexpr const char *kAttack =
-    "Scales the attack time for all oscillators. Higher values make notes bloom more slowly.";
+    "Scales the attack time for all oscillators. Higher values make notes fade in more slowly.";
 
 inline constexpr const char *kRelease =
-    "Scales the release time for all oscillators. Higher values let notes ring out longer after release.";
+    "Scales the release time for all oscillators. Higher values make notes fade out more slowly.";
 
 inline constexpr const char *kTranspose =
-    "Transposes every played note in semitones. "
+    "Transposes all played notes by this many semitones. "
     "This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char *kTuning =
@@ -50,7 +49,7 @@ inline constexpr const char *kPanShift =
     "This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline constexpr const char *kPortamento =
-    "Portamento range: CC5 varies min–max; CC65 selects min or max.";
+    "Portamento range: CC5 varies min–max, CC65 selects min or max.";
 
 inline constexpr const char *kLevelVariationAmplitude =
     "Scales the depth of level variation for all oscillators.";
@@ -71,20 +70,20 @@ inline constexpr const char *kPitchVariationRate =
     "Scales the speed of pitch variation for all oscillators.";
 
 inline constexpr const char *kLevel =
-    "Sets the overall output level of the synth (all oscillators).";
+    "Scales the output level for all oscillators.";
 
 inline constexpr const char *kDrive =
-    "Adds warmth and harmonics to the sound. Higher values lead to a more distorted tone.";
+    "Adds a distortion effect to the sound.";
 
 inline constexpr const char *kTone =
     "Negative values darken the sound (boost low frequencies, suppress high frequencies), positive values brighten it "
     "(suppress low frequencies, boost high frequencies).";
 
 inline constexpr const char *kChorus =
-    "Adds a stereo chorus effect to widen and thicken the sound.";
+    "Adds a stereo chorus effect to the sound.";
 
 inline constexpr const char *kReverb =
-    "Adds a reverb effect to create a sense of space. Higher values make the reverb louder and longer-lasting. "
+    "Adds a reverb effect to the sound. Higher values make the reverb louder and longer-lasting. "
     "This control is not tied to a patch and will hold its value as the patch changes.";
 
 inline const char* GetParam(int paramIdx) {
@@ -115,11 +114,11 @@ inline const char* GetParam(int paramIdx) {
 namespace oscillator_tabs {
 using OscillatorParameter = OscillatorSettings::Parameter;
 
+inline constexpr const char *kEq =
+    "Controls a frequency-based EQ for creating formants.";
+
 inline constexpr const char *kLevel =
     "Controls the level of each harmonic at full breath.";
-
-inline constexpr const char *kEq =
-    "Controls a frequency-based EQ. The EQ stays fixed in frequency as notes change, which makes it useful for creating formants.";
 
 inline constexpr const char *kBreath =
     "Controls per-harmonic breath sensitivity. Higher values make the harmonic require more breath before it becomes prominent.";
@@ -131,7 +130,7 @@ inline constexpr const char *kRelease =
     "Controls how quickly each harmonic can decrease in level.";
 
 inline constexpr const char *kPitch =
-    "Controls static pitch offset per harmonic in cents.";
+    "Controls static pitch offset of each harmonic in cents.";
 
 inline constexpr const char *kPan =
     "Controls stereo position of each harmonic from left to right.";
@@ -155,7 +154,7 @@ inline constexpr const char *kPanVariationRate =
     "Controls speed of pan variation for each harmonic.";
 
 inline constexpr const char *kMacrosMode =
-    "Switches this tab between the two ways of shaping a curve. Saved macro positions select its mode on entry.\n\n"
+    "Switches between the two ways of shaping the curve:\n"
     "Macro: shape the curve with a few knobs.\n\n"
     "Detail: draw the curve by hand, one harmonic at a time.";
 
@@ -171,77 +170,71 @@ inline constexpr const char *kMacroLevelFund =
     "fundamental more prominent, while lower values make it quieter.";
 
 inline constexpr const char *kMacroLevelOddEven =
-    "Tilts the balance between odd and even harmonics. Centred is an even mix. Turned left, only the odd harmonics "
-    "survive, giving a hollow, clarinet-like tone; turned right favours the even harmonics.";
+    "Tilts the balance between odd and even harmonics. Left favours odd harmonics, right favours even harmonics.";
 
 inline constexpr const char *kMacroBreathBase =
-    "Sets breath power at harmonic 1, from 0.5 to 3. Centred is 1.5. Lower powers respond more strongly to gentle breath; higher powers need more breath.";
+    "Sets breath power at harmonic 1. Lower powers respond more strongly to gentle breath, higher powers need more breath.";
 
 inline constexpr const char *kMacroBreathTop =
-    "Sets breath power at harmonic 100, from Base to 100. At minimum the curve is flat; at maximum the top is 100.";
+    "Sets breath power at harmonic 100. At minimum the curve is flat, at maximum the top is 100.";
 
 inline constexpr const char *kMacroBreathShape =
-    "Bends the transition from Base to Top. Centred uses exponent 1.5, ranging from 4 to 0.75. Lower settings rise more gradually near harmonic 1; higher settings rise faster.";
+    "Bends the transition from Base to Top. Lower settings rise more gradually near harmonic 1; higher settings rise faster.";
 
 inline constexpr const char *kMacroBreathOddEven =
-    "Favours odd harmonics when turned left by adding breath power to even harmonics; right adds power to odd harmonics, including the fundamental. "
-    "Adds a fixed height on the square-root chart: nothing at centre, 5% of chart height halfway to either end, "
-    "and a full chart height at either end. Powers are capped at 100. The effect fades as breath reaches full strength.";
+    "Left favours odd harmonics by adding breath power to even harmonics. "
+    "Right favours even harmonics by adding breath power to odd harmonics.";
 
 inline constexpr const char *kMacroAttackBase =
-    "Sets attack time at Position before Odd/Even is added. Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to zero.";
+    "Sets attack time at Position.";
 
 inline constexpr const char *kMacroAttackSlope =
-    "Sets a straight ramp away from Position on the square-root chart. Centre is flat; right rises and left falls. "
-    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. Odd/Even raises chart height before clamping to 0–1 and squaring into seconds. Double-click resets to slope +1.";
+    "Sets the slope of the ramp away from Position.";
 
 inline constexpr const char *kMacroAttackPosition =
-    "Places Base at a harmonic from 1 to 100, with harmonic 10 at half travel. Moves continuously between harmonics. "
-    "Equal distances either side have equal attack times before Odd/Even is added. Double-click resets to harmonic 1.";
+    "Sets the harmonic at which Base is applied. The slope is applied away from this point.";
 
 inline constexpr const char *kMacroAttackOddEven =
-    "Favours odd harmonics when turned left by raising even harmonics on the square-root chart; right raises odd harmonics, including the fundamental. "
-    "Centre adds nothing; halfway to either end adds 0.05 chart height; each end adds 1 full chart height. The addition is applied before clamping, so negative ramp heights must first be overcome. Attack times are clamped to 0–1 second before the global Attack multiplier.";
+    "Left favours odd harmonics by adding attack time to even harmonics. "
+    "Right favours even harmonics by adding attack time to odd harmonics.";
 
 inline constexpr const char *kMacroReleaseBase =
-    "Sets release time at Position before Odd/Even is added. Ranges from 0 to 1 second, with 0.1 seconds at half travel. Double-click resets to 0.05 seconds.";
+    "Sets release time at Position.";
 
 inline constexpr const char *kMacroReleaseSlope =
-    "Sets a straight ramp away from Position on the square-root chart. Centre is flat; right rises and left falls. "
-    "A quarter of the travel from centre gives slope magnitude 1; full travel gives 30. Moving Position preserves the slope. Odd/Even raises chart height before clamping to 0–1 and squaring into seconds. Double-click resets to a falling slope that reaches zero at harmonic 50 with Base at 0.05 seconds and Position at harmonic 1.";
+    "Sets the slope of the ramp away from Position.";
 
 inline constexpr const char *kMacroReleasePosition =
-    "Places Base at a harmonic from 1 to 100, with harmonic 10 at half travel. Moves continuously between harmonics. "
-    "Equal distances either side have equal release times before Odd/Even is added. Double-click resets to harmonic 1.";
+    "Sets the harmonic at which Base is applied. The slope is applied away from this point.";
 
 inline constexpr const char *kMacroReleaseOddEven =
-    "Favours odd harmonics when turned left by raising odd harmonics on the square-root chart, including the fundamental; right raises even harmonics. "
-    "Centre adds nothing; halfway to either end adds 0.05 chart height; each end adds 1 full chart height. The addition is applied before clamping, so negative ramp heights must first be overcome. Release times are clamped to 0–1 second before the global Release multiplier.";
+    "Left favours odd harmonics by adding release time to odd harmonics. "
+    "Right favours even harmonics by adding release time to even harmonics.";
 
 inline constexpr const char *kXRangeMin =
-    "Controls the lowest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
+    "Controls the lowest harmonic that will be shown in the editor.";
 
 inline constexpr const char *kXRangeMax =
-    "Controls the highest harmonic that will be shown in the editor graph. Use the X range controls to limit the harmonics for easier editing.";
+    "Controls the highest harmonic that will be shown in the editor.";
 
 inline constexpr const char *kYTransform =
-    "Changes the vertical response of the editor graph. This only affects how values are displayed, not the actual patch values.\n\n"
+    "Changes the vertical response of the editor graph. This only affects how values are displayed, not the actual values.\n\n"
     "linear: bar height directly represents value. Twice the height = twice the value.\n\n"
     "square root: expands smaller values on screen, making them easier to edit.\n\n"
-    "pseudo-log: strongly expands values near zero, giving the smallest values the most editing room.";
+    "pseudo-log: strongly expands smaller values on screen, making them easier to edit.";
 
 inline constexpr const char *kEditMode =
-    "Selects the edit operation for this tab:\n\n"
+    "Selects the edit operation:\n\n"
     "set: writes values directly to the cursor position.\n\n"
     "nudge: makes small gradual changes as you drag.\n\n"
     "smooth: gently averages a harmonic with its neighbors.\n\n"
-    "draw line: interpolates between the drag start and current harmonic in the displayed transform.";
+    "draw line: interpolates a line between the drag start and drag end positions.";
 
 inline constexpr const char *kEditScope =
     "Controls which harmonics can be edited:\n\n"
     "all: all harmonics are editable\n\n"
-    "even: only even harmonics are editable (odd harmonics are locked)\n\n"
-    "odd: only odd harmonics are editable (even harmonics are locked)";
+    "even: even harmonics are editable (odd harmonics are locked)\n\n"
+    "odd: odd harmonics are editable (even harmonics are locked)";
 
 inline constexpr const char *kHarmonicSetShape =
     "Applies a preset shape to this parameter. The edit scope limits which harmonics are changed.";
@@ -263,7 +256,7 @@ inline constexpr const char *kHarmonicLevelActions =
     "away from max: moves values away from the top of the range.\n\n"
     "bend up: bends the shape upward while keeping its low and high points.\n\n"
     "bend down: bends the shape downward while keeping its low and high points.\n\n"
-    "normalize: adjusts all harmonic levels to the shared nominal waveform RMS target, reducing gain as needed to respect the peak ceiling. Before pan, variation, EQ and global gain.";
+    "normalize: scales all harmonic levels toward a target RMS level while limiting peaks.";
 
 inline constexpr const char *kHarmonicSignedActions =
     "Runs the selected operation. Shortcut keys are shown in brackets. The edit scope limits which harmonics are changed.\n\n"
@@ -287,7 +280,7 @@ inline constexpr const char *kEqActions =
     "invert: turns boosts into cuts and cuts into boosts.";
 
 inline constexpr const char *kAllNotes =
-    "When enabled, this parameter stays synchronized across every key note. Turning it on copies the current values to all key notes immediately.";
+    "When enabled, this parameter stays synchronized across every key note. Turning it on copies the current values to all key notes.";
 
 inline constexpr const char *kAddButton =
     "Creates a new key note at the currently selected note.";
@@ -296,7 +289,7 @@ inline constexpr const char *kDeleteButton =
     "Removes the selected key note.";
 
 inline constexpr const char *kRestoreButton =
-    "Restores this tab to the values it had when the selected key note was opened.";
+    "Restores this tab to the values it had when opened.";
 
 inline const char* Get(OscillatorParameter parameter) {
   switch (parameter) {
