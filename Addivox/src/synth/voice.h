@@ -2,7 +2,6 @@
 
 #include <array>
 #include <limits>
-#include <optional>
 
 #include "../settings/global.h"
 #include "../settings/oscillator.h"
@@ -22,20 +21,7 @@ public:
   void SetPortamentoControl(double control);
   void SetTransposeSemitones(double transposeSemitones);
   void SetGlobalVoiceSettings(const GlobalVoiceSettings& settings);
-  void SetCompoundPatch(const CompoundPatch& patch);
-
-  // Building a key-note patch involves a map insert/erase, which can allocate, so it's kept separate from
-  // CommitCompoundPatch() below. Callers should build first (no lock needed), then commit while holding
-  // whatever lock also guards the audio thread's use of the compound patch.
-  std::optional<CompoundPatch> BuildCompoundPatchWithKeyNoteAdded(double midiNote) const;
-  std::optional<CompoundPatch> BuildCompoundPatchWithKeyNoteRemoved(double midiNote) const;
-  void CommitCompoundPatch(CompoundPatch newCompoundPatch);
-  bool SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
-  bool SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
-                                           const std::array<double, SimplePatch::kNumOscillators>& values);
-  bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
-  bool SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote);
-  bool SetAllKeyNotesEqEnabled(bool enabled);
+  void SwapCompoundPatch(CompoundPatch& patch);
   void Clear();
   void ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames);
   void SetSampleRate(double sampleRate);

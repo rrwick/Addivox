@@ -138,62 +138,9 @@ void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings) {
   UpdatePitch();
 }
 
-void SynthVoice::SetCompoundPatch(const CompoundPatch& patch) {
-  mCompoundPatch = patch;
+void SynthVoice::SwapCompoundPatch(CompoundPatch& patch) {
+  std::swap(mCompoundPatch, patch);
   UpdatePitch();
-}
-
-std::optional<CompoundPatch> SynthVoice::BuildCompoundPatchWithKeyNoteAdded(double midiNote) const {
-  CompoundPatch updated = mCompoundPatch;
-  if (!updated.AddKeyNotePatch(midiNote)) return std::nullopt;
-  return updated;
-}
-
-std::optional<CompoundPatch> SynthVoice::BuildCompoundPatchWithKeyNoteRemoved(double midiNote) const {
-  const int roundedMidiNote = static_cast<int>(std::lround(midiNote));
-  CompoundPatch updated = mCompoundPatch;
-  if (!updated.RemoveKeyNotePatch(roundedMidiNote)) return std::nullopt;
-
-  return updated;
-}
-
-void SynthVoice::CommitCompoundPatch(CompoundPatch newCompoundPatch) {
-  mCompoundPatch = std::move(newCompoundPatch);
-  UpdatePitch();
-}
-
-bool SynthVoice::SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
-  if (!mCompoundPatch.SetKeyNoteOscillatorParameter(midiNote, oscillatorIndex, parameter, value)) return false;
-
-  UpdatePitch();
-  return true;
-}
-
-bool SynthVoice::SetKeyNoteOscillatorParameterValues(double midiNote, OscillatorSettings::Parameter parameter,
-                                                     const std::array<double, SimplePatch::kNumOscillators>& values) {
-  if (!mCompoundPatch.SetKeyNoteOscillatorParameterValues(midiNote, parameter, values)) return false;
-
-  UpdatePitch();
-  return true;
-}
-
-bool SynthVoice::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve) {
-  if (!mCompoundPatch.SetKeyNoteEqCurve(midiNote, curve)) return false;
-
-  UpdateLevels();
-  return true;
-}
-
-bool SynthVoice::SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double midiNote) {
-  mCompoundPatch.SetAllKeyNotesEnabled(parameter, enabled, midiNote);
-  UpdatePitch();
-  return true;
-}
-
-bool SynthVoice::SetAllKeyNotesEqEnabled(bool enabled) {
-  mCompoundPatch.SetAllKeyNotesEqEnabled(enabled);
-  UpdateLevels();
-  return true;
 }
 
 double SynthVoice::ShapeBreath(double breath) {
