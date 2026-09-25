@@ -75,8 +75,9 @@ constexpr double kLevelPeakPhaseStep = 6.28318530717958647692 / kLevelPeakCycleS
 using LevelPeakWaveform = std::array<double, kLevelPeakCycleSamples / 2 + 1>;
 
 const auto& GetLevelPeakSines() {
-  static const auto sines = [] {
-    std::array<LevelPeakWaveform, SimplePatch::kNumOscillators> table{};
+  static const auto& sines = []() -> const auto& {
+    // Build in static storage: this table exceeds the default Windows stack size.
+    static std::array<LevelPeakWaveform, SimplePatch::kNumOscillators> table{};
     for (int harmonic = 0; harmonic < SimplePatch::kNumOscillators; ++harmonic) {
       for (std::size_t sample = 0; sample < table[harmonic].size(); ++sample)
         table[harmonic][sample] = std::sin(kLevelPeakPhaseStep * static_cast<double>(sample) * (harmonic + 1));
