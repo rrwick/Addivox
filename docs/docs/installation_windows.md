@@ -1,6 +1,6 @@
 # Installation – Windows
 
-Addivox for Windows is delivered as a zip file with a name like `Addivox_v1.0.0_Windows.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
+Addivox for Windows is delivered as a zip file with a name like `Addivox_v1.1.0_Windows.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
 `Addivox.exe`, `Addivox.clap` and `Addivox.vst3`.
 
 You do not need to install every file. `Addivox.exe` is the standalone version, which runs by itself. The other files are plugin formats, which are loaded inside a DAW such as Ableton Live, Cubase or REAPER.

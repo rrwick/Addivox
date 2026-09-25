@@ -1,6 +1,6 @@
 # Installation – macOS
 
-Addivox for macOS is delivered as a zip file with a name like `Addivox_v1.0.0_macOS.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
+Addivox for macOS is delivered as a zip file with a name like `Addivox_v1.1.0_macOS.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
 `Addivox.app`, `Addivox.component`, `Addivox.clap` and `Addivox.vst3`.
 
 You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which are loaded inside a DAW such as Logic Pro, GarageBand or Ableton Live.
@@ -50,7 +50,7 @@ After copying plugins, quit and reopen your DAW. Some DAWs scan new plugins auto
 
 ### Intel and Apple Silicon Macs
 
-Addivox is built as a 64-bit macOS app/plugin and is intended to work on both older Intel Macs and newer Apple Silicon Macs. There is no separate Intel download or Apple Silicon download; use the same files from `Addivox_v1.0.0_macOS.zip`.
+Addivox is built as a 64-bit macOS app/plugin and is intended to work on both older Intel Macs and newer Apple Silicon Macs. There is no separate Intel download or Apple Silicon download; use the same files from `Addivox_v1.1.0_macOS.zip`.
 
 All of the included formats can be used on Intel or Apple Silicon Macs, provided your DAW supports that plugin format:
 
@@ -61,4 +61,4 @@ All of the included formats can be used on Intel or Apple Silicon Macs, provided
 
 On an Intel Mac, use Addivox normally. On an Apple Silicon Mac, Addivox can run natively in Apple Silicon DAWs. It can also be used from Intel-only DAWs running under Rosetta, provided the DAW supports the plugin format you installed.
 
-Addivox requires macOS 10.13 High Sierra or newer. Very old 32-bit DAWs and 32-bit plugin formats are not supported.
+Addivox requires macOS 10.14 Mojave or newer. Very old 32-bit DAWs and 32-bit plugin formats are not supported.

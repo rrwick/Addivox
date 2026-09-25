@@ -8,6 +8,34 @@ New versions of Addivox are of course intended to improve stability and function
 
 
 
+### [Addivox v1.1.0 – 25 September 2026](https://github.com/rrwick/Addivox/releases/tag/v1.1.0)
+
+Updates in this release:
+
+- Added new factory patches.
+- New macro knobs in some edit tabs (Level, Breath, Attack and Release) for easier editing.
+- Extended the pitch bend range options to include off, 2 octaves and 4 octaves.
+- Added a CC 65 option for portamento (binary on/off behaviour).
+- Extended per-harmonic pitch offsets for more flexibility with inharmonic sounds.
+- Increased minimum macOS version to 10.14. Running on an earlier OS should now result in a "not supported" message instead of an "Addivox quit unexpectedly" crash.
+- Flipped the pan shift in the visualisation to be consistent with the Pan edit tab.
+- Fixed a bug where custom names in user-defined patches weren't shown in the menu.
+- Guard against a possible crash when MIDI initialization fails on startup.
+- Fixed between-key-note interpolation for per-harmonic levels.
+- Simplifications and fixes for the Audio & MIDI Settings dialog.
+
+Full version:
+
+- `Addivox_v1.1.0_macOS.zip`<br>SHA-256 = `7d6d7e5c815ab567971977e02045d2964b008bf137a83bdd2071db12258286e6`
+- `Addivox_v1.1.0_Windows.zip`<br>SHA-256 = `a521993b4f8409bffaeddb32b7e68ad0b6e34de8054a614d7bff6987b82eee38`
+
+Demo version:
+
+- [`AddivoxDemo_v1.1.0_macOS.zip`](https://github.com/rrwick/Addivox/releases/download/v1.1.0/AddivoxDemo_v1.1.0_macOS.zip)<br>SHA-256 = `206cdaecfab6541513fe8fe617a31bd122331e70cf1ac620870bafeea2019d9f`
+- [`AddivoxDemo_v1.1.0_Windows.zip`](https://github.com/rrwick/Addivox/releases/download/v1.1.0/AddivoxDemo_v1.1.0_Windows.zip)<br>SHA-256 = `f30170e6e7ee356337d1e8ecda40a40815dbc45b63110acfca85b654f2d9f634`
+
+
+
 ### [Addivox v1.0.2 – 14 July 2026](https://github.com/rrwick/Addivox/releases/tag/v1.0.2)
 
 Updates in this release:
