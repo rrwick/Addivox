@@ -1063,21 +1063,20 @@
 
 
 <h1 id="per-harmonic-settings">Per-harmonic Settings</h1>
-<p>In EDIT mode, the main panel contains a row of tabs. Each tab shows a bar chart with one bar per harmonic (up to 100). You can drag bars up and down to set values, use the <strong>Set shape</strong> dropdown to apply a preset curve, or use the <strong>Run action</strong> dropdown to apply transformations like scaling or normalising. Many actions in these dropdowns have a keyboard shortcut, shown as a letter in brackets next to the action name.</p>
-<p>The <strong>X range</strong> controls at the bottom let you zoom in on a subset of harmonics, making it easier to edit the higher harmonics where bars would otherwise be very narrow.</p>
-<p>The <strong>All notes</strong> toggle, when enabled, locks that parameter in sync across all key notes. See <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>.</p>
+<p>In EDIT mode, the main panel contains a row of tabs. Each tab (except for <strong>EQ</strong>) shows a bar chart with one bar per harmonic. You can drag bars up and down to set values, use the <strong>Set shape</strong> dropdown to apply a preset curve, or use the <strong>Run action</strong> dropdown to apply transformations like scaling or normalising. Each action has a keyboard shortcut, shown as a letter in brackets next to the action name. The <strong>X range</strong> controls in the control column let you zoom in on a subset of harmonics. The <strong>All notes</strong> toggle, when enabled, locks that parameter in sync across all key notes. See <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>.</p>
+<p>For some tabs (<strong>Level</strong>, <strong>Breath</strong>, <strong>Attack</strong> and <strong>Release</strong>), there is a <strong>Macro / Detail</strong> switch on top. When in <strong>Macro</strong> mode, the per-harmonic settings are controlled by a set of knobs, allowing for easy experimentation. When in <strong>Detail</strong> mode, each harmonic can be edited individually for fine control.</p>
 <h3 id="level">Level</h3>
 <p>Controls the amplitude of each harmonic at full breath. This is the primary control for shaping the tonal character of a patch — setting the relative strength of each harmonic determines whether the sound is bright or mellow, thin or full.</p>
 <h3 id="breath">Breath</h3>
-<p>Controls per-harmonic breath sensitivity (the <code>breath_power</code> exponent). At a value of 1, a harmonic's level scales linearly with breath. Higher values make the harmonic require proportionally more breath before it becomes prominent — effectively hiding quieter harmonics until the player blows harder. Lower values make a harmonic appear at low breath levels.</p>
+<p>Controls per-harmonic breath sensitivity. At a value of 1, a harmonic's level scales linearly with breath. Higher values make the harmonic require proportionally more breath before it becomes prominent — effectively hiding quieter harmonics until the player blows harder. Lower values make a harmonic appear at low breath levels.</p>
 <h3 id="attack-release">Attack / Release</h3>
-<p>Controls how quickly each harmonic can increase (<strong>Attack</strong>) or decrease (<strong>Release</strong>) in level in response to breath changes. Higher attack values make a harmonic bloom more slowly; higher release values make it fade more slowly. These are scaled globally by the <a href="../global_settings/">envelope controls</a>.</p>
+<p>Controls how quickly each harmonic can increase (<strong>Attack</strong>) or decrease (<strong>Release</strong>) in level in response to breath changes. Higher attack values make a harmonic bloom more slowly; higher release values make it fade more slowly.</p>
 <h3 id="pitch">Pitch</h3>
-<p>A static pitch offset in cents for each harmonic, added on top of its natural harmonic frequency. Small detuning of individual harmonics can add warmth and movement to the sound.</p>
+<p>A static pitch offset in cents for each harmonic, added on top of its natural harmonic frequency. Small detuning of individual harmonics can add warmth and movement to the sound. Large amounts of detuning can create inharmonic sounds.</p>
 <h3 id="pan">Pan</h3>
 <p>The stereo position of each harmonic, from −1 (fully left) to +1 (fully right). Spreading harmonics across the stereo field can add width and richness to the sound.</p>
 <h3 id="variation-tabs">Variation tabs</h3>
-<p>Six tabs control continuous slow modulation of level, pitch, and pan. Each has an <strong>Amount</strong> tab (depth of the modulation for that harmonic) and a <strong>Rate</strong> tab (speed of the modulation). These are scaled globally by the <a href="../global_settings/">variation controls</a>.</p>
+<p>Six tabs control continuous slow modulation of level, pitch and pan. Each has an <strong>Amount</strong> tab (depth of the modulation for that harmonic) and a <strong>Rate</strong> tab (speed of the modulation). These are scaled globally by the <a href="../global_settings/">variation controls</a>.</p>
 <ul>
 <li><strong>LvlVarAmt / LvlVarRate</strong> — level variation</li>
 <li><strong>PchVarAmt / PchVarRate</strong> — pitch variation</li>
@@ -1085,9 +1084,8 @@
 </ul>
 <h3 id="y-axis-transformations">Y-axis transformations</h3>
 <p>Addivox's edit tabs let you view the per-harmonic settings as a bar chart. The y-axis transform controls how a bar's height maps to its actual value.</p>
-<p><strong>Linear</strong> is the most intuitive: a bar twice as tall represents twice the value. But this makes fine adjustments near zero difficult — small values are squashed into a thin sliver at the bottom of the chart.</p>
-<p>The <strong>Square root</strong> and <strong>Pseudo-log</strong> transforms both stretch the lower end of the scale, giving you more visual room for near-zero values so small adjustments are easier to make. Square root gives a moderate stretch; Pseudo-log stretches more dramatically.</p>
-<p>Pseudo-log is particularly well suited to audio levels. Our ears perceive loudness on a logarithmic scale — this is why volume is measured in decibels. Using Pseudo-log for the "Level" edit tab means equal changes in bar height correspond to roughly equal changes in perceived loudness. (A pure <a href="https://en.wikipedia.org/wiki/Log_transformation_(statistics)">log transform</a> has one problem: it can never actually reach zero. Pseudo-log is a modified version that behaves like a log for most of its range but allows a bar to be set all the way to zero at the bottom.)</p>
+<p><strong>Linear</strong> is the most intuitive: a bar twice as tall represents twice the value. But fine adjustments of small values can be difficult.</p>
+<p>The <strong>Square root</strong> and <strong>Pseudo-log</strong> transforms both stretch the lower end of the scale, giving you more visual room for small values so adjustments are easier. Square root gives a moderate stretch; Pseudo-log stretches more dramatically.</p>
 <p>All of these transform options are purely visual — they do not change the sound produced by Addivox.</p>
 
 
