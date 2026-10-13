@@ -23,12 +23,14 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <initializer_list>
 #include <iomanip>
 #include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <sys/stat.h>
+#include <utility>
 #include <vector>
 
 #if defined(OS_WIN)
@@ -329,29 +331,43 @@ inline void AppendAlignedStringArray(std::ostringstream& stream, std::string_vie
   stream << "]\n";
 }
 
-inline constexpr std::string_view kFormantsFreqKey = "formants_freq_hz";
-inline constexpr std::string_view kFormantsDbKey = "formants_db";
+inline constexpr std::string_view kFormantsKey = "formants";
+inline constexpr std::string_view kResonanceZeroBreathKey = "resonance_zero";
+inline constexpr std::string_view kResonanceFullBreathKey = "resonance_full";
 
-inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve) {
-  std::vector<std::string> frequenciesHz;
-  std::vector<std::string> gainsDb;
-  frequenciesHz.reserve(curve.GetPoints().size());
-  gainsDb.reserve(curve.GetPoints().size());
+struct NamedCurvePoints {
+  std::string_view name;
+  const EqCurve::PointList& points;
+};
 
-  for (const auto& point : curve.GetPoints()) {
-    frequenciesHz.push_back(FormatDouble(point.frequencyHz));
-    gainsDb.push_back(FormatDouble(point.gainDb));
+// Writes each curve's frequency and gain arrays, with columns aligned across all of them.
+inline void AppendCurveArrays(std::ostringstream& stream, std::initializer_list<NamedCurvePoints> curves) {
+  std::vector<std::string> keys;
+  std::vector<std::vector<std::string>> rows;
+  for (const auto& [name, points] : curves) {
+    for (const auto& [suffix, value] : {std::pair{"_freq_hz", &EqPoint::frequencyHz}, std::pair{"_db", &EqPoint::gainDb}}) {
+      keys.push_back(std::string{name} + suffix);
+      auto& row = rows.emplace_back();
+      for (const auto& point : points) row.push_back(FormatDouble(point.*value));
+    }
   }
 
+  std::size_t keyWidth = 0;
   std::vector<std::size_t> columnWidths;
-  columnWidths.reserve(frequenciesHz.size());
-  for (std::size_t i = 0; i < frequenciesHz.size(); ++i) {
-    columnWidths.push_back(std::max(frequenciesHz[i].size(), gainsDb[i].size()));
+  for (std::size_t i = 0; i < rows.size(); ++i) {
+    keyWidth = std::max(keyWidth, keys[i].size());
+    columnWidths.resize(std::max(columnWidths.size(), rows[i].size()));
+    for (std::size_t j = 0; j < rows[i].size(); ++j) columnWidths[j] = std::max(columnWidths[j], rows[i][j].size());
   }
 
-  const std::size_t prefixWidth = kFormantsFreqKey.size() + 3; // "key = "
-  AppendAlignedStringArray(stream, kFormantsFreqKey, prefixWidth, frequenciesHz, columnWidths);
-  AppendAlignedStringArray(stream, kFormantsDbKey, prefixWidth, gainsDb, columnWidths);
+  for (std::size_t i = 0; i < rows.size(); ++i) AppendAlignedStringArray(stream, keys[i], keyWidth + 3, rows[i], columnWidths); // 3 for " = "
+}
+
+inline void AppendFormantsArrays(std::ostringstream& stream, const EqCurve& curve) { AppendCurveArrays(stream, {{kFormantsKey, curve.GetPoints()}}); }
+
+inline void AppendResonanceArrays(std::ostringstream& stream, const ResonanceCurves& curves) {
+  AppendCurveArrays(stream, {{kResonanceZeroBreathKey, curves.GetPoints(ResonanceCurves::Breath::zero)},
+                             {kResonanceFullBreathKey, curves.GetPoints(ResonanceCurves::Breath::full)}});
 }
 
 inline std::string JoinPath(std::string_view lhs, std::string_view rhs) {
@@ -512,19 +528,50 @@ inline bool DeleteFile(std::string_view path) {
 #endif
 }
 
-struct ParsedEqCurve {
-  bool hasFreqHz = false;
-  bool hasDb = false;
+struct ParsedCurve {
+  bool present = false; // Only matters in [all_key_notes], where it turns All notes on. Missing arrays count as empty.
   std::vector<double> freqHz;
   std::vector<double> db;
 };
+
+struct ParsedCurves {
+  ParsedCurve formants;
+  ParsedCurve resonanceZeroBreath;
+  ParsedCurve resonanceFullBreath;
+};
+
+struct CurveDescriptor {
+  std::string_view key;
+  ParsedCurve ParsedCurves::* curve;
+};
+
+inline constexpr std::array<CurveDescriptor, 4> kCurveDescriptors{{
+    {kFormantsKey, &ParsedCurves::formants},
+    {"eq", &ParsedCurves::formants}, // Legacy name from before the Formants rename.
+    {kResonanceZeroBreathKey, &ParsedCurves::resonanceZeroBreath},
+    {kResonanceFullBreathKey, &ParsedCurves::resonanceFullBreath},
+}};
+
+// Finds the array named by a key such as "formants_freq_hz", marking its curve as present.
+inline std::vector<double>* FindCurveArray(ParsedCurves& curves, std::string_view key) {
+  for (const auto& [suffix, values] : {std::pair{std::string_view{"_freq_hz"}, &ParsedCurve::freqHz}, std::pair{std::string_view{"_db"}, &ParsedCurve::db}}) {
+    if (key.size() <= suffix.size() || key.substr(key.size() - suffix.size()) != suffix) continue;
+    const auto* descriptor = FindDescriptor(kCurveDescriptors, key.substr(0, key.size() - suffix.size()));
+    if (!descriptor) continue;
+
+    ParsedCurve& curve = curves.*(descriptor->curve);
+    curve.present = true;
+    return &(curve.*values);
+  }
+  return nullptr;
+}
 
 struct ParsedKeyNote {
   int midiNote = 60;
   bool hasMidiNote = false;
   SimplePatch patch = MakeDefaultKeyNotePatch();
   std::array<MacroSettings, OscillatorSettings::kNumParameters> macros{};
-  ParsedEqCurve eqCurve;
+  ParsedCurves curves;
 };
 
 struct ParsedAllKeyNotesParameter {
@@ -535,41 +582,42 @@ struct ParsedAllKeyNotesParameter {
 
 inline bool BuildCompoundPatch(const std::vector<ParsedKeyNote>& keyNotes,
                                const std::array<ParsedAllKeyNotesParameter, OscillatorSettings::kNumParameters>& allKeyNotesParameters,
-                               const ParsedEqCurve& allKeyNotesEqCurve, CompoundPatch& compoundPatch, std::string* errorMessage) {
+                               const ParsedCurves& allKeyNotesCurves, CompoundPatch& compoundPatch, std::string* errorMessage) {
   const auto fail = [errorMessage](const std::string& message) {
     if (errorMessage) *errorMessage = message;
     return false;
   };
 
-  compoundPatch.ClearKeyNotePatches();
-  const auto buildEqCurve = [&](const ParsedEqCurve& parsed, const char* contextLabel, EqCurve& curve) {
-    if (parsed.freqHz.size() != parsed.db.size()) return fail(std::string{contextLabel} + " formants frequency and gain arrays must have the same length");
+  const auto buildCurves = [&](const ParsedCurves& parsed, const std::string& context, EqCurve& formants, ResonanceCurves& resonance) {
+    std::array<EqCurve::PointList, 3> points;
+    const std::array<std::pair<const ParsedCurve*, std::string_view>, 3> curves{
+        {{&parsed.formants, kFormantsKey}, {&parsed.resonanceZeroBreath, kResonanceZeroBreathKey}, {&parsed.resonanceFullBreath, kResonanceFullBreathKey}}};
+    for (std::size_t i = 0; i < curves.size(); ++i) {
+      const auto& [curve, name] = curves[i];
+      if (curve->freqHz.size() != curve->db.size())
+        return fail(context + " " + std::string{name} + "_freq_hz and " + std::string{name} + "_db arrays must have the same length");
+      for (std::size_t j = 0; j < curve->freqHz.size(); ++j) points[i].push_back({curve->freqHz[j], curve->db[j]});
+    }
 
-    EqCurve::PointList points;
-    points.reserve(parsed.freqHz.size());
-    for (std::size_t i = 0; i < parsed.freqHz.size(); ++i) points.push_back({parsed.freqHz[i], parsed.db[i]});
-
-    curve.SetPoints(std::move(points));
+    formants.SetPoints(std::move(points[0]));
+    if (!resonance.SetPoints(std::move(points[1]), std::move(points[2])))
+      return fail(context + " resonance zero-breath and full-breath curves must have the same number of points");
     return true;
   };
 
+  compoundPatch.ClearKeyNotePatches();
   for (const auto& keyNote : keyNotes) {
     if (!keyNote.hasMidiNote) return fail("Each [[key_notes]] table must define midi_note");
-
-    if (keyNote.eqCurve.hasFreqHz != keyNote.eqCurve.hasDb)
-      return fail("Each [[key_notes]] formants definition must include both formants_freq_hz and formants_db");
 
     compoundPatch.SetKeyNotePatch(keyNote.midiNote, keyNote.patch);
     for (auto parameter : OscillatorSettings::AllParameters())
       compoundPatch.SetMacroSettings(keyNote.midiNote, parameter, keyNote.macros[static_cast<std::size_t>(parameter)]);
 
-    if (keyNote.eqCurve.hasFreqHz) {
-      EqCurve eqCurve;
-      if (!buildEqCurve(keyNote.eqCurve, "[[key_notes]]", eqCurve)) return false;
-
-      if (!compoundPatch.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
-        return fail("Could not apply formants curve for midi_note " + std::to_string(keyNote.midiNote));
-    }
+    EqCurve formants;
+    ResonanceCurves resonance;
+    if (!buildCurves(keyNote.curves, "[[key_notes]]", formants, resonance)) return false;
+    compoundPatch.SetKeyNoteEqCurve(keyNote.midiNote, formants);
+    compoundPatch.SetKeyNoteResonanceCurves(keyNote.midiNote, resonance);
   }
 
   for (const auto& descriptor : kOscillatorParameterDescriptors) {
@@ -577,15 +625,11 @@ inline bool BuildCompoundPatch(const std::vector<ParsedKeyNote>& keyNotes,
     if (parsedParameter.present) compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values, parsedParameter.macros);
   }
 
-  if (allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb)
-    return fail("[all_key_notes] formants definition must include both formants_freq_hz and formants_db");
-
-  if (allKeyNotesEqCurve.hasFreqHz) {
-    EqCurve eqCurve;
-    if (!buildEqCurve(allKeyNotesEqCurve, "[all_key_notes]", eqCurve)) return false;
-
-    compoundPatch.EnableAllKeyNotesEq(eqCurve);
-  }
+  EqCurve formants;
+  ResonanceCurves resonance;
+  if (!buildCurves(allKeyNotesCurves, "[all_key_notes]", formants, resonance)) return false;
+  if (allKeyNotesCurves.formants.present) compoundPatch.EnableAllKeyNotesEq(formants);
+  if (allKeyNotesCurves.resonanceZeroBreath.present || allKeyNotesCurves.resonanceFullBreath.present) compoundPatch.EnableAllKeyNotesResonance(resonance);
 
   return true;
 }
@@ -600,7 +644,7 @@ public:
     if (!mSawFormatVersion) return Fail("Missing format_version");
 
     CompoundPatch compoundPatch;
-    if (!BuildCompoundPatch(mKeyNotes, mAllKeyNotesParameters, mAllKeyNotesEqCurve, compoundPatch, mErrorMessage)) return false;
+    if (!BuildCompoundPatch(mKeyNotes, mAllKeyNotesParameters, mAllKeyNotesCurves, compoundPatch, mErrorMessage)) return false;
 
     mDocument.voiceSettings = global_settings::Sanitize(mDocument.voiceSettings);
     mDocument.effectsSettings = effects_settings::Sanitize(mDocument.effectsSettings);
@@ -753,12 +797,8 @@ private:
       }
     }
 
-    auto& eqCurve = mSection == Section::AllKeyNotes ? mAllKeyNotesEqCurve : mCurrentKeyNote->eqCurve;
-    const bool isFrequency = key == kFormantsFreqKey || key == "eq_freq_hz"; // eq_* are the legacy names from before the Formants rename.
-    if (isFrequency || key == kFormantsDbKey || key == "eq_db") {
-      if (!ParseDoubleArray(value, isFrequency ? eqCurve.freqHz : eqCurve.db))
-        return Fail(std::string{isFrequency ? "Invalid formants frequency" : "Invalid formants gain"} + " array on line " + std::to_string(mLineNumber));
-      (isFrequency ? eqCurve.hasFreqHz : eqCurve.hasDb) = true;
+    if (auto* curveArray = FindCurveArray(mSection == Section::AllKeyNotes ? mAllKeyNotesCurves : mCurrentKeyNote->curves, key)) {
+      if (!ParseDoubleArray(value, *curveArray)) return Fail("Invalid " + std::string{key} + " array on line " + std::to_string(mLineNumber));
       return true;
     }
 
@@ -792,7 +832,7 @@ private:
   Section mSection{Section::Root};
   std::vector<ParsedKeyNote> mKeyNotes;
   std::array<ParsedAllKeyNotesParameter, OscillatorSettings::kNumParameters> mAllKeyNotesParameters{};
-  ParsedEqCurve mAllKeyNotesEqCurve{};
+  ParsedCurves mAllKeyNotesCurves{};
   ParsedKeyNote* mCurrentKeyNote{nullptr};
   bool mSawFormatVersion{false};
   int mLineNumber{0};
@@ -815,51 +855,55 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     stream << descriptor.key << " = " << detail::FormatDouble(document.effectsSettings.*(descriptor.member)) << '\n';
   }
 
+  const CompoundPatch& compoundPatch = document.compoundPatch;
   bool wroteAllKeyNotes = false;
-  for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
-    if (!document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
+  const auto beginAllKeyNotes = [&] {
+    if (!wroteAllKeyNotes) stream << "\n[all_key_notes]\n";
+    wroteAllKeyNotes = true;
+  };
 
-    if (!wroteAllKeyNotes) {
-      stream << "\n[all_key_notes]\n";
-      wroteAllKeyNotes = true;
-    }
+  for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
+    if (!compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
+
+    beginAllKeyNotes();
 
     stream << descriptor.key << " = [";
-    const auto& values = document.compoundPatch.GetAllKeyNotesValues(descriptor.parameter);
+    const auto& values = compoundPatch.GetAllKeyNotesValues(descriptor.parameter);
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
       stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)]);
       if (oscillatorIndex != (SimplePatch::kNumOscillators - 1)) stream << ", ";
     }
 
     stream << "]\n";
-    const auto& notes = document.compoundPatch.GetKeyNotePatches();
-    if (!notes.empty())
-      detail::AppendMacroSettings(stream, descriptor.key, document.compoundPatch.GetMacroSettings(notes.begin()->first, descriptor.parameter));
+    const auto& notes = compoundPatch.GetKeyNotePatches();
+    if (!notes.empty()) detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(notes.begin()->first, descriptor.parameter));
   }
 
-  if (document.compoundPatch.IsAllKeyNotesEqEnabled()) {
-    if (!wroteAllKeyNotes) {
-      stream << "\n[all_key_notes]\n";
-      wroteAllKeyNotes = true;
-    }
-
-    detail::AppendEqCurveArrays(stream, document.compoundPatch.GetAllKeyNotesEqCurve());
+  if (compoundPatch.IsAllKeyNotesEqEnabled()) {
+    beginAllKeyNotes();
+    detail::AppendFormantsArrays(stream, compoundPatch.GetAllKeyNotesEqCurve());
   }
 
-  for (const auto& [midiNote, patch] : document.compoundPatch.GetKeyNotePatches()) {
+  if (compoundPatch.IsAllKeyNotesResonanceEnabled()) {
+    beginAllKeyNotes();
+    detail::AppendResonanceArrays(stream, compoundPatch.GetAllKeyNotesResonanceCurves());
+  }
+
+  for (const auto& [midiNote, patch] : compoundPatch.GetKeyNotePatches()) {
     stream << "\n[[key_notes]]\n";
     stream << "midi_note = " << midiNote << '\n';
     stream << "note_name = \"" << detail::EscapeTomlString(detail::MidiNoteToName(midiNote)) << "\"\n";
     for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
-      if (document.compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
+      if (compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
       detail::AppendOscillatorParameterArray(stream, patch, descriptor);
-      detail::AppendMacroSettings(stream, descriptor.key, document.compoundPatch.GetMacroSettings(midiNote, descriptor.parameter));
+      detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(midiNote, descriptor.parameter));
     }
 
-    if (!document.compoundPatch.IsAllKeyNotesEqEnabled()) {
-      if (const auto* eqCurve = document.compoundPatch.GetKeyNoteEqCurve(midiNote)) detail::AppendEqCurveArrays(stream, *eqCurve);
-    }
+    if (const auto* curve = compoundPatch.GetKeyNoteEqCurve(midiNote); curve && !compoundPatch.IsAllKeyNotesEqEnabled())
+      detail::AppendFormantsArrays(stream, *curve);
+    if (const auto* curves = compoundPatch.GetKeyNoteResonanceCurves(midiNote); curves && !compoundPatch.IsAllKeyNotesResonanceEnabled())
+      detail::AppendResonanceArrays(stream, *curves);
   }
 
   return stream.str();

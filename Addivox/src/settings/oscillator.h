@@ -1,6 +1,7 @@
 #pragma once
 
 #include "eq.h"
+#include "resonance.h"
 
 #include <array>
 #include <cmath>
@@ -126,6 +127,8 @@ public:
     const SimplePatch* upperPatch{nullptr};
     const EqCurve* lowerEqCurve{nullptr};
     const EqCurve* upperEqCurve{nullptr};
+    const ResonanceCurves* lowerResonanceCurves{nullptr};
+    const ResonanceCurves* upperResonanceCurves{nullptr};
     double t{0.0};
   };
 
@@ -145,6 +148,9 @@ public:
   const OscillatorParameterValues& GetAllKeyNotesValues(OscillatorSettings::Parameter parameter) const;
   bool IsAllKeyNotesEqEnabled() const;
   const EqCurve& GetAllKeyNotesEqCurve() const;
+  const ResonanceCurves* GetKeyNoteResonanceCurves(double midiNote) const;
+  bool IsAllKeyNotesResonanceEnabled() const;
+  const ResonanceCurves& GetAllKeyNotesResonanceCurves() const;
   ResolvedNoteSpan ResolveNoteSpan(double midiNote) const;
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
   double EvaluateEqDb(const ResolvedNoteSpan& span, double frequencyHz) const;
@@ -157,28 +163,69 @@ public:
   const MacroSettings& GetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter) const;
   void SetMacroSettings(double midiNote, OscillatorSettings::Parameter parameter, const MacroSettings& macros);
   bool SetKeyNoteEqCurve(double midiNote, const EqCurve& curve);
+  bool SetKeyNoteResonanceCurves(double midiNote, const ResonanceCurves& curves);
   void EnableAllKeyNotes(OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values, const MacroSettings& macros = {});
   void SetAllKeyNotesEnabled(OscillatorSettings::Parameter parameter, bool enabled, double sourceMidiNote = kMinMidiNote);
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
+  void EnableAllKeyNotesResonance(const ResonanceCurves& curves);
   bool RemoveKeyNotePatch(int midiNote);
   void ClearKeyNotePatches();
 
 private:
+  // A curve stored per key note, which can instead be shared by all key notes.
+  template <typename Curve> class KeyNoteCurves {
+  public:
+    const Curve* Find(int midiNote) const {
+      const auto it = mKeyNoteCurves.find(midiNote);
+      return it == mKeyNoteCurves.end() ? nullptr : &it->second;
+    }
+
+    const Curve& GetOrDefault(int midiNote) const {
+      const Curve* curve = mAllKeyNotesEnabled ? &mAllKeyNotesCurve : Find(midiNote);
+      return curve ? *curve : kDefaultCurve;
+    }
+
+    bool IsAllKeyNotesEnabled() const { return mAllKeyNotesEnabled; }
+    const Curve& GetAllKeyNotesCurve() const { return mAllKeyNotesCurve; }
+
+    void Set(int midiNote, const Curve& curve) {
+      mKeyNoteCurves[midiNote] = curve;
+      if (mAllKeyNotesEnabled) EnableAllKeyNotes(curve);
+    }
+
+    void EnableAllKeyNotes(const Curve& curve) {
+      mAllKeyNotesCurve = curve;
+      mAllKeyNotesEnabled = true;
+      for (auto& [_, keyNoteCurve] : mKeyNoteCurves) keyNoteCurve = mAllKeyNotesCurve;
+    }
+
+    void SetAllKeyNotesEnabled(bool enabled) {
+      mAllKeyNotesEnabled = false;
+      if (enabled) EnableAllKeyNotes(mKeyNoteCurves.empty() ? mAllKeyNotesCurve : Curve{mKeyNoteCurves.begin()->second});
+    }
+
+    void Erase(int midiNote) { mKeyNoteCurves.erase(midiNote); }
+    void Clear() { mKeyNoteCurves.clear(); }
+
+  private:
+    inline static const Curve kDefaultCurve{};
+    std::map<int, Curve> mKeyNoteCurves{};
+    Curve mAllKeyNotesCurve{};
+    bool mAllKeyNotesEnabled{false};
+  };
+
   static int ClampMidiNote(int midiNote);
   static int RoundAndClampMidiNote(double midiNote);
   static std::size_t ParameterIndex(OscillatorSettings::Parameter parameter);
   void ApplyAllKeyNotesValues(SimplePatch& patch) const;
-  const EqCurve& GetKeyNoteEqCurveOrDefault(int midiNote) const;
-  void SetAllKeyNoteEqCurves(const EqCurve& curve);
 
   std::map<int, SimplePatch> mKeyNotePatches{};
-  std::map<int, EqCurve> mKeyNoteEqCurves{};
+  KeyNoteCurves<EqCurve> mEqCurves{};
+  KeyNoteCurves<ResonanceCurves> mResonanceCurves{};
   using TabMacroSettings = std::array<MacroSettings, OscillatorSettings::kNumParameters>;
   std::map<int, TabMacroSettings> mKeyNoteMacros{};
   TabMacroSettings mAllKeyNotesMacros{};
   std::array<bool, OscillatorSettings::kNumParameters> mAllKeyNotesEnabled{};
   std::array<OscillatorParameterValues, OscillatorSettings::kNumParameters> mAllKeyNotesValues{};
-  bool mAllKeyNotesEqEnabled{false};
-  EqCurve mAllKeyNotesEqCurve{};
 };

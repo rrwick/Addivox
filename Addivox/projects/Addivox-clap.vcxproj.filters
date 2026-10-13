@@ -262,6 +262,9 @@
     <ClInclude Include="..\src\settings\eq.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\settings\resonance.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\settings\params.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>

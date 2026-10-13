@@ -870,6 +870,7 @@
 		15F1AFEFCB6416EBACECEEA6 /* shared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = shared.h; path = ../src/dsp/shared.h; sourceTree = SOURCE_ROOT; };
 		3D4BB8B30A6E2ED66FD77BD0 /* breath_control.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = breath_control.h; path = ../src/midi/breath_control.h; sourceTree = SOURCE_ROOT; };
 		0A13D96AD5A34FECA19F5339 /* eq.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = eq.h; path = ../src/settings/eq.h; sourceTree = SOURCE_ROOT; };
+		7A2C5E19B04D4F3E8C6A1D27 /* resonance.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = resonance.h; path = ../src/settings/resonance.h; sourceTree = SOURCE_ROOT; };
 		DC633CD4E6EC8766A51DF539 /* params.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = params.h; path = ../src/settings/params.h; sourceTree = SOURCE_ROOT; };
 		B648C9053F7E07451F992777 /* patch_io.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = patch_io.h; path = ../src/settings/patch_io.h; sourceTree = SOURCE_ROOT; };
 		5F37684B267D5254949D048C /* audio_midi_settings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = audio_midi_settings.h; path = ../src/standalone/audio_midi_settings.h; sourceTree = SOURCE_ROOT; };
@@ -1280,6 +1281,7 @@
 				15F1AFEFCB6416EBACECEEA6 /* shared.h */,
 				3D4BB8B30A6E2ED66FD77BD0 /* breath_control.h */,
 				0A13D96AD5A34FECA19F5339 /* eq.h */,
+				7A2C5E19B04D4F3E8C6A1D27 /* resonance.h */,
 				DC633CD4E6EC8766A51DF539 /* params.h */,
 				B648C9053F7E07451F992777 /* patch_io.h */,
 				5F37684B267D5254949D048C /* audio_midi_settings.h */,

@@ -42,6 +42,7 @@ set(ADDIVOX_COMMON_SOURCES
   src/synth/synth_engine.h
   src/settings/patch_io.h
   src/settings/eq.h
+  src/settings/resonance.h
   src/settings/params.h
   src/midi/breath_control.h
 )

@@ -12,6 +12,53 @@ struct EqPoint {
   double gainDb{0.0};
 };
 
+// Monotone cubic Hermite spline, flat beyond its end points. Points sharing an x value form a step.
+struct MonotoneSpline {
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> tangents;
+
+  void BuildTangents() {
+    tangents.assign(x.size(), 0.0);
+    for (std::size_t i = 1; i + 1 < x.size(); ++i) {
+      const double w0 = x[i] - x[i - 1];
+      const double w1 = x[i + 1] - x[i];
+      if (w0 <= kEpsilon || w1 <= kEpsilon) continue;
+
+      const double s0 = (y[i] - y[i - 1]) / w0;
+      const double s1 = (y[i + 1] - y[i]) / w1;
+      if ((s0 * s1) <= 0.0) continue;
+
+      const double a = (2.0 * w1) + w0;
+      const double b = w1 + (2.0 * w0);
+      tangents[i] = (a + b) / ((a / s0) + (b / s1));
+    }
+  }
+
+  double Evaluate(double atX) const {
+    if (x.empty()) return 0.0;
+    if (atX <= x.front()) return y.front();
+    if (atX >= x.back()) return y.back();
+
+    const std::size_t i1 = static_cast<std::size_t>(std::lower_bound(x.begin(), x.end(), atX) - x.begin());
+    const std::size_t i0 = i1 - 1;
+    const double h = x[i1] - x[i0];
+    if (h <= kEpsilon) return y[i1];
+
+    const double t = (atX - x[i0]) / h;
+    const double t2 = t * t;
+    const double t3 = t2 * t;
+    const double h00 = (2.0 * t3) - (3.0 * t2) + 1.0;
+    const double h10 = t3 - (2.0 * t2) + t;
+    const double h01 = (-2.0 * t3) + (3.0 * t2);
+    const double h11 = t3 - t2;
+    return (h00 * y[i0]) + (h10 * h * tangents[i0]) + (h01 * y[i1]) + (h11 * h * tangents[i1]);
+  }
+
+private:
+  static constexpr double kEpsilon = 1.0e-12;
+};
+
 class EqCurve {
 public:
   using PointList = std::vector<EqPoint>;
@@ -32,18 +79,37 @@ public:
   const PointList& GetPoints() const { return mPoints; }
 
   void SetPoints(PointList points) {
-    mPoints = SanitizePoints(std::move(points));
-    RebuildSpline();
+    mPoints = MergeEqualFrequencies(ClampAndSort(std::move(points)));
+    mSpline = MakeSpline(mPoints);
   }
 
   bool Empty() const { return mPoints.empty(); }
 
-  double EvaluateDb(double frequencyHz) const {
-    if (mPoints.empty()) return 0.0;
-    if (mPoints.size() == 1) return mPoints.front().gainDb;
+  double EvaluateDb(double frequencyHz) const { return ClampGainDb(mSpline.Evaluate(LogFrequency(frequencyHz))); }
 
-    return ClampGainDb(EvaluateSplineDb(frequencyHz));
+  // Expects points sorted by frequency.
+  static MonotoneSpline MakeSpline(const PointList& points) {
+    MonotoneSpline spline;
+    for (const auto& point : points) {
+      spline.x.push_back(LogFrequency(point.frequencyHz));
+      spline.y.push_back(point.gainDb);
+    }
+    spline.BuildTangents();
+    return spline;
   }
+
+  static PointList ClampAndSort(PointList points) {
+    for (auto& point : points) {
+      point.frequencyHz = ClampFrequencyHz(point.frequencyHz);
+      point.gainDb = ClampGainDb(point.gainDb);
+    }
+
+    // Points are clamped to finite values above before sorting, since NaN would violate strict-weak-ordering here.
+    std::stable_sort(points.begin(), points.end(), [](const EqPoint& lhs, const EqPoint& rhs) { return lhs.frequencyHz < rhs.frequencyHz; });
+    return points;
+  }
+
+  static double LogFrequency(double frequencyHz) { return std::log(ClampFrequencyHz(frequencyHz)); }
 
   static bool IsMutedGainDb(double gainDb) {
     if (!std::isfinite(gainDb)) return gainDb < 0.0;
@@ -104,7 +170,6 @@ public:
 
 private:
   static constexpr double kFrequencyEpsilonHz = 1.0e-6;
-  static constexpr double kLogFrequencyEpsilon = 1.0e-12;
   static constexpr double kMuteGainDbEpsilon = 1.0e-9;
   static constexpr double kVisibleDbSpan = kMaxGainDb - kMinFiniteGainDb;
   static constexpr double kMuteBandVisualDbEquivalent = 4.0; // The mute band's height, in dB of the scale above it.
@@ -122,94 +187,18 @@ private:
     return std::clamp(frequencyHz, kMinFrequencyHz, kMaxFrequencyHz);
   }
 
-  static double LogFrequency(double frequencyHz) { return std::log(ClampFrequencyHz(frequencyHz)); }
-
-  static PointList SanitizePoints(PointList points) {
-    for (auto& point : points) {
-      point.frequencyHz = ClampFrequencyHz(point.frequencyHz);
-      point.gainDb = ClampGainDb(point.gainDb);
-    }
-
-    // Points are clamped to finite values above before sorting, since NaN would violate strict-weak-ordering here.
-    std::stable_sort(points.begin(), points.end(), [](const EqPoint& lhs, const EqPoint& rhs) { return lhs.frequencyHz < rhs.frequencyHz; });
-
-    PointList sanitized;
-    sanitized.reserve(points.size());
+  static PointList MergeEqualFrequencies(const PointList& points) {
+    PointList merged;
+    merged.reserve(points.size());
     for (const auto& point : points) {
-      if (!sanitized.empty() && std::abs(sanitized.back().frequencyHz - point.frequencyHz) <= kFrequencyEpsilonHz) {
-        sanitized.back().gainDb = point.gainDb;
-      } else
-        sanitized.push_back(point);
+      if (!merged.empty() && std::abs(merged.back().frequencyHz - point.frequencyHz) <= kFrequencyEpsilonHz) merged.back().gainDb = point.gainDb;
+      else
+        merged.push_back(point);
     }
 
-    return sanitized;
-  }
-
-  void RebuildSpline() {
-    mLogFrequencies.clear();
-    mTangents.clear();
-
-    if (mPoints.size() <= 1) return;
-
-    mLogFrequencies.resize(mPoints.size());
-    for (std::size_t i = 0; i < mPoints.size(); ++i) mLogFrequencies[i] = LogFrequency(mPoints[i].frequencyHz);
-
-    const std::size_t numSegments = mPoints.size() - 1;
-    std::vector<double> widths(numSegments);
-    std::vector<double> slopes(numSegments);
-    for (std::size_t i = 0; i < numSegments; ++i) {
-      widths[i] = mLogFrequencies[i + 1] - mLogFrequencies[i];
-      slopes[i] = (mPoints[i + 1].gainDb - mPoints[i].gainDb) / widths[i];
-    }
-
-    mTangents.resize(mPoints.size());
-
-    // The curve is flat outside the first and last point, so the spline should meet those edges with zero slope rather than forming a corner.
-    mTangents.front() = 0.0;
-    for (std::size_t i = 1; i + 1 < mPoints.size(); ++i) {
-      if ((slopes[i - 1] * slopes[i]) <= 0.0) {
-        mTangents[i] = 0.0;
-        continue;
-      }
-
-      const double w1 = (2.0 * widths[i]) + widths[i - 1];
-      const double w2 = widths[i] + (2.0 * widths[i - 1]);
-      mTangents[i] = (w1 + w2) / ((w1 / slopes[i - 1]) + (w2 / slopes[i]));
-    }
-    mTangents.back() = 0.0;
-  }
-
-  double EvaluateSplineDb(double frequencyHz) const {
-    const double clampedFrequencyHz = ClampFrequencyHz(frequencyHz);
-    if (clampedFrequencyHz <= mPoints.front().frequencyHz) return mPoints.front().gainDb;
-    if (clampedFrequencyHz >= mPoints.back().frequencyHz) return mPoints.back().gainDb;
-
-    const double logFrequency = LogFrequency(clampedFrequencyHz);
-    const auto upper = std::lower_bound(mLogFrequencies.begin(), mLogFrequencies.end(), logFrequency);
-    if (upper == mLogFrequencies.begin()) return mPoints.front().gainDb;
-    if (upper == mLogFrequencies.end()) return mPoints.back().gainDb;
-
-    const std::size_t upperIndex = static_cast<std::size_t>(upper - mLogFrequencies.begin());
-    return EvaluateHermiteSegment(upperIndex - 1, upperIndex, logFrequency);
-  }
-
-  double EvaluateHermiteSegment(std::size_t lowerIndex, std::size_t upperIndex, double logFrequency) const {
-    const double x0 = mLogFrequencies[lowerIndex];
-    const double x1 = mLogFrequencies[upperIndex];
-    const double h = x1 - x0;
-    if (h <= kLogFrequencyEpsilon) return mPoints[upperIndex].gainDb;
-
-    const double t = (logFrequency - x0) / h;
-    const double t2 = t * t;
-    const double t3 = t2 * t;
-    const double h00 = (2.0 * t3) - (3.0 * t2) + 1.0;
-    const double h10 = t3 - (2.0 * t2) + t;
-    const double h01 = (-2.0 * t3) + (3.0 * t2);
-    const double h11 = t3 - t2;
-    return (h00 * mPoints[lowerIndex].gainDb) + (h10 * h * mTangents[lowerIndex]) + (h01 * mPoints[upperIndex].gainDb) + (h11 * h * mTangents[upperIndex]);
+    return merged;
   }
 
   PointList mPoints{};
-  std::vector<double> mLogFrequencies{};
-  std::vector<double> mTangents{};
+  MonotoneSpline mSpline{};
 };

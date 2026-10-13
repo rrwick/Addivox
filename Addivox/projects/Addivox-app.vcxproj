@@ -316,6 +316,7 @@
     <ClInclude Include="..\src\dsp\shared.h" />
     <ClInclude Include="..\src\midi\breath_control.h" />
     <ClInclude Include="..\src\settings\eq.h" />
+    <ClInclude Include="..\src\settings\resonance.h" />
     <ClInclude Include="..\src\settings\params.h" />
     <ClInclude Include="..\src\settings\patch_io.h" />
     <ClInclude Include="..\src\standalone\audio_midi_settings.h" />
