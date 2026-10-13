@@ -612,10 +612,22 @@ struct EqTabControls {
   EqEditorControl* editorControl{};
 };
 
+// A knob that sets one ResonanceSettings value, linearly over [min, max].
+struct ResonanceKnob {
+  layout::LabelledKnob* control{};
+  double ResonanceSettings::* member{};
+  double min{0.0};
+  double max{1.0};
+
+  double ToNormalized(double value) const { return (value - min) / (max - min); }
+  double FromNormalized(double normalizedValue) const { return min + (normalizedValue * (max - min)); }
+};
+
 struct ResonanceTabControls {
   IVButtonControl* addButton{};
   IVButtonControl* deleteButton{};
   ResonanceEditorControl* editorControl{};
+  std::array<ResonanceKnob, 2> knobs{}; // Breath Response and Tracking
 };
 
 struct OscillatorTabControls {
@@ -938,10 +950,10 @@ struct EditorContext {
     SendChunkToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteEqCurve, chunk);
   }
 
-  void SendResonanceCurvesToDSP(IControl* sourceControl, int midiNote, const ResonanceCurves& curves) const {
+  void SendResonanceToDSP(IControl* sourceControl, int midiNote, const ResonanceSettings& resonance) const {
     IByteChunk chunk;
-    editor_messages::SerializeKeyNoteResonanceCurvesPayload(midiNote, curves, chunk);
-    SendChunkToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteResonanceCurves, chunk);
+    editor_messages::SerializeKeyNoteResonancePayload(midiNote, resonance, chunk);
+    SendChunkToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteResonance, chunk);
   }
 
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const {
@@ -1052,11 +1064,6 @@ struct EditorContext {
       SetDisabledState(eqTab.allKeyNotesToggle, true);
     }
     SetDisabledState(eqTab.restoreButton, true);
-
-    if (resonanceTab.editorControl) {
-      resonanceTab.editorControl->SetBlendedCurves({}, {}, 0.0);
-      resonanceTab.editorControl->SetEditable(false);
-    }
   }
 
   void RefreshHarmonicTab(const OscillatorTabDescriptor& descriptor, const SimplePatch& selectedPatch, int midiNote, bool editable) {
@@ -1087,6 +1094,28 @@ struct EditorContext {
     SetDisabledState(restoreButton, !(editable && control->HasRestoreStateForMidiNote(midiNote)));
   }
 
+  // Between key notes, the knobs show the blended values, which the synth will use.
+  void RefreshResonanceTab() const {
+    const auto patchLock = LockPatch();
+    const ResonanceSettings flat{};
+    CompoundPatch::ResolvedNoteSpan span{nullptr, nullptr, nullptr, nullptr, &flat, &flat, 0.0};
+    if (HasValidSelectedMidiNote()) span = Patch().ResolveNoteSpan(SelectedMidiNote());
+    const bool editable = HasValidSelectedMidiNote() && Patch().HasKeyNotePatch(SelectedMidiNote());
+
+    if (auto* editorControl = resonanceTab.editorControl) {
+      editorControl->SetBlendedResonance(*span.lowerResonance, *span.upperResonance, span.t);
+      editorControl->SetEditable(editable);
+    }
+
+    for (const auto& knob : resonanceTab.knobs) {
+      if (!knob.control) continue;
+      const double lower = (*span.lowerResonance).*(knob.member);
+      const double upper = (*span.upperResonance).*(knob.member);
+      knob.control->SetNormalizedValueSilently(knob.ToNormalized(lower + (span.t * (upper - lower))));
+      SetDisabledState(knob.control, !editable);
+    }
+  }
+
   void RefreshOscillatorTabs() {
     // Whole-body lock is safe here: this only reads the patch and updates controls, never the params mutex.
     const auto patchLock = LockPatch();
@@ -1094,6 +1123,7 @@ struct EditorContext {
     RecallMacroModes();
     ApplyVisibleOscillatorRangeToSliders();
     SyncXRangeNumberBoxes();
+    RefreshResonanceTab();
 
     if (!HasValidSelectedMidiNote()) {
       DisableTabsForInvalidMidiNote();
@@ -1126,11 +1156,6 @@ struct EditorContext {
     }
 
     SetDisabledState(eqTab.restoreButton, !(eqTab.editorControl && editable && eqTab.editorControl->HasRestoreStateForMidiNote(midiNote)));
-
-    if (resonanceTab.editorControl) {
-      resonanceTab.editorControl->SetBlendedCurves(*span.lowerResonanceCurves, *span.upperResonanceCurves, span.t);
-      resonanceTab.editorControl->SetEditable(editable);
-    }
   }
 
   template <typename Action>

@@ -24,7 +24,7 @@ inline constexpr int                  kMsgTagPatchManagerAction = 1012;
 inline constexpr int               kMsgTagOpenAudioMidiSettings = 1013;
 inline constexpr int              kMsgTagSetPitchBendRange = 1014;
 inline constexpr int                    kMsgTagSetPortamentoCC = 1015;
-inline constexpr int           kMsgTagSetKeyNoteResonanceCurves = 1016;
+inline constexpr int                kMsgTagSetKeyNoteResonance = 1016;
 
 enum class PatchManagerAction { SelectPatch = 0, PreviousPatch, NextPatch, SavePatch, ImportPatch, ImportCollection, ShowPatchInFileBrowser, RefreshPatches };
 
@@ -117,19 +117,24 @@ inline bool DeserializeKeyNoteEqCurvePayload(int dataSize, const void* pData, in
   return true;
 }
 
-inline void SerializeKeyNoteResonanceCurvesPayload(int midiNote, const ResonanceCurves& curves, iplug::IByteChunk& chunk) {
+inline void SerializeKeyNoteResonancePayload(int midiNote, const ResonanceSettings& resonance, iplug::IByteChunk& chunk) {
   chunk.Clear();
   chunk.Put(&midiNote);
-  PutCurvePoints(chunk, curves.GetPoints(ResonanceCurves::Breath::zero));
-  PutCurvePoints(chunk, curves.GetPoints(ResonanceCurves::Breath::full));
+  PutCurvePoints(chunk, resonance.curves.GetPoints(ResonanceCurves::Breath::zero));
+  PutCurvePoints(chunk, resonance.curves.GetPoints(ResonanceCurves::Breath::full));
+  chunk.Put(&resonance.breathResponse);
+  chunk.Put(&resonance.tracking);
 }
 
-inline bool DeserializeKeyNoteResonanceCurvesPayload(int dataSize, const void* pData, int& midiNote, ResonanceCurves& curves) {
+inline bool DeserializeKeyNoteResonancePayload(int dataSize, const void* pData, int& midiNote, ResonanceSettings& resonance) {
   const iplug::IByteStream stream{pData, dataSize};
   EqCurve::PointList zeroBreathPoints;
   EqCurve::PointList fullBreathPoints;
-  if (!pData || GetCurvePoints(stream, GetCurvePoints(stream, stream.Get(&midiNote, 0), zeroBreathPoints), fullBreathPoints) < 0) return false;
+  int position = GetCurvePoints(stream, GetCurvePoints(stream, stream.Get(&midiNote, 0), zeroBreathPoints), fullBreathPoints);
+  position = stream.Get(&resonance.tracking, stream.Get(&resonance.breathResponse, position));
+  if (!pData || position < 0) return false;
 
-  return curves.SetPoints(std::move(zeroBreathPoints), std::move(fullBreathPoints));
+  resonance.Sanitize();
+  return resonance.curves.SetPoints(std::move(zeroBreathPoints), std::move(fullBreathPoints));
 }
 } // namespace editor_messages

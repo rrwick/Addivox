@@ -229,7 +229,7 @@ CompoundPatch::CompoundPatch(std::initializer_list<KeyNotePatch> keyNotePatches)
     const int clampedMidiNote = ClampMidiNote(midiNote);
     mKeyNotePatches[clampedMidiNote] = patch;
     mEqCurves.Set(clampedMidiNote, {});
-    mResonanceCurves.Set(clampedMidiNote, {});
+    mResonance.Set(clampedMidiNote, {});
   }
 }
 
@@ -250,7 +250,7 @@ const SimplePatch* CompoundPatch::GetKeyNotePatch(double midiNote) const {
 
 const EqCurve* CompoundPatch::GetKeyNoteEqCurve(double midiNote) const { return mEqCurves.Find(RoundAndClampMidiNote(midiNote)); }
 
-const ResonanceCurves* CompoundPatch::GetKeyNoteResonanceCurves(double midiNote) const { return mResonanceCurves.Find(RoundAndClampMidiNote(midiNote)); }
+const ResonanceSettings* CompoundPatch::GetKeyNoteResonance(double midiNote) const { return mResonance.Find(RoundAndClampMidiNote(midiNote)); }
 
 const std::map<int, SimplePatch>& CompoundPatch::GetKeyNotePatches() const { return mKeyNotePatches; }
 
@@ -264,9 +264,9 @@ bool CompoundPatch::IsAllKeyNotesEqEnabled() const { return mEqCurves.IsAllKeyNo
 
 const EqCurve& CompoundPatch::GetAllKeyNotesEqCurve() const { return mEqCurves.GetAllKeyNotesCurve(); }
 
-bool CompoundPatch::IsAllKeyNotesResonanceEnabled() const { return mResonanceCurves.IsAllKeyNotesEnabled(); }
+bool CompoundPatch::IsAllKeyNotesResonanceEnabled() const { return mResonance.IsAllKeyNotesEnabled(); }
 
-const ResonanceCurves& CompoundPatch::GetAllKeyNotesResonanceCurves() const { return mResonanceCurves.GetAllKeyNotesCurve(); }
+const ResonanceSettings& CompoundPatch::GetAllKeyNotesResonance() const { return mResonance.GetAllKeyNotesCurve(); }
 
 CompoundPatch::ResolvedNoteSpan CompoundPatch::ResolveNoteSpan(double midiNote) const {
   const auto makeSpan = [&](const SimplePatch& lower, const SimplePatch& upper, int lowerNote, int upperNote, double t) {
@@ -274,8 +274,8 @@ CompoundPatch::ResolvedNoteSpan CompoundPatch::ResolveNoteSpan(double midiNote) 
                             &upper,
                             &mEqCurves.GetOrDefault(lowerNote),
                             &mEqCurves.GetOrDefault(upperNote),
-                            &mResonanceCurves.GetOrDefault(lowerNote),
-                            &mResonanceCurves.GetOrDefault(upperNote),
+                            &mResonance.GetOrDefault(lowerNote),
+                            &mResonance.GetOrDefault(upperNote),
                             t};
   };
   if (mKeyNotePatches.empty()) return makeSpan(GetDefaultPatch(), GetDefaultPatch(), kMinMidiNote, kMinMidiNote, 0.0);
@@ -341,14 +341,14 @@ void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch) {
   const ResolvedNoteSpan span = ResolveNoteSpan(clampedMidiNote);
   const bool copyLower = span.t <= 0.5;
   EqCurve eqCurve = copyLower ? *span.lowerEqCurve : *span.upperEqCurve;
-  ResonanceCurves resonanceCurves = copyLower ? *span.lowerResonanceCurves : *span.upperResonanceCurves;
+  ResonanceSettings resonance = copyLower ? *span.lowerResonance : *span.upperResonance;
 
   SimplePatch updatedPatch = patch;
   ApplyAllKeyNotesValues(updatedPatch);
   mKeyNotePatches[clampedMidiNote] = updatedPatch;
   mKeyNoteMacros.erase(clampedMidiNote);
   mEqCurves.Set(clampedMidiNote, eqCurve);
-  mResonanceCurves.Set(clampedMidiNote, resonanceCurves);
+  mResonance.Set(clampedMidiNote, resonance);
 }
 
 bool CompoundPatch::SetKeyNoteOscillatorParameter(double midiNote, int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
@@ -409,11 +409,11 @@ bool CompoundPatch::SetKeyNoteEqCurve(double midiNote, const EqCurve& curve) {
   return true;
 }
 
-bool CompoundPatch::SetKeyNoteResonanceCurves(double midiNote, const ResonanceCurves& curves) {
+bool CompoundPatch::SetKeyNoteResonance(double midiNote, const ResonanceSettings& resonance) {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
   if (!HasKeyNotePatch(clampedNote)) return false;
 
-  mResonanceCurves.Set(clampedNote, curves);
+  mResonance.Set(clampedNote, resonance);
   return true;
 }
 
@@ -448,7 +448,7 @@ void CompoundPatch::EnableAllKeyNotesEq(const EqCurve& curve) { mEqCurves.Enable
 
 void CompoundPatch::SetAllKeyNotesEqEnabled(bool enabled) { mEqCurves.SetAllKeyNotesEnabled(enabled); }
 
-void CompoundPatch::EnableAllKeyNotesResonance(const ResonanceCurves& curves) { mResonanceCurves.EnableAllKeyNotes(curves); }
+void CompoundPatch::EnableAllKeyNotesResonance(const ResonanceSettings& resonance) { mResonance.EnableAllKeyNotes(resonance); }
 
 bool CompoundPatch::RemoveKeyNotePatch(int midiNote) {
   if (mKeyNotePatches.size() <= 1) return false;
@@ -456,7 +456,7 @@ bool CompoundPatch::RemoveKeyNotePatch(int midiNote) {
   const int clampedMidiNote = ClampMidiNote(midiNote);
   const size_t numRemoved = mKeyNotePatches.erase(clampedMidiNote);
   mEqCurves.Erase(clampedMidiNote);
-  mResonanceCurves.Erase(clampedMidiNote);
+  mResonance.Erase(clampedMidiNote);
   mKeyNoteMacros.erase(clampedMidiNote);
   return numRemoved > 0;
 }
@@ -464,7 +464,7 @@ bool CompoundPatch::RemoveKeyNotePatch(int midiNote) {
 void CompoundPatch::ClearKeyNotePatches() {
   mKeyNotePatches.clear();
   mEqCurves.Clear();
-  mResonanceCurves.Clear();
+  mResonance.Clear();
   mKeyNoteMacros.clear();
   mAllKeyNotesMacros = {};
 }

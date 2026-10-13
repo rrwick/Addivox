@@ -16,16 +16,16 @@ class ResonanceEditorControl final : public CurveEditorControl {
 public:
   using Breath = ResonanceCurves::Breath;
   using PointList = ResonanceCurves::PointList;
-  using OnCurvesChangedFunc = std::function<void(const ResonanceCurves&)>;
+  using OnResonanceChangedFunc = std::function<void(const ResonanceSettings&)>;
 
   explicit ResonanceEditorControl(const IRECT& bounds) : CurveEditorControl(bounds) {}
 
   static IColor BreathColor(Breath breath) { return breath == Breath::zero ? colour::editor::kZeroBreathCurve : colour::editor::kFullBreathCurve; }
 
-  // Between key notes, the editor shows the same visual-y blend of the neighbouring curves that the synth uses.
-  void SetBlendedCurves(const ResonanceCurves& lower, const ResonanceCurves& upper, double t) {
-    mCurves = lower;
-    mUpperCurves = upper;
+  // Between key notes, the editor shows the same blend of the neighbouring key notes' setups that the synth uses.
+  void SetBlendedResonance(const ResonanceSettings& lower, const ResonanceSettings& upper, double t) {
+    mResonance = lower;
+    mUpperResonance = upper;
     mBlendT = t;
     if (mDraggedPointIndex >= static_cast<int>(ActivePoints().size())) mDraggedPointIndex = kNoPointIndex;
     SetDirty(false);
@@ -46,7 +46,7 @@ public:
 
   bool IsEditable() const { return !IsDisabled(); }
 
-  void SetOnCurvesChanged(OnCurvesChangedFunc func) { mOnCurvesChanged = std::move(func); }
+  void SetOnResonanceChanged(OnResonanceChangedFunc func) { mOnResonanceChanged = std::move(func); }
 
   void Draw(IGraphics& g) override {
     constexpr float kInactiveOpacity = 0.35f;
@@ -74,8 +74,8 @@ public:
   void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override {
     if (mDraggedPointIndex == kNoPointIndex) return;
 
-    mDraggedPointIndex = static_cast<int>(mCurves.MovePoint(mActiveBreath, static_cast<std::size_t>(mDraggedPointIndex), PointAt(x, y)));
-    NotifyCurvesChanged();
+    mDraggedPointIndex = static_cast<int>(mResonance.curves.MovePoint(mActiveBreath, static_cast<std::size_t>(mDraggedPointIndex), PointAt(x, y)));
+    NotifyResonanceChanged();
   }
 
   void OnMouseUp(float x, float y, const IMouseMod& mod) override {
@@ -88,11 +88,11 @@ private:
   void TogglePointAt(float x, float y) override {
     if (!IsEditable()) return;
 
-    if (const int hitIndex = HitTestPoint(ActivePoints(), x, y); hitIndex != kNoPointIndex) mCurves.RemovePoint(static_cast<std::size_t>(hitIndex));
+    if (const int hitIndex = HitTestPoint(ActivePoints(), x, y); hitIndex != kNoPointIndex) mResonance.curves.RemovePoint(static_cast<std::size_t>(hitIndex));
     else
-      mCurves.AddPoint(mActiveBreath, PointAt(x, y));
+      mResonance.curves.AddPoint(mActiveBreath, PointAt(x, y));
     mDraggedPointIndex = kNoPointIndex;
-    NotifyCurvesChanged();
+    NotifyResonanceChanged();
   }
 
   EqPoint PointAt(float x, float y) const {
@@ -101,19 +101,22 @@ private:
   }
 
   // Edits only happen on a key note, where no blending applies.
-  void NotifyCurvesChanged() {
-    mUpperCurves = mCurves;
-    if (mOnCurvesChanged) mOnCurvesChanged(mCurves);
+  void NotifyResonanceChanged() {
+    mUpperResonance = mResonance;
+    if (mOnResonanceChanged) mOnResonanceChanged(mResonance);
     SetDirty(false);
   }
 
+  // Breath Response is blended between key notes before shaping, as in the synth.
   void DrawMorphPreviews(IGraphics& g, const IRECT& plotBounds) {
     constexpr int kNumSteps = 10;
     constexpr float kPreviewOpacity = 0.25f;
+    const double breathResponse = mResonance.breathResponse + (mBlendT * (mUpperResonance.breathResponse - mResonance.breathResponse));
     for (int step = 1; step < kNumSteps; ++step) {
       const double breath = static_cast<double>(step) / kNumSteps;
-      mCurves.Morph(breath, mLowerMorph);
-      mUpperCurves.Morph(breath, mUpperMorph);
+      const double shapedBreath = ResonanceSettings::ShapeBreath(breath, breathResponse);
+      mResonance.curves.Morph(shapedBreath, mLowerMorph);
+      mUpperResonance.curves.Morph(shapedBreath, mUpperMorph);
       const IColor color = IColor::LinearInterpolateBetween(BreathColor(Breath::zero), BreathColor(Breath::full), static_cast<float>(breath));
       DrawCurve(
           g, plotBounds,
@@ -128,22 +131,22 @@ private:
     DrawCurve(
         g, plotBounds,
         [&](double frequencyHz) {
-          return EqCurve::InterpolateDb(mCurves.EvaluateDb(breath, frequencyHz), mUpperCurves.EvaluateDb(breath, frequencyHz), mBlendT);
+          return EqCurve::InterpolateDb(mResonance.curves.EvaluateDb(breath, frequencyHz), mUpperResonance.curves.EvaluateDb(breath, frequencyHz), mBlendT);
         },
         color, bold);
   }
 
   Breath OtherBreath() const { return ResonanceCurves::Other(mActiveBreath); }
-  const PointList& ActivePoints() const { return mCurves.GetPoints(mActiveBreath); }
-  const PointList& OtherPoints() const { return mCurves.GetPoints(OtherBreath()); }
+  const PointList& ActivePoints() const { return mResonance.curves.GetPoints(mActiveBreath); }
+  const PointList& OtherPoints() const { return mResonance.curves.GetPoints(OtherBreath()); }
 
-  ResonanceCurves mCurves{};
-  ResonanceCurves mUpperCurves{};
+  ResonanceSettings mResonance{};
+  ResonanceSettings mUpperResonance{};
   double mBlendT{0.0};
   Breath mActiveBreath{Breath::zero};
   int mDraggedPointIndex{kNoPointIndex};
   MonotoneSpline mLowerMorph{}; // Scratch space for drawing the morph previews
   MonotoneSpline mUpperMorph{};
-  OnCurvesChangedFunc mOnCurvesChanged{};
+  OnResonanceChangedFunc mOnResonanceChanged{};
 };
 } // namespace plugin_ui

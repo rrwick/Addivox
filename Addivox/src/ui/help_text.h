@@ -167,6 +167,12 @@ inline constexpr const char *kResonanceBreathCurve =
     "Full: the curve at full breath.\n\n"
     "The other curve is drawn faintly.";
 
+inline constexpr const char *kResonanceBreathResponse =
+    "Shapes how breath moves between the two curves: right moves earlier in the breath, left moves later.";
+
+inline constexpr const char *kResonanceTracking =
+    "How far the curves follow the played pitch. At 0%, they stay fixed in frequency. At 100%, they move with pitch, matching the editor at middle C.";
+
 inline constexpr const char *kMacrosMode =
     "Switches between the two ways of shaping the curve:\n"
     "Macro: shape the curve with a few knobs.\n\n"

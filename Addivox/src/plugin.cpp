@@ -1565,12 +1565,12 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteEqCurve(midiNote, curve); });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteResonanceCurves && dataSize > 0 && pData) {
+  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteResonance && dataSize > 0 && pData) {
     int midiNote = 0;
-    ResonanceCurves curves;
-    if (!editor_messages::DeserializeKeyNoteResonanceCurvesPayload(dataSize, pData, midiNote, curves)) return false;
+    ResonanceSettings resonance;
+    if (!editor_messages::DeserializeKeyNoteResonancePayload(dataSize, pData, midiNote, resonance)) return false;
 
-    return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteResonanceCurves(midiNote, curves); });
+    return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteResonance(midiNote, resonance); });
   }
 
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEnabled &&

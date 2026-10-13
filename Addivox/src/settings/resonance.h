@@ -114,3 +114,22 @@ private:
 
   std::array<Curve, 2> mCurves{};
 };
+
+// A key note's whole Resonance setup.
+struct ResonanceSettings {
+  ResonanceCurves curves;
+  double breathResponse{0.0}; // -1 to 1. Positive moves the morph earlier in the breath, negative later, and 0 is linear.
+  double tracking{0.0};       // 0 to 1: how far the curves follow pitch, pivoting around middle C.
+
+  // Shapes breath (0 to 1) into the morph position (see ResonanceCurves::Morph) by scaling its odds, breath / (1 - breath), by 10^breathResponse. The curve
+  // is symmetric about y = 1 - x, and opposite responses mirror each other.
+  static double ShapeBreath(double breath, double breathResponse) {
+    const double oddsScale = std::pow(10.0, breathResponse);
+    return (oddsScale * breath) / (1.0 + ((oddsScale - 1.0) * breath));
+  }
+
+  void Sanitize() {
+    breathResponse = std::isfinite(breathResponse) ? std::clamp(breathResponse, -1.0, 1.0) : 0.0;
+    tracking = std::isfinite(tracking) ? std::clamp(tracking, 0.0, 1.0) : 0.0;
+  }
+};

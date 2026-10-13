@@ -4,6 +4,7 @@
 #include "eq.h"
 
 #include <array>
+#include <utility>
 
 namespace editor {
 inline IVTabSwitchControl* CreateBreathCurveSwitchControl(ResonanceEditorControl* editorControl, const EditorStyles& styles) {
@@ -17,30 +18,46 @@ inline IVTabSwitchControl* CreateBreathCurveSwitchControl(ResonanceEditorControl
   return control;
 }
 
-inline void SetSelectedKeyNoteResonanceCurves(const std::shared_ptr<EditorContext>& context, IControl* caller, const ResonanceCurves& curves) {
+inline void SetSelectedKeyNoteResonance(const std::shared_ptr<EditorContext>& context, IControl* caller, const ResonanceSettings& resonance) {
   if (!context->HasValidSelectedMidiNote()) return;
 
   const int midiNote = context->SelectedMidiNote();
   {
     const auto patchLock = context->LockPatch();
-    if (!context->Patch().SetKeyNoteResonanceCurves(midiNote, curves)) return;
+    if (!context->Patch().SetKeyNoteResonance(midiNote, resonance)) return;
   }
-  context->SendResonanceCurvesToDSP(caller, midiNote, curves);
+  context->SendResonanceToDSP(caller, midiNote, resonance);
+}
+
+// Updates the editor directly rather than refreshing the tab, which would also reset the knob being dragged.
+inline void SetSelectedKeyNoteResonanceValue(const std::shared_ptr<EditorContext>& context, const ResonanceKnob& knob) {
+  ResonanceSettings resonance;
+  {
+    const auto patchLock = context->LockPatch();
+    const auto* keyNoteResonance = context->Patch().GetKeyNoteResonance(context->SelectedMidiNote());
+    if (!keyNoteResonance) return;
+    resonance = *keyNoteResonance;
+  }
+  resonance.*(knob.member) = knob.FromNormalized(knob.control->GetNormalizedValue());
+  SetSelectedKeyNoteResonance(context, knob.control, resonance);
+  context->resonanceTab.editorControl->SetBlendedResonance(resonance, resonance, 0.0);
 }
 
 inline void ResizeResonanceTabPage(IContainerBase* pTab, const IRECT& r) {
-  if (pTab->NChildren() < 4) return;
+  constexpr int kNumChildren = 6;
+  if (pTab->NChildren() < kNumChildren) return;
 
   const auto layout = GetHarmonicTabLayout(pTab, r);
-  const std::array<IRECT, 4> childBounds{{layout.modeToggleBounds, layout.addButtonBounds, layout.deleteButtonBounds, GetCurveEditorBounds(layout)}};
+  const std::array<IRECT, kNumChildren> childBounds{{layout.modeToggleBounds, layout.addButtonBounds, layout.deleteButtonBounds, GetCurveEditorBounds(layout),
+                                                     GetMacroKnobBounds(layout.macroAreaBounds, 0), GetMacroKnobBounds(layout.macroAreaBounds, 1)}};
   for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
 }
 
 inline void AttachResonanceTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
   auto* editorControl = new ResonanceEditorControl(IRECT());
   editorControl->SetTooltip(help_text::oscillator_tabs::kResonance);
-  editorControl->SetOnCurvesChanged(
-      [context, editorControl](const ResonanceCurves& curves) { SetSelectedKeyNoteResonanceCurves(context, editorControl, curves); });
+  editorControl->SetOnResonanceChanged(
+      [context, editorControl](const ResonanceSettings& resonance) { SetSelectedKeyNoteResonance(context, editorControl, resonance); });
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   context->resonanceTab.editorControl = editorControl;
@@ -51,6 +68,16 @@ inline void AttachResonanceTabChildren(IVTabPage* page, const std::shared_ptr<Ed
   page->AddChildControl(keyNoteActionButtons.addButton);
   page->AddChildControl(keyNoteActionButtons.deleteButton);
   page->AddChildControl(editorControl);
+
+  const std::array<std::pair<MacroKnobDescriptor, ResonanceKnob>, 2> knobs{{
+      {{"Response", help_text::oscillator_tabs::kResonanceBreathResponse, 0.5, true}, {nullptr, &ResonanceSettings::breathResponse, -1.0, 1.0}},
+      {{"Tracking", help_text::oscillator_tabs::kResonanceTracking, 0.0, false}, {nullptr, &ResonanceSettings::tracking, 0.0, 1.0}},
+  }};
+  for (std::size_t i = 0; i < knobs.size(); ++i) {
+    auto& knob = context->resonanceTab.knobs[i] = knobs[i].second;
+    knob.control = CreateMacroKnobControl(knobs[i].first, [context, i] { SetSelectedKeyNoteResonanceValue(context, context->resonanceTab.knobs[i]); });
+    page->AddChildControl(knob.control);
+  }
 }
 
 inline IVTabPage* CreateResonanceTabPage(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
