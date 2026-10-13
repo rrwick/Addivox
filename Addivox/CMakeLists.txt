@@ -70,6 +70,7 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/editor_tabs/breath.h
     src/ui/editor_tabs/common.h
     src/ui/editor_tabs/eq.h
+    src/ui/editor_tabs/resonance.h
     src/ui/editor_tabs/level.h
     src/ui/editor_tabs/macro_fit.h
     src/ui/editor_tabs/macros.h
@@ -77,6 +78,8 @@ iplug_add_plugin(${PROJECT_NAME}
     src/ui/editor_tabs/pitch.h
     src/ui/editor_tabs/variation.h
     src/ui/eq_editor.h
+    src/ui/curve_editor.h
+    src/ui/resonance_editor.h
     src/ui/help_text.h
     src/ui/keyboard_control.h
     src/ui/knob.h

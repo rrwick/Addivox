@@ -304,6 +304,9 @@
     <ClInclude Include="..\src\ui\editor_tabs\eq.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ui\editor_tabs\resonance.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\ui\editor_tabs\level.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
@@ -323,6 +326,12 @@
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ui\eq_editor.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ui\curve_editor.h">
+      <Filter>IPlug\Extras\Synth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ui\resonance_editor.h">
       <Filter>IPlug\Extras\Synth</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ui\help_text.h">

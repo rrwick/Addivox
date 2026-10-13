@@ -307,6 +307,7 @@
     <ClInclude Include="..\src\ui\editor_tabs\breath.h" />
     <ClInclude Include="..\src\ui\editor_tabs\common.h" />
     <ClInclude Include="..\src\ui\editor_tabs\eq.h" />
+    <ClInclude Include="..\src\ui\editor_tabs\resonance.h" />
     <ClInclude Include="..\src\ui\editor_tabs\level.h" />
     <ClInclude Include="..\src\ui\editor_tabs\macro_fit.h" />
     <ClInclude Include="..\src\ui\editor_tabs\macros.h" />
@@ -314,6 +315,8 @@
     <ClInclude Include="..\src\ui\editor_tabs\pitch.h" />
     <ClInclude Include="..\src\ui\editor_tabs\variation.h" />
     <ClInclude Include="..\src\ui\eq_editor.h" />
+    <ClInclude Include="..\src\ui\curve_editor.h" />
+    <ClInclude Include="..\src\ui\resonance_editor.h" />
     <ClInclude Include="..\src\ui\help_text.h" />
     <ClInclude Include="..\src\ui\keyboard_control.h" />
     <ClInclude Include="..\src\ui\knob.h" />

@@ -162,19 +162,16 @@ inline void SetSelectedKeyNoteEqCurve(const std::shared_ptr<EditorContext>& cont
   if (refreshOscillatorTabs) context->RefreshOscillatorTabs();
 }
 
+// Curve editors need a little more breathing room from the column than the harmonic histograms do.
+inline IRECT GetCurveEditorBounds(const HarmonicTabLayout& layout) { return layout.sliderBounds.GetReducedFromLeft(15.f); }
+
 inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r) {
   if (pTab->NChildren() < 10) return;
 
-  // The EQ editor needs a little more breathing room from the column than the harmonic histograms do.
-  constexpr float kEditorGap = 15.f;
-
   const auto layout = GetHarmonicTabLayout(pTab, r);
-  auto editorBounds = layout.sliderBounds;
-  editorBounds.L += kEditorGap;
-
   const std::array<IRECT, 10> childBounds{{layout.setShapeLabelBounds, layout.setShapeBounds, layout.actionsLabelBounds, layout.actionsBounds,
                                          layout.allKeyNotesToggleBounds, layout.allKeyNotesLabelBounds, layout.restoreButtonBounds,
-                                         layout.addButtonBounds, layout.deleteButtonBounds, editorBounds}};
+                                         layout.addButtonBounds, layout.deleteButtonBounds, GetCurveEditorBounds(layout)}};
   for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
 }
 

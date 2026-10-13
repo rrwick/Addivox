@@ -9,6 +9,7 @@
 #include "../help_text.h"
 #include "../keyboard_control.h"
 #include "../oscillator_slider_control.h"
+#include "../resonance_editor.h"
 #include "../theme.h"
 #include "IControls.h"
 #include "macros.h"
@@ -21,6 +22,7 @@
 #include <initializer_list>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -85,6 +87,7 @@ struct HarmonicTabLayout {
 // titles in one contiguous buffer makes the pointer order deterministic and
 // match the desired tab order.
 inline constexpr char kOscillatorTabTitleStorage[] = "Formants\0"
+                                                     "Resonance\0"
                                                      "Level\0"
                                                      "Breath\0"
                                                      "Attack\0"
@@ -98,22 +101,20 @@ inline constexpr char kOscillatorTabTitleStorage[] = "Formants\0"
                                                      "PchVarAmt\0"
                                                      "PchVarRate\0";
 
-inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 0;
+// Returns the index-th title in kOscillatorTabTitleStorage.
+constexpr const char* TabTitle(int index) {
+  const char* title = kOscillatorTabTitleStorage;
+  for (; index > 0; --index) title += std::char_traits<char>::length(title) + 1;
+  return title;
+}
 
-inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOscillatorTabTitles{{
-    kOscillatorTabTitleStorage + 9,
-    kOscillatorTabTitleStorage + 15,
-    kOscillatorTabTitleStorage + 22,
-    kOscillatorTabTitleStorage + 29,
-    kOscillatorTabTitleStorage + 37,
-    kOscillatorTabTitleStorage + 43,
-    kOscillatorTabTitleStorage + 47,
-    kOscillatorTabTitleStorage + 57,
-    kOscillatorTabTitleStorage + 89,
-    kOscillatorTabTitleStorage + 99,
-    kOscillatorTabTitleStorage + 68,
-    kOscillatorTabTitleStorage + 78,
-}};
+inline constexpr const char* kEqTabTitle = TabTitle(0);
+inline constexpr const char* kResonanceTabTitle = TabTitle(1);
+
+// In OscillatorSettings::Parameter order, which differs from the display order for the variation tabs.
+inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOscillatorTabTitles{{TabTitle(2), TabTitle(3), TabTitle(4), TabTitle(5),
+                                                                                                   TabTitle(6), TabTitle(7), TabTitle(8), TabTitle(9),
+                                                                                                   TabTitle(12), TabTitle(13), TabTitle(10), TabTitle(11)}};
 
 inline constexpr const char*     kActionScaleUp = "scale up";
 inline constexpr const char*   kActionScaleDown = "scale down";
@@ -162,6 +163,7 @@ inline const char* GetOscillatorTabDescriptionForTitle(const char* title) {
   if (!title) return "";
 
   if (std::strcmp(title, kEqTabTitle) == 0) return help_text::oscillator_tabs::kEq;
+  if (std::strcmp(title, kResonanceTabTitle) == 0) return help_text::oscillator_tabs::kResonance;
 
   for (const auto& descriptor : GetOscillatorTabDescriptors()) {
     if (std::strcmp(descriptor.title, title) == 0) return descriptor.description;
@@ -610,6 +612,12 @@ struct EqTabControls {
   EqEditorControl* editorControl{};
 };
 
+struct ResonanceTabControls {
+  IVButtonControl* addButton{};
+  IVButtonControl* deleteButton{};
+  ResonanceEditorControl* editorControl{};
+};
+
 struct OscillatorTabControls {
   std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters> setShapeControls{};
   std::array<ActionSelectionControl*, OscillatorSettings::kNumParameters> actionsControls{};
@@ -636,6 +644,7 @@ struct EditorContext {
   EditorModelRefs model;
   OscillatorViewRefs oscillatorView;
   EqTabControls eqTab;
+  ResonanceTabControls resonanceTab;
   OscillatorTabControls oscillatorTabControls;
   KeyboardControl* keyboardControl{};
   IControl* patchManagerControl{};
@@ -995,6 +1004,8 @@ struct EditorContext {
 
     SetDisabledState(eqTab.addButton, !addEnabled);
     SetDisabledState(eqTab.deleteButton, !deleteEnabled);
+    SetDisabledState(resonanceTab.addButton, !addEnabled);
+    SetDisabledState(resonanceTab.deleteButton, !deleteEnabled);
   }
 
   void SetHarmonicActionControlsDisabled(bool disabled) const {
@@ -1034,6 +1045,11 @@ struct EditorContext {
       SetDisabledState(eqTab.allKeyNotesToggle, true);
     }
     SetDisabledState(eqTab.restoreButton, true);
+
+    if (resonanceTab.editorControl) {
+      resonanceTab.editorControl->SetBlendedCurves({}, {}, 0.0);
+      resonanceTab.editorControl->SetEditable(false);
+    }
   }
 
   void RefreshHarmonicTab(const OscillatorTabDescriptor& descriptor, const SimplePatch& selectedPatch, int midiNote, bool editable) {
@@ -1088,8 +1104,8 @@ struct EditorContext {
 
     for (const auto& descriptor : GetOscillatorTabDescriptors()) RefreshHarmonicTab(descriptor, selectedPatch, midiNote, editable);
 
+    const auto span = Patch().ResolveNoteSpan(midiNote);
     if (eqTab.editorControl) {
-      const auto span = Patch().ResolveNoteSpan(midiNote);
       eqTab.editorControl->SetBlendedCurve(*span.lowerEqCurve, *span.upperEqCurve, span.t);
       if (!eqTab.editorControl->IsHidden() && !eqTab.editorControl->HasRestoreStateForMidiNote(midiNote))
         eqTab.editorControl->CaptureRestoreState(midiNote);
@@ -1103,6 +1119,11 @@ struct EditorContext {
     }
 
     SetDisabledState(eqTab.restoreButton, !(eqTab.editorControl && editable && eqTab.editorControl->HasRestoreStateForMidiNote(midiNote)));
+
+    if (resonanceTab.editorControl) {
+      resonanceTab.editorControl->SetBlendedCurves(*span.lowerResonanceCurves, *span.upperResonanceCurves, span.t);
+      resonanceTab.editorControl->SetEditable(editable);
+    }
   }
 
   template <typename Action>

@@ -50,6 +50,7 @@ private:
 };
 
 #include "editor_tabs/eq.h"
+#include "editor_tabs/resonance.h"
 
 namespace editor {
 class EditorTooltipTabSwitchControl final : public IVTabSwitchControl {
@@ -204,7 +205,7 @@ inline const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors()
   return descriptors;
 }
 
-inline int GetEditorTabCount() { return static_cast<int>(GetOscillatorTabDescriptors().size()) + 1; }
+inline int GetEditorTabCount() { return static_cast<int>(GetOscillatorTabDescriptors().size()) + 2; } // Plus Formants and Resonance
 
 inline const std::vector<const char*>& GetEditorTabTitlesInDisplayOrder() {
   static const std::vector<const char*> titles = [] {
@@ -214,6 +215,7 @@ inline const std::vector<const char*>& GetEditorTabTitlesInDisplayOrder() {
     for (const auto& descriptor : GetOscillatorTabDescriptors()) result.push_back(descriptor.title);
 
     result.push_back(kEqTabTitle);
+    result.push_back(kResonanceTabTitle);
     std::sort(result.begin(), result.end());
     return result;
   }();
@@ -338,7 +340,10 @@ inline PageMap CreateOscillatorTabPages(const std::shared_ptr<EditorContext>& co
   PageMap pages;
   for (const auto& descriptor : GetOscillatorTabDescriptors()) {
     pages.insert({descriptor.title, CreateOscillatorTabPage(context, styles, descriptor)});
-    if (descriptor.parameter == OscillatorParameter::level) pages.insert({kEqTabTitle, CreateEqTabPage(context, styles)});
+    if (descriptor.parameter == OscillatorParameter::level) {
+      pages.insert({kEqTabTitle, CreateEqTabPage(context, styles)});
+      pages.insert({kResonanceTabTitle, CreateResonanceTabPage(context, styles)});
+    }
   }
   return pages;
 }

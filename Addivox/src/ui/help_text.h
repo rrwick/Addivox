@@ -122,6 +122,9 @@ using OscillatorParameter = OscillatorSettings::Parameter;
 inline constexpr const char *kEq =
     "Controls a fixed-frequency EQ curve for creating formants.";
 
+inline constexpr const char *kResonance =
+    "Controls an EQ curve that morphs with breath, from the zero-breath curve to the full-breath curve.";
+
 inline constexpr const char *kLevel =
     "Controls the level of each harmonic at full breath.";
 
@@ -157,6 +160,12 @@ inline constexpr const char *kPanVariationAmplitude =
 
 inline constexpr const char *kPanVariationRate =
     "Controls speed of pan variation for each harmonic.";
+
+inline constexpr const char *kResonanceBreathCurve =
+    "Switches between the two curves that breath morphs between:\n"
+    "Zero: the curve at zero breath.\n\n"
+    "Full: the curve at full breath.\n\n"
+    "The other curve is drawn faintly.";
 
 inline constexpr const char *kMacrosMode =
     "Switches between the two ways of shaping the curve:\n"

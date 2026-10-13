@@ -886,6 +886,9 @@
 		3B23E2FA6454491155E87887 /* breath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = breath.h; path = ../src/ui/editor_tabs/breath.h; sourceTree = SOURCE_ROOT; };
 		822FE98B875C90A7C2041393 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = common.h; path = ../src/ui/editor_tabs/common.h; sourceTree = SOURCE_ROOT; };
 		1DF8CAE922449BA6163A7757 /* eq.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = eq.h; path = ../src/ui/editor_tabs/eq.h; sourceTree = SOURCE_ROOT; };
+		7A2C5E19B04D4F3E8C6A1D28 /* resonance.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = resonance.h; path = ../src/ui/editor_tabs/resonance.h; sourceTree = SOURCE_ROOT; };
+		7A2C5E19B04D4F3E8C6A1D29 /* curve_editor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = curve_editor.h; path = ../src/ui/curve_editor.h; sourceTree = SOURCE_ROOT; };
+		7A2C5E19B04D4F3E8C6A1D2A /* resonance_editor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = resonance_editor.h; path = ../src/ui/resonance_editor.h; sourceTree = SOURCE_ROOT; };
 		5A1A6D9776CFDC2F2DE73043 /* level.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = level.h; path = ../src/ui/editor_tabs/level.h; sourceTree = SOURCE_ROOT; };
 		A7C41E0B93D5F26184AB0C17 /* macro_fit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = macro_fit.h; path = ../src/ui/editor_tabs/macro_fit.h; sourceTree = SOURCE_ROOT; };
 		A7C41E0C93D5F26184AB0C18 /* macros.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = macros.h; path = ../src/ui/editor_tabs/macros.h; sourceTree = SOURCE_ROOT; };
@@ -1297,6 +1300,7 @@
 				3B23E2FA6454491155E87887 /* breath.h */,
 				822FE98B875C90A7C2041393 /* common.h */,
 				1DF8CAE922449BA6163A7757 /* eq.h */,
+				7A2C5E19B04D4F3E8C6A1D28 /* resonance.h */,
 				5A1A6D9776CFDC2F2DE73043 /* level.h */,
 				A7C41E0B93D5F26184AB0C17 /* macro_fit.h */,
 				A7C41E0C93D5F26184AB0C18 /* macros.h */,
@@ -1304,6 +1308,8 @@
 				01BBFB1AED4183963C59DDDF /* pitch.h */,
 				5F5C6140B6A6D3FA0588953F /* variation.h */,
 				BE8D86E1B2D9A89AF2388582 /* eq_editor.h */,
+				7A2C5E19B04D4F3E8C6A1D29 /* curve_editor.h */,
+				7A2C5E19B04D4F3E8C6A1D2A /* resonance_editor.h */,
 				8F2138BE810BAEA5C9A15F26 /* help_text.h */,
 				01F084FBE3D6D8C5086EE73A /* keyboard_control.h */,
 				CD69AEA1C3E3432F954F9DE0 /* layout.h */,

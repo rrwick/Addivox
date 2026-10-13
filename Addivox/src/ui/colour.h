@@ -49,6 +49,8 @@ static const IColor          kTab{255,  24,  32,  42};
 static const IColor kHoverOverlay{ 55, 255, 255, 255};
 static const IColor  kUtilityBody{255,  16,  22,  30};
 static const IColor kSliderBar = ui::kAccentPrimary;
+static const IColor kZeroBreathCurve{255, 128, 178, 255};
+static const IColor kFullBreathCurve{255, 255, 178, 128};
 } // namespace editor
 
 static const IColor kBackground = visualizer::kBackground;  // Shared dark background color used across visualizer/editor surfaces
