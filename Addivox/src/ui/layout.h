@@ -266,6 +266,13 @@ inline void AttachVariationControls(IGraphics* pGraphics) {
   pGraphics->AttachControl(new LabelledKnob(positions::kPitchRateKnob, kParamGlobalPitchVariationRateScale, "PchRate"));
 }
 
+// Placeholders until the amounts become patch parameters.
+inline void AttachEqControls(IGraphics* pGraphics) {
+  AttachPassiveSectionLabel(pGraphics, positions::kEqLabel, "EQ");
+  pGraphics->AttachControl(new LabelledKnob(positions::kFormantsKnob, "Formants", UnboundKnobSpec{1.0}));
+  pGraphics->AttachControl(new LabelledKnob(positions::kResonanceKnob, "Resonance", UnboundKnobSpec{0.0}));
+}
+
 inline void AttachOutputControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kOutputLabel, "OUTPUT");
   pGraphics->AttachControl(new LabelledKnob(positions::kPanKnob, kParamGlobalPanShift, "Pan"));
@@ -293,6 +300,7 @@ inline std::shared_ptr<editor::EditorContext> AttachMainControls(IGraphics* pGra
   layout::AttachEnvelopeControls(pGraphics);
   layout::AttachPitchControls(pGraphics, resources);
   layout::AttachVariationControls(pGraphics);
+  layout::AttachEqControls(pGraphics);
   layout::AttachOutputControls(pGraphics);
   layout::AttachEffectsControls(pGraphics);
   layout::AttachKeyboardControls(pGraphics, context, keyboardTag, benderTag, initialPitchBendRange);
