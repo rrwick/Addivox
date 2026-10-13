@@ -3,14 +3,20 @@
 #include "../settings/resonance.h"
 #include "curve_editor.h"
 
+#include <functional>
+#include <utility>
+
 namespace plugin_ui {
 using namespace iplug;
 using namespace igraphics;
 
-// Draws the Resonance tab's zero-breath and full-breath curves. The active curve (selected by the Zero/Full toggle) is drawn on top, with the other faint.
+// Edits the Resonance tab's zero-breath and full-breath curves. The active curve (selected by the Zero/Full toggle) is drawn on top and edited; the other is
+// drawn faint. Adding or removing a point does the same to its pair on the other curve.
 class ResonanceEditorControl final : public CurveEditorControl {
 public:
   using Breath = ResonanceCurves::Breath;
+  using PointList = ResonanceCurves::PointList;
+  using OnCurvesChangedFunc = std::function<void(const ResonanceCurves&)>;
 
   explicit ResonanceEditorControl(const IRECT& bounds) : CurveEditorControl(bounds) {}
 
@@ -21,15 +27,18 @@ public:
     mCurves = lower;
     mUpperCurves = upper;
     mBlendT = t;
+    if (mDraggedPointIndex >= static_cast<int>(ActivePoints().size())) mDraggedPointIndex = kNoPointIndex;
     SetDirty(false);
   }
 
   void SetActiveBreath(Breath breath) {
     mActiveBreath = breath;
+    mDraggedPointIndex = kNoPointIndex;
     SetDirty(false);
   }
 
   void SetEditable(bool editable) {
+    if (!editable) mDraggedPointIndex = kNoPointIndex;
     if (IsEditable() == editable) return;
     SetDisabled(!editable);
     SetDirty(false);
@@ -37,37 +46,84 @@ public:
 
   bool IsEditable() const { return !IsDisabled(); }
 
+  void SetOnCurvesChanged(OnCurvesChangedFunc func) { mOnCurvesChanged = std::move(func); }
+
   void Draw(IGraphics& g) override {
     constexpr float kInactiveOpacity = 0.35f;
-    const Breath inactiveBreath = mActiveBreath == Breath::zero ? Breath::full : Breath::zero;
     const IRECT plotBounds = GetPlotBounds();
 
     DrawBackgroundAndGrid(g, plotBounds);
-    DrawBreathCurve(g, plotBounds, inactiveBreath, BreathColor(inactiveBreath).WithOpacity(kInactiveOpacity), false);
+    DrawBreathCurve(g, plotBounds, OtherBreath(), BreathColor(OtherBreath()).WithOpacity(kInactiveOpacity), false);
     DrawBreathCurve(g, plotBounds, mActiveBreath, BreathColor(mActiveBreath), true);
     if (IsEditable()) {
-      DrawPoints(g, plotBounds, mCurves.GetPoints(inactiveBreath), BreathColor(inactiveBreath).WithOpacity(kInactiveOpacity),
+      DrawPoints(g, plotBounds, OtherPoints(), BreathColor(OtherBreath()).WithOpacity(kInactiveOpacity),
                  colour::visualizer::kHarmonicCore.WithOpacity(kInactiveOpacity));
-      DrawPoints(g, plotBounds, mCurves.GetPoints(mActiveBreath), BreathColor(mActiveBreath), colour::visualizer::kHarmonicCore);
+      DrawPoints(g, plotBounds, ActivePoints(), BreathColor(mActiveBreath), colour::visualizer::kHarmonicCore, mDraggedPointIndex);
     }
     DrawAxisLabels(g, plotBounds);
+    if (mDraggedPointIndex != kNoPointIndex) DrawValueBubble(g, plotBounds, ActivePoints()[static_cast<std::size_t>(mDraggedPointIndex)]);
+  }
+
+  void OnMouseDown(float x, float y, const IMouseMod& mod) override {
+    IControl::OnMouseDown(x, y, mod);
+    mDraggedPointIndex = IsEditable() ? HitTestPoint(ActivePoints(), x, y) : kNoPointIndex;
+    SetDirty(false);
+  }
+
+  void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod) override {
+    if (mDraggedPointIndex == kNoPointIndex) return;
+
+    mDraggedPointIndex = static_cast<int>(mCurves.MovePoint(mActiveBreath, static_cast<std::size_t>(mDraggedPointIndex), PointAt(x, y)));
+    NotifyCurvesChanged();
+  }
+
+  void OnMouseUp(float x, float y, const IMouseMod& mod) override {
+    IControl::OnMouseUp(x, y, mod);
+    mDraggedPointIndex = kNoPointIndex;
+    SetDirty(false);
   }
 
 private:
-  void DrawBreathCurve(IGraphics& g, const IRECT& plotBounds, Breath breath, const IColor& color, bool glow) const {
+  void TogglePointAt(float x, float y) override {
+    if (!IsEditable()) return;
+
+    if (const int hitIndex = HitTestPoint(ActivePoints(), x, y); hitIndex != kNoPointIndex) mCurves.RemovePoint(static_cast<std::size_t>(hitIndex));
+    else
+      mCurves.AddPoint(mActiveBreath, PointAt(x, y));
+    mDraggedPointIndex = kNoPointIndex;
+    NotifyCurvesChanged();
+  }
+
+  EqPoint PointAt(float x, float y) const {
+    const IRECT plotBounds = GetPlotBounds();
+    return {FrequencyFromX(x, plotBounds), GainDbFromY(y, plotBounds)};
+  }
+
+  // Edits only happen on a key note, where no blending applies.
+  void NotifyCurvesChanged() {
+    mUpperCurves = mCurves;
+    if (mOnCurvesChanged) mOnCurvesChanged(mCurves);
+    SetDirty(false);
+  }
+
+  void DrawBreathCurve(IGraphics& g, const IRECT& plotBounds, Breath breath, const IColor& color, bool bold) const {
     DrawCurve(
         g, plotBounds,
         [&](double frequencyHz) {
           return EqCurve::InterpolateDb(mCurves.EvaluateDb(breath, frequencyHz), mUpperCurves.EvaluateDb(breath, frequencyHz), mBlendT);
         },
-        color, kCurveThicknessPx, glow ? color.WithOpacity(kGlowOpacity) : COLOR_TRANSPARENT);
+        color, bold);
   }
 
-  static constexpr float kGlowOpacity = 0.3f;
+  Breath OtherBreath() const { return ResonanceCurves::Other(mActiveBreath); }
+  const PointList& ActivePoints() const { return mCurves.GetPoints(mActiveBreath); }
+  const PointList& OtherPoints() const { return mCurves.GetPoints(OtherBreath()); }
 
   ResonanceCurves mCurves{};
   ResonanceCurves mUpperCurves{};
   double mBlendT{0.0};
   Breath mActiveBreath{Breath::zero};
+  int mDraggedPointIndex{kNoPointIndex};
+  OnCurvesChangedFunc mOnCurvesChanged{};
 };
 } // namespace plugin_ui

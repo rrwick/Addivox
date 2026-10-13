@@ -927,14 +927,21 @@ struct EditorContext {
     SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetAllKeyNotesEnabled, payload);
   }
 
-  void SendEqCurveToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const {
-    if (!sourceControl) return;
+  void SendChunkToDSP(IControl* sourceControl, int msgTag, const IByteChunk& chunk) const {
+    if (auto* delegate = sourceControl ? sourceControl->GetDelegate() : nullptr)
+      delegate->SendArbitraryMsgFromUI(msgTag, editorTabsTag, chunk.Size(), chunk.GetData());
+  }
 
-    if (auto* delegate = sourceControl->GetDelegate()) {
-      IByteChunk chunk;
-      editor_messages::SerializeKeyNoteEqCurvePayload(midiNote, curve, chunk);
-      delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetKeyNoteEqCurve, editorTabsTag, chunk.Size(), chunk.GetData());
-    }
+  void SendEqCurveToDSP(IControl* sourceControl, int midiNote, const EqCurve& curve) const {
+    IByteChunk chunk;
+    editor_messages::SerializeKeyNoteEqCurvePayload(midiNote, curve, chunk);
+    SendChunkToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteEqCurve, chunk);
+  }
+
+  void SendResonanceCurvesToDSP(IControl* sourceControl, int midiNote, const ResonanceCurves& curves) const {
+    IByteChunk chunk;
+    editor_messages::SerializeKeyNoteResonanceCurvesPayload(midiNote, curves, chunk);
+    SendChunkToDSP(sourceControl, editor_messages::kMsgTagSetKeyNoteResonanceCurves, chunk);
   }
 
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const {

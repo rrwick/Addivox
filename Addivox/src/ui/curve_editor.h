@@ -20,7 +20,23 @@ class CurveEditorControl : public IControl {
 public:
   using IControl::IControl;
 
+  void OnAttached() override {
+    IControl::OnAttached();
+    if (mDoubleTapGestureAttached || !GetUI()) return;
+
+    AttachGestureRecognizer(EGestureType::DoubleTap, [this](IControl*, const IGestureInfo& info) { TogglePointAt(info.x, info.y); });
+    mDoubleTapGestureAttached = true;
+  }
+
+  void OnMouseDblClick(float x, float y, const IMouseMod& mod) override {
+    IControl::OnMouseDblClick(x, y, mod);
+    TogglePointAt(x, y);
+  }
+
 protected:
+  // Double-click or double-tap: removes the point under (x, y), or adds one there.
+  virtual void TogglePointAt(float x, float y) = 0;
+
   static constexpr int kNoPointIndex = -1;
   static constexpr float kPointRadiusPx = 5.f;
   static constexpr float kCurveThicknessPx = 2.0f;
@@ -98,9 +114,9 @@ protected:
     }
   }
 
-  // Strokes evaluateDb(frequencyHz) across the plot, one sample per pixel. A glow drawn underneath makes the curve stand out.
-  template <typename EvaluateDb>
-  void DrawCurve(IGraphics& g, const IRECT& plotBounds, EvaluateDb&& evaluateDb, const IColor& color, float thickness, const IColor& glowColor) const {
+  // Strokes evaluateDb(frequencyHz) across the plot, one sample per pixel. A bold curve gets a wider stroke underneath in the same colour, so it looks solid,
+  // or two-tone when the control is greyed out (between key notes).
+  template <typename EvaluateDb> void DrawCurve(IGraphics& g, const IRECT& plotBounds, EvaluateDb&& evaluateDb, const IColor& color, bool bold) const {
     const int numSamples = std::max(2, static_cast<int>(std::ceil(plotBounds.W())));
     for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
       const float t = static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
@@ -114,10 +130,12 @@ protected:
     IStrokeOptions strokeOptions;
     strokeOptions.mCapOption = ELineCap::Round;
     strokeOptions.mJoinOption = ELineJoin::Round;
-    strokeOptions.mPreserve = true;
-    g.PathStroke(glowColor, thickness + 3.f, strokeOptions, &mBlend);
-    strokeOptions.mPreserve = false;
-    g.PathStroke(color, thickness, strokeOptions, &mBlend);
+    if (bold) {
+      strokeOptions.mPreserve = true;
+      g.PathStroke(color, kCurveThicknessPx + 3.f, strokeOptions, &mBlend);
+      strokeOptions.mPreserve = false;
+    }
+    g.PathStroke(color, kCurveThicknessPx, strokeOptions, &mBlend);
   }
 
   void DrawPoints(IGraphics& g, const IRECT& plotBounds, const EqCurve::PointList& points, const IColor& fill, const IColor& outline,
@@ -201,6 +219,8 @@ protected:
   }
 
 private:
+  bool mDoubleTapGestureAttached{false};
+
   static constexpr std::array<float, 28> kGridFrequenciesHz{20.f,   30.f,   40.f,   50.f,   60.f,   70.f,   80.f,    90.f,   100.f,  200.f,
                                                             300.f,  400.f,  500.f,  600.f,  700.f,  800.f,  900.f,   1000.f, 2000.f, 3000.f,
                                                             4000.f, 5000.f, 6000.f, 7000.f, 8000.f, 9000.f, 10000.f, 20000.f};

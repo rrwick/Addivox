@@ -17,6 +17,17 @@ inline IVTabSwitchControl* CreateBreathCurveSwitchControl(ResonanceEditorControl
   return control;
 }
 
+inline void SetSelectedKeyNoteResonanceCurves(const std::shared_ptr<EditorContext>& context, IControl* caller, const ResonanceCurves& curves) {
+  if (!context->HasValidSelectedMidiNote()) return;
+
+  const int midiNote = context->SelectedMidiNote();
+  {
+    const auto patchLock = context->LockPatch();
+    if (!context->Patch().SetKeyNoteResonanceCurves(midiNote, curves)) return;
+  }
+  context->SendResonanceCurvesToDSP(caller, midiNote, curves);
+}
+
 inline void ResizeResonanceTabPage(IContainerBase* pTab, const IRECT& r) {
   if (pTab->NChildren() < 4) return;
 
@@ -28,6 +39,8 @@ inline void ResizeResonanceTabPage(IContainerBase* pTab, const IRECT& r) {
 inline void AttachResonanceTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
   auto* editorControl = new ResonanceEditorControl(IRECT());
   editorControl->SetTooltip(help_text::oscillator_tabs::kResonance);
+  editorControl->SetOnCurvesChanged(
+      [context, editorControl](const ResonanceCurves& curves) { SetSelectedKeyNoteResonanceCurves(context, editorControl, curves); });
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   context->resonanceTab.editorControl = editorControl;

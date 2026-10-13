@@ -40,14 +40,6 @@ public:
 
   void SetOnCurveChanged(OnCurveChangedFunc func) { mOnCurveChanged = std::move(func); }
 
-  void OnAttached() override {
-    IControl::OnAttached();
-    if (mDoubleTapGestureAttached || !GetUI()) return;
-
-    AttachGestureRecognizer(EGestureType::DoubleTap, [this](IControl*, const IGestureInfo& info) { TogglePointAt(info.x, info.y); });
-    mDoubleTapGestureAttached = true;
-  }
-
   void CaptureRestoreState(int midiNote) {
     mRestoreCurve = mCurve;
     mHasRestoreState = true;
@@ -70,7 +62,7 @@ public:
     DrawCurve(
         g, plotBounds,
         [this](double frequencyHz) { return EqCurve::InterpolateDb(mCurve.EvaluateDb(frequencyHz), mUpperCurve.EvaluateDb(frequencyHz), mBlendT); },
-        colour::ui::kAccentPrimary, kCurveThicknessPx, colour::ui::kAccentPrimary.WithOpacity(70));
+        colour::ui::kAccentPrimary, true);
     if (IsEditable()) DrawPoints(g, plotBounds, mCurve.GetPoints(), colour::ui::kAccentPrimary, colour::visualizer::kHarmonicCore, mDraggedPointIndex);
     DrawAxisLabels(g, plotBounds);
     if (IsEditable() && mDraggedPointIndex >= 0 && static_cast<std::size_t>(mDraggedPointIndex) < mCurve.GetPoints().size())
@@ -116,13 +108,8 @@ public:
     SetDirty(false);
   }
 
-  void OnMouseDblClick(float x, float y, const IMouseMod& mod) override {
-    IControl::OnMouseDblClick(x, y, mod);
-    TogglePointAt(x, y);
-  }
-
 private:
-  void TogglePointAt(float x, float y) {
+  void TogglePointAt(float x, float y) override {
     if (!IsEditable()) return;
 
     auto points = mCurve.GetPoints();
@@ -222,7 +209,6 @@ private:
   int mDraggedPointIndex{kNoPointIndex};
   bool mHasDraggedPoint{false};
   bool mHasRestoreState{false};
-  bool mDoubleTapGestureAttached{false};
   int mRestoreMidiNote{kNoRestoreMidiNote};
 };
 } // namespace plugin_ui

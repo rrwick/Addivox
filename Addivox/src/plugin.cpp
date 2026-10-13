@@ -1565,6 +1565,14 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteEqCurve(midiNote, curve); });
   }
 
+  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteResonanceCurves && dataSize > 0 && pData) {
+    int midiNote = 0;
+    ResonanceCurves curves;
+    if (!editor_messages::DeserializeKeyNoteResonanceCurvesPayload(dataSize, pData, midiNote, curves)) return false;
+
+    return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteResonanceCurves(midiNote, curves); });
+  }
+
   if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEnabled &&
       dataSize == sizeof(editor_messages::SetAllKeyNotesEnabledPayload) && pData) {
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEnabledPayload*>(pData);

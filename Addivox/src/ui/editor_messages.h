@@ -24,6 +24,7 @@ inline constexpr int                  kMsgTagPatchManagerAction = 1012;
 inline constexpr int               kMsgTagOpenAudioMidiSettings = 1013;
 inline constexpr int              kMsgTagSetPitchBendRange = 1014;
 inline constexpr int                    kMsgTagSetPortamentoCC = 1015;
+inline constexpr int           kMsgTagSetKeyNoteResonanceCurves = 1016;
 
 enum class PatchManagerAction { SelectPatch = 0, PreviousPatch, NextPatch, SavePatch, ImportPatch, ImportCollection, ShowPatchInFileBrowser, RefreshPatches };
 
@@ -80,42 +81,55 @@ struct EqCurvePointPayload {
   double gainDb{0.0};
 };
 
-inline void SerializeKeyNoteEqCurvePayload(int midiNote, const EqCurve& curve, iplug::IByteChunk& chunk) {
-  chunk.Clear();
-  chunk.Put(&midiNote);
-  const int numPoints = static_cast<int>(curve.GetPoints().size());
+inline void PutCurvePoints(iplug::IByteChunk& chunk, const EqCurve::PointList& points) {
+  const int numPoints = static_cast<int>(points.size());
   chunk.Put(&numPoints);
-  for (const auto& point : curve.GetPoints()) {
+  for (const auto& point : points) {
     const EqCurvePointPayload payload{point.frequencyHz, point.gainDb};
     chunk.Put(&payload);
   }
 }
 
-inline bool DeserializeKeyNoteEqCurvePayload(int dataSize, const void* pData, int& midiNote, EqCurve& curve) {
-  if (dataSize < static_cast<int>(sizeof(int) * 2) || !pData) return false;
-
-  iplug::IByteChunk chunk;
-  chunk.PutBytes(pData, dataSize);
-
-  int position = 0;
-  position = chunk.Get(&midiNote, position);
-  if (position < 0) return false;
-
+// Returns the position after the points, or -1 if the stream is too short. A negative startPos propagates, so reads can be chained.
+inline int GetCurvePoints(const iplug::IByteStream& stream, int startPos, EqCurve::PointList& points) {
   int numPoints = 0;
-  position = chunk.Get(&numPoints, position);
-  if (position < 0 || numPoints < 0) return false;
-
-  EqCurve::PointList points;
-  points.reserve(static_cast<std::size_t>(numPoints));
-  for (int i = 0; i < numPoints; ++i) {
+  int position = stream.Get(&numPoints, startPos);
+  for (int i = 0; i < numPoints && position >= 0; ++i) {
     EqCurvePointPayload payload;
-    position = chunk.Get(&payload, position);
-    if (position < 0) return false;
-
+    position = stream.Get(&payload, position);
     points.push_back({payload.frequencyHz, payload.gainDb});
   }
+  return position;
+}
+
+inline void SerializeKeyNoteEqCurvePayload(int midiNote, const EqCurve& curve, iplug::IByteChunk& chunk) {
+  chunk.Clear();
+  chunk.Put(&midiNote);
+  PutCurvePoints(chunk, curve.GetPoints());
+}
+
+inline bool DeserializeKeyNoteEqCurvePayload(int dataSize, const void* pData, int& midiNote, EqCurve& curve) {
+  const iplug::IByteStream stream{pData, dataSize};
+  EqCurve::PointList points;
+  if (!pData || GetCurvePoints(stream, stream.Get(&midiNote, 0), points) < 0) return false;
 
   curve = EqCurve{std::move(points)};
   return true;
+}
+
+inline void SerializeKeyNoteResonanceCurvesPayload(int midiNote, const ResonanceCurves& curves, iplug::IByteChunk& chunk) {
+  chunk.Clear();
+  chunk.Put(&midiNote);
+  PutCurvePoints(chunk, curves.GetPoints(ResonanceCurves::Breath::zero));
+  PutCurvePoints(chunk, curves.GetPoints(ResonanceCurves::Breath::full));
+}
+
+inline bool DeserializeKeyNoteResonanceCurvesPayload(int dataSize, const void* pData, int& midiNote, ResonanceCurves& curves) {
+  const iplug::IByteStream stream{pData, dataSize};
+  EqCurve::PointList zeroBreathPoints;
+  EqCurve::PointList fullBreathPoints;
+  if (!pData || GetCurvePoints(stream, GetCurvePoints(stream, stream.Get(&midiNote, 0), zeroBreathPoints), fullBreathPoints) < 0) return false;
+
+  return curves.SetPoints(std::move(zeroBreathPoints), std::move(fullBreathPoints));
 }
 } // namespace editor_messages
