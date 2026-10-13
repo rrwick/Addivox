@@ -63,7 +63,9 @@ protected:
     return FrequencyFromNormalizedX(xNorm);
   }
 
-  static float YFromDb(double gainDb, const IRECT& plotBounds) { return plotBounds.T + (static_cast<float>(EqCurve::VisualYFromDb(gainDb)) * plotBounds.H()); }
+  static float YFromVisualY(double visualY, const IRECT& plotBounds) { return plotBounds.T + (static_cast<float>(visualY) * plotBounds.H()); }
+
+  static float YFromDb(double gainDb, const IRECT& plotBounds) { return YFromVisualY(EqCurve::VisualYFromDb(gainDb), plotBounds); }
 
   static double GainDbFromY(float y, const IRECT& plotBounds) {
     return plotBounds.H() <= 0.f ? EqCurve::kMaxGainDb : EqCurve::DbFromVisualY((y - plotBounds.T) / plotBounds.H());
@@ -114,14 +116,15 @@ protected:
     }
   }
 
-  // Strokes evaluateDb(frequencyHz) across the plot, one sample per pixel. A bold curve gets a wider stroke underneath in the same colour, so it looks solid,
-  // or two-tone when the control is greyed out (between key notes).
-  template <typename EvaluateDb> void DrawCurve(IGraphics& g, const IRECT& plotBounds, EvaluateDb&& evaluateDb, const IColor& color, bool bold) const {
+  // Strokes evaluateVisualY(frequencyHz) across the plot, one sample per pixel. A bold curve gets a wider stroke underneath in the same colour, so it looks
+  // solid, or two-tone when the control is greyed out (between key notes).
+  template <typename EvaluateVisualY>
+  void DrawCurve(IGraphics& g, const IRECT& plotBounds, EvaluateVisualY&& evaluateVisualY, const IColor& color, bool bold) const {
     const int numSamples = std::max(2, static_cast<int>(std::ceil(plotBounds.W())));
     for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
       const float t = static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
       const float x = plotBounds.L + (t * plotBounds.W());
-      const float y = YFromDb(evaluateDb(FrequencyFromX(x, plotBounds)), plotBounds);
+      const float y = YFromVisualY(evaluateVisualY(FrequencyFromX(x, plotBounds)), plotBounds);
       if (sampleIndex == 0) g.PathMoveTo(x, y);
       else
         g.PathLineTo(x, y);

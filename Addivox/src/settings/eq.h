@@ -85,17 +85,20 @@ public:
 
   bool Empty() const { return mPoints.empty(); }
 
-  double EvaluateDb(double frequencyHz) const { return EvaluateSplineDb(mSpline, frequencyHz); }
+  // Curves are evaluated in visual-y (see VisualYFromDb), so they sound the way they look in the editor.
+  double EvaluateVisualY(double frequencyHz) const { return EvaluateSplineVisualY(mSpline, frequencyHz); }
 
-  // For splines from MakeSpline: x is log-frequency and y is gain in dB.
-  static double EvaluateSplineDb(const MonotoneSpline& spline, double frequencyHz) { return ClampGainDb(spline.Evaluate(LogFrequency(frequencyHz))); }
+  // For splines from MakeSpline: x is log-frequency and y is visual-y. A spline with no points is flat at 0 dB.
+  static double EvaluateSplineVisualY(const MonotoneSpline& spline, double frequencyHz) {
+    return spline.x.empty() ? kZeroDbVisualY : spline.Evaluate(LogFrequency(frequencyHz));
+  }
 
   // Expects points sorted by frequency.
   static MonotoneSpline MakeSpline(const PointList& points) {
     MonotoneSpline spline;
     for (const auto& point : points) {
       spline.x.push_back(LogFrequency(point.frequencyHz));
-      spline.y.push_back(point.gainDb);
+      spline.y.push_back(VisualYFromDb(point.gainDb));
     }
     spline.BuildTangents();
     return spline;
@@ -139,8 +142,9 @@ public:
     return ClampGainDb(20.0 * std::log10(gain));
   }
 
-  // The editor's vertical scale (0 = top, 1 = bottom): linear in dB from +24 to -24 dB, then linear in gain through the mute band. All gain interpolation
-  // happens in this space, so changes look linear on screen and fade into mute the same way dragging a point does.
+  // The editor's vertical scale (0 = top, 1 = bottom): linear in dB from +24 to -24 dB, then linear in gain through the mute band. Curves, key-note
+  // blending, breath morphing and the amount knobs all work in this space, so changes look linear on screen and fade into mute the same way dragging a
+  // point does.
   static double VisualYFromDb(double gainDb) {
     const double clampedGainDb = ClampGainDb(gainDb);
     if (clampedGainDb >= kMinFiniteGainDb) return (kMaxGainDb - clampedGainDb) / kTotalVisualDbSpan;
@@ -157,19 +161,17 @@ public:
     return GainToDb(kMuteBandTopGain * (1.0 - muteBandProgress));
   }
 
-  // Scales the curve's distance from 0 dB in visual-y space: 0 flattens it, 1 leaves it unchanged and larger values exaggerate it.
-  static double ScaleDb(double gainDb, double scale) {
-    if (scale == 1.0) return gainDb;
+  static double GainFromVisualY(double visualY) {
+    if (visualY <= kMuteBandTopVisualY) return std::pow(10.0, (kMaxGainDb - (std::max(visualY, 0.0) * kTotalVisualDbSpan)) / 20.0);
 
-    return DbFromVisualY(kZeroDbVisualY + (scale * (VisualYFromDb(gainDb) - kZeroDbVisualY)));
+    const double muteBandProgress = (visualY - kMuteBandTopVisualY) / (1.0 - kMuteBandTopVisualY);
+    return kMuteBandTopGain * std::max(1.0 - muteBandProgress, 0.0);
   }
 
-  static double InterpolateDb(double lo, double hi, double t) {
-    if (t <= 0.0) return lo;
-    if (t >= 1.0) return hi;
+  // Scales a curve's distance from 0 dB: 0 flattens it, 1 leaves it unchanged and larger values exaggerate it.
+  static double ScaleVisualY(double visualY, double scale) { return std::clamp(kZeroDbVisualY + (scale * (visualY - kZeroDbVisualY)), 0.0, 1.0); }
 
-    return DbFromVisualY(Lerp(VisualYFromDb(lo), VisualYFromDb(hi), t));
-  }
+  static double Lerp(double lo, double hi, double t) { return lo + ((hi - lo) * t); }
 
 private:
   static constexpr double kFrequencyEpsilonHz = 1.0e-6;
@@ -180,8 +182,6 @@ private:
   static constexpr double kZeroDbVisualY = kMaxGainDb / kTotalVisualDbSpan;
   static constexpr double kMuteBandTopVisualY = kVisibleDbSpan / kTotalVisualDbSpan;
   inline static const double kMuteBandTopGain = std::pow(10.0, kMinFiniteGainDb / 20.0);
-
-  static double Lerp(double lo, double hi, double t) { return lo + ((hi - lo) * t); }
 
   static double ClampFrequencyHz(double frequencyHz) {
     if (std::isnan(frequencyHz)) return kMinFrequencyHz;

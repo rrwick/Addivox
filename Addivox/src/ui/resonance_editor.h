@@ -121,7 +121,7 @@ private:
       DrawCurve(
           g, plotBounds,
           [this](double frequencyHz) {
-            return EqCurve::InterpolateDb(EqCurve::EvaluateSplineDb(mLowerMorph, frequencyHz), EqCurve::EvaluateSplineDb(mUpperMorph, frequencyHz), mBlendT);
+            return EqCurve::Lerp(EqCurve::EvaluateSplineVisualY(mLowerMorph, frequencyHz), EqCurve::EvaluateSplineVisualY(mUpperMorph, frequencyHz), mBlendT);
           },
           color.WithOpacity(kPreviewOpacity), false);
     }
@@ -131,7 +131,7 @@ private:
     DrawCurve(
         g, plotBounds,
         [&](double frequencyHz) {
-          return EqCurve::InterpolateDb(mResonance.curves.EvaluateDb(breath, frequencyHz), mUpperResonance.curves.EvaluateDb(breath, frequencyHz), mBlendT);
+          return EqCurve::Lerp(mResonance.curves.EvaluateVisualY(breath, frequencyHz), mUpperResonance.curves.EvaluateVisualY(breath, frequencyHz), mBlendT);
         },
         color, bold);
   }

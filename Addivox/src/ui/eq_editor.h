@@ -61,7 +61,7 @@ public:
     DrawBackgroundAndGrid(g, plotBounds);
     DrawCurve(
         g, plotBounds,
-        [this](double frequencyHz) { return EqCurve::InterpolateDb(mCurve.EvaluateDb(frequencyHz), mUpperCurve.EvaluateDb(frequencyHz), mBlendT); },
+        [this](double frequencyHz) { return EqCurve::Lerp(mCurve.EvaluateVisualY(frequencyHz), mUpperCurve.EvaluateVisualY(frequencyHz), mBlendT); },
         colour::ui::kAccentPrimary, true);
     if (IsEditable()) DrawPoints(g, plotBounds, mCurve.GetPoints(), colour::ui::kAccentPrimary, colour::visualizer::kHarmonicCore, mDraggedPointIndex);
     DrawAxisLabels(g, plotBounds);

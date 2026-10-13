@@ -214,8 +214,8 @@ void SynthVoice::UpdateLevels() {
 }
 
 void SynthVoice::UpdateLevel(int harmonic, const OscillatorSettings& settings, const CompoundPatch::ResolvedNoteSpan& noteSpan) {
-  const double eqDb = mCompoundPatch.EvaluateEqDb(noteSpan, mOscs[harmonic].GetFrequencyHz());
-  const double eqGain = EqCurve::DbToGain(EqCurve::ScaleDb(eqDb, mGlobalVoiceSettings.formantsScale));
+  const double eqVisualY = mCompoundPatch.EvaluateEqVisualY(noteSpan, mOscs[harmonic].GetFrequencyHz());
+  const double eqGain = EqCurve::GainFromVisualY(EqCurve::ScaleVisualY(eqVisualY, mGlobalVoiceSettings.formantsScale));
   const double breathLevel = (mBreath <= 0.0) ? 0.0 : EvaluateBreathLevel(std::pow(mBreath, settings.breath_power));
   mOscs[harmonic].SetLevel(settings.level * breathLevel * eqGain * mGlobalVoiceSettings.levelScale);
 }

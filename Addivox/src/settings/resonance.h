@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstddef>
 #include <utility>
-#include <vector>
 
 // The Resonance tab's zero-breath and full-breath curves, which breath morphs between. Both curves have the same number of points, each is sorted by
 // frequency on its own, and points pair up by index. Unlike EqCurve, points sharing a frequency are kept, since merging them would break the pairing.
@@ -30,18 +29,18 @@ public:
 
   bool Empty() const { return mCurves.front().points.empty(); }
 
-  double EvaluateDb(Breath breath, double frequencyHz) const { return EqCurve::EvaluateSplineDb(Get(breath).spline, frequencyHz); }
+  double EvaluateVisualY(Breath breath, double frequencyHz) const { return EqCurve::EvaluateSplineVisualY(Get(breath).spline, frequencyHz); }
 
-  // Writes the curve at the given breath (0 = zero-breath curve, 1 = full-breath curve) into spline, for EqCurve::EvaluateSplineDb. Each point pair is
-  // interpolated, x linearly in log-frequency and y linearly in visual-y. Reuses spline's storage, so it doesn't allocate once spline has held as many points.
+  // Writes the curve at the given breath (0 = zero-breath curve, 1 = full-breath curve) into spline, for EqCurve::EvaluateSplineVisualY. Each point pair is
+  // interpolated linearly in the splines' (log-frequency, visual-y) space. Reuses spline's storage, so it doesn't allocate once spline has held as many points.
   void Morph(double breath, MonotoneSpline& spline) const {
     const Curve& zero = Get(Breath::zero);
     const Curve& full = Get(Breath::full);
     spline.x.resize(zero.points.size());
     spline.y.resize(zero.points.size());
     for (std::size_t i = 0; i < zero.points.size(); ++i) {
-      spline.x[i] = zero.spline.x[i] + (breath * (full.spline.x[i] - zero.spline.x[i]));
-      spline.y[i] = EqCurve::DbFromVisualY(zero.visualY[i] + (breath * (full.visualY[i] - zero.visualY[i])));
+      spline.x[i] = EqCurve::Lerp(zero.spline.x[i], full.spline.x[i], breath);
+      spline.y[i] = EqCurve::Lerp(zero.spline.y[i], full.spline.y[i], breath);
     }
     spline.BuildTangents();
   }
@@ -65,7 +64,8 @@ public:
     // A first point's pair goes halfway to an axis edge, so zero breath sits left of full breath: an upward sweep with breath, once there are more points.
     if (otherPoints.empty()) otherHz = std::sqrt(point.frequencyHz * (breath == Breath::zero ? EqCurve::kMaxFrequencyHz : EqCurve::kMinFrequencyHz));
 
-    otherPoints.insert(otherPoints.begin() + static_cast<std::ptrdiff_t>(index), EqPoint{otherHz, EvaluateDb(Other(breath), otherHz)});
+    otherPoints.insert(otherPoints.begin() + static_cast<std::ptrdiff_t>(index),
+                       EqPoint{otherHz, EqCurve::DbFromVisualY(EvaluateVisualY(Other(breath), otherHz))});
     points.insert(points.begin() + static_cast<std::ptrdiff_t>(index), point);
     Set(breath, std::move(points), std::move(otherPoints));
   }
@@ -91,13 +91,10 @@ public:
 private:
   struct Curve {
     Curve() = default;
-    explicit Curve(PointList unsortedPoints) : points(EqCurve::ClampAndSort(std::move(unsortedPoints))), spline(EqCurve::MakeSpline(points)) {
-      for (const auto& point : points) visualY.push_back(EqCurve::VisualYFromDb(point.gainDb));
-    }
+    explicit Curve(PointList unsortedPoints) : points(EqCurve::ClampAndSort(std::move(unsortedPoints))), spline(EqCurve::MakeSpline(points)) {}
 
     PointList points;
     MonotoneSpline spline;
-    std::vector<double> visualY; // Cached for morphing
   };
 
   static PointList::iterator UpperBound(PointList& points, const EqPoint& point) {
