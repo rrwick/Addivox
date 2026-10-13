@@ -11,7 +11,7 @@ using namespace iplug;
 using namespace igraphics;
 
 // Edits the Resonance tab's zero-breath and full-breath curves. The active curve (selected by the Zero/Full toggle) is drawn on top and edited; the other is
-// drawn faint. Adding or removing a point does the same to its pair on the other curve.
+// drawn faint, along with previews of the curve at 10%, 20%, ..., 90% breath. Adding or removing a point does the same to its pair on the other curve.
 class ResonanceEditorControl final : public CurveEditorControl {
 public:
   using Breath = ResonanceCurves::Breath;
@@ -53,6 +53,7 @@ public:
     const IRECT plotBounds = GetPlotBounds();
 
     DrawBackgroundAndGrid(g, plotBounds);
+    DrawMorphPreviews(g, plotBounds);
     DrawBreathCurve(g, plotBounds, OtherBreath(), BreathColor(OtherBreath()).WithOpacity(kInactiveOpacity), false);
     DrawBreathCurve(g, plotBounds, mActiveBreath, BreathColor(mActiveBreath), true);
     if (IsEditable()) {
@@ -106,6 +107,23 @@ private:
     SetDirty(false);
   }
 
+  void DrawMorphPreviews(IGraphics& g, const IRECT& plotBounds) {
+    constexpr int kNumSteps = 10;
+    constexpr float kPreviewOpacity = 0.25f;
+    for (int step = 1; step < kNumSteps; ++step) {
+      const double breath = static_cast<double>(step) / kNumSteps;
+      mCurves.Morph(breath, mLowerMorph);
+      mUpperCurves.Morph(breath, mUpperMorph);
+      const IColor color = IColor::LinearInterpolateBetween(BreathColor(Breath::zero), BreathColor(Breath::full), static_cast<float>(breath));
+      DrawCurve(
+          g, plotBounds,
+          [this](double frequencyHz) {
+            return EqCurve::InterpolateDb(EqCurve::EvaluateSplineDb(mLowerMorph, frequencyHz), EqCurve::EvaluateSplineDb(mUpperMorph, frequencyHz), mBlendT);
+          },
+          color.WithOpacity(kPreviewOpacity), false);
+    }
+  }
+
   void DrawBreathCurve(IGraphics& g, const IRECT& plotBounds, Breath breath, const IColor& color, bool bold) const {
     DrawCurve(
         g, plotBounds,
@@ -124,6 +142,8 @@ private:
   double mBlendT{0.0};
   Breath mActiveBreath{Breath::zero};
   int mDraggedPointIndex{kNoPointIndex};
+  MonotoneSpline mLowerMorph{}; // Scratch space for drawing the morph previews
+  MonotoneSpline mUpperMorph{};
   OnCurvesChangedFunc mOnCurvesChanged{};
 };
 } // namespace plugin_ui

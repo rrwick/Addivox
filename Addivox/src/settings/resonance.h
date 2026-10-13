@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 // The Resonance tab's zero-breath and full-breath curves, which breath morphs between. Both curves have the same number of points, each is sorted by
 // frequency on its own, and points pair up by index. Unlike EqCurve, points sharing a frequency are kept, since merging them would break the pairing.
@@ -29,7 +30,21 @@ public:
 
   bool Empty() const { return mCurves.front().points.empty(); }
 
-  double EvaluateDb(Breath breath, double frequencyHz) const { return EqCurve::ClampGainDb(Get(breath).spline.Evaluate(EqCurve::LogFrequency(frequencyHz))); }
+  double EvaluateDb(Breath breath, double frequencyHz) const { return EqCurve::EvaluateSplineDb(Get(breath).spline, frequencyHz); }
+
+  // Writes the curve at the given breath (0 = zero-breath curve, 1 = full-breath curve) into spline, for EqCurve::EvaluateSplineDb. Each point pair is
+  // interpolated, x linearly in log-frequency and y linearly in visual-y. Reuses spline's storage, so it doesn't allocate once spline has held as many points.
+  void Morph(double breath, MonotoneSpline& spline) const {
+    const Curve& zero = Get(Breath::zero);
+    const Curve& full = Get(Breath::full);
+    spline.x.resize(zero.points.size());
+    spline.y.resize(zero.points.size());
+    for (std::size_t i = 0; i < zero.points.size(); ++i) {
+      spline.x[i] = zero.spline.x[i] + (breath * (full.spline.x[i] - zero.spline.x[i]));
+      spline.y[i] = EqCurve::DbFromVisualY(zero.visualY[i] + (breath * (full.visualY[i] - zero.visualY[i])));
+    }
+    spline.BuildTangents();
+  }
 
   // Adds a point to one curve, plus its pair on the other. The pair goes at the same log-frequency fraction between the corresponding neighbours (axis edges
   // stand in for missing neighbours), at the other curve's current gain, so the other curve keeps its shape.
@@ -76,10 +91,13 @@ public:
 private:
   struct Curve {
     Curve() = default;
-    explicit Curve(PointList unsortedPoints) : points(EqCurve::ClampAndSort(std::move(unsortedPoints))), spline(EqCurve::MakeSpline(points)) {}
+    explicit Curve(PointList unsortedPoints) : points(EqCurve::ClampAndSort(std::move(unsortedPoints))), spline(EqCurve::MakeSpline(points)) {
+      for (const auto& point : points) visualY.push_back(EqCurve::VisualYFromDb(point.gainDb));
+    }
 
     PointList points;
     MonotoneSpline spline;
+    std::vector<double> visualY; // Cached for morphing
   };
 
   static PointList::iterator UpperBound(PointList& points, const EqPoint& point) {

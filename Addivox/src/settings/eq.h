@@ -85,7 +85,10 @@ public:
 
   bool Empty() const { return mPoints.empty(); }
 
-  double EvaluateDb(double frequencyHz) const { return ClampGainDb(mSpline.Evaluate(LogFrequency(frequencyHz))); }
+  double EvaluateDb(double frequencyHz) const { return EvaluateSplineDb(mSpline, frequencyHz); }
+
+  // For splines from MakeSpline: x is log-frequency and y is gain in dB.
+  static double EvaluateSplineDb(const MonotoneSpline& spline, double frequencyHz) { return ClampGainDb(spline.Evaluate(LogFrequency(frequencyHz))); }
 
   // Expects points sorted by frequency.
   static MonotoneSpline MakeSpline(const PointList& points) {
