@@ -251,13 +251,6 @@ const SimplePatch* CompoundPatch::GetKeyNotePatch(double midiNote) const {
   return &keyNoteIt->second;
 }
 
-EqCurve CompoundPatch::GetEqCurveForMidiNote(double midiNote) const {
-  const ResolvedNoteSpan span = ResolveNoteSpan(midiNote);
-  if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return *span.lowerEqCurve;
-
-  return EqCurve::FromResponseLut(EqCurve::InterpolateResponseLut(span.lowerEqCurve->BuildResponseLut(), span.upperEqCurve->BuildResponseLut(), span.t));
-}
-
 const EqCurve* CompoundPatch::GetKeyNoteEqCurve(double midiNote) const {
   const int clampedNote = RoundAndClampMidiNote(midiNote);
   const auto keyNoteIt = mKeyNoteEqCurves.find(clampedNote);
@@ -313,10 +306,10 @@ OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNo
 }
 
 double CompoundPatch::EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const {
-  const double lowerGain = EqCurve::DbToGain(span.lowerEqCurve->EvaluateDb(frequencyHz));
-  if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return lowerGain;
+  const double lowerDb = span.lowerEqCurve->EvaluateDb(frequencyHz);
+  if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return EqCurve::DbToGain(lowerDb);
 
-  return Lerp(lowerGain, EqCurve::DbToGain(span.upperEqCurve->EvaluateDb(frequencyHz)), span.t);
+  return EqCurve::DbToGain(EqCurve::InterpolateDb(lowerDb, span.upperEqCurve->EvaluateDb(frequencyHz), span.t));
 }
 
 bool CompoundPatch::HasKeyNotePatch(double midiNote) const { return GetKeyNotePatch(midiNote) != nullptr; }
@@ -346,9 +339,9 @@ bool CompoundPatch::AddKeyNotePatch(double midiNote) {
 
 void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch) {
   const int clampedMidiNote = ClampMidiNote(midiNote);
-  const EqCurve* keyNoteEqCurve = GetKeyNoteEqCurve(clampedMidiNote);
-  EqCurve eqCurve = keyNoteEqCurve ? *keyNoteEqCurve : GetEqCurveForMidiNote(clampedMidiNote);
-  if (IsAllKeyNotesEqEnabled()) eqCurve = GetAllKeyNotesEqCurve();
+  // Curves can't be interpolated across differing point counts, so a new key note copies its nearer neighbour's curve.
+  const ResolvedNoteSpan span = ResolveNoteSpan(clampedMidiNote);
+  EqCurve eqCurve = span.t <= 0.5 ? *span.lowerEqCurve : *span.upperEqCurve;
 
   SimplePatch updatedPatch = patch;
   ApplyAllKeyNotesValues(updatedPatch);

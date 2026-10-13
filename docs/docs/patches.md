@@ -63,7 +63,7 @@ Patches placed in subdirectories of this folder appear in their own named group 
 Patches are plain-text [TOML](https://toml.io) files. Here is an abbreviated example of a single-key-note patch:
 
 ```toml
-format_version = 1
+format_version = 2
 name = "My Patch"
 
 [voice_settings]
@@ -99,8 +99,8 @@ pan_variation_amplitude   = [0.25, ...]
 pan_variation_rate        = [1.0, ...]
 pitch_variation_amplitude = [5.0, ...]
 pitch_variation_rate      = [1.0, ...]
-eq_freq_hz = []
-eq_db      = []
+formants_freq_hz = []
+formants_db      = []
 ```
 
 Each per-harmonic array contains exactly 100 values (one per harmonic). A patch with multiple key notes has one `[[key_notes]]` section for each. An optional `[all_key_notes]` section stores parameters that are locked in sync across all key notes (see [Key Notes and Interpolation](key_notes_and_interpolation.md)).

@@ -15,8 +15,6 @@ struct EqPoint {
 class EqCurve {
 public:
   using PointList = std::vector<EqPoint>;
-  using ResponseLut = std::vector<double>;
-  static constexpr std::size_t kResponseLutSize = 512;
 
   static constexpr double kMinFrequencyHz = 20.0;
   static constexpr double kMaxFrequencyHz = 22000.0;
@@ -35,15 +33,12 @@ public:
 
   void SetPoints(PointList points) {
     mPoints = SanitizePoints(std::move(points));
-    mResponseLut.clear();
     RebuildSpline();
   }
 
   bool Empty() const { return mPoints.empty(); }
 
   double EvaluateDb(double frequencyHz) const {
-    if (!mResponseLut.empty()) return ClampGainDb(EvaluateResponseLut(frequencyHz));
-
     if (mPoints.empty()) return 0.0;
     if (mPoints.size() == 1) return mPoints.front().gainDb;
 
@@ -75,42 +70,40 @@ public:
     return ClampGainDb(20.0 * std::log10(gain));
   }
 
-  static ResponseLut InterpolateResponseLut(const ResponseLut& lo, const ResponseLut& hi, double t) {
-    const double clampedT = std::clamp(t, 0.0, 1.0);
-    if (clampedT <= 0.0) return lo;
-    if (clampedT >= 1.0) return hi;
+  // The editor's vertical scale (0 = top, 1 = bottom): linear in dB from +24 to -24 dB, then linear in gain through the mute band. All gain interpolation
+  // happens in this space, so changes look linear on screen and fade into mute the same way dragging a point does.
+  static double VisualYFromDb(double gainDb) {
+    const double clampedGainDb = ClampGainDb(gainDb);
+    if (clampedGainDb >= kMinFiniteGainDb) return (kMaxGainDb - clampedGainDb) / kTotalVisualDbSpan;
 
-    ResponseLut responseLut(kResponseLutSize);
-    for (std::size_t i = 0; i < responseLut.size(); ++i) {
-      responseLut[i] = GainToDb(Lerp(DbToGain(lo[i]), DbToGain(hi[i]), clampedT));
-    }
-
-    return responseLut;
+    const double muteBandGain = std::min(DbToGain(clampedGainDb) / kMuteBandTopGain, 1.0);
+    return kMuteBandTopVisualY + ((1.0 - muteBandGain) * (1.0 - kMuteBandTopVisualY));
   }
 
-  ResponseLut BuildResponseLut() const {
-    if (!mResponseLut.empty()) return mResponseLut;
+  static double DbFromVisualY(double visualY) {
+    const double clampedVisualY = std::clamp(visualY, 0.0, 1.0);
+    if (clampedVisualY <= kMuteBandTopVisualY) return kMaxGainDb - (clampedVisualY * kTotalVisualDbSpan);
 
-    ResponseLut responseLut(kResponseLutSize);
-    const double denominator = static_cast<double>(responseLut.size() - 1);
-    for (std::size_t i = 0; i < responseLut.size(); ++i) {
-      const double frequencyHz = FrequencyFromNormalizedLog(static_cast<double>(i) / denominator);
-      responseLut[i] = EvaluateDb(frequencyHz);
-    }
-
-    return responseLut;
+    const double muteBandProgress = (clampedVisualY - kMuteBandTopVisualY) / (1.0 - kMuteBandTopVisualY);
+    return GainToDb(kMuteBandTopGain * (1.0 - muteBandProgress));
   }
 
-  static EqCurve FromResponseLut(ResponseLut responseLut) {
-    EqCurve curve;
-    curve.mResponseLut = std::move(responseLut);
-    return curve;
+  static double InterpolateDb(double lo, double hi, double t) {
+    if (t <= 0.0) return lo;
+    if (t >= 1.0) return hi;
+
+    return DbFromVisualY(Lerp(VisualYFromDb(lo), VisualYFromDb(hi), t));
   }
 
 private:
   static constexpr double kFrequencyEpsilonHz = 1.0e-6;
   static constexpr double kLogFrequencyEpsilon = 1.0e-12;
   static constexpr double kMuteGainDbEpsilon = 1.0e-9;
+  static constexpr double kVisibleDbSpan = kMaxGainDb - kMinFiniteGainDb;
+  static constexpr double kMuteBandVisualDbEquivalent = 4.0; // The mute band's height, in dB of the scale above it.
+  static constexpr double kTotalVisualDbSpan = kVisibleDbSpan + kMuteBandVisualDbEquivalent;
+  static constexpr double kMuteBandTopVisualY = kVisibleDbSpan / kTotalVisualDbSpan;
+  inline static const double kMuteBandTopGain = std::pow(10.0, kMinFiniteGainDb / 20.0);
 
   static double Lerp(double lo, double hi, double t) { return lo + ((hi - lo) * t); }
 
@@ -122,19 +115,6 @@ private:
   }
 
   static double LogFrequency(double frequencyHz) { return std::log(ClampFrequencyHz(frequencyHz)); }
-
-  static double NormalizedLogFrequency(double frequencyHz) {
-    const double logMin = std::log(kMinFrequencyHz);
-    const double logMax = std::log(kMaxFrequencyHz);
-    return (LogFrequency(frequencyHz) - logMin) / (logMax - logMin);
-  }
-
-  static double FrequencyFromNormalizedLog(double normalizedLogFrequency) {
-    const double logMin = std::log(kMinFrequencyHz);
-    const double logMax = std::log(kMaxFrequencyHz);
-    const double clampedNormalizedLogFrequency = std::clamp(normalizedLogFrequency, 0.0, 1.0);
-    return std::exp(logMin + ((logMax - logMin) * clampedNormalizedLogFrequency));
-  }
 
   static PointList SanitizePoints(PointList points) {
     for (auto& point : points) {
@@ -221,16 +201,7 @@ private:
     return (h00 * mPoints[lowerIndex].gainDb) + (h10 * h * mTangents[lowerIndex]) + (h01 * mPoints[upperIndex].gainDb) + (h11 * h * mTangents[upperIndex]);
   }
 
-  double EvaluateResponseLut(double frequencyHz) const {
-    const double position = NormalizedLogFrequency(frequencyHz) * static_cast<double>(mResponseLut.size() - 1);
-    const std::size_t lowerIndex = static_cast<std::size_t>(position);
-    const std::size_t upperIndex = std::min(lowerIndex + 1, mResponseLut.size() - 1);
-    const double fraction = position - static_cast<double>(lowerIndex);
-    return Lerp(mResponseLut[lowerIndex], mResponseLut[upperIndex], fraction);
-  }
-
   PointList mPoints{};
   std::vector<double> mLogFrequencies{};
   std::vector<double> mTangents{};
-  ResponseLut mResponseLut{};
 };

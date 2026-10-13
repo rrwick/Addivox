@@ -61,7 +61,7 @@ No, it cannot. Addivox's synthesis is based on summing harmonic sine waves, and 
 
 There are many ways to synthesize sound, so why is Addivox built around additive synthesis? The biggest reason is control: independent level, breath response, attack/release, pitch, pan and variation for each of the 100 harmonics. This allows for some cool effects that are not easy with other synthesis methods, e.g. the pitch variation I use in the organ-style presets.
 
-Additive synthesis also makes it easy to implement [formants](https://en.wikipedia.org/wiki/Formant). During synthesis, each harmonic is scaled based on its frequency and the [EQ curve](eq.md), rather than rendering a waveform first and processing it with an EQ filter afterwards, which is less precise.
+Additive synthesis also makes it easy to implement [formants](https://en.wikipedia.org/wiki/Formant). During synthesis, each harmonic is scaled based on its frequency and the [Formants curve](formants.md), rather than rendering a waveform first and processing it with an EQ filter afterwards, which is less precise.
 
 Since Addivox always knows the exact frequency of every harmonic, it can simply skip rendering any harmonic above the [Nyquist frequency](https://en.wikipedia.org/wiki/Nyquist_frequency), which solves aliasing. The same certainty is what makes the visualization possible too: it shows the exact level of all 100 harmonics in real time, without the smearing of an FFT-based spectrum analyser.
 
@@ -74,4 +74,4 @@ Like many who play wind controllers, I enjoyed the brassy sounds of the [EVI-NER
 
 Addivox solves the first issue by allowing for multiple [key notes](key_notes_and_interpolation.md) in its patches. This allows you to define different sounds in different registers, creating patches that smoothly span many octaves. And Addivox solves the second issue by being source-available (see [License](license.md)) and not containing any DRM like serial numbers or activation codes.
 
-Finally, while I did not start developing Addivox with formants in mind, during development I learned how important they can be for shaping the timbre of a sound. So I now consider the ability to apply formant EQ filters to be one of Addivox's key features (see [EQ](eq.md)).
+Finally, while I did not start developing Addivox with formants in mind, during development I learned how important they can be for shaping the timbre of a sound. So I now consider the ability to apply formant EQ filters to be one of Addivox's key features (see [Formants](formants.md)).

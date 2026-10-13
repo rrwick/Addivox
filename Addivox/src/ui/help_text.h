@@ -115,7 +115,7 @@ namespace oscillator_tabs {
 using OscillatorParameter = OscillatorSettings::Parameter;
 
 inline constexpr const char *kEq =
-    "Controls a frequency-based EQ for creating formants.";
+    "Controls a fixed-frequency EQ curve for creating formants.";
 
 inline constexpr const char *kLevel =
     "Controls the level of each harmonic at full breath.";
@@ -266,7 +266,7 @@ inline constexpr const char *kHarmonicSignedActions =
     "shift down: adds a small negative offset.\n\n"
     "invert: flips values around zero.";
 
-inline constexpr const char *kEqSetShape = "Applies a preset EQ curve.";
+inline constexpr const char *kEqSetShape = "Applies a preset formants curve.";
 
 inline constexpr const char *kEqActions =
     "Runs the selected operation. Shortcut keys are shown in brackets.\n\n"

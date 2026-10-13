@@ -137,7 +137,6 @@ public:
 
   SimplePatch GetPatchForMidiNote(double midiNote) const;
   const SimplePatch* GetKeyNotePatch(double midiNote) const;
-  EqCurve GetEqCurveForMidiNote(double midiNote) const;
   const EqCurve* GetKeyNoteEqCurve(double midiNote) const;
   const std::map<int, SimplePatch>& GetKeyNotePatches() const;
   bool HasKeyNotePatch(double midiNote) const;

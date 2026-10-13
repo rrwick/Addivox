@@ -58,7 +58,7 @@ nav:
   - Using Addivox:
       - Main UI: main_ui.md
       - Patches: patches.md
-      - EQ: eq.md
+      - Formants: formants.md
       - Per-harmonic settings: per-harmonic_settings.md
       - Key notes and interpolation: key_notes_and_interpolation.md
       - Pitch settings: pitch_settings.md

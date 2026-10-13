@@ -14,4 +14,4 @@ This allows a single patch to have a heavy, lower-harmonic timbre in the bass re
 
 ### "All notes" toggle
 
-Each per-harmonic parameter and the EQ curve have an **All notes** toggle in the editor. When enabled, that parameter is kept in sync across every key note: editing it on one key note instantly updates all others. This is useful for settings that should not vary with register — formant EQ curves are the primary example, since real instrument formants stay fixed in frequency regardless of which note is played.
+Each per-harmonic parameter and the formants curve have an **All notes** toggle in the editor. When enabled, that parameter is kept in sync across every key note: editing it on one key note instantly updates all others. This is useful for settings that should not vary with register — formants curves are the primary example, since real instrument formants stay fixed in frequency regardless of which note is played.

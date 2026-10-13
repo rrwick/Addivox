@@ -84,7 +84,7 @@ struct HarmonicTabLayout {
 // ordering follows pointer values rather than insertion order. Keeping all
 // titles in one contiguous buffer makes the pointer order deterministic and
 // match the desired tab order.
-inline constexpr char kOscillatorTabTitleStorage[] = "EQ\0"
+inline constexpr char kOscillatorTabTitleStorage[] = "Formants\0"
                                                      "Level\0"
                                                      "Breath\0"
                                                      "Attack\0"
@@ -101,18 +101,18 @@ inline constexpr char kOscillatorTabTitleStorage[] = "EQ\0"
 inline constexpr const char* kEqTabTitle = kOscillatorTabTitleStorage + 0;
 
 inline constexpr std::array<const char*, OscillatorSettings::kNumParameters> kOscillatorTabTitles{{
-    kOscillatorTabTitleStorage + 3,
     kOscillatorTabTitleStorage + 9,
-    kOscillatorTabTitleStorage + 16,
-    kOscillatorTabTitleStorage + 23,
-    kOscillatorTabTitleStorage + 31,
+    kOscillatorTabTitleStorage + 15,
+    kOscillatorTabTitleStorage + 22,
+    kOscillatorTabTitleStorage + 29,
     kOscillatorTabTitleStorage + 37,
-    kOscillatorTabTitleStorage + 41,
-    kOscillatorTabTitleStorage + 51,
-    kOscillatorTabTitleStorage + 83,
-    kOscillatorTabTitleStorage + 93,
-    kOscillatorTabTitleStorage + 62,
-    kOscillatorTabTitleStorage + 72,
+    kOscillatorTabTitleStorage + 43,
+    kOscillatorTabTitleStorage + 47,
+    kOscillatorTabTitleStorage + 57,
+    kOscillatorTabTitleStorage + 89,
+    kOscillatorTabTitleStorage + 99,
+    kOscillatorTabTitleStorage + 68,
+    kOscillatorTabTitleStorage + 78,
 }};
 
 inline constexpr const char*     kActionScaleUp = "scale up";
@@ -1089,8 +1089,8 @@ struct EditorContext {
     for (const auto& descriptor : GetOscillatorTabDescriptors()) RefreshHarmonicTab(descriptor, selectedPatch, midiNote, editable);
 
     if (eqTab.editorControl) {
-      const EqCurve* keyNoteEqCurve = Patch().GetKeyNoteEqCurve(midiNote);
-      eqTab.editorControl->SetCurve(keyNoteEqCurve ? *keyNoteEqCurve : Patch().GetEqCurveForMidiNote(midiNote));
+      const auto span = Patch().ResolveNoteSpan(midiNote);
+      eqTab.editorControl->SetBlendedCurve(*span.lowerEqCurve, *span.upperEqCurve, span.t);
       if (!eqTab.editorControl->IsHidden() && !eqTab.editorControl->HasRestoreStateForMidiNote(midiNote))
         eqTab.editorControl->CaptureRestoreState(midiNote);
       eqTab.editorControl->SetEditable(editable);

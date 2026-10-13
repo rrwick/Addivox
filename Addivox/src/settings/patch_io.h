@@ -43,7 +43,7 @@ struct PatchDocument {
   CompoundPatch compoundPatch{};
 };
 
-inline constexpr int kFormatVersion = 1;
+inline constexpr int kFormatVersion = 2;
 
 namespace detail {
 using OscillatorParameter = OscillatorSettings::Parameter;
@@ -328,6 +328,9 @@ inline void AppendAlignedStringArray(std::ostringstream& stream, std::string_vie
   stream << "]\n";
 }
 
+inline constexpr std::string_view kFormantsFreqKey = "formants_freq_hz";
+inline constexpr std::string_view kFormantsDbKey = "formants_db";
+
 inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve) {
   std::vector<std::string> frequenciesHz;
   std::vector<std::string> gainsDb;
@@ -345,11 +348,9 @@ inline void AppendEqCurveArrays(std::ostringstream& stream, const EqCurve& curve
     columnWidths.push_back(std::max(frequenciesHz[i].size(), gainsDb[i].size()));
   }
 
-  constexpr std::string_view kEqFreqKey = "eq_freq_hz";
-  constexpr std::string_view kEqDbKey = "eq_db";
-  const std::size_t prefixWidth = kEqFreqKey.size() + 3; // "key = "
-  AppendAlignedStringArray(stream, kEqFreqKey, prefixWidth, frequenciesHz, columnWidths);
-  AppendAlignedStringArray(stream, kEqDbKey, prefixWidth, gainsDb, columnWidths);
+  const std::size_t prefixWidth = kFormantsFreqKey.size() + 3; // "key = "
+  AppendAlignedStringArray(stream, kFormantsFreqKey, prefixWidth, frequenciesHz, columnWidths);
+  AppendAlignedStringArray(stream, kFormantsDbKey, prefixWidth, gainsDb, columnWidths);
 }
 
 inline std::string JoinPath(std::string_view lhs, std::string_view rhs) {
@@ -541,7 +542,7 @@ inline bool BuildCompoundPatch(const std::vector<ParsedKeyNote>& keyNotes,
 
   compoundPatch.ClearKeyNotePatches();
   const auto buildEqCurve = [&](const ParsedEqCurve& parsed, const char* contextLabel, EqCurve& curve) {
-    if (parsed.freqHz.size() != parsed.db.size()) return fail(std::string{contextLabel} + " EQ frequency and gain arrays must have the same length");
+    if (parsed.freqHz.size() != parsed.db.size()) return fail(std::string{contextLabel} + " formants frequency and gain arrays must have the same length");
 
     EqCurve::PointList points;
     points.reserve(parsed.freqHz.size());
@@ -555,8 +556,7 @@ inline bool BuildCompoundPatch(const std::vector<ParsedKeyNote>& keyNotes,
     if (!keyNote.hasMidiNote) return fail("Each [[key_notes]] table must define midi_note");
 
     if (keyNote.eqCurve.hasFreqHz != keyNote.eqCurve.hasDb)
-      return fail("Each [[key_notes]] EQ definition must include both "
-                  "eq_freq_hz and eq_db");
+      return fail("Each [[key_notes]] formants definition must include both formants_freq_hz and formants_db");
 
     compoundPatch.SetKeyNotePatch(keyNote.midiNote, keyNote.patch);
     for (auto parameter : OscillatorSettings::AllParameters())
@@ -567,7 +567,7 @@ inline bool BuildCompoundPatch(const std::vector<ParsedKeyNote>& keyNotes,
       if (!buildEqCurve(keyNote.eqCurve, "[[key_notes]]", eqCurve)) return false;
 
       if (!compoundPatch.SetKeyNoteEqCurve(keyNote.midiNote, eqCurve))
-        return fail("Could not apply EQ curve for midi_note " + std::to_string(keyNote.midiNote));
+        return fail("Could not apply formants curve for midi_note " + std::to_string(keyNote.midiNote));
     }
   }
 
@@ -576,7 +576,8 @@ inline bool BuildCompoundPatch(const std::vector<ParsedKeyNote>& keyNotes,
     if (parsedParameter.present) compoundPatch.EnableAllKeyNotes(descriptor.parameter, parsedParameter.values, parsedParameter.macros);
   }
 
-  if (allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb) return fail("[all_key_notes] EQ definition must include both eq_freq_hz and eq_db");
+  if (allKeyNotesEqCurve.hasFreqHz != allKeyNotesEqCurve.hasDb)
+    return fail("[all_key_notes] formants definition must include both formants_freq_hz and formants_db");
 
   if (allKeyNotesEqCurve.hasFreqHz) {
     EqCurve eqCurve;
@@ -752,10 +753,10 @@ private:
     }
 
     auto& eqCurve = mSection == Section::AllKeyNotes ? mAllKeyNotesEqCurve : mCurrentKeyNote->eqCurve;
-    if (key == "eq_freq_hz" || key == "eq_db") {
-      const bool isFrequency = key == "eq_freq_hz";
+    const bool isFrequency = key == kFormantsFreqKey || key == "eq_freq_hz"; // eq_* are the legacy names from before the Formants rename.
+    if (isFrequency || key == kFormantsDbKey || key == "eq_db") {
       if (!ParseDoubleArray(value, isFrequency ? eqCurve.freqHz : eqCurve.db))
-        return Fail(std::string{isFrequency ? "Invalid EQ frequency array on line " : "Invalid EQ gain array on line "} + std::to_string(mLineNumber));
+        return Fail(std::string{isFrequency ? "Invalid formants frequency" : "Invalid formants gain"} + " array on line " + std::to_string(mLineNumber));
       (isFrequency ? eqCurve.hasFreqHz : eqCurve.hasDb) = true;
       return true;
     }

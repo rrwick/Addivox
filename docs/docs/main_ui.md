@@ -29,9 +29,9 @@ The large panel in the middle of the UI has two modes, switched with the **VIS /
 
 <p align="center"><img src="../assets/edit_mode.png" alt="Addivox EDIT mode" style="max-width: 100%; width: 600px;"></p>
 
-**EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the EQ curve:
+**EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the formants curve:
 
-- **EQ** — draws a frequency-response curve applied to the final sound. See [EQ](eq.md).
+- **Formants** — draws a frequency-response curve applied to the final sound. See [Formants](formants.md).
 - **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See [Per-harmonic settings](per-harmonic_settings.md).
 
 The keyboard at the bottom of the panel selects which key note you are editing in EDIT mode, and plays the corresponding note in VIS mode (see below).

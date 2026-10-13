@@ -14,7 +14,7 @@
 - Monosynth, plays one note at a time.
 - Per-harmonic controls over level, breath response, attack, release, pitch, pan and more.
 - Designed specifically for wind controllers.
-- EQ shaping to create formants.
+- Frequency-based EQ curve for shaping formants.
 - Built-in effects.
 - Available for macOS and Windows (iOS version coming soon).
 - Can run as a standalone instrument or as a plugin in a DAW.

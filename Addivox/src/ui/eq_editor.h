@@ -23,8 +23,13 @@ public:
 
   explicit EqEditorControl(const IRECT& bounds) : IControl(bounds) {}
 
-  void SetCurve(const EqCurve& curve) {
-    mCurve = curve;
+  void SetCurve(const EqCurve& curve) { SetBlendedCurve(curve, curve, 0.0); }
+
+  // Between key notes, the editor shows the same visual-y blend of the neighbouring curves that the synth uses.
+  void SetBlendedCurve(const EqCurve& lower, const EqCurve& upper, double t) {
+    mCurve = lower;
+    mUpperCurve = upper;
+    mBlendT = t;
     SyncDraggedPointIndexFromDraggedPoint();
     SetDirty(false);
   }
@@ -150,9 +155,6 @@ private:
   static constexpr int kNoRestoreMidiNote = std::numeric_limits<int>::min();
   static constexpr double kDraggedPointFrequencyEpsilonHz = 1.0e-6;
   static constexpr double kDraggedPointGainEpsilonDb = 1.0e-6;
-  static constexpr double kMuteBandVisualDbEquivalent = 4.0;
-  static constexpr double kVisibleGainDbSpan = EqCurve::kMaxGainDb - EqCurve::kMinFiniteGainDb;
-  static constexpr double kTotalVisualGainDbSpan = kVisibleGainDbSpan + kMuteBandVisualDbEquivalent;
 
   static constexpr std::array<float, 28> kGridFrequenciesHz{20.f,   30.f,   40.f,   50.f,   60.f,   70.f,   80.f,    90.f,   100.f,  200.f,
                                                             300.f,  400.f,  500.f,  600.f,  700.f,  800.f,  900.f,   1000.f, 2000.f, 3000.f,
@@ -192,33 +194,10 @@ private:
     return FrequencyFromNormalizedX(xNorm);
   }
 
-  static double MuteBandTopYNorm() { return kVisibleGainDbSpan / kTotalVisualGainDbSpan; }
-
-  static double GainAtMuteBandTop() { return EqCurve::DbToGain(EqCurve::kMinFiniteGainDb); }
-
-  static float YFromDb(double gainDb, const IRECT& plotBounds) {
-    const double clampedGainDb = EqCurve::ClampGainDb(gainDb);
-    double yNorm = 0.0;
-    if (clampedGainDb >= EqCurve::kMinFiniteGainDb) {
-      yNorm = (EqCurve::kMaxGainDb - clampedGainDb) / kTotalVisualGainDbSpan;
-    } else {
-      const double gainRatio = std::clamp(EqCurve::DbToGain(clampedGainDb) / GainAtMuteBandTop(), 0.0, 1.0);
-      yNorm = MuteBandTopYNorm() + ((1.0 - gainRatio) * (1.0 - MuteBandTopYNorm()));
-    }
-
-    return plotBounds.T + (static_cast<float>(yNorm) * plotBounds.H());
-  }
+  static float YFromDb(double gainDb, const IRECT& plotBounds) { return plotBounds.T + (static_cast<float>(EqCurve::VisualYFromDb(gainDb)) * plotBounds.H()); }
 
   static double GainDbFromY(float y, const IRECT& plotBounds) {
-    const float clampedY = std::clamp(y, plotBounds.T, plotBounds.B);
-    const double yNorm = (plotBounds.H() <= 0.f) ? 0.0 : ((clampedY - plotBounds.T) / plotBounds.H());
-    if (yNorm <= MuteBandTopYNorm()) {
-      return EqCurve::ClampGainDb(EqCurve::kMaxGainDb - (yNorm * kTotalVisualGainDbSpan));
-    }
-
-    const double muteBandProgress = std::clamp((yNorm - MuteBandTopYNorm()) / (1.0 - MuteBandTopYNorm()), 0.0, 1.0);
-    const double gain = GainAtMuteBandTop() * (1.0 - muteBandProgress);
-    return EqCurve::GainToDb(gain);
+    return plotBounds.H() <= 0.f ? EqCurve::kMaxGainDb : EqCurve::DbFromVisualY((y - plotBounds.T) / plotBounds.H());
   }
 
   IRECT GetPlotBounds() const {
@@ -268,7 +247,8 @@ private:
     for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
       const float t = static_cast<float>(sampleIndex) / static_cast<float>(numSamples - 1);
       const float x = plotBounds.L + (t * plotBounds.W());
-      const float y = YFromDb(mCurve.EvaluateDb(FrequencyFromX(x, plotBounds)), plotBounds);
+      const double frequencyHz = FrequencyFromX(x, plotBounds);
+      const float y = YFromDb(EqCurve::InterpolateDb(mCurve.EvaluateDb(frequencyHz), mUpperCurve.EvaluateDb(frequencyHz), mBlendT), plotBounds);
       if (sampleIndex == 0) g.PathMoveTo(x, y);
       else
         g.PathLineTo(x, y);
@@ -464,6 +444,8 @@ private:
   }
 
   EqCurve mCurve{};
+  EqCurve mUpperCurve{};
+  double mBlendT{0.0};
   EqCurve mRestoreCurve{};
   OnCurveChangedFunc mOnCurveChanged{};
   EqPoint mDraggedPoint{};
