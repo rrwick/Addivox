@@ -22,6 +22,7 @@ struct HeadlessRenderOptions {
   int numOutputChannels{2};
   WaveFileFormat waveFileFormat{WaveFileFormat::Pcm24};
   std::optional<double> levelScale;
+  std::optional<double> formantsScale;
   std::optional<double> attackScale;
   std::optional<double> releaseScale;
   std::optional<double> reverb;

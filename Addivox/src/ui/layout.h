@@ -266,11 +266,10 @@ inline void AttachVariationControls(IGraphics* pGraphics) {
   pGraphics->AttachControl(new LabelledKnob(positions::kPitchRateKnob, kParamGlobalPitchVariationRateScale, "PchRate"));
 }
 
-// Placeholders until the amounts become patch parameters.
 inline void AttachEqControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kEqLabel, "EQ");
-  pGraphics->AttachControl(new LabelledKnob(positions::kFormantsKnob, "Formants", UnboundKnobSpec{1.0}));
-  pGraphics->AttachControl(new LabelledKnob(positions::kResonanceKnob, "Resonance", UnboundKnobSpec{0.0}));
+  pGraphics->AttachControl(new LabelledKnob(positions::kFormantsKnob, kParamFormantsScale, "Formants"));
+  pGraphics->AttachControl(new LabelledKnob(positions::kResonanceKnob, "Resonance", UnboundKnobSpec{0.0})); // Placeholder until Resonance exists.
 }
 
 inline void AttachOutputControls(IGraphics* pGraphics) {

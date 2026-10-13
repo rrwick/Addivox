@@ -305,11 +305,11 @@ OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNo
   return span.lowerPatch->InterpolateOscillatorSettings(*span.upperPatch, oscillatorIndex, span.t);
 }
 
-double CompoundPatch::EvaluateEqGain(const ResolvedNoteSpan& span, double frequencyHz) const {
+double CompoundPatch::EvaluateEqDb(const ResolvedNoteSpan& span, double frequencyHz) const {
   const double lowerDb = span.lowerEqCurve->EvaluateDb(frequencyHz);
-  if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return EqCurve::DbToGain(lowerDb);
+  if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return lowerDb;
 
-  return EqCurve::DbToGain(EqCurve::InterpolateDb(lowerDb, span.upperEqCurve->EvaluateDb(frequencyHz), span.t));
+  return EqCurve::InterpolateDb(lowerDb, span.upperEqCurve->EvaluateDb(frequencyHz), span.t);
 }
 
 bool CompoundPatch::HasKeyNotePatch(double midiNote) const { return GetKeyNotePatch(midiNote) != nullptr; }

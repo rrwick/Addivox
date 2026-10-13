@@ -294,6 +294,7 @@ void ApplyPatchAndOverrides(SynthEngine& engine, const patch_io::PatchDocument& 
   EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
 
   voiceSettings.levelScale = options.levelScale.value_or(voiceSettings.levelScale);
+  voiceSettings.formantsScale = options.formantsScale.value_or(voiceSettings.formantsScale);
   voiceSettings.attackScale = options.attackScale.value_or(voiceSettings.attackScale);
   voiceSettings.releaseScale = options.releaseScale.value_or(voiceSettings.releaseScale);
   voiceSettings.tuningCents = options.tuningCents.value_or(voiceSettings.tuningCents);
@@ -344,6 +345,8 @@ bool ValidateCommonRenderOptions(const HeadlessRenderOptions& options, std::stri
   }
 
   if (options.levelScale && !ValidateFiniteRange("Level", *options.levelScale, 0.0, 10.0, errorMessage)) return false;
+
+  if (options.formantsScale && !ValidateFiniteRange("Formants", *options.formantsScale, 0.0, 3.0, errorMessage)) return false;
 
   if (options.attackScale && !ValidateFiniteRange("Attack", *options.attackScale, 0.0, 100.0, errorMessage)) return false;
 

@@ -3,6 +3,7 @@ name = "Warm Fuzz"
 
 [voice_settings]
 levelScale = 0.95
+formantsScale = 1.0
 attackScale = 1.0
 releaseScale = 1.0
 levelVariationAmplitudeScale = 1.0

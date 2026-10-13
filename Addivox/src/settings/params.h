@@ -19,5 +19,6 @@ enum EParams {
   kParamEffectsChorus,
   kParamEffectsTone,
   kParamTranspose,
+  kParamFormantsScale, // New parameters go last, so saved host states and automation keep their indices.
   kNumParams
 };

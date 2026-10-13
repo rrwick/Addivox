@@ -88,6 +88,13 @@ public:
     return GainToDb(kMuteBandTopGain * (1.0 - muteBandProgress));
   }
 
+  // Scales the curve's distance from 0 dB in visual-y space: 0 flattens it, 1 leaves it unchanged and larger values exaggerate it.
+  static double ScaleDb(double gainDb, double scale) {
+    if (scale == 1.0) return gainDb;
+
+    return DbFromVisualY(kZeroDbVisualY + (scale * (VisualYFromDb(gainDb) - kZeroDbVisualY)));
+  }
+
   static double InterpolateDb(double lo, double hi, double t) {
     if (t <= 0.0) return lo;
     if (t >= 1.0) return hi;
@@ -102,6 +109,7 @@ private:
   static constexpr double kVisibleDbSpan = kMaxGainDb - kMinFiniteGainDb;
   static constexpr double kMuteBandVisualDbEquivalent = 4.0; // The mute band's height, in dB of the scale above it.
   static constexpr double kTotalVisualDbSpan = kVisibleDbSpan + kMuteBandVisualDbEquivalent;
+  static constexpr double kZeroDbVisualY = kMaxGainDb / kTotalVisualDbSpan;
   static constexpr double kMuteBandTopVisualY = kVisibleDbSpan / kTotalVisualDbSpan;
   inline static const double kMuteBandTopGain = std::pow(10.0, kMinFiniteGainDb / 20.0);
 

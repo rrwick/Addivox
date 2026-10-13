@@ -13,6 +13,7 @@ panVariationRateScale = 1.0
 pitchVariationAmplitudeScale = 1.0
 pitchVariationRateScale = 1.0
 levelScale = 1.0
+formantsScale = 1.0
 
 [effects_settings]
 drive = 20.0

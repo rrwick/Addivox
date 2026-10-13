@@ -35,6 +35,7 @@ GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings) {
   sanitized.panVariationRateScale = SanitizeNonNegative(sanitized.panVariationRateScale);
   sanitized.portamentoTimeAtCC5MinSec = SanitizeNonNegative(sanitized.portamentoTimeAtCC5MinSec);
   sanitized.portamentoTimeAtCC5MaxSec = SanitizeNonNegative(sanitized.portamentoTimeAtCC5MaxSec);
+  sanitized.formantsScale = SanitizeNonNegative(sanitized.formantsScale);
   return sanitized;
 }
 
@@ -53,6 +54,7 @@ bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings) {
   case kParamGlobalPanVariationRateScale:        settings.panVariationRateScale = SanitizeNonNegative(value); return true;
   case kParamPortamentoAtCC5Min:                 settings.portamentoTimeAtCC5MinSec = SanitizeNonNegative(value); return true;
   case kParamPortamentoAtCC5Max:                 settings.portamentoTimeAtCC5MaxSec = SanitizeNonNegative(value); return true;
+  case kParamFormantsScale:                      settings.formantsScale = SanitizeNonNegative(value); return true;
   default:                                       return false;
   }
 }

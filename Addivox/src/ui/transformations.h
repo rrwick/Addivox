@@ -28,4 +28,5 @@ public:
 const iplug::IParam::Shape& GetGlobalPseudoLogShape();
 const iplug::IParam::Shape& GetPortamentoPseudoLogShape();
 const iplug::IParam::Shape& GetLevelPseudoLogShape();
+const iplug::IParam::Shape& GetEqAmountPseudoLogShape();
 } // namespace transformations

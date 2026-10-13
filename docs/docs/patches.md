@@ -68,6 +68,7 @@ name = "My Patch"
 
 [voice_settings]
 levelScale = 1.0
+formantsScale = 1.0
 attackScale = 1.0
 releaseScale = 1.0
 levelVariationAmplitudeScale = 0.0

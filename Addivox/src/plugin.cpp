@@ -89,6 +89,7 @@ void SetPatchVoiceSettingsParams(Addivox& plugin, const GlobalVoiceSettings& voi
   plugin.GetParam(kParamGlobalPanVariationRateScale)->Set(sanitizedVoiceSettings.panVariationRateScale);
   plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MinSec);
   plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MaxSec);
+  plugin.GetParam(kParamFormantsScale)->Set(sanitizedVoiceSettings.formantsScale);
 }
 
 void SetPatchEffectsSettingsParams(Addivox& plugin, const EffectsSettings& effectsSettings) {
@@ -242,6 +243,10 @@ bool SetParamFromChunkValue(Addivox& plugin, const IByteChunk& chunk, int paramI
 int RestoreStateParamsFromChunk(Addivox& plugin, const IByteChunk& chunk, int startPos, bool applyNonPatchOwnedParams) {
   int position = startPos;
   for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx) {
+    // States saved before a parameter was added have fewer values, followed directly by the settings block.
+    uint32_t magic = 0;
+    if (chunk.Get(&magic, position) >= 0 && magic == kPluginStateSettingsMagic) break;
+
     const bool applyValue = applyNonPatchOwnedParams || IsPatchOwnedParam(paramIdx);
     if (!SetParamFromChunkValue(plugin, chunk, paramIdx, position, applyValue)) break;
   }
@@ -725,6 +730,9 @@ void Addivox::InitializeParams() {
 
   GetParam(kParamGlobalLevel)
       ->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
+  GetParam(kParamFormantsScale)
+      ->InitDouble("Formants", 1.0, 0., 3.0, 0.01, "", 0, "", transformations::GetEqAmountPseudoLogShape(), iplug::IParam::kUnitCustom,
+                   formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
   GetParam(kParamGlobalTuning)

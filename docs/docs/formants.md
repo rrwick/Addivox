@@ -9,6 +9,14 @@ Unlike the per-harmonic settings, the formants curve is anchored to absolute fre
   <img src="../assets/eq_vis.png" alt="Addivox Formants visualised" style="width: calc(50% - 5px);">
 </div>
 
+### Formants knob
+
+The **Formants** knob in the EQ section of the main UI scales the strength of the whole curve. At 0× the curve is turned off, at 1× (the middle position) it is applied exactly as drawn, and at higher values (up to 3×) its boosts and cuts are exaggerated. The scaling matches how the curve looks in the editor, so a peak at +6 dB becomes +12 dB at 2×, and cuts deepen towards mute. The knob's value is saved with the patch.
+
+The editor always shows the curve at full strength (1×), regardless of the knob setting. The visualizer shows the result at the actual setting.
+
+Turning the knob above 1× with a curve that has strong boosts can push the output above 0 dBFS, so keep an eye on the output meter (see [Clipping audio](faq_and_miscellaneous_tips.md#clipping-audio-on-macos-and-windows)).
+
 ### What are formants?
 
 A **formant** is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and an oboe comes in part from where their formants sit in the frequency spectrum.

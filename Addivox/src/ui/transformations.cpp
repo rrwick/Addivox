@@ -10,9 +10,11 @@ constexpr double kShapeEpsilon = 1.0e-9;
 // https://www.desmos.com/calculator/62op06fbef
 // 2*ln(99) = 9.19, puts 1 right in the middle of 0-100
 // 2*ln(9) = 4.39, puts 1 right in the middle of 0-10
+// 2*ln(2) = 1.39, puts 1 right in the middle of 0-3
 constexpr double kGlobalPseudoLogShape = 9.19023970026918;
 constexpr double kPortamentoPseudoLogShape = 9.19023970026918;
 constexpr double kLevelPseudoLogShape = 4.394449154672439;
+constexpr double kEqAmountPseudoLogShape = 1.386294361119891;
 } // namespace
 
 transformations::PseudoLogExpShape::PseudoLogExpShape(double shape) : mShape(shape) {}
@@ -108,5 +110,10 @@ const iplug::IParam::Shape& transformations::GetPortamentoPseudoLogShape() {
 
 const iplug::IParam::Shape& transformations::GetLevelPseudoLogShape() {
   static const PseudoLogExpShape shape{kLevelPseudoLogShape};
+  return shape;
+}
+
+const iplug::IParam::Shape& transformations::GetEqAmountPseudoLogShape() {
+  static const PseudoLogExpShape shape{kEqAmountPseudoLogShape};
   return shape;
 }

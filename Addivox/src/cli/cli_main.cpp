@@ -46,6 +46,9 @@ void PrintUsage(std::ostream& stream) {
          << "      --port_min N         Portamento minimum in seconds\n"
          << "      --port_max N         Portamento maximum in seconds\n"
          << "\n"
+         << "EQ:\n"
+         << "      --formants N         Formants curve scaling, 0-3\n"
+         << "\n"
          << "Output:\n"
          << "      --level N            Level scaling, 0-10\n"
          << "      --pan N              Pan offset, -1 to 1 (default: 0)\n"
@@ -180,6 +183,7 @@ std::optional<double>* FindDoubleOption(HeadlessRenderOptions& options, std::str
       {"--attack",       &HeadlessRenderOptions::attackScale},
       {"--release",      &HeadlessRenderOptions::releaseScale},
       {"--level",        &HeadlessRenderOptions::levelScale},
+      {"--formants",     &HeadlessRenderOptions::formantsScale},
       {"--tuning",       &HeadlessRenderOptions::tuningCents},
       {"--pan",          &HeadlessRenderOptions::panOffset},
       {"--port_min",     &HeadlessRenderOptions::portamentoTimeAtCC5MinSec},

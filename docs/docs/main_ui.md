@@ -39,11 +39,12 @@ The keyboard at the bottom of the panel selects which key note you are editing i
 
 ### Control panels
 
-Below the main panel are five rows of knobs and controls:
+Below the main panel are six groups of knobs and controls:
 
 - **[Pitch](pitch_settings.md)** — transpose, tuning, portamento.
 - **[Envelope](global_settings.md)** — global attack and release scales.
 - **[Variation](global_settings.md)** — global scales for level, pitch and pan variation depth and rate.
+- **[EQ](formants.md#formants-knob)** — scales the strength of the formants curve.
 - **[Output](global_settings.md)** — global level scale and pan offset.
 - **[Effects](effects.md)** — drive, tone, chorus and reverb.
 
