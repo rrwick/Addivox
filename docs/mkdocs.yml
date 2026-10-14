@@ -59,6 +59,7 @@ nav:
       - Main UI: main_ui.md
       - Patches: patches.md
       - Formants: formants.md
+      - Resonance: resonance.md
       - Per-harmonic settings: per-harmonic_settings.md
       - Key notes and interpolation: key_notes_and_interpolation.md
       - Pitch settings: pitch_settings.md

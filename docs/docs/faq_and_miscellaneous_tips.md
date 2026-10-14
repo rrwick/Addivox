@@ -28,7 +28,7 @@ For real-time playing, **ASIO** is usually the best choice. If your audio interf
 
 ### Clipping audio on macOS and Windows
 
-Addivox can produce floating-point audio above 0 dBFS, especially if a patch has high per-harmonic levels, is played at full breath, uses **Level variation**, or if the global **Level** or **Formants** knob is turned up. The **Main Out** meter shows peak output level; if it reaches the red range, the signal is at or above 0 dBFS and may clip somewhere after Addivox.
+Addivox can produce floating-point audio above 0 dBFS, especially if a patch has high per-harmonic levels, is played at full breath, uses **Level variation**, or if the global **Level**, **Formants** or **Resonance** knob is turned up. The **Main Out** meter shows peak output level; if it reaches the red range, the signal is at or above 0 dBFS and may clip somewhere after Addivox.
 
 Whether or not an output level > 0 dBFS will cause clipping distortion seems to depend on the platform and audio driver. In my experience, macOS (Core Audio) and Windows WASAPI are tolerant of high levels, and I do not hear distortion when Addivox exceeds 0 dBFS. But with Windows DirectSound and Windows ASIO, I do hear clipping distortion.
 

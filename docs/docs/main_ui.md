@@ -29,9 +29,10 @@ The large panel in the middle of the UI has two modes, switched with the **VIS /
 
 <p align="center"><img src="../assets/edit_mode.png" alt="Addivox EDIT mode" style="max-width: 100%; width: 600px;"></p>
 
-**EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the formants curve:
+**EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the EQ curves:
 
 - **Formants** — draws a frequency-response curve applied to the final sound. See [Formants](formants.md).
+- **Resonance** — draws a frequency-response curve that morphs with breath. See [Resonance](resonance.md).
 - **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See [Per-harmonic settings](per-harmonic_settings.md).
 
 The keyboard at the bottom of the panel selects which key note you are editing in EDIT mode, and plays the corresponding note in VIS mode (see below).
@@ -44,7 +45,7 @@ Below the main panel are six groups of knobs and controls:
 - **[Pitch](pitch_settings.md)** — transpose, tuning, portamento.
 - **[Envelope](global_settings.md)** — global attack and release scales.
 - **[Variation](global_settings.md)** — global scales for level, pitch and pan variation depth and rate.
-- **[EQ](formants.md#formants-knob)** — scales the strength of the formants curve.
+- **EQ** — scales the strength of the [Formants](formants.md#formants-knob) and [Resonance](resonance.md#resonance-knob) curves.
 - **[Output](global_settings.md)** — global level scale and pan offset.
 - **[Effects](effects.md)** — drive, tone, chorus and reverb.
 

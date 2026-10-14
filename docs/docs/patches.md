@@ -69,6 +69,7 @@ name = "My Patch"
 [voice_settings]
 levelScale = 1.0
 formantsScale = 1.0
+resonanceScale = 0.0
 attackScale = 1.0
 releaseScale = 1.0
 levelVariationAmplitudeScale = 0.0
@@ -102,6 +103,12 @@ pitch_variation_amplitude = [5.0, ...]
 pitch_variation_rate      = [1.0, ...]
 formants_freq_hz = []
 formants_db      = []
+resonance_zero_freq_hz = []
+resonance_zero_db      = []
+resonance_full_freq_hz = []
+resonance_full_db      = []
+resonance_breath_response = 0.0
+resonance_tracking = 0.0
 ```
 
 Each per-harmonic array contains exactly 100 values (one per harmonic). A patch with multiple key notes has one `[[key_notes]]` section for each. An optional `[all_key_notes]` section stores parameters that are locked in sync across all key notes (see [Key Notes and Interpolation](key_notes_and_interpolation.md)).

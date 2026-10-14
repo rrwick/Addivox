@@ -15,6 +15,7 @@
 - Per-harmonic controls over level, breath response, attack, release, pitch, pan and more.
 - Designed specifically for wind controllers.
 - Frequency-based EQ curve for shaping formants.
+- Breath-controlled EQ curve for filter sweeps and vowel changes.
 - Built-in effects.
 - Available for macOS and Windows (iOS version coming soon).
 - Can run as a standalone instrument or as a plugin in a DAW.
