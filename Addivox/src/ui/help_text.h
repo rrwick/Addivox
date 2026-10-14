@@ -288,6 +288,8 @@ inline constexpr const char *kHarmonicSignedActions =
 
 inline constexpr const char *kEqSetShape = "Applies a preset formants curve.";
 
+inline constexpr const char *kResonanceSetShape = "Applies a preset shape to both curves.";
+
 inline constexpr const char *kEqActions =
     "Runs the selected operation. Shortcut keys are shown in brackets.\n\n"
     "scale up: makes boosts and cuts stronger.\n\n"
@@ -298,6 +300,19 @@ inline constexpr const char *kEqActions =
     "shift left: moves the curve to lower frequencies.\n\n"
     "normalize: centers the curve around 0 dB.\n\n"
     "invert: turns boosts into cuts and cuts into boosts.";
+
+inline constexpr const char *kResonanceActions =
+    "Runs the selected operation on the active curve. Shortcut keys are shown in brackets.\n\n"
+    "scale up: makes boosts and cuts stronger.\n\n"
+    "scale down: makes boosts and cuts gentler.\n\n"
+    "shift up: raises the curve by 1 dB.\n\n"
+    "shift down: lowers the curve by 1 dB.\n\n"
+    "shift right: moves the curve to higher frequencies.\n\n"
+    "shift left: moves the curve to lower frequencies.\n\n"
+    "normalize: centers the curve around 0 dB.\n\n"
+    "invert: turns boosts into cuts and cuts into boosts.\n\n"
+    "copy to other curve: makes the other curve match this one.\n\n"
+    "swap curves: swaps the zero-breath and full-breath curves.";
 
 inline constexpr const char *kAllNotes =
     "When enabled, this parameter stays synchronized across every key note. Turning it on copies the current values to all key notes.";

@@ -88,6 +88,18 @@ public:
     return newIndex;
   }
 
+  // Applies an action to one curve (see EqCurve::ApplyAction). Returns false if there is nothing to act on.
+  bool ApplyAction(Breath breath, EqCurve::Action action) {
+    PointList points = GetPoints(breath);
+    if (!EqCurve::ApplyAction(points, action)) return false;
+    Set(breath, std::move(points), PointList{GetPoints(Other(breath))});
+    return true;
+  }
+
+  void CopyToOther(Breath breath) { mCurves[static_cast<std::size_t>(Other(breath))] = Get(breath); }
+
+  void Swap() { std::swap(mCurves.front(), mCurves.back()); }
+
 private:
   struct Curve {
     Curve() = default;

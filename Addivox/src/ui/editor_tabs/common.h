@@ -128,6 +128,8 @@ inline constexpr const char*  kActionShiftRight = "shift right";
 inline constexpr const char*   kActionShiftLeft = "shift left";
 inline constexpr const char*   kActionNormalize = "normalize";
 inline constexpr const char*      kActionInvert = "invert";
+inline constexpr const char*  kActionCopyToOtherCurve = "copy to other curve";
+inline constexpr const char*        kActionSwapCurves = "swap curves";
 
 #if defined OS_IOS
 inline constexpr const char*     kActionScaleUpMenuLabel = kActionScaleUp;
@@ -142,6 +144,8 @@ inline constexpr const char*  kActionShiftRightMenuLabel = kActionShiftRight;
 inline constexpr const char*   kActionShiftLeftMenuLabel = kActionShiftLeft;
 inline constexpr const char*   kActionNormalizeMenuLabel = kActionNormalize;
 inline constexpr const char*      kActionInvertMenuLabel = kActionInvert;
+inline constexpr const char* kActionCopyToOtherCurveMenuLabel = kActionCopyToOtherCurve;
+inline constexpr const char*       kActionSwapCurvesMenuLabel = kActionSwapCurves;
 #else
 inline constexpr const char*     kActionScaleUpMenuLabel = "scale up [Q]";
 inline constexpr const char*   kActionScaleDownMenuLabel = "scale down [A]";
@@ -155,6 +159,8 @@ inline constexpr const char*  kActionShiftRightMenuLabel = "shift right [E]";
 inline constexpr const char*   kActionShiftLeftMenuLabel = "shift left [D]";
 inline constexpr const char*   kActionNormalizeMenuLabel = "normalize [N]";
 inline constexpr const char*      kActionInvertMenuLabel = "invert [I]";
+inline constexpr const char* kActionCopyToOtherCurveMenuLabel = "copy to other curve [C]";
+inline constexpr const char*       kActionSwapCurvesMenuLabel = "swap curves [X]";
 #endif
 
 const std::vector<OscillatorTabDescriptor>& GetOscillatorTabDescriptors();
@@ -624,6 +630,8 @@ struct ResonanceKnob {
 };
 
 struct ResonanceTabControls {
+  ActionSelectionControl* setShapeControl{};
+  ActionSelectionControl* actionsControl{};
   IVButtonControl* addButton{};
   IVButtonControl* deleteButton{};
   ResonanceEditorControl* editorControl{};
@@ -1106,6 +1114,8 @@ struct EditorContext {
       editorControl->SetBlendedResonance(*span.lowerResonance, *span.upperResonance, span.t);
       editorControl->SetEditable(editable);
     }
+    SetDisabledState(resonanceTab.setShapeControl, !editable);
+    SetDisabledState(resonanceTab.actionsControl, !editable);
 
     for (const auto& knob : resonanceTab.knobs) {
       if (!knob.control) continue;

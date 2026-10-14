@@ -251,6 +251,11 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
     return;
   }
 
+  if (selectedTitle && std::strcmp(selectedTitle, kResonanceTabTitle) == 0) {
+    if (const char* actionName = GetResonanceActionShortcutActionName(keyVK)) ApplyResonanceActionToSelectedKeyNote(context, actionName);
+    return;
+  }
+
   const auto* descriptor = FindOscillatorTabDescriptorForTitle(selectedTitle);
   if (!descriptor || context->IsMacrosMode(descriptor->parameter)) return;
 

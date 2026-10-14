@@ -104,6 +104,59 @@ public:
     return spline;
   }
 
+  enum class Action { scaleUp, scaleDown, shiftUp, shiftDown, shiftRight, shiftLeft, normalize, invert };
+
+  // Applies an editor action to a point list, leaving muted points' gains alone. Keeps the point count and order, so Resonance curves stay paired. Shifting
+  // left or right scales every frequency by the same ratio, stopping when the outermost point reaches the axis edge, so the curve keeps its shape. Returns
+  // false if there is nothing to act on.
+  static bool ApplyAction(PointList& points, Action action) {
+    const auto transformGains = [&points](auto&& transform) {
+      for (auto& point : points)
+        if (!IsMutedGainDb(point.gainDb)) point.gainDb = ClampGainDb(transform(point.gainDb));
+    };
+    const auto scaleFrequencies = [&points](double ratio) {
+      for (auto& point : points) point.frequencyHz *= ratio;
+    };
+    const auto byFrequency = [](const EqPoint& lhs, const EqPoint& rhs) { return lhs.frequencyHz < rhs.frequencyHz; };
+    constexpr double kShiftRatio = 1.044273782427414; // Sixteenth-octave in log-frequency space.
+
+    if (points.empty()) return false;
+    switch (action) {
+    case Action::scaleUp:    transformGains([](double gainDb) { return gainDb * 1.111111111111111; }); break;
+    case Action::scaleDown:  transformGains([](double gainDb) { return gainDb * 0.9; });               break;
+    case Action::shiftUp:    transformGains([](double gainDb) { return gainDb + 1.0; });               break;
+    case Action::shiftDown:  transformGains([](double gainDb) { return gainDb - 1.0; });               break;
+    case Action::invert:     transformGains([](double gainDb) { return -gainDb; });                    break;
+    case Action::shiftRight: {
+      const double ratio = std::min(kShiftRatio, kMaxFrequencyHz / std::max_element(points.begin(), points.end(), byFrequency)->frequencyHz);
+      if (ratio <= 1.0) return false;
+      scaleFrequencies(ratio);
+      break;
+    }
+    case Action::shiftLeft: {
+      const double ratio = std::max(1.0 / kShiftRatio, kMinFrequencyHz / std::min_element(points.begin(), points.end(), byFrequency)->frequencyHz);
+      if (ratio >= 1.0) return false;
+      scaleFrequencies(ratio);
+      break;
+    }
+    case Action::normalize: {
+      double meanDb = 0.0;
+      std::size_t activePointCount = 0;
+      for (const auto& point : points) {
+        if (IsMutedGainDb(point.gainDb)) continue;
+        meanDb += point.gainDb;
+        ++activePointCount;
+      }
+      if (activePointCount == 0) return false;
+
+      meanDb /= static_cast<double>(activePointCount);
+      transformGains([meanDb](double gainDb) { return gainDb - meanDb; });
+      break;
+    }
+    }
+    return true;
+  }
+
   static PointList ClampAndSort(PointList points) {
     for (auto& point : points) {
       point.frequencyHz = ClampFrequencyHz(point.frequencyHz);

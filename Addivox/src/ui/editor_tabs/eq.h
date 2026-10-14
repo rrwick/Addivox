@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include <array>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -83,51 +84,22 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName) {
   return {};
 }
 
+inline std::optional<EqCurve::Action> FindEqAction(const char* actionName) {
+  static constexpr std::array<std::pair<const char*, EqCurve::Action>, 8> kActions{{
+      {kActionScaleUp,    EqCurve::Action::scaleUp},    {kActionScaleDown,  EqCurve::Action::scaleDown},
+      {kActionShiftUp,    EqCurve::Action::shiftUp},    {kActionShiftDown,  EqCurve::Action::shiftDown},
+      {kActionShiftRight, EqCurve::Action::shiftRight}, {kActionShiftLeft,  EqCurve::Action::shiftLeft},
+      {kActionNormalize,  EqCurve::Action::normalize},  {kActionInvert,     EqCurve::Action::invert},
+  }};
+  for (const auto& [label, action] : kActions)
+    if (MatchesActionLabel(actionName, label)) return action;
+  return std::nullopt;
+}
+
 inline bool ApplyEqAction(EqCurve& curve, const char* actionName) {
-  const std::string_view action = actionName ? actionName : "";
-  if (action.empty() || curve.Empty()) return false;
-
+  const auto action = FindEqAction(actionName);
   auto points = curve.GetPoints();
-  if (MatchesActionLabel(actionName, kActionNormalize)) {
-    double meanDb = 0.0;
-    std::size_t activePointCount = 0;
-    for (const auto& point : points) {
-      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
-      meanDb += point.gainDb;
-      ++activePointCount;
-    }
-
-    if (activePointCount == 0) return false;
-
-    meanDb /= static_cast<double>(activePointCount);
-    for (auto& point : points) {
-      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
-      point.gainDb = EqCurve::ClampGainDb(point.gainDb - meanDb);
-    }
-  } else if (MatchesActionLabel(actionName, kActionInvert)) {
-    for (auto& point : points) {
-      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
-      point.gainDb = EqCurve::ClampGainDb(-point.gainDb);
-    }
-  } else if (MatchesActionLabel(actionName, kActionScaleUp) || MatchesActionLabel(actionName, kActionScaleDown)) {
-    const double scale = MatchesActionLabel(actionName, kActionScaleUp) ? 1.111111111111111 : 0.9;
-    for (auto& point : points) {
-      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
-      point.gainDb = EqCurve::ClampGainDb(point.gainDb * scale);
-    }
-  } else if (MatchesActionLabel(actionName, kActionShiftUp) || MatchesActionLabel(actionName, kActionShiftDown)) {
-    const double gainOffsetDb = MatchesActionLabel(actionName, kActionShiftUp) ? 1.0 : -1.0;
-    for (auto& point : points) {
-      if (EqCurve::IsMutedGainDb(point.gainDb)) continue;
-      point.gainDb = EqCurve::ClampGainDb(point.gainDb + gainOffsetDb);
-    }
-  } else if (MatchesActionLabel(actionName, kActionShiftRight) || MatchesActionLabel(actionName, kActionShiftLeft)) {
-    constexpr double kShiftRatio = 1.044273782427414; // Sixteenth-octave in log-frequency space.
-    const double frequencyScale = MatchesActionLabel(actionName, kActionShiftRight) ? kShiftRatio : (1.0 / kShiftRatio);
-
-    for (auto& point : points) point.frequencyHz *= frequencyScale;
-  } else
-    return false;
+  if (!action || !EqCurve::ApplyAction(points, *action)) return false;
 
   curve.SetPoints(std::move(points));
   return true;

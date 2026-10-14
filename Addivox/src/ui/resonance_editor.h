@@ -37,6 +37,8 @@ public:
     SetDirty(false);
   }
 
+  Breath ActiveBreath() const { return mActiveBreath; }
+
   void SetEditable(bool editable) {
     if (!editable) mDraggedPointIndex = kNoPointIndex;
     if (IsEditable() == editable) return;

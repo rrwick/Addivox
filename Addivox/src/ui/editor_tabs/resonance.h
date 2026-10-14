@@ -4,6 +4,7 @@
 #include "eq.h"
 
 #include <array>
+#include <optional>
 #include <utility>
 
 namespace editor {
@@ -29,27 +30,68 @@ inline void SetSelectedKeyNoteResonance(const std::shared_ptr<EditorContext>& co
   context->SendResonanceToDSP(caller, midiNote, resonance);
 }
 
+inline std::optional<ResonanceSettings> GetSelectedKeyNoteResonance(const std::shared_ptr<EditorContext>& context) {
+  if (!context->HasValidSelectedMidiNote()) return std::nullopt;
+
+  const auto patchLock = context->LockPatch();
+  const auto* resonance = context->Patch().GetKeyNoteResonance(context->SelectedMidiNote());
+  return resonance ? std::optional{*resonance} : std::nullopt;
+}
+
 // Updates the editor directly rather than refreshing the tab, which would also reset the knob being dragged.
 inline void SetSelectedKeyNoteResonanceValue(const std::shared_ptr<EditorContext>& context, const ResonanceKnob& knob) {
-  ResonanceSettings resonance;
-  {
-    const auto patchLock = context->LockPatch();
-    const auto* keyNoteResonance = context->Patch().GetKeyNoteResonance(context->SelectedMidiNote());
-    if (!keyNoteResonance) return;
-    resonance = *keyNoteResonance;
+  auto resonance = GetSelectedKeyNoteResonance(context);
+  if (!resonance) return;
+
+  (*resonance).*(knob.member) = knob.FromNormalized(knob.control->GetNormalizedValue());
+  SetSelectedKeyNoteResonance(context, knob.control, *resonance);
+  context->resonanceTab.editorControl->SetBlendedResonance(*resonance, *resonance, 0.0);
+}
+
+// Edits the selected key note's curves; edit returns false if it changed nothing.
+template <typename Edit> void EditSelectedKeyNoteResonanceCurves(const std::shared_ptr<EditorContext>& context, Edit&& edit) {
+  auto resonance = GetSelectedKeyNoteResonance(context);
+  if (!resonance || !std::forward<Edit>(edit)(resonance->curves)) return;
+
+  SetSelectedKeyNoteResonance(context, context->resonanceTab.editorControl, *resonance);
+  context->RefreshResonanceTab();
+}
+
+// Copy and swap act on both curves. The other actions act on the active curve only.
+inline void ApplyResonanceActionToSelectedKeyNote(const std::shared_ptr<EditorContext>& context, const char* actionName) {
+  const auto* editorControl = context->resonanceTab.editorControl;
+  if (!editorControl) return;
+
+  EditSelectedKeyNoteResonanceCurves(context, [actionName, activeBreath = editorControl->ActiveBreath()](ResonanceCurves& curves) {
+    if (MatchesActionLabel(actionName, kActionCopyToOtherCurve)) {
+      curves.CopyToOther(activeBreath);
+      return true;
+    }
+    if (MatchesActionLabel(actionName, kActionSwapCurves)) {
+      curves.Swap();
+      return true;
+    }
+    const auto action = FindEqAction(actionName);
+    return action && curves.ApplyAction(activeBreath, *action);
+  });
+}
+
+inline const char* GetResonanceActionShortcutActionName(int keyVK) {
+  switch (keyVK) {
+  case kVK_C: return kActionCopyToOtherCurve;
+  case kVK_X: return kActionSwapCurves;
+  default:    return GetEqActionShortcutActionName(keyVK);
   }
-  resonance.*(knob.member) = knob.FromNormalized(knob.control->GetNormalizedValue());
-  SetSelectedKeyNoteResonance(context, knob.control, resonance);
-  context->resonanceTab.editorControl->SetBlendedResonance(resonance, resonance, 0.0);
 }
 
 inline void ResizeResonanceTabPage(IContainerBase* pTab, const IRECT& r) {
-  constexpr int kNumChildren = 6;
+  constexpr int kNumChildren = 10;
   if (pTab->NChildren() < kNumChildren) return;
 
   const auto layout = GetHarmonicTabLayout(pTab, r);
   const std::array<IRECT, kNumChildren> childBounds{{layout.modeToggleBounds, layout.addButtonBounds, layout.deleteButtonBounds, GetCurveEditorBounds(layout),
-                                                     GetMacroKnobBounds(layout.macroAreaBounds, 0), GetMacroKnobBounds(layout.macroAreaBounds, 1)}};
+                                                     GetMacroKnobBounds(layout.macroAreaBounds, 0), GetMacroKnobBounds(layout.macroAreaBounds, 1),
+                                                     layout.setShapeLabelBounds, layout.setShapeBounds, layout.actionsLabelBounds, layout.actionsBounds}};
   for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
 }
 
@@ -78,6 +120,32 @@ inline void AttachResonanceTabChildren(IVTabPage* page, const std::shared_ptr<Ed
     knob.control = CreateMacroKnobControl(knobs[i].first, [context, i] { SetSelectedKeyNoteResonanceValue(context, context->resonanceTab.knobs[i]); });
     page->AddChildControl(knob.control);
   }
+
+  // Every shape sets both curves, since they must have the same number of points. Flat is the only shape so far.
+  auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"flat"}, styles.utilityDropdownText, styles.darkTab);
+  setShapeControl->SetTooltip(help_text::oscillator_tabs::kResonanceSetShape);
+  setShapeControl->SetOnSelection([context](const char*) {
+    EditSelectedKeyNoteResonanceCurves(context, [](ResonanceCurves& curves) {
+      curves = {};
+      return true;
+    });
+  });
+
+  auto* actionsControl = new ActionSelectionControl(
+      IRECT(), "run action",
+      {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionShiftRightMenuLabel,
+       kActionShiftLeftMenuLabel, kActionNormalizeMenuLabel, kActionInvertMenuLabel, kActionCopyToOtherCurveMenuLabel, kActionSwapCurvesMenuLabel},
+      styles.utilityDropdownText, styles.darkTab);
+  actionsControl->SetTooltip(help_text::oscillator_tabs::kResonanceActions);
+  actionsControl->SetOnSelection([context](const char* selectedText) { ApplyResonanceActionToSelectedKeyNote(context, selectedText); });
+
+  context->resonanceTab.setShapeControl = setShapeControl;
+  context->resonanceTab.actionsControl = actionsControl;
+
+  page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kResonanceSetShape));
+  page->AddChildControl(setShapeControl);
+  page->AddChildControl(CreateUtilityLabelControl("Actions:", styles, help_text::oscillator_tabs::kResonanceActions));
+  page->AddChildControl(actionsControl);
 }
 
 inline IVTabPage* CreateResonanceTabPage(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
