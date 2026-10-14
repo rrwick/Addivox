@@ -48,6 +48,7 @@ void PrintUsage(std::ostream& stream) {
          << "\n"
          << "EQ:\n"
          << "      --formants N         Formants curve scaling, 0-3\n"
+         << "      --resonance N        Resonance curve scaling, 0-3\n"
          << "\n"
          << "Output:\n"
          << "      --level N            Level scaling, 0-10\n"
@@ -184,6 +185,7 @@ std::optional<double>* FindDoubleOption(HeadlessRenderOptions& options, std::str
       {"--release",      &HeadlessRenderOptions::releaseScale},
       {"--level",        &HeadlessRenderOptions::levelScale},
       {"--formants",     &HeadlessRenderOptions::formantsScale},
+      {"--resonance",    &HeadlessRenderOptions::resonanceScale},
       {"--tuning",       &HeadlessRenderOptions::tuningCents},
       {"--pan",          &HeadlessRenderOptions::panOffset},
       {"--port_min",     &HeadlessRenderOptions::portamentoTimeAtCC5MinSec},

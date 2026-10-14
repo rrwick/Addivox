@@ -153,7 +153,7 @@ public:
   const ResonanceSettings& GetAllKeyNotesResonance() const;
   ResolvedNoteSpan ResolveNoteSpan(double midiNote) const;
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
-  double EvaluateEqVisualY(const ResolvedNoteSpan& span, double frequencyHz) const;
+  double EvaluateEqVisualY(const ResolvedNoteSpan& span, double logFrequency) const;
 
   bool AddKeyNotePatch(double midiNote);
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
@@ -169,6 +169,7 @@ public:
   void EnableAllKeyNotesEq(const EqCurve& curve);
   void SetAllKeyNotesEqEnabled(bool enabled);
   void EnableAllKeyNotesResonance(const ResonanceSettings& resonance);
+  void SetAllKeyNotesResonanceEnabled(bool enabled, double sourceMidiNote);
   bool RemoveKeyNotePatch(int midiNote);
   void ClearKeyNotePatches();
 
@@ -200,9 +201,14 @@ private:
       for (auto& [_, keyNoteCurve] : mKeyNoteCurves) keyNoteCurve = mAllKeyNotesCurve;
     }
 
-    void SetAllKeyNotesEnabled(bool enabled) {
+    // Enabling shares the source key note's curve, or the lowest key note's if there is no key note at the source.
+    void SetAllKeyNotesEnabled(bool enabled, int sourceMidiNote = kMinMidiNote) {
       mAllKeyNotesEnabled = false;
-      if (enabled) EnableAllKeyNotes(mKeyNoteCurves.empty() ? mAllKeyNotesCurve : Curve{mKeyNoteCurves.begin()->second});
+      if (!enabled) return;
+
+      const Curve* source = Find(sourceMidiNote);
+      if (!source && !mKeyNoteCurves.empty()) source = &mKeyNoteCurves.begin()->second;
+      EnableAllKeyNotes(source ? *source : mAllKeyNotesCurve);
     }
 
     void Erase(int midiNote) { mKeyNoteCurves.erase(midiNote); }

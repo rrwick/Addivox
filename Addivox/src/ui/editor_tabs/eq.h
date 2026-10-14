@@ -148,8 +148,8 @@ inline void ResizeEqTabPage(IContainerBase* pTab, const IRECT& r) {
 }
 
 inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
-  auto* toggleControl = new IVToggleControl(
-      IRECT(),
+  const auto controls = MakeAllKeyNotesControls(
+      styles,
       [context](IControl* caller) {
         auto* toggle = caller ? caller->As<IVToggleControl>() : nullptr;
         if (!toggle || !context->HasValidSelectedMidiNote()) return;
@@ -180,16 +180,9 @@ inline AllKeyNotesControls CreateEqAllKeyNotesControls(const std::shared_ptr<Edi
 
         context->RefreshOscillatorTabs();
       },
-      "", styles.utilityToggleStyle, "", "X", context->IsAllKeyNotesEqEnabled());
-  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
-
-  auto* labelControl = new ITextControl(IRECT(), "All notes", styles.utilityLabelText, COLOR_TRANSPARENT);
-  labelControl->SetIgnoreMouse(false);
-  labelControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
-  labelControl->DisablePrompt(true);
-
-  context->eqTab.allKeyNotesToggle = toggleControl;
-  return {toggleControl, labelControl};
+      context->IsAllKeyNotesEqEnabled());
+  context->eqTab.allKeyNotesToggle = controls.toggleControl;
+  return controls;
 }
 
 inline void RestoreEqTabValues(const std::shared_ptr<EditorContext>& context, IControl* caller) {
@@ -228,8 +221,7 @@ inline void AttachEqTabChildren(IVTabPage* page, const std::shared_ptr<EditorCon
                                                     styles.utilityDropdownText, styles.darkTab);
   actionsControl->SetTooltip(help_text::oscillator_tabs::kEqActions);
   auto* editorControl = CreateEqEditorControl(context);
-  auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
-  restoreButton->SetTooltip(help_text::oscillator_tabs::kRestoreButton);
+  auto* restoreButton = CreateRestoreButton(styles, [context](IControl* caller) { RestoreEqTabValues(context, caller); });
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   setShapeControl->SetOnSelection([context, editorControl](const char* selectedText) {
@@ -246,8 +238,6 @@ inline void AttachEqTabChildren(IVTabPage* page, const std::shared_ptr<EditorCon
 
     context->ApplyEqCurveActionToSelectedKeyNote(editorControl, [selectedText](EqCurve& curve) { return ApplyEqAction(curve, selectedText); });
   });
-
-  restoreButton->SetAnimationEndActionFunction([context](IControl* caller) { RestoreEqTabValues(context, caller); });
 
   context->eqTab.setShapeControl = setShapeControl;
   context->eqTab.actionsControl = actionsControl;

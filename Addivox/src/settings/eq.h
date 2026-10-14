@@ -18,6 +18,10 @@ struct MonotoneSpline {
   std::vector<double> y;
   std::vector<double> tangents;
 
+  void Reserve(std::size_t numPoints) {
+    for (auto* values : {&x, &y, &tangents}) values->reserve(numPoints);
+  }
+
   void BuildTangents() {
     tangents.assign(x.size(), 0.0);
     for (std::size_t i = 1; i + 1 < x.size(); ++i) {
@@ -35,12 +39,15 @@ struct MonotoneSpline {
     }
   }
 
-  double Evaluate(double atX) const {
+  // A segment hint speeds up evaluating at x values that mostly increase between calls (e.g. harmonics in order): the search for atX's segment steps from
+  // the previous call's segment instead of starting a binary search.
+  double Evaluate(double atX, std::size_t* segmentHint = nullptr) const {
     if (x.empty()) return 0.0;
     if (atX <= x.front()) return y.front();
     if (atX >= x.back()) return y.back();
 
-    const std::size_t i1 = static_cast<std::size_t>(std::lower_bound(x.begin(), x.end(), atX) - x.begin());
+    const std::size_t i1 = segmentHint ? StepToSegment(*segmentHint, atX) : static_cast<std::size_t>(std::lower_bound(x.begin(), x.end(), atX) - x.begin());
+    if (segmentHint) *segmentHint = i1;
     const std::size_t i0 = i1 - 1;
     const double h = x[i1] - x[i0];
     if (h <= kEpsilon) return y[i1];
@@ -57,6 +64,14 @@ struct MonotoneSpline {
 
 private:
   static constexpr double kEpsilon = 1.0e-12;
+
+  // Same result as the binary search: the first point at or after atX, which lies strictly between the end points.
+  std::size_t StepToSegment(std::size_t i1, double atX) const {
+    i1 = std::clamp<std::size_t>(i1, 1, x.size() - 1);
+    while (x[i1] < atX) ++i1;
+    while (x[i1 - 1] >= atX) --i1;
+    return i1;
+  }
 };
 
 class EqCurve {
@@ -86,11 +101,12 @@ public:
   bool Empty() const { return mPoints.empty(); }
 
   // Curves are evaluated in visual-y (see VisualYFromDb), so they sound the way they look in the editor.
-  double EvaluateVisualY(double frequencyHz) const { return EvaluateSplineVisualY(mSpline, frequencyHz); }
+  double EvaluateVisualY(double frequencyHz) const { return EvaluateSplineVisualY(mSpline, LogFrequency(frequencyHz)); }
+  double EvaluateVisualYAtLogFrequency(double logFrequency) const { return EvaluateSplineVisualY(mSpline, logFrequency); }
 
-  // For splines from MakeSpline: x is log-frequency and y is visual-y. A spline with no points is flat at 0 dB.
-  static double EvaluateSplineVisualY(const MonotoneSpline& spline, double frequencyHz) {
-    return spline.x.empty() ? kZeroDbVisualY : spline.Evaluate(LogFrequency(frequencyHz));
+  // For splines from MakeSpline: x is log-frequency (see LogFrequency) and y is visual-y. A spline with no points is flat at 0 dB.
+  static double EvaluateSplineVisualY(const MonotoneSpline& spline, double logFrequency, std::size_t* segmentHint = nullptr) {
+    return spline.x.empty() ? kZeroDbVisualY : spline.Evaluate(logFrequency, segmentHint);
   }
 
   // Expects points sorted by frequency.

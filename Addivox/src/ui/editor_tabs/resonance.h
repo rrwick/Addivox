@@ -84,14 +84,37 @@ inline const char* GetResonanceActionShortcutActionName(int keyVK) {
   }
 }
 
+// Enabling shares the selected key note's setup with every key note.
+inline void SetAllKeyNotesResonanceEnabled(const std::shared_ptr<EditorContext>& context, IControl* toggle) {
+  if (GetSelectedKeyNoteResonance(context)) {
+    const int midiNote = context->SelectedMidiNote();
+    const bool enable = toggle->GetValue() > 0.5;
+    {
+      const auto patchLock = context->LockPatch();
+      context->Patch().SetAllKeyNotesResonanceEnabled(enable, midiNote);
+    }
+    context->SendAllKeyNotesResonanceEnabledToDSP(toggle, enable, midiNote);
+  }
+  context->RefreshResonanceTab();
+}
+
+inline void RestoreResonanceTab(const std::shared_ptr<EditorContext>& context, IControl* caller) {
+  const auto& tab = context->resonanceTab;
+  if (!context->HasValidSelectedMidiNote() || tab.restoreMidiNote != context->SelectedMidiNote()) return;
+
+  SetSelectedKeyNoteResonance(context, caller, tab.restoreResonance);
+  context->RefreshResonanceTab();
+}
+
 inline void ResizeResonanceTabPage(IContainerBase* pTab, const IRECT& r) {
-  constexpr int kNumChildren = 10;
+  constexpr int kNumChildren = 13;
   if (pTab->NChildren() < kNumChildren) return;
 
   const auto layout = GetHarmonicTabLayout(pTab, r);
   const std::array<IRECT, kNumChildren> childBounds{{layout.modeToggleBounds, layout.addButtonBounds, layout.deleteButtonBounds, GetCurveEditorBounds(layout),
                                                      GetMacroKnobBounds(layout.macroAreaBounds, 0), GetMacroKnobBounds(layout.macroAreaBounds, 1),
-                                                     layout.setShapeLabelBounds, layout.setShapeBounds, layout.actionsLabelBounds, layout.actionsBounds}};
+                                                     layout.setShapeLabelBounds, layout.setShapeBounds, layout.actionsLabelBounds, layout.actionsBounds,
+                                                     layout.allKeyNotesToggleBounds, layout.allKeyNotesLabelBounds, layout.restoreButtonBounds}};
   for (std::size_t i = 0; i < childBounds.size(); ++i) pTab->GetChild(static_cast<int>(i))->SetTargetAndDrawRECTs(childBounds[i]);
 }
 
@@ -131,21 +154,30 @@ inline void AttachResonanceTabChildren(IVTabPage* page, const std::shared_ptr<Ed
     });
   });
 
-  auto* actionsControl = new ActionSelectionControl(
-      IRECT(), "run action",
-      {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel, kActionShiftRightMenuLabel,
-       kActionShiftLeftMenuLabel, kActionNormalizeMenuLabel, kActionInvertMenuLabel, kActionCopyToOtherCurveMenuLabel, kActionSwapCurvesMenuLabel},
-      styles.utilityDropdownText, styles.darkTab);
+  auto* actionsControl = new ActionSelectionControl(IRECT(), "run action",
+                                                    {kActionScaleUpMenuLabel, kActionScaleDownMenuLabel, kActionShiftUpMenuLabel, kActionShiftDownMenuLabel,
+                                                     kActionShiftRightMenuLabel, kActionShiftLeftMenuLabel, kActionNormalizeMenuLabel, kActionInvertMenuLabel,
+                                                     kActionCopyToOtherCurveMenuLabel, kActionSwapCurvesMenuLabel},
+                                                    styles.utilityDropdownText, styles.darkTab);
   actionsControl->SetTooltip(help_text::oscillator_tabs::kResonanceActions);
   actionsControl->SetOnSelection([context](const char* selectedText) { ApplyResonanceActionToSelectedKeyNote(context, selectedText); });
 
+  // The toggle's value is set when the tab refreshes.
+  const auto allKeyNotesControls = MakeAllKeyNotesControls(styles, [context](IControl* caller) { SetAllKeyNotesResonanceEnabled(context, caller); }, false);
+  auto* restoreButton = CreateRestoreButton(styles, [context](IControl* caller) { RestoreResonanceTab(context, caller); });
+
   context->resonanceTab.setShapeControl = setShapeControl;
   context->resonanceTab.actionsControl = actionsControl;
+  context->resonanceTab.allKeyNotesToggle = allKeyNotesControls.toggleControl;
+  context->resonanceTab.restoreButton = restoreButton;
 
   page->AddChildControl(CreateUtilityLabelControl("Set shape:", styles, help_text::oscillator_tabs::kResonanceSetShape));
   page->AddChildControl(setShapeControl);
   page->AddChildControl(CreateUtilityLabelControl("Actions:", styles, help_text::oscillator_tabs::kResonanceActions));
   page->AddChildControl(actionsControl);
+  page->AddChildControl(allKeyNotesControls.toggleControl);
+  page->AddChildControl(allKeyNotesControls.labelControl);
+  page->AddChildControl(restoreButton);
 }
 
 inline IVTabPage* CreateResonanceTabPage(const std::shared_ptr<EditorContext>& context, const EditorStyles& styles) {
@@ -154,6 +186,10 @@ inline IVTabPage* CreateResonanceTabPage(const std::shared_ptr<EditorContext>& c
         AttachResonanceTabChildren(page, context, styles);
         context->RefreshOscillatorTabs();
       },
-      ResizeResonanceTabPage, nullptr);
+      ResizeResonanceTabPage,
+      [context](bool isVisible) {
+        if (!isVisible) context->resonanceTab.restoreMidiNote = ResonanceTabControls::kNoRestoreMidiNote;
+        context->RefreshResonanceTab();
+      });
 }
 } // namespace editor

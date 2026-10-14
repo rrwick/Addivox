@@ -76,6 +76,10 @@ inline constexpr const char *kFormants =
     "Scales the formants curve: 0\xC3\x97 turns it off, 1\xC3\x97 applies it as drawn and higher values exaggerate it. "
     "Strong boosts at high values can push the output above 0 dBFS.";
 
+inline constexpr const char *kResonance =
+    "Scales the resonance curve: 0\xC3\x97 turns it off, 1\xC3\x97 applies it as drawn and higher values exaggerate it. "
+    "Strong boosts at high values can push the output above 0 dBFS.";
+
 inline constexpr const char *kDrive =
     "Adds a distortion effect to the sound.";
 
@@ -106,6 +110,7 @@ inline const char* GetParam(int paramIdx) {
   case kParamPortamentoAtCC5Max:                 return kPortamento;
   case kParamGlobalLevel:                        return kLevel;
   case kParamFormantsScale:                      return kFormants;
+  case kParamResonanceScale:                     return kResonance;
   case kParamEffectsReverb:                      return kReverb;
   case kParamEffectsDrive:                       return kDrive;
   case kParamEffectsChorus:                      return kChorus;

@@ -36,6 +36,7 @@ GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings) {
   sanitized.portamentoTimeAtCC5MinSec = SanitizeNonNegative(sanitized.portamentoTimeAtCC5MinSec);
   sanitized.portamentoTimeAtCC5MaxSec = SanitizeNonNegative(sanitized.portamentoTimeAtCC5MaxSec);
   sanitized.formantsScale = SanitizeNonNegative(sanitized.formantsScale);
+  sanitized.resonanceScale = SanitizeNonNegative(sanitized.resonanceScale);
   return sanitized;
 }
 
@@ -55,6 +56,7 @@ bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings) {
   case kParamPortamentoAtCC5Min:                 settings.portamentoTimeAtCC5MinSec = SanitizeNonNegative(value); return true;
   case kParamPortamentoAtCC5Max:                 settings.portamentoTimeAtCC5MaxSec = SanitizeNonNegative(value); return true;
   case kParamFormantsScale:                      settings.formantsScale = SanitizeNonNegative(value); return true;
+  case kParamResonanceScale:                     settings.resonanceScale = SanitizeNonNegative(value); return true;
   default:                                       return false;
   }
 }

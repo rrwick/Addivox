@@ -25,6 +25,7 @@ inline constexpr int               kMsgTagOpenAudioMidiSettings = 1013;
 inline constexpr int              kMsgTagSetPitchBendRange = 1014;
 inline constexpr int                    kMsgTagSetPortamentoCC = 1015;
 inline constexpr int                kMsgTagSetKeyNoteResonance = 1016;
+inline constexpr int      kMsgTagSetAllKeyNotesResonanceEnabled = 1017;
 
 enum class PatchManagerAction { SelectPatch = 0, PreviousPatch, NextPatch, SavePatch, ImportPatch, ImportCollection, ShowPatchInFileBrowser, RefreshPatches };
 
@@ -58,6 +59,11 @@ struct SetAllKeyNotesEnabledPayload {
 
 struct SetAllKeyNotesEqEnabledPayload {
   int enabled{0};
+};
+
+struct SetAllKeyNotesResonanceEnabledPayload {
+  int enabled{0};
+  int midiNote{0}; // Enabling shares this key note's setup.
 };
 
 struct SetBreathCCSourcePayload {

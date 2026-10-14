@@ -289,9 +289,7 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
 
 inline void AttachOscillatorTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                         const OscillatorTabDescriptor& descriptor) {
-  auto* restoreButton = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
-  restoreButton->SetTooltip(help_text::oscillator_tabs::kRestoreButton);
-  restoreButton->SetAnimationEndActionFunction([context, descriptor](IControl* caller) { RestoreOscillatorTabValues(context, caller, descriptor); });
+  auto* restoreButton = CreateRestoreButton(styles, [context, descriptor](IControl* caller) { RestoreOscillatorTabValues(context, caller, descriptor); });
   const auto keyNoteActionButtons = CreateKeyNoteActionButtons(context, styles);
 
   auto* sliderControl = CreateOscillatorSliderControl(context, descriptor, styles);

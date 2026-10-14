@@ -15,6 +15,7 @@ struct GlobalVoiceSettings {
   double        portamentoTimeAtCC5MinSec {0.001};
   double        portamentoTimeAtCC5MaxSec {0.025};
   double                    formantsScale {1.0};
+  double                   resonanceScale {0.0};
 };
 
 namespace global_settings {

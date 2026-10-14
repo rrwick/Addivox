@@ -90,6 +90,7 @@ void SetPatchVoiceSettingsParams(Addivox& plugin, const GlobalVoiceSettings& voi
   plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MinSec);
   plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MaxSec);
   plugin.GetParam(kParamFormantsScale)->Set(sanitizedVoiceSettings.formantsScale);
+  plugin.GetParam(kParamResonanceScale)->Set(sanitizedVoiceSettings.resonanceScale);
 }
 
 void SetPatchEffectsSettingsParams(Addivox& plugin, const EffectsSettings& effectsSettings) {
@@ -732,6 +733,9 @@ void Addivox::InitializeParams() {
       ->InitDouble("Level", 1.0, 0., 10.0, 0.01, "", 0, "", transformations::GetLevelPseudoLogShape(), iplug::IParam::kUnitCustom, formatPseudoLogScaleDisplay);
   GetParam(kParamFormantsScale)
       ->InitDouble("Formants", 1.0, 0., 3.0, 0.01, "", 0, "", transformations::GetEqAmountPseudoLogShape(), iplug::IParam::kUnitCustom,
+                   formatPseudoLogScaleDisplay);
+  GetParam(kParamResonanceScale)
+      ->InitDouble("Resonance", 0.0, 0., 3.0, 0.01, "", 0, "", transformations::GetEqAmountPseudoLogShape(), iplug::IParam::kUnitCustom,
                    formatPseudoLogScaleDisplay);
   initPseudoLogScale(kParamGlobalAttackScale, "Attack");
   initPseudoLogScale(kParamGlobalReleaseScale, "Release");
@@ -1590,6 +1594,15 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
     return applyPatchEdit([&](CompoundPatch& patch) {
       patch.SetAllKeyNotesEqEnabled(payload->enabled != 0);
+      return true;
+    });
+  }
+
+  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesResonanceEnabled &&
+      dataSize == sizeof(editor_messages::SetAllKeyNotesResonanceEnabledPayload) && pData) {
+    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesResonanceEnabledPayload*>(pData);
+    return applyPatchEdit([&](CompoundPatch& patch) {
+      patch.SetAllKeyNotesResonanceEnabled(payload->enabled != 0, payload->midiNote);
       return true;
     });
   }

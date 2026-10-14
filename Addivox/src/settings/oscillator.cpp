@@ -303,11 +303,11 @@ OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNo
   return span.lowerPatch->InterpolateOscillatorSettings(*span.upperPatch, oscillatorIndex, span.t);
 }
 
-double CompoundPatch::EvaluateEqVisualY(const ResolvedNoteSpan& span, double frequencyHz) const {
-  const double lower = span.lowerEqCurve->EvaluateVisualY(frequencyHz);
+double CompoundPatch::EvaluateEqVisualY(const ResolvedNoteSpan& span, double logFrequency) const {
+  const double lower = span.lowerEqCurve->EvaluateVisualYAtLogFrequency(logFrequency);
   if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return lower;
 
-  return EqCurve::Lerp(lower, span.upperEqCurve->EvaluateVisualY(frequencyHz), span.t);
+  return EqCurve::Lerp(lower, span.upperEqCurve->EvaluateVisualYAtLogFrequency(logFrequency), span.t);
 }
 
 bool CompoundPatch::HasKeyNotePatch(double midiNote) const { return GetKeyNotePatch(midiNote) != nullptr; }
@@ -449,6 +449,10 @@ void CompoundPatch::EnableAllKeyNotesEq(const EqCurve& curve) { mEqCurves.Enable
 void CompoundPatch::SetAllKeyNotesEqEnabled(bool enabled) { mEqCurves.SetAllKeyNotesEnabled(enabled); }
 
 void CompoundPatch::EnableAllKeyNotesResonance(const ResonanceSettings& resonance) { mResonance.EnableAllKeyNotes(resonance); }
+
+void CompoundPatch::SetAllKeyNotesResonanceEnabled(bool enabled, double sourceMidiNote) {
+  mResonance.SetAllKeyNotesEnabled(enabled, RoundAndClampMidiNote(sourceMidiNote));
+}
 
 bool CompoundPatch::RemoveKeyNotePatch(int midiNote) {
   if (mKeyNotePatches.size() <= 1) return false;

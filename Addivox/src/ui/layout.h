@@ -269,7 +269,7 @@ inline void AttachVariationControls(IGraphics* pGraphics) {
 inline void AttachEqControls(IGraphics* pGraphics) {
   AttachPassiveSectionLabel(pGraphics, positions::kEqLabel, "EQ");
   pGraphics->AttachControl(new LabelledKnob(positions::kFormantsKnob, kParamFormantsScale, "Formants"));
-  pGraphics->AttachControl(new LabelledKnob(positions::kResonanceKnob, "Resonance", UnboundKnobSpec{0.0})); // Placeholder until Resonance exists.
+  pGraphics->AttachControl(new LabelledKnob(positions::kResonanceKnob, kParamResonanceScale, "Resonance"));
 }
 
 inline void AttachOutputControls(IGraphics* pGraphics) {

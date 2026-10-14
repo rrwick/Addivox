@@ -65,7 +65,7 @@ struct OscillatorParameterDescriptor {
   OscillatorParameter parameter;
 };
 
-inline constexpr std::array<GlobalVoiceSettingDescriptor, 12> kGlobalVoiceSettingDescriptors{{
+inline constexpr std::array<GlobalVoiceSettingDescriptor, 13> kGlobalVoiceSettingDescriptors{{
     {"portamentoTimeAtCC5MinSec", &GlobalVoiceSettings::portamentoTimeAtCC5MinSec},
     {"portamentoTimeAtCC5MaxSec", &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec},
     {"attackScale", &GlobalVoiceSettings::attackScale},
@@ -78,6 +78,7 @@ inline constexpr std::array<GlobalVoiceSettingDescriptor, 12> kGlobalVoiceSettin
     {"pitchVariationRateScale", &GlobalVoiceSettings::pitchVariationRateScale},
     {"levelScale", &GlobalVoiceSettings::levelScale},
     {"formantsScale", &GlobalVoiceSettings::formantsScale},
+    {"resonanceScale", &GlobalVoiceSettings::resonanceScale},
 }};
 
 inline constexpr std::array<EffectsSettingDescriptor, 3> kEffectsSettingDescriptors{{

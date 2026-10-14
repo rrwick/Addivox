@@ -29,7 +29,9 @@ public:
 
   bool Empty() const { return mCurves.front().points.empty(); }
 
-  double EvaluateVisualY(Breath breath, double frequencyHz) const { return EqCurve::EvaluateSplineVisualY(Get(breath).spline, frequencyHz); }
+  double EvaluateVisualY(Breath breath, double frequencyHz) const {
+    return EqCurve::EvaluateSplineVisualY(Get(breath).spline, EqCurve::LogFrequency(frequencyHz));
+  }
 
   // Writes the curve at the given breath (0 = zero-breath curve, 1 = full-breath curve) into spline, for EqCurve::EvaluateSplineVisualY. Each point pair is
   // interpolated linearly in the splines' (log-frequency, visual-y) space. Reuses spline's storage, so it doesn't allocate once spline has held as many points.
@@ -126,6 +128,8 @@ private:
 
 // A key note's whole Resonance setup.
 struct ResonanceSettings {
+  static constexpr double kTrackingPivotMidiNote = 60.0; // Tracking never shifts the curves at middle C.
+
   ResonanceCurves curves;
   double breathResponse{0.0}; // -1 to 1. Positive moves the morph earlier in the breath, negative later, and 0 is linear.
   double tracking{0.0};       // 0 to 1: how far the curves follow pitch, pivoting around middle C.
@@ -141,4 +145,43 @@ struct ResonanceSettings {
     breathResponse = std::isfinite(breathResponse) ? std::clamp(breathResponse, -1.0, 1.0) : 0.0;
     tracking = std::isfinite(tracking) ? std::clamp(tracking, 0.0, 1.0) : 0.0;
   }
+};
+
+// The Resonance curve at one breath and pitch, blended between two key notes' setups. Breath Response and Tracking are blended first, so both key notes share
+// one breath shaping and one pitch shift, and identical curves stay aligned. Prepare it when breath or pitch changes, then evaluate it per harmonic. Preparing
+// reuses the splines' storage, so it doesn't allocate unless a curve has more than kReservedPoints points.
+class ResonanceMorph {
+public:
+  ResonanceMorph() {
+    mLower.Reserve(kReservedPoints);
+    mUpper.Reserve(kReservedPoints);
+  }
+
+  // t blends from lower (0) to upper (1), as in CompoundPatch::ResolvedNoteSpan.
+  void Prepare(const ResonanceSettings& lower, const ResonanceSettings& upper, double t, double breath, double midiPitch) {
+    mBlendT = &lower == &upper ? 0.0 : t;
+    const double tracking = EqCurve::Lerp(lower.tracking, upper.tracking, mBlendT);
+    const double shapedBreath = ResonanceSettings::ShapeBreath(breath, EqCurve::Lerp(lower.breathResponse, upper.breathResponse, mBlendT));
+    mLogFrequencyShift = tracking * (midiPitch - ResonanceSettings::kTrackingPivotMidiNote) * kLogFrequencyPerSemitone;
+    lower.curves.Morph(shapedBreath, mLower);
+    if (mBlendT > 0.0) upper.curves.Morph(shapedBreath, mUpper);
+  }
+
+  // Tracking translates the curves along log-frequency, which leaves their shape unchanged. Fastest when called in order of increasing frequency.
+  double EvaluateVisualY(double logFrequency) {
+    const double x = logFrequency - mLogFrequencyShift;
+    const double lower = EqCurve::EvaluateSplineVisualY(mLower, x, &mLowerSegment);
+    return mBlendT > 0.0 ? EqCurve::Lerp(lower, EqCurve::EvaluateSplineVisualY(mUpper, x, &mUpperSegment), mBlendT) : lower;
+  }
+
+private:
+  static constexpr std::size_t kReservedPoints = 128;
+  static constexpr double kLogFrequencyPerSemitone = 0.6931471805599453 / 12.0; // ln(2) / 12
+
+  MonotoneSpline mLower{};
+  MonotoneSpline mUpper{};
+  double mBlendT{0.0};
+  double mLogFrequencyShift{0.0};
+  std::size_t mLowerSegment{0}; // Search hints for EvaluateVisualY
+  std::size_t mUpperSegment{0};
 };

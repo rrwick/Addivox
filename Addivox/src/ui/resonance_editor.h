@@ -109,23 +109,16 @@ private:
     SetDirty(false);
   }
 
-  // Breath Response is blended between key notes before shaping, as in the synth.
+  // Uses the synth's morph at middle C, where Tracking has no effect.
   void DrawMorphPreviews(IGraphics& g, const IRECT& plotBounds) {
     constexpr int kNumSteps = 10;
     constexpr float kPreviewOpacity = 0.25f;
-    const double breathResponse = mResonance.breathResponse + (mBlendT * (mUpperResonance.breathResponse - mResonance.breathResponse));
+    const auto evaluateVisualY = [this](double frequencyHz) { return mMorph.EvaluateVisualY(EqCurve::LogFrequency(frequencyHz)); };
     for (int step = 1; step < kNumSteps; ++step) {
       const double breath = static_cast<double>(step) / kNumSteps;
-      const double shapedBreath = ResonanceSettings::ShapeBreath(breath, breathResponse);
-      mResonance.curves.Morph(shapedBreath, mLowerMorph);
-      mUpperResonance.curves.Morph(shapedBreath, mUpperMorph);
+      mMorph.Prepare(mResonance, mUpperResonance, mBlendT, breath, ResonanceSettings::kTrackingPivotMidiNote);
       const IColor color = IColor::LinearInterpolateBetween(BreathColor(Breath::zero), BreathColor(Breath::full), static_cast<float>(breath));
-      DrawCurve(
-          g, plotBounds,
-          [this](double frequencyHz) {
-            return EqCurve::Lerp(EqCurve::EvaluateSplineVisualY(mLowerMorph, frequencyHz), EqCurve::EvaluateSplineVisualY(mUpperMorph, frequencyHz), mBlendT);
-          },
-          color.WithOpacity(kPreviewOpacity), false);
+      DrawCurve(g, plotBounds, evaluateVisualY, color.WithOpacity(kPreviewOpacity), false);
     }
   }
 
@@ -147,8 +140,7 @@ private:
   double mBlendT{0.0};
   Breath mActiveBreath{Breath::zero};
   int mDraggedPointIndex{kNoPointIndex};
-  MonotoneSpline mLowerMorph{}; // Scratch space for drawing the morph previews
-  MonotoneSpline mUpperMorph{};
+  ResonanceMorph mMorph{}; // Scratch space for drawing the morph previews
   OnResonanceChangedFunc mOnResonanceChanged{};
 };
 } // namespace plugin_ui

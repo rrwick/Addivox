@@ -632,10 +632,17 @@ struct ResonanceKnob {
 struct ResonanceTabControls {
   ActionSelectionControl* setShapeControl{};
   ActionSelectionControl* actionsControl{};
+  IVToggleControl* allKeyNotesToggle{};
+  IVButtonControl* restoreButton{};
   IVButtonControl* addButton{};
   IVButtonControl* deleteButton{};
   ResonanceEditorControl* editorControl{};
   std::array<ResonanceKnob, 2> knobs{}; // Breath Response and Tracking
+
+  // For Restore: the key note's setup when the tab was shown or the key note was selected.
+  int restoreMidiNote{kNoRestoreMidiNote};
+  ResonanceSettings restoreResonance{};
+  static constexpr int kNoRestoreMidiNote = -1;
 };
 
 struct OscillatorTabControls {
@@ -913,6 +920,7 @@ struct EditorContext {
     }
 
     if (eqTab.editorControl) eqTab.editorControl->ClearRestoreState();
+    resonanceTab.restoreMidiNote = ResonanceTabControls::kNoRestoreMidiNote;
   }
 
   bool IsAllKeyNotesEnabled(OscillatorParameter parameter) const {
@@ -966,6 +974,11 @@ struct EditorContext {
 
   void SendAllKeyNotesEqEnabledToDSP(IControl* sourceControl, bool enabled) const {
     SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetAllKeyNotesEqEnabled, editor_messages::SetAllKeyNotesEqEnabledPayload{enabled ? 1 : 0});
+  }
+
+  void SendAllKeyNotesResonanceEnabledToDSP(IControl* sourceControl, bool enabled, int midiNote) const {
+    SendPayloadToDSP(sourceControl, editor_messages::kMsgTagSetAllKeyNotesResonanceEnabled,
+                     editor_messages::SetAllKeyNotesResonanceEnabledPayload{enabled ? 1 : 0, midiNote});
   }
 
   void SendKeyNotePatchEditToDSP(IControl* sourceControl, int msgTag, int midiNote) const {
@@ -1102,22 +1115,37 @@ struct EditorContext {
     SetDisabledState(restoreButton, !(editable && control->HasRestoreStateForMidiNote(midiNote)));
   }
 
-  // Between key notes, the knobs show the blended values, which the synth will use.
-  void RefreshResonanceTab() const {
+  // Between key notes, the knobs show the blended values, which the synth will use. While the tab is visible, captures the selected key note's setup for
+  // Restore, unless it's already captured.
+  void RefreshResonanceTab() {
     const auto patchLock = LockPatch();
     const ResonanceSettings flat{};
     CompoundPatch::ResolvedNoteSpan span{nullptr, nullptr, nullptr, nullptr, &flat, &flat, 0.0};
-    if (HasValidSelectedMidiNote()) span = Patch().ResolveNoteSpan(SelectedMidiNote());
-    const bool editable = HasValidSelectedMidiNote() && Patch().HasKeyNotePatch(SelectedMidiNote());
+    const ResonanceSettings* keyNoteResonance = nullptr;
+    const int midiNote = SelectedMidiNote();
+    if (HasValidSelectedMidiNote()) {
+      span = Patch().ResolveNoteSpan(midiNote);
+      keyNoteResonance = Patch().GetKeyNoteResonance(midiNote);
+    }
+    const bool editable = keyNoteResonance != nullptr;
 
-    if (auto* editorControl = resonanceTab.editorControl) {
+    auto& tab = resonanceTab;
+    if (editable && tab.editorControl && !tab.editorControl->IsHidden() && tab.restoreMidiNote != midiNote) {
+      tab.restoreMidiNote = midiNote;
+      tab.restoreResonance = *keyNoteResonance;
+    }
+
+    if (auto* editorControl = tab.editorControl) {
       editorControl->SetBlendedResonance(*span.lowerResonance, *span.upperResonance, span.t);
       editorControl->SetEditable(editable);
     }
-    SetDisabledState(resonanceTab.setShapeControl, !editable);
-    SetDisabledState(resonanceTab.actionsControl, !editable);
+    SetDisabledState(tab.setShapeControl, !editable);
+    SetDisabledState(tab.actionsControl, !editable);
+    SetControlValueSilently(tab.allKeyNotesToggle, Patch().IsAllKeyNotesResonanceEnabled() ? 1.0 : 0.0);
+    SetDisabledState(tab.allKeyNotesToggle, !editable);
+    SetDisabledState(tab.restoreButton, !(editable && tab.restoreMidiNote == midiNote));
 
-    for (const auto& knob : resonanceTab.knobs) {
+    for (const auto& knob : tab.knobs) {
       if (!knob.control) continue;
       const double lower = (*span.lowerResonance).*(knob.member);
       const double upper = (*span.upperResonance).*(knob.member);
@@ -1285,10 +1313,29 @@ inline ActionSelectionControl* CreateHarmonicActionsControl(const std::shared_pt
   return control;
 }
 
+// The "All notes" toggle and its label.
+inline AllKeyNotesControls MakeAllKeyNotesControls(const EditorStyles& styles, IActionFunction onToggle, bool enabled) {
+  auto* toggleControl = new IVToggleControl(IRECT(), std::move(onToggle), "", styles.utilityToggleStyle, "", "X", enabled);
+  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
+
+  auto* labelControl = new ITextControl(IRECT(), "All notes", styles.utilityLabelText, COLOR_TRANSPARENT);
+  labelControl->SetIgnoreMouse(false);
+  labelControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
+  labelControl->DisablePrompt(true);
+  return {toggleControl, labelControl};
+}
+
+inline IVButtonControl* CreateRestoreButton(const EditorStyles& styles, IActionFunction onRestore) {
+  auto* button = new IVButtonControl(IRECT(), SplashClickActionFunc, "Restore", styles.restoreButtonStyle, true, false);
+  button->SetTooltip(help_text::oscillator_tabs::kRestoreButton);
+  button->SetAnimationEndActionFunction(std::move(onRestore));
+  return button;
+}
+
 inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<EditorContext>& context, const OscillatorTabDescriptor& descriptor,
                                                      const EditorStyles& styles) {
-  auto* toggleControl = new IVToggleControl(
-      IRECT(),
+  const auto controls = MakeAllKeyNotesControls(
+      styles,
       [context, parameter = descriptor.parameter](IControl* caller) {
         auto* toggle = caller ? caller->As<IVToggleControl>() : nullptr;
         if (!toggle || !context->HasValidSelectedMidiNote()) return;
@@ -1312,16 +1359,9 @@ inline AllKeyNotesControls CreateAllKeyNotesControls(const std::shared_ptr<Edito
         context->SendAllKeyNotesEnabledToDSP(toggle, parameter, enable, midiNote);
         context->RefreshOscillatorTabs();
       },
-      "", styles.utilityToggleStyle, "", "X", context->IsAllKeyNotesEnabled(descriptor.parameter));
-  toggleControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
-
-  auto* labelControl = new ITextControl(IRECT(), "All notes", styles.utilityLabelText, COLOR_TRANSPARENT);
-  labelControl->SetIgnoreMouse(false);
-  labelControl->SetTooltip(help_text::oscillator_tabs::kAllNotes);
-  labelControl->DisablePrompt(true);
-
-  context->oscillatorTabControls.allKeyNotesToggles[static_cast<std::size_t>(descriptor.parameter)] = toggleControl;
-  return {toggleControl, labelControl};
+      context->IsAllKeyNotesEnabled(descriptor.parameter));
+  context->oscillatorTabControls.allKeyNotesToggles[static_cast<std::size_t>(descriptor.parameter)] = controls.toggleControl;
+  return controls;
 }
 
 // Use dark text on the selected accent fill for contrast.

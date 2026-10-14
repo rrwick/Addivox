@@ -31,7 +31,8 @@ private:
   double GetTargetMidiPitch() const;
   void UpdatePitch();
   void UpdateLevels();
-  void UpdateLevel(int harmonic, const OscillatorSettings& settings, const CompoundPatch::ResolvedNoteSpan& noteSpan);
+  void UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan);
+  void UpdateLevel(int harmonic, const OscillatorSettings& settings);
   void UpdatePitchRate();
   void RefreshNoteDependentState();
   double PredictRenderedMidiPitch(int numSamples) const;
@@ -69,6 +70,10 @@ private:
   double mTargetBreath{0.0};
   double mBreathRampPerTick{0.0};
   double mPortamentoControl{0.0};
+
+  // Formants and Resonance (the EQ section), updated along with the levels.
+  std::array<double, kNumHarmonics> mEqGains{};
+  ResonanceMorph mResonance;
 
   std::array<Oscillator, kNumHarmonics> mOscs;
   CompoundPatch mCompoundPatch;
