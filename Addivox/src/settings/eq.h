@@ -22,6 +22,17 @@ struct MonotoneSpline {
     for (auto* values : {&x, &y, &tangents}) values->reserve(numPoints);
   }
 
+  // Sets the points to a point-by-point blend of two splines with the same number of points. Doesn't allocate once this spline has held as many points.
+  void Blend(const MonotoneSpline& from, const MonotoneSpline& to, double t) {
+    x.resize(from.x.size());
+    y.resize(from.y.size());
+    for (std::size_t i = 0; i < x.size(); ++i) {
+      x[i] = from.x[i] + ((to.x[i] - from.x[i]) * t);
+      y[i] = from.y[i] + ((to.y[i] - from.y[i]) * t);
+    }
+    BuildTangents();
+  }
+
   void BuildTangents() {
     tangents.assign(x.size(), 0.0);
     for (std::size_t i = 1; i + 1 < x.size(); ++i) {
@@ -100,9 +111,23 @@ public:
 
   bool Empty() const { return mPoints.empty(); }
 
-  // Curves are evaluated in visual-y (see VisualYFromDb), so they sound the way they look in the editor.
-  double EvaluateVisualY(double frequencyHz) const { return EvaluateSplineVisualY(mSpline, LogFrequency(frequencyHz)); }
-  double EvaluateVisualYAtLogFrequency(double logFrequency) const { return EvaluateSplineVisualY(mSpline, logFrequency); }
+  // Fitted in visual-y (see VisualYFromDb and MakeSpline), so the curve sounds the way it looks in the editor.
+  const MonotoneSpline& Spline() const { return mSpline; }
+
+  // For a new key note between two others: blends their curves point by point (see CurveBlend), or copies the nearer one if their point counts differ.
+  static EqCurve Interpolate(const EqCurve& lower, const EqCurve& upper, double t) {
+    if (&lower == &upper || lower.mPoints.size() != upper.mPoints.size()) return t <= 0.5 ? lower : upper;
+    return EqCurve{InterpolatePoints(lower.mPoints, upper.mPoints, t)};
+  }
+
+  // Blends two point lists of equal length point by point, in the same space as their splines.
+  static PointList InterpolatePoints(const PointList& lower, const PointList& upper, double t) {
+    PointList points(lower.size());
+    for (std::size_t i = 0; i < points.size(); ++i)
+      points[i] = {std::exp(Lerp(LogFrequency(lower[i].frequencyHz), LogFrequency(upper[i].frequencyHz), t)),
+                   DbFromVisualY(Lerp(VisualYFromDb(lower[i].gainDb), VisualYFromDb(upper[i].gainDb), t))};
+    return points;
+  }
 
   // For splines from MakeSpline: x is log-frequency (see LogFrequency) and y is visual-y. A spline with no points is flat at 0 dB.
   static double EvaluateSplineVisualY(const MonotoneSpline& spline, double logFrequency, std::size_t* segmentHint = nullptr) {
@@ -273,4 +298,39 @@ private:
 
   PointList mPoints{};
   MonotoneSpline mSpline{};
+};
+
+// Two key notes' curves blended by t (0 = lower, 1 = upper). If their point counts match, each point glides between its positions on the two key notes, so a
+// peak moves rather than fading out in one place and in at another. Otherwise, one curve fades into the other. Prepare it whenever t or the curves change.
+class CurveBlend {
+public:
+  static constexpr std::size_t kReservedPoints = 128; // Preparing doesn't allocate for curves up to this size
+
+  CurveBlend() { mBlended.Reserve(kReservedPoints); }
+
+  // Keeps pointers to lower and upper, which must outlive evaluation.
+  void Prepare(const MonotoneSpline& lower, const MonotoneSpline& upper, double t) {
+    mLower = &lower;
+    mUpper = &upper;
+    mT = &lower == &upper ? 0.0 : t;
+    if (mT > 0.0 && lower.x.size() == upper.x.size()) {
+      mBlended.Blend(lower, upper, mT);
+      mLower = &mBlended;
+      mT = 0.0;
+    }
+  }
+
+  // Fastest when called in order of increasing frequency.
+  double EvaluateVisualY(double logFrequency) {
+    const double lower = EqCurve::EvaluateSplineVisualY(*mLower, logFrequency, &mLowerSegment);
+    return mT > 0.0 ? EqCurve::Lerp(lower, EqCurve::EvaluateSplineVisualY(*mUpper, logFrequency, &mUpperSegment), mT) : lower;
+  }
+
+private:
+  const MonotoneSpline* mLower{nullptr};
+  const MonotoneSpline* mUpper{nullptr};
+  MonotoneSpline mBlended{};
+  double mT{0.0};
+  std::size_t mLowerSegment{0}; // Search hints for EvaluateVisualY
+  std::size_t mUpperSegment{0};
 };

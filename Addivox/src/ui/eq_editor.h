@@ -59,10 +59,9 @@ public:
   void Draw(IGraphics& g) override {
     const IRECT plotBounds = GetPlotBounds();
     DrawBackgroundAndGrid(g, plotBounds);
-    DrawCurve(
-        g, plotBounds,
-        [this](double frequencyHz) { return EqCurve::Lerp(mCurve.EvaluateVisualY(frequencyHz), mUpperCurve.EvaluateVisualY(frequencyHz), mBlendT); },
-        colour::ui::kAccentPrimary, true);
+    mBlend.Prepare(mCurve.Spline(), mUpperCurve.Spline(), mBlendT);
+    const auto evaluateVisualY = [this](double frequencyHz) { return mBlend.EvaluateVisualY(EqCurve::LogFrequency(frequencyHz)); };
+    DrawCurve(g, plotBounds, evaluateVisualY, colour::ui::kAccentPrimary, true);
     if (IsEditable()) DrawPoints(g, plotBounds, mCurve.GetPoints(), colour::ui::kAccentPrimary, colour::visualizer::kHarmonicCore, mDraggedPointIndex);
     DrawAxisLabels(g, plotBounds);
     if (IsEditable() && mDraggedPointIndex >= 0 && static_cast<std::size_t>(mDraggedPointIndex) < mCurve.GetPoints().size())
@@ -203,6 +202,7 @@ private:
   EqCurve mCurve{};
   EqCurve mUpperCurve{};
   double mBlendT{0.0};
+  CurveBlend mBlend{}; // Scratch space for drawing
   EqCurve mRestoreCurve{};
   OnCurveChangedFunc mOnCurveChanged{};
   EqPoint mDraggedPoint{};

@@ -225,11 +225,12 @@ void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) 
     return;
   }
 
+  if (formantsActive) mFormants.Prepare(noteSpan.lowerEqCurve->Spline(), noteSpan.upperEqCurve->Spline(), noteSpan.t);
   if (resonanceActive) mResonance.Prepare(lowerResonance, upperResonance, noteSpan.t, mBreath, mRenderedMidiPitch);
   const auto gain = [](double visualY, double scale) { return EqCurve::GainFromVisualY(EqCurve::ScaleVisualY(visualY, scale)); };
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
     const double logFrequency = EqCurve::LogFrequency(mOscs[harmonic].GetFrequencyHz());
-    mEqGains[harmonic] = (formantsActive ? gain(mCompoundPatch.EvaluateEqVisualY(noteSpan, logFrequency), mGlobalVoiceSettings.formantsScale) : 1.0) *
+    mEqGains[harmonic] = (formantsActive ? gain(mFormants.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.formantsScale) : 1.0) *
                          (resonanceActive ? gain(mResonance.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.resonanceScale) : 1.0);
   }
 }

@@ -25,4 +25,4 @@ In real instruments, formants arise from the physical resonances of the instrume
 
 Adding one or more peaks can dramatically change the timbre of a patch. The **All notes** toggle (see [Key Notes and Interpolation](key_notes_and_interpolation.md)) is particularly useful here — it lets you set a single curve that applies across all key notes at once, which is usually what you want for formants.
 
-If different key notes have different curves, notes between them blend the two curves as they appear on screen, e.g. halfway between a +12 dB point and a −12 dB point gives 0 dB. A newly added key note starts with a copy of the curve from its nearest key note.
+If different key notes have different curves, notes between them blend the two, either by gliding each point from one key note to the other or by fading one curve into the other (see [Key Notes and Interpolation](key_notes_and_interpolation.md#formants-and-resonance-curves)).

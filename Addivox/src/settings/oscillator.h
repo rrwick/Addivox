@@ -153,7 +153,6 @@ public:
   const ResonanceSettings& GetAllKeyNotesResonance() const;
   ResolvedNoteSpan ResolveNoteSpan(double midiNote) const;
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
-  double EvaluateEqVisualY(const ResolvedNoteSpan& span, double logFrequency) const;
 
   bool AddKeyNotePatch(double midiNote);
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);

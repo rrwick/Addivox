@@ -303,13 +303,6 @@ OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNo
   return span.lowerPatch->InterpolateOscillatorSettings(*span.upperPatch, oscillatorIndex, span.t);
 }
 
-double CompoundPatch::EvaluateEqVisualY(const ResolvedNoteSpan& span, double logFrequency) const {
-  const double lower = span.lowerEqCurve->EvaluateVisualYAtLogFrequency(logFrequency);
-  if (span.t <= 0.0 || span.lowerEqCurve == span.upperEqCurve) return lower;
-
-  return EqCurve::Lerp(lower, span.upperEqCurve->EvaluateVisualYAtLogFrequency(logFrequency), span.t);
-}
-
 bool CompoundPatch::HasKeyNotePatch(double midiNote) const { return GetKeyNotePatch(midiNote) != nullptr; }
 
 int CompoundPatch::GetNumKeyNotePatches() const { return static_cast<int>(mKeyNotePatches.size()); }
@@ -337,11 +330,9 @@ bool CompoundPatch::AddKeyNotePatch(double midiNote) {
 
 void CompoundPatch::SetKeyNotePatch(int midiNote, const SimplePatch& patch) {
   const int clampedMidiNote = ClampMidiNote(midiNote);
-  // Curves can't be interpolated across differing point counts, so a new key note copies its nearer neighbour's curves.
   const ResolvedNoteSpan span = ResolveNoteSpan(clampedMidiNote);
-  const bool copyLower = span.t <= 0.5;
-  EqCurve eqCurve = copyLower ? *span.lowerEqCurve : *span.upperEqCurve;
-  ResonanceSettings resonance = copyLower ? *span.lowerResonance : *span.upperResonance;
+  const EqCurve eqCurve = EqCurve::Interpolate(*span.lowerEqCurve, *span.upperEqCurve, span.t);
+  const ResonanceSettings resonance = ResonanceSettings::Interpolate(*span.lowerResonance, *span.upperResonance, span.t);
 
   SimplePatch updatedPatch = patch;
   ApplyAllKeyNotesValues(updatedPatch);

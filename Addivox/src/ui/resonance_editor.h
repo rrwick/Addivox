@@ -109,26 +109,24 @@ private:
     SetDirty(false);
   }
 
-  // Uses the synth's morph at middle C, where Tracking has no effect.
   void DrawMorphPreviews(IGraphics& g, const IRECT& plotBounds) {
     constexpr int kNumSteps = 10;
     constexpr float kPreviewOpacity = 0.25f;
-    const auto evaluateVisualY = [this](double frequencyHz) { return mMorph.EvaluateVisualY(EqCurve::LogFrequency(frequencyHz)); };
     for (int step = 1; step < kNumSteps; ++step) {
       const double breath = static_cast<double>(step) / kNumSteps;
-      mMorph.Prepare(mResonance, mUpperResonance, mBlendT, breath, ResonanceSettings::kTrackingPivotMidiNote);
       const IColor color = IColor::LinearInterpolateBetween(BreathColor(Breath::zero), BreathColor(Breath::full), static_cast<float>(breath));
-      DrawCurve(g, plotBounds, evaluateVisualY, color.WithOpacity(kPreviewOpacity), false);
+      DrawMorph(g, plotBounds, breath, color.WithOpacity(kPreviewOpacity), false);
     }
   }
 
-  void DrawBreathCurve(IGraphics& g, const IRECT& plotBounds, Breath breath, const IColor& color, bool bold) const {
-    DrawCurve(
-        g, plotBounds,
-        [&](double frequencyHz) {
-          return EqCurve::Lerp(mResonance.curves.EvaluateVisualY(breath, frequencyHz), mUpperResonance.curves.EvaluateVisualY(breath, frequencyHz), mBlendT);
-        },
-        color, bold);
+  void DrawBreathCurve(IGraphics& g, const IRECT& plotBounds, Breath breath, const IColor& color, bool bold) {
+    DrawMorph(g, plotBounds, breath == Breath::zero ? 0.0 : 1.0, color, bold);
+  }
+
+  // Draws the synth's curve at the given breath and middle C, where Tracking has no effect.
+  void DrawMorph(IGraphics& g, const IRECT& plotBounds, double breath, const IColor& color, bool bold) {
+    mMorph.Prepare(mResonance, mUpperResonance, mBlendT, breath, ResonanceSettings::kTrackingPivotMidiNote);
+    DrawCurve(g, plotBounds, [this](double frequencyHz) { return mMorph.EvaluateVisualY(EqCurve::LogFrequency(frequencyHz)); }, color, bold);
   }
 
   Breath OtherBreath() const { return ResonanceCurves::Other(mActiveBreath); }
@@ -140,7 +138,7 @@ private:
   double mBlendT{0.0};
   Breath mActiveBreath{Breath::zero};
   int mDraggedPointIndex{kNoPointIndex};
-  ResonanceMorph mMorph{}; // Scratch space for drawing the morph previews
+  ResonanceMorph mMorph{}; // Scratch space for drawing
   OnResonanceChangedFunc mOnResonanceChanged{};
 };
 } // namespace plugin_ui

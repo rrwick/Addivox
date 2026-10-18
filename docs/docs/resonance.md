@@ -16,7 +16,7 @@ Every point exists on both curves. Double-clicking adds a point to both (placed 
 - **Actions** (scale, shift, normalise, invert) apply to the active curve only. **Copy to other curve** [C] and **Swap curves** [X] work on both.
 - **All notes** and **Restore** work as in the other tabs (see [Key Notes and Interpolation](key_notes_and_interpolation.md)).
 
-Notes between key notes blend the neighbouring key notes' curves, Response and Tracking. If Tracking differs between key notes, the curve's position can briefly move against pitch between them.
+Notes between key notes blend the neighbouring key notes' curves (see [Key Notes and Interpolation](key_notes_and_interpolation.md#formants-and-resonance-curves)), Response and Tracking. If Tracking differs between key notes, the curve's position can briefly move against pitch between them.
 
 ### Resonance knob
 
