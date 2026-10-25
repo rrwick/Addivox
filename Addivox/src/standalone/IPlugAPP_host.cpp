@@ -10,6 +10,8 @@
 
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
 #include "audio_midi_settings.h"
+#include "midi_inputs.h"
+#include "midi_input_dialog.h"
 #include "resource.h"
 
 #ifdef OS_WIN
@@ -48,6 +50,10 @@ std::optional<IPlugAPPHost::AppState> gLastWorkingAudioState;
 std::unique_ptr<RtAudio>               gPreservedAudio;
 // Only used for mono devices; resized while the audio stream is stopped.
 std::vector<double> gMonoRenderBuffer;
+std::unique_ptr<addivox_standalone::MidiInputs> gMidiInputs;
+HWND gMidiSettingsDialog = nullptr;
+std::vector<std::string> gMidiInputMenuNames;
+bool gMidiInputMenuDirty = false;
 
 constexpr UINT    kAudioRecoveryDelayMilliseconds = 100;
 std::atomic<bool> gAudioRecoveryPending{false};
@@ -264,6 +270,44 @@ void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::
 } // namespace
 
 namespace addivox_standalone {
+void PopulateMidiInputList(HWND dialog) {
+  if (!gMidiInputs) return;
+  gMidiInputMenuDirty = true;
+#ifdef OS_WIN
+  if (SendDlgItemMessage(dialog, IDC_COMBO_MIDI_IN_DEV, CB_GETDROPPEDSTATE, 0, 0)) return;
+#endif
+  gMidiInputMenuDirty = false;
+  SendDlgItemMessage(dialog, IDC_COMBO_MIDI_IN_DEV, CB_RESETCONTENT, 0, 0);
+  int selected = -1;
+  gMidiInputMenuNames = gMidiInputs->Names();
+  const auto& names = gMidiInputMenuNames;
+  for (int i = 0; i < static_cast<int>(names.size()); ++i) {
+    const bool isSelected = names[i] == gMidiInputs->SelectedName();
+    const auto& label = isSelected ? gMidiInputs->SelectionLabel() : names[i];
+    SendDlgItemMessage(dialog, IDC_COMBO_MIDI_IN_DEV, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(label.c_str()));
+    if (isSelected) selected = i;
+  }
+  if (selected < 0) {
+    selected = static_cast<int>(SendDlgItemMessage(dialog, IDC_COMBO_MIDI_IN_DEV, CB_ADDSTRING, 0,
+                                                 reinterpret_cast<LPARAM>(gMidiInputs->SelectionLabel().c_str())));
+    gMidiInputMenuNames.push_back(gMidiInputs->SelectedName());
+  }
+  SendDlgItemMessage(dialog, IDC_COMBO_MIDI_IN_DEV, CB_SETCURSEL, selected, 0);
+}
+
+const char* MidiInputName(int index) {
+  if (index < 0 || index >= static_cast<int>(gMidiInputMenuNames.size())) return nullptr;
+  return gMidiInputMenuNames[index].c_str();
+}
+
+void SetMidiSettingsDialog(HWND dialog) { gMidiSettingsDialog = dialog; }
+
+void PollMidiInputs() {
+  if (!gMidiInputs) return;
+  gMidiInputMenuDirty |= gMidiInputs->Refresh();
+  if (gMidiInputMenuDirty && gMidiSettingsDialog) PopulateMidiInputList(gMidiSettingsDialog);
+}
+
 #if defined OS_WIN
 constexpr uint32_t kDeviceWASAPI = 2;
 #endif
@@ -289,6 +333,7 @@ bool OpenAudioMidiSettingsDialog() {
 IPlugAPPHost::IPlugAPPHost() : mIPlug(MakePlug(InstanceInfo{this})) {}
 
 IPlugAPPHost::~IPlugAPPHost() {
+  gMidiInputs.reset();
   mExiting = true;
 
   gAudioRecoveryPending = false;
@@ -301,8 +346,6 @@ IPlugAPPHost::~IPlugAPPHost() {
   if (gPreservedAudio) mDAC = std::move(gPreservedAudio);
 
   CloseAudio();
-
-  if (mMidiIn) mMidiIn->cancelCallback();
 
   if (mMidiOut) mMidiOut->closePort();
 }
@@ -346,6 +389,7 @@ bool IPlugAPPHost::OpenWindow(HWND pParent) {
 void IPlugAPPHost::CloseWindow() { mIPlug->CloseWindow(); }
 
 bool IPlugAPPHost::InitState() {
+  mState.mMidiInDev.Set("all");
 #if defined OS_WIN
   char strPath[MAX_PATH_LEN];
   SHGetSpecialFolderPathUTF8(NULL, strPath, MAX_PATH_LEN, CSIDL_LOCAL_APPDATA, FALSE);
@@ -383,8 +427,8 @@ bool IPlugAPPHost::InitState() {
     mState.mBufferSize = GetPrivateProfileInt("audio", "buffer", 512, mINIPath.Get());
     mState.mAudioSR = GetPrivateProfileInt("audio", "sr", 44100, mINIPath.Get());
 
-    GetPrivateProfileString("midi", "indev", "no input", buf, STRBUFSZ, mINIPath.Get());
-    mState.mMidiInDev.Set(buf);
+    GetPrivateProfileString("midi", "indev", "all", buf, STRBUFSZ, mINIPath.Get());
+    mState.mMidiInDev.Set(std::string_view(buf) == "no input" ? OFF_TEXT : buf);
     GetPrivateProfileString("midi", "outdev", "no output", buf, STRBUFSZ, mINIPath.Get());
     mState.mMidiOutDev.Set(buf);
 
@@ -482,7 +526,11 @@ void IPlugAPPHost::ProbeMidiIO() {
     for (int port = 0; port < portCount; ++port) names.push_back(midi.getPortName(port));
   };
 
-  appendPorts(*mMidiIn, mMidiInputDevNames, "virtual input");
+  if (gMidiInputs) {
+    const bool changed = gMidiInputs->Refresh(mState.mMidiInDev.Get());
+    mMidiInputDevNames = gMidiInputs->Names();
+    if (changed && gMidiSettingsDialog) addivox_standalone::PopulateMidiInputList(gMidiSettingsDialog);
+  }
   appendPorts(*mMidiOut, mMidiOutputDevNames, "virtual output");
 }
 
@@ -614,37 +662,30 @@ bool IPlugAPPHost::TryToChangeAudio() {
 }
 
 bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* portName) {
+  if (direction == ERoute::kInput) {
+    if (!gMidiInputs) return false;
+    gMidiInputs->Refresh(portName);
+    return true;
+  }
+  if (!mMidiOut) return false;
   int port = GetMIDIPortNumber(direction, portName);
-  const bool input = direction == ERoute::kInput;
   if (port == -1) {
-    (input ? mState.mMidiInDev : mState.mMidiOutDev).Set(OFF_TEXT);
+    mState.mMidiOutDev.Set(OFF_TEXT);
     UpdateINI();
     port = 0;
   }
 
-  // Keep the concrete RtMidi type: openPort's default name differs for input and output.
-  auto openPort = [this, input, port](auto* midi, const char* virtualPortName) {
-    if (!midi) return false;
-    midi->closePort();
-    if (input) {
-      IMidiMsg allNotesOff;
-      allNotesOff.MakeControlChangeMsg(IMidiMsg::kAllNotesOff, 0.0);
-      // With input closed, enqueue after its pending messages and before the new input can send any.
-      mIPlug->mMidiMsgsFromCallback.Push(allNotesOff);
-    }
-    if (port == 0) return true;
+  mMidiOut->closePort();
+  if (port == 0) return true;
 #if defined OS_WIN
-    midi->openPort(port - 1);
+  mMidiOut->openPort(port - 1);
 #elif defined OS_MAC
-    if (port == 1) midi->openVirtualPort(virtualPortName);
-    else midi->openPort(port - 2);
+  if (port == 1 && gMidiInputs) gMidiInputs->OpenVirtualOutput(*mMidiOut);
+  else mMidiOut->openPort(port - 2);
 #else
 #error NOT IMPLEMENTED
 #endif
-    return true;
-  };
-
-  return input ? openPort(mMidiIn.get(), "To " BUNDLE_NAME) : openPort(mMidiOut.get(), "From " BUNDLE_NAME);
+  return true;
 }
 
 void IPlugAPPHost::CloseAudio() {
@@ -784,20 +825,19 @@ bool IPlugAPPHost::InitAudio(uint32_t, uint32_t outID, uint32_t sr, uint32_t iov
 bool IPlugAPPHost::InitMidi() {
   if (mNoIO || IsScreenshotMode()) return true;
 
+  gMidiInputs.reset();
   mMidiIn.reset();
   mMidiOut.reset();
 
   try {
     mMidiIn = std::make_unique<RtMidiIn>();
     mMidiOut = std::make_unique<RtMidiOut>();
+    gMidiInputs = std::make_unique<addivox_standalone::MidiInputs>(*mMidiIn, &MIDICallback, this);
   } catch (RtMidiError& error) {
     mMidiIn.reset();
     error.printMessage();
     return false;
   }
-
-  mMidiIn->setCallback(&MIDICallback, this);
-  mMidiIn->ignoreTypes(false, true, false);
 
   return true;
 }
@@ -868,7 +908,7 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void*, uint32_t nFrames, do
 // static
 void IPlugAPPHost::MIDICallback(double, std::vector<uint8_t>* message, void* userData) {
   auto& host = *static_cast<IPlugAPPHost*>(userData);
-  if (message->empty() || host.mExiting) return;
+  if (message->empty()) return;
 
   if (message->size() > 3) {
     if (message->size() > MAX_SYSEX_SIZE) {

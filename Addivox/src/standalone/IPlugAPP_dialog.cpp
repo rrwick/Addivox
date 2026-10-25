@@ -10,6 +10,7 @@
 */
 
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
+#include "midi_input_dialog.h"
 #include "config.h"
 #include "resource.h"
 
@@ -34,6 +35,7 @@ using namespace igraphics;
 #endif
 
 #define IDT_SCREENSHOT_TIMER 1001
+#define IDT_MIDI_DEVICES_TIMER 1002
 
 // Keep the shared host signature; Addivox only uses the output device.
 void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo*, RtAudio::DeviceInfo* outputDevInfo) {
@@ -94,7 +96,7 @@ bool IPlugAPPHost::PopulateMidiDialogs(HWND hwndDlg) {
     SendDlgItemMessage(hwndDlg, control, CB_SETCURSEL, selected, 0);
   };
 
-  populateDevices(IDC_COMBO_MIDI_IN_DEV, mMidiInputDevNames, mState.mMidiInDev);
+  addivox_standalone::PopulateMidiInputList(hwndDlg);
   populateDevices(IDC_COMBO_MIDI_OUT_DEV, mMidiOutputDevNames, mState.mMidiOutDev);
 
   SendDlgItemMessage(hwndDlg, IDC_COMBO_MIDI_IN_CHAN, CB_ADDSTRING, 0, (LPARAM) "all");
@@ -152,6 +154,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
     _this->ProbeMidiIO();
     _this->PopulatePreferencesDialog(hwndDlg);
     mTempState = mState;
+    addivox_standalone::SetMidiSettingsDialog(hwndDlg);
 
     return TRUE;
 
@@ -167,12 +170,19 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
       EndDialog(hwndDlg, IDCANCEL);
 
       // if state has been changed reset to previous state, INI file won't be changed
-      if (!_this->AudioSettingsInStateAreEqual(mState, mTempState) || !_this->MIDISettingsInStateAreEqual(mState, mTempState)) {
+      {
+        const bool audioChanged = !_this->AudioSettingsInStateAreEqual(mState, mTempState);
+        const bool midiChanged = !_this->MIDISettingsInStateAreEqual(mState, mTempState);
         mState = mTempState;
-
-        _this->TryToChangeAudioDriverType();
-        _this->ProbeAudioIO();
-        _this->TryToChangeAudio();
+        if (midiChanged) {
+          _this->SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
+          _this->SelectMIDIDevice(ERoute::kOutput, mState.mMidiOutDev.Get());
+        }
+        if (audioChanged) {
+          _this->TryToChangeAudioDriverType();
+          _this->ProbeAudioIO();
+          _this->TryToChangeAudio();
+        }
       }
 
       break;
@@ -232,8 +242,9 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
     case IDC_COMBO_MIDI_IN_DEV:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        readSelectedDevice(mState.mMidiInDev, IDC_COMBO_MIDI_IN_DEV);
+        if (const char* name = addivox_standalone::MidiInputName(selectedIndex(IDC_COMBO_MIDI_IN_DEV))) mState.mMidiInDev.Set(name);
         _this->SelectMIDIDevice(ERoute::kInput, mState.mMidiInDev.Get());
+        addivox_standalone::PopulateMidiInputList(hwndDlg);
       }
       break;
 
@@ -255,6 +266,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
     default: break;
     }
     break;
+  case WM_DESTROY: addivox_standalone::SetMidiSettingsDialog(nullptr); return TRUE;
   default: return FALSE;
   }
   return TRUE;
@@ -325,6 +337,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     ClientResize(hwndDlg, pPlug->GetEditorWidth(), pPlug->GetEditorHeight());
 
     ShowWindow(hwndDlg, SW_SHOW);
+    if (!pAppHost->IsNoIO() && !pAppHost->IsScreenshotMode()) SetTimer(hwndDlg, IDT_MIDI_DEVICES_TIMER, 500, nullptr);
 
     // Let the UI initialize before capturing it.
     if (pAppHost->IsScreenshotMode()) {
@@ -334,6 +347,10 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     return 1;
   }
   case WM_TIMER: {
+    if (wParam == IDT_MIDI_DEVICES_TIMER) {
+      addivox_standalone::PollMidiInputs();
+      return 0;
+    }
     if (wParam == IDT_SCREENSHOT_TIMER) {
       KillTimer(hwndDlg, IDT_SCREENSHOT_TIMER);
 
@@ -345,6 +362,7 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     break;
   }
   case WM_DESTROY:
+    KillTimer(hwndDlg, IDT_MIDI_DEVICES_TIMER);
     pAppHost->CloseWindow();
     gHWND = NULL;
     IPlugAPPHost::sInstance = nullptr;
