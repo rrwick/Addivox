@@ -11,7 +11,8 @@
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
 #include "audio_midi_settings.h"
 #include "midi_inputs.h"
-#include "midi_input_dialog.h"
+#include "device_settings.h"
+#include "system_audio_output.h"
 #include "resource.h"
 
 #ifdef OS_WIN
@@ -24,6 +25,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 #if defined OS_WIN
@@ -51,9 +53,32 @@ std::unique_ptr<RtAudio>               gPreservedAudio;
 // Only used for mono devices; resized while the audio stream is stopped.
 std::vector<double> gMonoRenderBuffer;
 std::unique_ptr<addivox_standalone::MidiInputs> gMidiInputs;
-HWND gMidiSettingsDialog = nullptr;
+HWND gSettingsDialog = nullptr;
 std::vector<std::string> gMidiInputMenuNames;
 bool gMidiInputMenuDirty = false;
+std::unique_ptr<addivox_standalone::SystemAudioOutput> gSystemAudioOutput;
+std::atomic<HWND> gAudioNotificationWindow{nullptr};
+std::atomic<bool> gFollowSystemAudio{false};
+std::atomic<bool> gSystemAudioNotificationPending{false};
+std::wstring gActiveSystemEndpoint;
+bool gAutomaticSystemAudioUpdate = false;
+UINT gSystemAudioRetryDelay = 250;
+
+bool UsesSystemAudio(const IPlugAPPHost::AppState& state) {
+  return addivox_standalone::SupportsSystemAudioOutput(state.mAudioDriverType) &&
+         std::string_view(state.mAudioOutDev.Get()) == addivox_standalone::kSystemAudioOutput;
+}
+
+bool SameAudioPreferences(const IPlugAPPHost::AppState& first, const IPlugAPPHost::AppState& second) {
+  return first.mAudioDriverType == second.mAudioDriverType && std::string_view(first.mAudioOutDev.Get()) == second.mAudioOutDev.Get() &&
+         first.mAudioSR == second.mAudioSR && first.mBufferSize == second.mBufferSize;
+}
+
+void SystemAudioChanged() {
+  const HWND window = gAudioNotificationWindow.load();
+  if (!window || !gFollowSystemAudio.load() || gSystemAudioNotificationPending.exchange(true)) return;
+  if (!PostMessage(window, addivox_standalone::kSystemAudioChangedMessage, 0, 0)) gSystemAudioNotificationPending = false;
+}
 
 constexpr UINT    kAudioRecoveryDelayMilliseconds = 100;
 std::atomic<bool> gAudioRecoveryPending{false};
@@ -167,6 +192,7 @@ void HandleDeviceRateChangeOnMainThread(void*) {
 
   DBGMSG("Device sample rate changed externally to %f; restarting audio\n", deviceRate);
   gDeviceRateToAdopt = static_cast<uint32_t>(std::llround(deviceRate));
+  gAutomaticSystemAudioUpdate = gFollowSystemAudio.load();
   appHost->TryToChangeAudio();
 }
 
@@ -270,6 +296,29 @@ void CopyAudioSettings(IPlugAPPHost::AppState& destination, const IPlugAPPHost::
 } // namespace
 
 namespace addivox_standalone {
+bool SupportsSystemAudioOutput(uint32_t driver) {
+#if defined OS_WIN
+  return driver != kDeviceASIO;
+#else
+  return true;
+#endif
+}
+
+void ScheduleSystemAudioUpdate(UINT delay) {
+  gSystemAudioNotificationPending = false;
+  if (gHWND && gFollowSystemAudio.load()) SetTimer(gHWND, kSystemAudioTimer, delay, nullptr);
+}
+
+void UpdateSystemAudioOutput() {
+  KillTimer(gHWND, kSystemAudioTimer);
+  if (!gFollowSystemAudio.load()) return;
+  if (auto* host = IPlugAPPHost::sInstance.get()) {
+    gAutomaticSystemAudioUpdate = true;
+    host->TryToChangeAudio();
+    if (gSettingsDialog) host->PopulateAudioDialogs(gSettingsDialog);
+  }
+}
+
 void PopulateMidiInputList(HWND dialog) {
   if (!gMidiInputs) return;
   gMidiInputMenuDirty = true;
@@ -300,12 +349,12 @@ const char* MidiInputName(int index) {
   return gMidiInputMenuNames[index].c_str();
 }
 
-void SetMidiSettingsDialog(HWND dialog) { gMidiSettingsDialog = dialog; }
+void SetDeviceSettingsDialog(HWND dialog) { gSettingsDialog = dialog; }
 
 void PollMidiInputs() {
   if (!gMidiInputs) return;
   gMidiInputMenuDirty |= gMidiInputs->Refresh();
-  if (gMidiInputMenuDirty && gMidiSettingsDialog) PopulateMidiInputList(gMidiSettingsDialog);
+  if (gMidiInputMenuDirty && gSettingsDialog) PopulateMidiInputList(gSettingsDialog);
 }
 
 #if defined OS_WIN
@@ -333,6 +382,9 @@ bool OpenAudioMidiSettingsDialog() {
 IPlugAPPHost::IPlugAPPHost() : mIPlug(MakePlug(InstanceInfo{this})) {}
 
 IPlugAPPHost::~IPlugAPPHost() {
+  gAudioNotificationWindow = nullptr;
+  gFollowSystemAudio = false;
+  gSystemAudioOutput.reset();
   gMidiInputs.reset();
   mExiting = true;
 
@@ -362,6 +414,7 @@ bool IPlugAPPHost::Init() {
   if (!InitState()) return false;
 
   TryToChangeAudioDriverType();
+  if (!mNoIO && !IsScreenshotMode()) gSystemAudioOutput = std::make_unique<addivox_standalone::SystemAudioOutput>(SystemAudioChanged);
   ProbeAudioIO();
   if (InitializeMidiForStartup(*this)) {
     ProbeMidiIO();
@@ -378,6 +431,10 @@ bool IPlugAPPHost::Init() {
 bool IPlugAPPHost::OpenWindow(HWND pParent) {
   if (pParent) SetWindowText(pParent, BUNDLE_NAME);
   const bool opened = mIPlug->OpenWindow(pParent) != nullptr;
+  if (opened) {
+    gAudioNotificationWindow = pParent;
+    addivox_standalone::ScheduleSystemAudioUpdate();
+  }
 
 #if defined OS_WIN
   if (opened) ScheduleAudioRecovery();
@@ -386,10 +443,15 @@ bool IPlugAPPHost::OpenWindow(HWND pParent) {
   return opened;
 }
 
-void IPlugAPPHost::CloseWindow() { mIPlug->CloseWindow(); }
+void IPlugAPPHost::CloseWindow() {
+  gAudioNotificationWindow = nullptr;
+  if (gHWND) KillTimer(gHWND, addivox_standalone::kSystemAudioTimer);
+  mIPlug->CloseWindow();
+}
 
 bool IPlugAPPHost::InitState() {
   mState.mMidiInDev.Set("all");
+  mState.mAudioOutDev.Set(addivox_standalone::kSystemAudioOutput);
 #if defined OS_WIN
   char strPath[MAX_PATH_LEN];
   SHGetSpecialFolderPathUTF8(NULL, strPath, MAX_PATH_LEN, CSIDL_LOCAL_APPDATA, FALSE);
@@ -421,7 +483,7 @@ bool IPlugAPPHost::InitState() {
 
     mState.mAudioDriverType = GetPrivateProfileInt("audio", "driver", 0, mINIPath.Get());
 
-    GetPrivateProfileString("audio", "outdev", "Built-in Output", buf, STRBUFSZ, mINIPath.Get());
+    GetPrivateProfileString("audio", "outdev", addivox_standalone::kSystemAudioOutput, buf, STRBUFSZ, mINIPath.Get());
     mState.mAudioOutDev.Set(buf);
 
     mState.mBufferSize = GetPrivateProfileInt("audio", "buffer", 512, mINIPath.Get());
@@ -529,16 +591,14 @@ void IPlugAPPHost::ProbeMidiIO() {
   if (gMidiInputs) {
     const bool changed = gMidiInputs->Refresh(mState.mMidiInDev.Get());
     mMidiInputDevNames = gMidiInputs->Names();
-    if (changed && gMidiSettingsDialog) addivox_standalone::PopulateMidiInputList(gMidiSettingsDialog);
+    if (changed && gSettingsDialog) addivox_standalone::PopulateMidiInputList(gSettingsDialog);
   }
   appendPorts(*mMidiOut, mMidiOutputDevNames, "virtual output");
 }
 
 bool IPlugAPPHost::AudioSettingsInStateAreEqual(AppState& first, AppState& second) {
   // Matching settings must still restart audio if a failed driver change stopped it.
-  return mDAC && mDAC->isStreamRunning() && first.mAudioDriverType == second.mAudioDriverType &&
-         std::string_view(first.mAudioOutDev.Get()) == second.mAudioOutDev.Get() && first.mAudioSR == second.mAudioSR &&
-         first.mBufferSize == second.mBufferSize;
+  return mDAC && mDAC->isStreamRunning() && SameAudioPreferences(first, second);
 }
 
 bool IPlugAPPHost::MIDISettingsInStateAreEqual(AppState& first, AppState& second) {
@@ -581,6 +641,28 @@ bool IPlugAPPHost::TryToChangeAudioDriverType() {
 bool IPlugAPPHost::TryToChangeAudio() {
   if (mNoIO || IsScreenshotMode()) return true;
 
+  if (std::exchange(gAutomaticSystemAudioUpdate, false)) {
+    if (!UsesSystemAudio(mActiveState)) return true;
+    const AppState pendingSettings = mState;
+    const bool hasPendingEdits = !SameAudioPreferences(mState, mActiveState);
+    std::unique_ptr<RtAudio> pendingDriver;
+    if (mState.mAudioDriverType != mActiveState.mAudioDriverType) {
+      pendingDriver = std::move(mDAC);
+      mDAC = std::move(gPreservedAudio);
+    }
+    CopyAudioSettings(mState, mActiveState);
+    const bool started = TryToChangeAudio();
+    if (hasPendingEdits) CopyAudioSettings(mState, pendingSettings);
+    if (pendingDriver) {
+      gPreservedAudio = std::move(mDAC);
+      mDAC = std::move(pendingDriver);
+      ProbeAudioIO();
+    }
+    return started;
+  }
+
+  if (gHWND) KillTimer(gHWND, addivox_standalone::kSystemAudioTimer);
+
 #if defined OS_MAC
   // Another application changed the device's sample rate under our running
   // stream (see the rate listener above). Follow the hardware rather than
@@ -591,6 +673,40 @@ bool IPlugAPPHost::TryToChangeAudio() {
   }
 #endif
 
+  if (UsesSystemAudio(mState)) {
+    gFollowSystemAudio = true;
+    const std::wstring endpoint = gSystemAudioOutput ? gSystemAudioOutput->DefaultEndpoint() : L"";
+    if (!endpoint.empty() && endpoint == gActiveSystemEndpoint && AudioSettingsInStateAreEqual(mState, mActiveState)) return true;
+
+    if (gPreservedAudio) {
+      auto requestedDriver = std::move(mDAC);
+      mDAC = std::move(gPreservedAudio);
+      CloseAudio();
+      mDAC = std::move(requestedDriver);
+    }
+#if defined OS_WIN
+    // DirectSound caches the capabilities of its default-device alias.
+    if (mDAC && mState.mAudioDriverType == kDeviceDS && endpoint != gActiveSystemEndpoint) {
+      CloseAudio();
+      mDAC.reset();
+    }
+#endif
+    if (!mDAC) TryToChangeAudioDriverType();
+    ProbeAudioIO();
+    const bool started = !endpoint.empty() && mDefaultOutputDev && InitAudio(0, *mDefaultOutputDev, mState.mAudioSR, mState.mBufferSize);
+    mActiveState = mState;
+    if (started) {
+      gActiveSystemEndpoint = endpoint;
+      gSystemAudioRetryDelay = 250;
+    } else {
+      CloseAudio();
+      addivox_standalone::ScheduleSystemAudioUpdate(gSystemAudioRetryDelay);
+      gSystemAudioRetryDelay = std::min(gSystemAudioRetryDelay * 2, UINT{5000});
+    }
+    return started;
+  }
+
+  gFollowSystemAudio = false;
   // Re-scan the hardware first: devices may have been plugged in or unplugged
   // since the last probe, and the default-device fallback below must not
   // resolve stale device IDs.
@@ -636,7 +752,7 @@ bool IPlugAPPHost::TryToChangeAudio() {
     bool restored = false;
     if (TryToChangeAudioDriverType()) {
       ProbeAudioIO();
-      restored = tryCurrentAudioSettings();
+      restored = UsesSystemAudio(mState) ? TryToChangeAudio() : tryCurrentAudioSettings();
     }
 
     if (restored) {
@@ -818,6 +934,7 @@ bool IPlugAPPHost::InitAudio(uint32_t, uint32_t outID, uint32_t sr, uint32_t iov
 
   mActiveState = mState;
   gLastWorkingAudioState = mState;
+  gFollowSystemAudio = UsesSystemAudio(mState);
 
   return true;
 }
@@ -929,6 +1046,10 @@ void IPlugAPPHost::MIDICallback(double, std::vector<uint8_t>* message, void* use
 // static
 void IPlugAPPHost::ErrorCallback(RtAudioErrorType type, const std::string& errorText) {
   if (type == RTAUDIO_DEVICE_DISCONNECT) {
+    if (gFollowSystemAudio.load()) {
+      SystemAudioChanged();
+      return;
+    }
     if (auto* appHost = sInstance.get(); appHost && !appHost->mExiting) {
       gAudioRecoveryPending = true;
       ScheduleAudioRecovery();

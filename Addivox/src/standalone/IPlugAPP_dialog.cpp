@@ -10,7 +10,7 @@
 */
 
 #include "../../../iPlug2/IPlug/APP/IPlugAPP_host.h"
-#include "midi_input_dialog.h"
+#include "device_settings.h"
 #include "config.h"
 #include "resource.h"
 
@@ -56,15 +56,24 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg) {
   Button_Enable(GetDlgItem(hwndDlg, IDC_BUTTON_OS_DEV_SETTINGS), mState.mAudioDriverType == kDeviceASIO);
 #endif
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_RESETCONTENT, 0, 0);
-  int selected = 0;
-  for (int i = 0; i < mAudioOutputDevIDs.size(); ++i) {
-    const std::string name = GetAudioDeviceName(mAudioOutputDevIDs[i]);
-    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_ADDSTRING, 0, (LPARAM)name.c_str());
-    if (name == mState.mAudioOutDev.Get()) selected = i;
+  LRESULT selected = 0;
+  if (addivox_standalone::SupportsSystemAudioOutput(mState.mAudioDriverType)) {
+    std::string label = addivox_standalone::kSystemAudioOutput;
+    label += mDefaultOutputDev ? " (" + GetAudioDeviceName(*mDefaultOutputDev) + ")" : " (unavailable)";
+    const LRESULT item = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(label.c_str()));
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_SETITEMDATA, item, 0);
+  }
+  for (auto deviceID : mAudioOutputDevIDs) {
+    const std::string name = GetAudioDeviceName(deviceID);
+    const LRESULT item = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name.c_str()));
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_SETITEMDATA, item, deviceID);
+    if (name == mState.mAudioOutDev.Get()) selected = item;
   }
   SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_SETCURSEL, selected, 0);
   RtAudio::DeviceInfo info;
-  if (!mAudioOutputDevIDs.empty()) info = mDAC->getDeviceInfo(mAudioOutputDevIDs[selected]);
+  const LRESULT deviceID = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_GETITEMDATA, selected, 0);
+  if (deviceID > 0) info = mDAC->getDeviceInfo(static_cast<uint32_t>(deviceID));
+  else if (mDefaultOutputDev) info = mDAC->getDeviceInfo(*mDefaultOutputDev);
   PopulateSampleRateList(hwndDlg, nullptr, &info);
 }
 
@@ -154,7 +163,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
     _this->ProbeMidiIO();
     _this->PopulatePreferencesDialog(hwndDlg);
     mTempState = mState;
-    addivox_standalone::SetMidiSettingsDialog(hwndDlg);
+    addivox_standalone::SetDeviceSettingsDialog(hwndDlg);
 
     return TRUE;
 
@@ -196,7 +205,9 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
           _this->TryToChangeAudioDriverType();
           _this->ProbeAudioIO();
 
-          if (!_this->mAudioOutputDevIDs.empty()) mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevIDs[0]).c_str());
+          if (addivox_standalone::SupportsSystemAudioOutput(driver)) mState.mAudioOutDev.Set(addivox_standalone::kSystemAudioOutput);
+          else if (!_this->mAudioOutputDevIDs.empty()) mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevIDs[0]).c_str());
+          else mState.mAudioOutDev.Set("");
 
           _this->PopulateAudioDialogs(hwndDlg);
         }
@@ -205,7 +216,9 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
 
     case IDC_COMBO_AUDIO_OUT_DEV:
       if (HIWORD(wParam) == CBN_SELCHANGE) {
-        readSelectedDevice(mState.mAudioOutDev, IDC_COMBO_AUDIO_OUT_DEV);
+        const LRESULT deviceID = SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_DEV, CB_GETITEMDATA, selectedIndex(IDC_COMBO_AUDIO_OUT_DEV), 0);
+        if (deviceID == 0) mState.mAudioOutDev.Set(addivox_standalone::kSystemAudioOutput);
+        else if (deviceID > 0) readSelectedDevice(mState.mAudioOutDev, IDC_COMBO_AUDIO_OUT_DEV);
 
         _this->PopulateDriverSpecificControls(hwndDlg);
       }
@@ -266,7 +279,7 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
     default: break;
     }
     break;
-  case WM_DESTROY: addivox_standalone::SetMidiSettingsDialog(nullptr); return TRUE;
+  case WM_DESTROY: addivox_standalone::SetDeviceSettingsDialog(nullptr); return TRUE;
   default: return FALSE;
   }
   return TRUE;
@@ -326,6 +339,9 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
   IPlugAPPHost* pAppHost = IPlugAPPHost::sInstance.get();
 
   switch (uMsg) {
+  case addivox_standalone::kSystemAudioChangedMessage:
+    addivox_standalone::ScheduleSystemAudioUpdate();
+    return 0;
   case WM_INITDIALOG: {
     gHWND = hwndDlg;
     IPlugAPP* pPlug = pAppHost->GetPlug();
@@ -347,6 +363,10 @@ WDL_DLGRET IPlugAPPHost::MainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPA
     return 1;
   }
   case WM_TIMER: {
+    if (wParam == addivox_standalone::kSystemAudioTimer) {
+      addivox_standalone::UpdateSystemAudioOutput();
+      return 0;
+    }
     if (wParam == IDT_MIDI_DEVICES_TIMER) {
       addivox_standalone::PollMidiInputs();
       return 0;
