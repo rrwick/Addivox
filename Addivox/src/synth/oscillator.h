@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 #include "../dsp/gradient_noise.h"
 #include "../visualizer/harmonic_visualizer_frame.h"
@@ -39,7 +40,7 @@ private:
   double mBasePitch = 0.0;          // target pitch before pitch-variation modulation
   double mTargetPitch = 0.0;        // target pitch after pitch-variation modulation
   double mPitchTimeSec = 0.0;       // portamento time in seconds per semitone, 0=immediate change
-  double mPitchRatePerSample = 1.0; // portamento rate in semitones/sample
+  double mPitchRatePerSample = std::numeric_limits<double>::infinity(); // portamento rate in semitones/sample
   static constexpr double kA4FrequencyHz = 440.0;
   static constexpr double kSemitonesPerOctave = 12.0;
   static constexpr double kMinFrequencyHz = 0.01;

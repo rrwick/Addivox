@@ -284,8 +284,11 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
     outputs[0][i] += leftSample;
     outputs[1][i] += rightSample;
 
-    if (pitchIsMoving) mRenderedMidiPitch = PredictRenderedMidiPitch(1);
     if (pitchIsMoving || breathIsRamping) --mNoteControlSamplesUntilUpdate;
+    if (pitchIsMoving) {
+      mRenderedMidiPitch = PredictRenderedMidiPitch(1);
+      if (mRenderedMidiPitch == mTargetMidiPitch) RefreshNoteDependentState();
+    }
   }
 }
 
