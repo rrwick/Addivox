@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "../dsp/gradient_noise.h"
+#include "../dsp/shared.h"
 #include "../visualizer/harmonic_visualizer_frame.h"
 #include "IPlugConstants.h"
 
@@ -27,6 +28,10 @@ public:
   void SetPan(double pan); // [-1, 1]: left to right
   void SetPanVariation(double amplitude, double rateHz);
   void SetLevel(double level); // Linear gain
+  void SetEqGain(double gain) {
+    mTargetEqGain = gain;
+    if (mLevel == 0.0) mEqGain = gain;
+  }
   void Reset();
   bool IsActive() const;
   HarmonicVisualizerOscillator GetVisualizerState() const;
@@ -60,6 +65,12 @@ private:
   static constexpr double kMinAttackTimeSec = 0.001;
   static constexpr double kMinReleaseTimeSec = 0.001;
   void UpdateLevelRates();
+
+  static constexpr double kEqSmoothingTimeSec = 0.001;
+  static constexpr double kEqGainEpsilon = 1.0e-9;
+  double mEqGain = 1.0;
+  double mTargetEqGain = 1.0;
+  double mEqSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kEqSmoothingTimeSec);
 
   // Phase is in cycles; harmonics remain in phase when pitch is unmodulated.
   double mPhase = 0.0;

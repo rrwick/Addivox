@@ -72,7 +72,6 @@ private:
   double mPortamentoControl{0.0};
 
   // Formants and Resonance (the EQ section), updated along with the levels.
-  std::array<double, kNumHarmonics> mEqGains{};
   CurveBlend mFormants;
   ResonanceMorph mResonance;
 

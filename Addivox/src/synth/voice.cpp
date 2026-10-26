@@ -221,7 +221,7 @@ void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) 
   const bool formantsActive = mGlobalVoiceSettings.formantsScale > 0.0 && !(noteSpan.lowerEqCurve->Empty() && noteSpan.upperEqCurve->Empty());
   const bool resonanceActive = mGlobalVoiceSettings.resonanceScale > 0.0 && !(lowerResonance.curves.Empty() && upperResonance.curves.Empty());
   if (!formantsActive && !resonanceActive) {
-    mEqGains.fill(1.0);
+    for (auto& osc : mOscs) osc.SetEqGain(1.0);
     return;
   }
 
@@ -230,14 +230,14 @@ void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) 
   const auto gain = [](double visualY, double scale) { return EqCurve::GainFromVisualY(EqCurve::ScaleVisualY(visualY, scale)); };
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
     const double logFrequency = EqCurve::LogFrequency(mOscs[harmonic].GetFrequencyHz());
-    mEqGains[harmonic] = (formantsActive ? gain(mFormants.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.formantsScale) : 1.0) *
-                         (resonanceActive ? gain(mResonance.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.resonanceScale) : 1.0);
+    mOscs[harmonic].SetEqGain((formantsActive ? gain(mFormants.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.formantsScale) : 1.0) *
+                            (resonanceActive ? gain(mResonance.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.resonanceScale) : 1.0));
   }
 }
 
 void SynthVoice::UpdateLevel(int harmonic, const OscillatorSettings& settings) {
   const double breathLevel = (mBreath <= 0.0) ? 0.0 : EvaluateBreathLevel(std::pow(mBreath, settings.breath_power));
-  mOscs[harmonic].SetLevel(settings.level * breathLevel * mEqGains[harmonic] * mGlobalVoiceSettings.levelScale);
+  mOscs[harmonic].SetLevel(settings.level * breathLevel * mGlobalVoiceSettings.levelScale);
 }
 
 void SynthVoice::RefreshNoteDependentState() {

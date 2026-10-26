@@ -1,7 +1,5 @@
 #include "oscillator.h"
 
-#include "../dsp/shared.h"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -12,6 +10,7 @@ void Oscillator::SetSampleRate(double sampleRate) {
 
   mSampleRate = nextSampleRate;
   mInverseSampleRate = 1.0 / mSampleRate;
+  mEqSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kEqSmoothingTimeSec);
   UpdateFrequency();
   UpdatePitchRate();
   UpdateLevelRates();
@@ -122,6 +121,11 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
   mLevel += (mTargetLevel - mLevel) * rate;
 
+  if (mEqGain != mTargetEqGain) {
+    const double delta = mTargetEqGain - mEqGain;
+    mEqGain = std::abs(delta) < kEqGainEpsilon ? mTargetEqGain : mEqGain + mEqSmoothingCoefficient * delta;
+  }
+
   mPanLeftGain += std::clamp(mTargetPanLeftGain - mPanLeftGain, -mPanSlewPerSample, mPanSlewPerSample);
   mPanRightGain += std::clamp(mTargetPanRightGain - mPanRightGain, -mPanSlewPerSample, mPanSlewPerSample);
   if (mPitch != mTargetPitch) {
@@ -136,12 +140,13 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   mPhase += mPhaseIncrement;
   if (mPhase >= 1.0) mPhase -= 1.0;
 
-  if (mLevel == 0.0) return {0.0, 0.0};
+  const double outputLevel = mLevel * mEqGain;
+  if (outputLevel == 0.0) return {0.0, 0.0};
 
   // Deactivate oscillator if frequency is out of range - prevents aliasing
   if (mFrequencyHz > mSampleRate * 0.5) return {0.0, 0.0};
 
-  const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * phase) * mLevel);
+  const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * phase) * outputLevel);
 
   return {out * static_cast<iplug::sample>(mPanLeftGain), out * static_cast<iplug::sample>(mPanRightGain)};
 }
@@ -154,7 +159,7 @@ bool Oscillator::IsActive() const {
 }
 
 HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const {
-  return HarmonicVisualizerOscillator{static_cast<float>(mFrequencyHz), static_cast<float>(mLevel), static_cast<float>(mPanLeftGain),
+  return HarmonicVisualizerOscillator{static_cast<float>(mFrequencyHz), static_cast<float>(mLevel * mEqGain), static_cast<float>(mPanLeftGain),
                                       static_cast<float>(mPanRightGain)};
 }
 
