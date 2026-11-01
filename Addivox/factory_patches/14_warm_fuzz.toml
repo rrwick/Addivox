@@ -13,7 +13,7 @@ panVariationRateScale = 1.0
 pitchVariationAmplitudeScale = 1.0
 pitchVariationRateScale = 1.0
 levelScale = 0.95
-formantsScale = 1.0
+formantsScale = 0.0
 resonanceScale = 0.0
 
 [effects_settings]

@@ -14,6 +14,8 @@ panVariationAmplitudeScale = 1.0
 panVariationRateScale = 1.0
 portamentoTimeAtCC5MinSec = 0.000
 portamentoTimeAtCC5MaxSec = 0.025
+formantsScale = 0.0
+resonanceScale = 0.0
 
 [effects_settings]
 drive = 0.0
