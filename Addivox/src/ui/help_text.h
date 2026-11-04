@@ -73,12 +73,10 @@ inline constexpr const char *kLevel =
     "Scales the output level for all oscillators.";
 
 inline constexpr const char *kFormants =
-    "Scales the formants curve: 0\xC3\x97 turns it off, 1\xC3\x97 applies it as drawn and higher values exaggerate it. "
-    "Strong boosts at high values can push the output above 0 dBFS.";
+    "Scales the formants curve: 0\xC3\x97 turns it off, 1\xC3\x97 applies it as drawn and higher values exaggerate it.";
 
 inline constexpr const char *kResonance =
-    "Scales the resonance curve: 0\xC3\x97 turns it off, 1\xC3\x97 applies it as drawn and higher values exaggerate it. "
-    "Strong boosts at high values can push the output above 0 dBFS.";
+    "Scales the resonance curve: 0\xC3\x97 turns it off, 1\xC3\x97 applies it as drawn and higher values exaggerate it.";
 
 inline constexpr const char *kDrive =
     "Adds a distortion effect to the sound.";
@@ -176,10 +174,11 @@ inline constexpr const char *kResonanceBreathResponse =
     "Shapes how breath moves between the two curves: right moves earlier in the breath, left moves later.";
 
 inline constexpr const char *kResonanceTracking =
-    "How far the curves follow the played pitch. At 0%, they stay fixed in frequency. At 100%, they move with pitch, matching the editor at middle C.";
+    "How far the curves follow the played pitch. At 0%, they stay fixed in frequency. At 100%, they move with pitch, matching the editor at middle C (C4).\n\n"
+    "Note that the fundamental frequency of middle C is 261.6 Hz, so at 100% tracking, the curves will have no effect below that frequency.";
 
 inline constexpr const char *kMacrosMode =
-    "Switches between the two ways of shaping the curve:\n"
+    "Switches between the two ways of shaping the curve:\n\n"
     "Macro: shape the curve with a few knobs.\n\n"
     "Detail: draw the curve by hand, one harmonic at a time.";
 
