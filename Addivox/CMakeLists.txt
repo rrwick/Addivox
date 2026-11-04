@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
+
+# Match the Xcode deployment target before CMake initializes the Apple toolchain.
+if(CMAKE_HOST_APPLE AND (NOT CMAKE_SYSTEM_NAME OR CMAKE_SYSTEM_NAME STREQUAL "Darwin"))
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum macOS version")
+endif()
+
 project(Addivox VERSION 1.1.0)
 
 option(ADDIVOX_DEMO "Build the Addivox demo version" OFF)
