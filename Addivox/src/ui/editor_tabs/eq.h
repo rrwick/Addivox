@@ -22,14 +22,14 @@ inline EqCurve MakeEqShapeCurve(const char* shapeName) {
   if (shape.empty() || shape == "flat") return {};
 
   if (shape == "low-pass") {
-    static constexpr std::array<double, 3> kFrequenciesHz{{1000.0, 2000.0, 3000.0}};
-    static constexpr std::array<double, 3>       kGainsDb{{   0.0,  -24.0, -160.0}};
+    static constexpr std::array<double, 2> kFrequenciesHz{{1000.0, 2000.0}};
+    static constexpr std::array<double, 2>       kGainsDb{{   0.0, -160.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 
   if (shape == "high-pass") {
-    static constexpr std::array<double, 3> kFrequenciesHz{{ 250.0, 500.0, 1000.0}};
-    static constexpr std::array<double, 3>       kGainsDb{{-160.0, -24.0,    0.0}};
+    static constexpr std::array<double, 2> kFrequenciesHz{{ 500.0, 1000.0}};
+    static constexpr std::array<double, 2>       kGainsDb{{-160.0,    0.0}};
     return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
   }
 

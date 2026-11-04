@@ -5,9 +5,32 @@
 
 #include <array>
 #include <optional>
+#include <string_view>
 #include <utility>
 
 namespace editor {
+inline ResonanceCurves MakeResonanceShapeCurves(const char* shapeName) {
+  const std::string_view shape = shapeName ? shapeName : "";
+  ResonanceCurves curves;
+
+  // Each row contains {frequency Hz, gain dB} pairs: zero breath first, then full breath.
+  if (shape == "low-pass") {
+    curves.SetPoints({{  262.0, 0.0}, {  400.0, -160.0}},
+                     {{10000.0, 0.0}, {15000.0, -160.0}});
+  } else if (shape == "low-pass with resonance") {
+    curves.SetPoints({{ 150.0, -5.0}, { 262.0, 5.0}, {  750.0, -160.0}},
+                     {{4300.0, -5.0}, {7750.0, 5.0}, {22000.0, -160.0}});
+  } else if (shape == "high-pass") {
+    curves.SetPoints({{ 160.0, -160.0}, { 261.0, 0.0}},
+                     {{3200.0, -160.0}, {5000.0, 0.0}});
+  } else if (shape == "high-pass with resonance") {
+    curves.SetPoints({{  85.0, -160.0}, { 262.0, 5.0}, {  500.0, -5.0}},
+                     {{2200.0, -160.0}, {7000.0, 5.0}, {13000.0, -5.0}});
+  }
+
+  return curves;
+}
+
 inline IVTabSwitchControl* CreateBreathCurveSwitchControl(ResonanceEditorControl* editorControl, const EditorStyles& styles) {
   auto* control = new EditorModeSwitchControl(
       IRECT(),
@@ -144,12 +167,16 @@ inline void AttachResonanceTabChildren(IVTabPage* page, const std::shared_ptr<Ed
     page->AddChildControl(knob.control);
   }
 
-  // Every shape sets both curves, since they must have the same number of points. Flat is the only shape so far.
-  auto* setShapeControl = new ActionSelectionControl(IRECT(), "choose shape", {"flat"}, styles.utilityDropdownText, styles.darkTab);
+  // Every shape sets both curves, since they must have the same number of points.
+  auto* setShapeControl = new ActionSelectionControl(
+      IRECT(), "choose shape", {"flat", "low-pass", "low-pass with resonance", "high-pass", "high-pass with resonance"},
+      styles.utilityDropdownText, styles.darkTab);
   setShapeControl->SetTooltip(help_text::oscillator_tabs::kResonanceSetShape);
-  setShapeControl->SetOnSelection([context](const char*) {
-    EditSelectedKeyNoteResonanceCurves(context, [](ResonanceCurves& curves) {
-      curves = {};
+  setShapeControl->SetOnSelection([context](const char* selectedText) {
+    if (!selectedText) return;
+
+    EditSelectedKeyNoteResonanceCurves(context, [selectedText](ResonanceCurves& curves) {
+      curves = MakeResonanceShapeCurves(selectedText);
       return true;
     });
   });
