@@ -48,7 +48,6 @@ private:
   static constexpr int kNumHarmonics = SimplePatch::kNumOscillators;
   static constexpr int kNoteControlIntervalSamples = 8;
 
-  // Ramp between breath CCs at control ticks to avoid zipper noise. Note on/off snaps for immediate articulation.
   static constexpr double kBreathRampTimeSec = 0.002;
 
   // Pitch is in MIDI note numbers (0-127), where 69 corresponds to A4 (440 Hz).
@@ -67,6 +66,7 @@ private:
   // Breath is a linear value from 0 to 1. mBreath is the currently rendered
   // value, ramping towards mTargetBreath by mBreathRampPerTick per control tick.
   double mBreath{0.0};
+  double mResonanceBreath{0.0}; // Hold the last sounding breath through release.
   double mTargetBreath{0.0};
   double mBreathRampPerTick{0.0};
   double mPortamentoControl{0.0};

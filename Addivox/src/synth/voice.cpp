@@ -156,6 +156,7 @@ void SynthVoice::Clear() {
   mNotePitch = 0.0;
   mPitchBend = 0.0;
   mBreath = 0.0;
+  mResonanceBreath = 0.0;
   mTargetBreath = 0.0;
   mBreathRampPerTick = 0.0;
   mPortamentoControl = 0.0;
@@ -216,6 +217,7 @@ void SynthVoice::UpdateLevels() {
 // The Formants and Resonance gains only depend on each harmonic's frequency (plus breath and pitch for Resonance), so they're computed for all harmonics in
 // one go. Flat or turned-off curves are skipped, since their gain is exactly 1.
 void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) {
+  if (mBreath > 0.0) mResonanceBreath = mBreath;
   const ResonanceSettings& lowerResonance = *noteSpan.lowerResonance;
   const ResonanceSettings& upperResonance = *noteSpan.upperResonance;
   const bool formantsActive = mGlobalVoiceSettings.formantsScale > 0.0 && !(noteSpan.lowerEqCurve->Empty() && noteSpan.upperEqCurve->Empty());
@@ -226,7 +228,7 @@ void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) 
   }
 
   if (formantsActive) mFormants.Prepare(noteSpan.lowerEqCurve->Spline(), noteSpan.upperEqCurve->Spline(), noteSpan.t);
-  if (resonanceActive) mResonance.Prepare(lowerResonance, upperResonance, noteSpan.t, mBreath, mRenderedMidiPitch);
+  if (resonanceActive) mResonance.Prepare(lowerResonance, upperResonance, noteSpan.t, mResonanceBreath, mRenderedMidiPitch);
   const auto gain = [](double visualY, double scale) { return EqCurve::GainFromVisualY(EqCurve::ScaleVisualY(visualY, scale)); };
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
     const double logFrequency = EqCurve::LogFrequency(mOscs[harmonic].GetFrequencyHz());

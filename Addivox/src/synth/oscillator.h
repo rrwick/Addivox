@@ -66,7 +66,7 @@ private:
   static constexpr double kMinReleaseTimeSec = 0.001;
   void UpdateLevelRates();
 
-  static constexpr double kEqSmoothingTimeSec = 0.001;
+  static constexpr double kEqSmoothingTimeSec = 0.002;
   static constexpr double kEqGainEpsilon = 1.0e-9;
   double mEqGain = 1.0;
   double mTargetEqGain = 1.0;
