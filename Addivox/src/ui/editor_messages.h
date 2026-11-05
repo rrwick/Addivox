@@ -96,11 +96,14 @@ inline void PutCurvePoints(iplug::IByteChunk& chunk, const EqCurve::PointList& p
   }
 }
 
-// Returns the position after the points, or -1 if the stream is too short. A negative startPos propagates, so reads can be chained.
+// Returns the position after the points, or -1 if the count is invalid or the stream is too short. A negative startPos propagates.
 inline int GetCurvePoints(const iplug::IByteStream& stream, int startPos, EqCurve::PointList& points) {
   int numPoints = 0;
   int position = stream.Get(&numPoints, startPos);
-  for (int i = 0; i < numPoints && position >= 0; ++i) {
+  if (position < 0 || numPoints < 0 || numPoints > (stream.Size() - position) / static_cast<int>(sizeof(EqCurvePointPayload))) return -1;
+
+  points.reserve(points.size() + static_cast<std::size_t>(numPoints));
+  for (int i = 0; i < numPoints; ++i) {
     EqCurvePointPayload payload;
     position = stream.Get(&payload, position);
     points.push_back({payload.frequencyHz, payload.gainDb});
@@ -133,12 +136,14 @@ inline void SerializeKeyNoteResonancePayload(int midiNote, const ResonanceSettin
 }
 
 inline bool DeserializeKeyNoteResonancePayload(int dataSize, const void* pData, int& midiNote, ResonanceSettings& resonance) {
+  if (!pData) return false;
+
   const iplug::IByteStream stream{pData, dataSize};
   EqCurve::PointList zeroBreathPoints;
   EqCurve::PointList fullBreathPoints;
   int position = GetCurvePoints(stream, GetCurvePoints(stream, stream.Get(&midiNote, 0), zeroBreathPoints), fullBreathPoints);
   position = stream.Get(&resonance.tracking, stream.Get(&resonance.breathResponse, position));
-  if (!pData || position < 0) return false;
+  if (position < 0) return false;
 
   resonance.Sanitize();
   return resonance.curves.SetPoints(std::move(zeroBreathPoints), std::move(fullBreathPoints));

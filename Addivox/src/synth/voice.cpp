@@ -215,26 +215,40 @@ void SynthVoice::UpdateLevels() {
 }
 
 // The Formants and Resonance gains only depend on each harmonic's frequency (plus breath and pitch for Resonance), so they're computed for all harmonics in
-// one go. Flat or turned-off curves are skipped, since their gain is exactly 1.
+// one go. Empty or turned-off curves are skipped, since their gain is exactly 1.
 void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) {
+  mEqSamplesUntilUpdate = kNoteControlIntervalSamples;
   if (mBreath > 0.0) mResonanceBreath = mBreath;
   const ResonanceSettings& lowerResonance = *noteSpan.lowerResonance;
   const ResonanceSettings& upperResonance = *noteSpan.upperResonance;
-  const bool formantsActive = mGlobalVoiceSettings.formantsScale > 0.0 && !(noteSpan.lowerEqCurve->Empty() && noteSpan.upperEqCurve->Empty());
-  const bool resonanceActive = mGlobalVoiceSettings.resonanceScale > 0.0 && !(lowerResonance.curves.Empty() && upperResonance.curves.Empty());
-  if (!formantsActive && !resonanceActive) {
+  mFormantsActive = mGlobalVoiceSettings.formantsScale > 0.0 && !(noteSpan.lowerEqCurve->Empty() && noteSpan.upperEqCurve->Empty());
+  mResonanceActive = mGlobalVoiceSettings.resonanceScale > 0.0 && !(lowerResonance.curves.Empty() && upperResonance.curves.Empty());
+  if (!mFormantsActive && !mResonanceActive) {
     for (auto& osc : mOscs) osc.SetEqGain(1.0);
     return;
   }
 
-  if (formantsActive) mFormants.Prepare(noteSpan.lowerEqCurve->Spline(), noteSpan.upperEqCurve->Spline(), noteSpan.t);
-  if (resonanceActive) mResonance.Prepare(lowerResonance, upperResonance, noteSpan.t, mResonanceBreath, mRenderedMidiPitch);
+  if (mFormantsActive) mFormants.Prepare(noteSpan.lowerEqCurve->Spline(), noteSpan.upperEqCurve->Spline(), noteSpan.t);
+  if (mResonanceActive) mResonance.Prepare(lowerResonance, upperResonance, noteSpan.t, mResonanceBreath, mRenderedMidiPitch);
+  for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) UpdateEqGain(harmonic);
+}
+
+void SynthVoice::UpdateEqGain(int harmonic) {
   const auto gain = [](double visualY, double scale) { return EqCurve::GainFromVisualY(EqCurve::ScaleVisualY(visualY, scale)); };
-  for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
-    const double logFrequency = EqCurve::LogFrequency(mOscs[harmonic].GetFrequencyHz());
-    mOscs[harmonic].SetEqGain((formantsActive ? gain(mFormants.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.formantsScale) : 1.0) *
-                            (resonanceActive ? gain(mResonance.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.resonanceScale) : 1.0));
-  }
+  mEqFrequencies[harmonic] = mOscs[harmonic].GetFrequencyHz();
+  const double logFrequency = EqCurve::LogFrequency(mEqFrequencies[harmonic]);
+  mOscs[harmonic].SetEqGain((mFormantsActive ? gain(mFormants.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.formantsScale) : 1.0) *
+                          (mResonanceActive ? gain(mResonance.EvaluateVisualY(logFrequency), mGlobalVoiceSettings.resonanceScale) : 1.0));
+}
+
+void SynthVoice::RefreshEqForChangedFrequencies() {
+  mEqSamplesUntilUpdate = kNoteControlIntervalSamples;
+  if (!mFormantsActive && !mResonanceActive) return;
+
+  // Oscillator pitch edits, tuning and pitch variation can move frequencies while the played note and breath remain steady.
+  // Reuse the prepared curves and only reevaluate oscillators whose frequencies have changed.
+  for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
+    if (mOscs[harmonic].GetFrequencyHz() != mEqFrequencies[harmonic]) UpdateEqGain(harmonic);
 }
 
 void SynthVoice::UpdateLevel(int harmonic, const OscillatorSettings& settings) {
@@ -275,6 +289,7 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
         mNoteControlSamplesUntilUpdate = kNoteControlIntervalSamples;
       }
     }
+    if (mEqSamplesUntilUpdate <= 0) RefreshEqForChangedFrequencies();
 
     iplug::sample leftSample = 0.0;
     iplug::sample rightSample = 0.0;
@@ -287,6 +302,7 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
     outputs[1][i] += rightSample;
 
     if (pitchIsMoving || breathIsRamping) --mNoteControlSamplesUntilUpdate;
+    --mEqSamplesUntilUpdate;
     if (pitchIsMoving) {
       mRenderedMidiPitch = PredictRenderedMidiPitch(1);
       if (mRenderedMidiPitch == mTargetMidiPitch) RefreshNoteDependentState();

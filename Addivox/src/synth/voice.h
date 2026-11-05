@@ -32,6 +32,8 @@ private:
   void UpdatePitch();
   void UpdateLevels();
   void UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan);
+  void UpdateEqGain(int harmonic);
+  void RefreshEqForChangedFrequencies();
   void UpdateLevel(int harmonic, const OscillatorSettings& settings);
   void UpdatePitchRate();
   void RefreshNoteDependentState();
@@ -71,9 +73,13 @@ private:
   double mBreathRampPerTick{0.0};
   double mPortamentoControl{0.0};
 
-  // Formants and Resonance (the EQ section), updated along with the levels.
+  // Prepared EQ curves and the oscillator frequencies at their last evaluation.
   CurveBlend mFormants;
   ResonanceMorph mResonance;
+  std::array<double, kNumHarmonics> mEqFrequencies{};
+  bool mFormantsActive{false};
+  bool mResonanceActive{false};
+  int mEqSamplesUntilUpdate{0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
   CompoundPatch mCompoundPatch;

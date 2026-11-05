@@ -39,7 +39,7 @@ public:
   void Morph(double breath, MonotoneSpline& spline) const { spline.Blend(Get(Breath::zero).spline, Get(Breath::full).spline, breath); }
 
   // Adds a point to one curve, plus its pair on the other. The pair goes at the same log-frequency fraction between the corresponding neighbours (axis edges
-  // stand in for missing neighbours), at the other curve's current gain, so the other curve keeps its shape.
+  // stand in for missing neighbours), at the other curve's current gain, to minimise changes to its shape when the spline is refitted.
   void AddPoint(Breath breath, const EqPoint& point) {
     PointList points = GetPoints(breath);
     PointList otherPoints = GetPoints(Other(breath));

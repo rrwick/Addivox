@@ -209,7 +209,8 @@ public:
     return points;
   }
 
-  static double LogFrequency(double frequencyHz) { return std::log(ClampFrequencyHz(frequencyHz)); }
+  // Only control points are limited to the editor's range. Evaluation must retain the actual frequency before Resonance applies pitch tracking.
+  static double LogFrequency(double frequencyHz) { return std::log(frequencyHz > 0.0 ? frequencyHz : kMinFrequencyHz); }
 
   static bool IsMutedGainDb(double gainDb) {
     if (!std::isfinite(gainDb)) return gainDb < 0.0;

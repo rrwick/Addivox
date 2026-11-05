@@ -1674,7 +1674,19 @@ void Addivox::ReconcileActivePatchIdentity() {
   const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
 
   if (mActivePatchSource == PatchSource::Factory) {
+    // Factory patches can move when new ones are inserted. Saved states retain the patch name as well as its old index.
+    if (!mActivePatchDisplayName.empty() &&
+        (mActiveFactoryPatchIdx < 0 || mActiveFactoryPatchIdx >= NPresets() || mActivePatchDisplayName != GetPresetName(mActiveFactoryPatchIdx))) {
+      mActiveFactoryPatchIdx = -1;
+      for (int patchIdx = 0; patchIdx < NPresets(); ++patchIdx) {
+        if (mActivePatchDisplayName == GetPresetName(patchIdx)) {
+          mActiveFactoryPatchIdx = patchIdx;
+          break;
+        }
+      }
+    }
     if (mActiveFactoryPatchIdx >= 0 && mActiveFactoryPatchIdx < NPresets()) {
+      SetCurrentPresetIdx(mActiveFactoryPatchIdx);
       mActivePatchPath = (mActiveFactoryPatchIdx < static_cast<int>(mFactoryPatchPaths.size()))
                              ? mFactoryPatchPaths[static_cast<std::size_t>(mActiveFactoryPatchIdx)]
                              : std::string{};
