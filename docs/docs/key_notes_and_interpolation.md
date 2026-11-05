@@ -4,7 +4,7 @@ A **key note** is a MIDI note at which you define an explicit set of per-harmoni
 
 ### Single key note
 
-If a patch has only one key note, all played notes share the same per-harmonic settings. The patch sounds the same regardless of octave, except for the fundamental pitch of each harmonic (which always scales with the played note).
+If a patch has only one key note, all played notes share the same per-harmonic settings. Formants and Resonance can still change the timbre across registers as harmonics move through their frequency-based curves.
 
 ### Multiple key notes
 
@@ -19,9 +19,7 @@ Formants and Resonance curves are blended in one of two ways, depending on wheth
 - **Same number of points:** each point glides from its place on one key note to its place on the other, so peaks and dips move across the spectrum. Points are paired in frequency order: the lowest point on one key note pairs with the lowest on the other, and so on. For example, halfway between a +12 dB peak at 500 Hz and a +12 dB peak at 2 kHz, there is a +12 dB peak at 1 kHz.
 - **Different numbers of points:** one curve fades into the other as they appear on screen. Halfway between the same two peaks, there are two +6 dB peaks, at 500 Hz and 2 kHz.
 
-To make curves with the same number of points fade rather than glide, add a point to one of them where it doesn't change the shape, such as on a flat stretch.
-
-When you add a key note between two others whose curves have the same number of points, it starts with the blend of their curves, so the sound doesn't change. Otherwise, it copies the curves from the nearer key note.
+When you add a key note between two others whose curves have the same number of points, it starts with the blend of their curves. Otherwise, it copies the curves from the nearer key note.
 
 ### "All notes" toggle
 

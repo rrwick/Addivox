@@ -1,12 +1,12 @@
 # Formants
 
-The Formants tab in the editor lets you draw a frequency-response curve that is applied to the synthesised sound. The curve is defined by a set of control points — you can drag existing points to reshape it, and add/remove points by double-clicking. The curve is smoothly interpolated between points using a monotone spline, and it is flat outside the leftmost and rightmost points.
+The Formants tab in the editor lets you draw a frequency-response curve that is applied to the synthesised sound. The curve is defined by a set of control points — you can drag existing points to reshape it, and add/remove points by double-clicking. The curve is smoothly interpolated between points, and it is flat outside the leftmost and rightmost points.
 
 Unlike the per-harmonic settings, the formants curve is anchored to absolute frequencies rather than to the pitch of the note. This means a peak at 800 Hz stays at 800 Hz regardless of whether you are playing a low note or a high note.
 
 <div style="display: flex; justify-content: center; gap: 10px; width: 100%;">
-  <img src="../assets/eq_edit.png" alt="Addivox Formants editor" style="width: calc(50% - 5px);">
-  <img src="../assets/eq_vis.png" alt="Addivox Formants visualised" style="width: calc(50% - 5px);">
+  <img src="../assets/formants_edit.png" alt="Addivox Formants editor" style="width: calc(50% - 5px);">
+  <img src="../assets/formants_vis.png" alt="Addivox Formants visualised" style="width: calc(50% - 5px);">
 </div>
 
 ### Formants knob

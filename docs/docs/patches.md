@@ -2,11 +2,11 @@
 
 ### Factory patches
 
-Addivox ships with 19 factory patches:
+Addivox ships with 23 factory patches:
 
 - **Init Patch** — This is a plain one-key-note patch which uses default values for all edit-tab macros. A good starting point for building your own patch.
 
-- **Bright Brass** — A clean bright brassy sound, ranging from tuba-like to trombone-like to trumpet-like. Has a smoothly tapering Level curve, and for lower notes, the peak is at a higher harmonic number. No formants.
+- **Bright Brass** — A clean bright brassy sound, ranging from tuba-like to trombone-like to trumpet-like. Has a smoothly tapering Level curve, and for lower notes, the peak is at a higher harmonic number.
 
 - **Warm Brass** — Similar to Bright Brass, except the Level curve peaks sooner and tapers faster, giving fewer high harmonics.
 
@@ -40,7 +40,17 @@ Addivox ships with 19 factory patches:
 
 - **Choir Oh** — Strong formants to create an "Oh" vowel sound.
 
+- **Choir Wow** — A choir sound whose vowel changes with breath.
+
 - **Church Bell** — A bell sound with many inharmonic partials and a slow release time.
+
+- **Low Pass Resonance** — A resonant low-pass sweep controlled by breath.
+
+- **Band Pass Resonance** — A band-pass sweep controlled by breath.
+
+- **Double Peak Resonance** — Two resonant peaks that move with breath.
+
+Some patches include Formants or Resonance curves that are off by default. Turn up the [global knobs](global_settings.md) to try them.
 
 
 ### Custom patches

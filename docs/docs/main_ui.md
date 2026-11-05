@@ -16,7 +16,7 @@ The gear icon in the top-right corner of the top bar opens the settings menu:
 - **Portamento CC** — CC 5 varies the portamento time; CC 65 selects minimum or maximum.
 - **Pitch Bend Range** — sets the pitch bend range to off, 1 semitone, 2 semitones, a fifth, an octave, 2 octaves or 4 octaves. This can also be set by right-clicking the pitch bend wheel. When off, pitch bend does not change Addivox's pitch, but the wheel still moves and pitch bend messages are still passed on to other plugins.
 - **Audio & MIDI Settings...** *(standalone app only)* — opens the system audio and MIDI device settings.
-- **Reset Synth Settings to Defaults** — restores the first factory patch and resets transpose, tuning, pan shift, reverb, breath CC source, pitch bend range and the visualizer toggle to their defaults. Does not affect the Audio & MIDI Settings.
+- **Reset Synth Settings to Defaults** — restores the first factory patch and resets transpose, tuning, pan shift, reverb, breath CC source, portamento CC, pitch bend range and the visualizer toggle to their defaults. Does not affect the Audio & MIDI Settings.
 
 
 ### VIS / EDIT panel
@@ -31,7 +31,7 @@ The large panel in the middle of the UI has two modes, switched with the **VIS /
 
 **EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the EQ curves:
 
-- **Formants** — draws a frequency-response curve applied to the final sound. See [Formants](formants.md).
+- **Formants** — draws a frequency-response curve that scales each harmonic by its frequency. See [Formants](formants.md).
 - **Resonance** — draws a frequency-response curve that morphs with breath. See [Resonance](resonance.md).
 - **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See [Per-harmonic settings](per-harmonic_settings.md).
 
@@ -45,7 +45,7 @@ Below the main panel are six groups of knobs and controls:
 - **[Pitch](pitch_settings.md)** — transpose, tuning, portamento.
 - **[Envelope](global_settings.md)** — global attack and release scales.
 - **[Variation](global_settings.md)** — global scales for level, pitch and pan variation depth and rate.
-- **EQ** — scales the strength of the [Formants](formants.md#formants-knob) and [Resonance](resonance.md#resonance-knob) curves.
+- **[EQ](global_settings.md)** — scales the strength of the [Formants](formants.md#formants-knob) and [Resonance](resonance.md#resonance-knob) curves.
 - **[Output](global_settings.md)** — global level scale and pan offset.
 - **[Effects](effects.md)** — drive, tone, chorus and reverb.
 
