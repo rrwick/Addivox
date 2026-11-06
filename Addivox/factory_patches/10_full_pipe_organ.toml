@@ -22,10 +22,10 @@ tone = 0.0
 chorus = 0.0
 
 [all_key_notes]
-resonance_zero_freq_hz = [ 108.320548769679,  260.845344397837, 715.00888768577]
-resonance_zero_db =      [             -4.0,               4.0,           -20.0]
-resonance_full_freq_hz = [3332.898533116184, 8025.910832138336,         22000.0]
-resonance_full_db =      [             -4.0,               4.0,           -20.0]
+resonance_zero_freq_hz = [ 108.320548769679,  260.845344397837,    715.00888768577]
+resonance_zero_db =      [              0.0,               0.0,              -20.0]
+resonance_full_freq_hz = [2256.798162925209, 5434.567131822109, 14896.811016305795]
+resonance_full_db =      [             -4.0,               4.0,              -20.0]
 resonance_breath_response = -0.25
 resonance_tracking = 1.0
 

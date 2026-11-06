@@ -23,7 +23,7 @@ chorus = 50.0
 
 [all_key_notes]
 resonance_zero_freq_hz = [ 108.320548769679,  260.845344397837,    715.00888768577]
-resonance_zero_db =      [             -4.0,               4.0,              -20.0]
+resonance_zero_db =      [              0.0,               0.0,              -20.0]
 resonance_full_freq_hz = [1733.128780314879, 4173.525510365424, 11440.142202972425]
 resonance_full_db =      [             -4.0,               4.0,              -20.0]
 resonance_breath_response = -0.25
