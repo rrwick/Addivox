@@ -165,17 +165,15 @@ inline constexpr const char *kPanVariationRate =
     "Controls speed of pan variation for each harmonic.";
 
 inline constexpr const char *kResonanceBreathCurve =
-    "Switches between the two curves that breath morphs between:\n"
+    "Switches between the two curves that breath morphs between:\n\n"
     "Zero: the curve at zero breath.\n\n"
-    "Full: the curve at full breath.\n\n"
-    "The other curve is drawn faintly.";
+    "Full: the curve at full breath.";
 
 inline constexpr const char *kResonanceBreathResponse =
     "Shapes how breath moves between the two curves: right moves earlier in the breath, left moves later.";
 
 inline constexpr const char *kResonanceTracking =
-    "How far the curves follow the played pitch. At 0%, they stay fixed in frequency. At 100%, they move with pitch, matching the editor at middle C (C4).\n\n"
-    "Note that the fundamental frequency of middle C is 261.6 Hz, so at 100% tracking, the curves will have no effect below that frequency.";
+    "How far the curves follow the played pitch. At 0%, they stay fixed in frequency. At 100%, they move with pitch, matching the editor at middle C.";
 
 inline constexpr const char *kMacrosMode =
     "Switches between the two ways of shaping the curve:\n\n"

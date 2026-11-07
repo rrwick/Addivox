@@ -26,6 +26,7 @@
 #include <initializer_list>
 #include <iomanip>
 #include <limits>
+#include <locale>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -245,11 +246,16 @@ inline int ChooseDefaultSelectedMidiNote(const CompoundPatch& compoundPatch, int
   return (std::abs(preferredMidiNote - lower->first) <= std::abs(upper->first - preferredMidiNote)) ? lower->first : upper->first;
 }
 
-inline std::string FormatDouble(double value) {
-  if (std::abs(value) < 1.0e-15) value = 0.0;
+inline std::string FormatDouble(double value, bool roundValues = false) {
+  if (value == 0.0 || (!roundValues && std::abs(value) < 1.0e-15)) value = 0.0;
+  // Patch files keep six significant figures or one decimal place, whichever is more precise.
+  const int precision = roundValues && value != 0.0 && std::isfinite(value)
+                            ? std::max(1, 5 - static_cast<int>(std::floor(std::log10(std::abs(value)))))
+                            : 12;
 
   std::ostringstream stream;
-  stream << std::fixed << std::setprecision(12) << value;
+  stream.imbue(std::locale::classic());
+  stream << std::fixed << std::setprecision(precision) << value;
   std::string result = stream.str();
 
   const std::size_t decimalPos = result.find('.');
@@ -292,11 +298,12 @@ inline std::string EscapeTomlString(std::string_view text) {
   return escaped;
 }
 
-inline void AppendOscillatorParameterArray(std::ostringstream& stream, const SimplePatch& patch, const OscillatorParameterDescriptor& descriptor) {
+inline void AppendOscillatorParameterArray(std::ostringstream& stream, const SimplePatch& patch, const OscillatorParameterDescriptor& descriptor,
+                                          bool roundValues) {
   stream << descriptor.key << " = [";
   const auto& oscillatorSettings = patch.GetOscillatorSettingsArray();
   for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    stream << FormatDouble(oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter));
+    stream << FormatDouble(oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter), roundValues);
 
     const bool lastValue = oscillatorIndex == (SimplePatch::kNumOscillators - 1);
     if (!lastValue) stream << ", ";
@@ -306,10 +313,14 @@ inline void AppendOscillatorParameterArray(std::ostringstream& stream, const Sim
 }
 
 // The first element versions the tab's generator and knob mapping; the rest are normalized positions.
-inline void AppendMacroSettings(std::ostringstream& stream, std::string_view key, const MacroSettings& macros) {
+inline void AppendMacroSettings(std::ostringstream& stream, std::string_view key, const MacroSettings& macros, bool roundValues) {
   if (!macros.IsValid()) return;
   stream << key << "_macros = [" << macros.version << std::setprecision(std::numeric_limits<double>::max_digits10);
-  for (double position : macros.positions) stream << ", " << position;
+  for (double position : macros.positions) {
+    stream << ", ";
+    if (roundValues) stream << FormatDouble(position, true);
+    else            stream << position;
+  }
   stream << "]\n";
 }
 
@@ -352,14 +363,14 @@ struct NamedCurvePoints {
 };
 
 // Writes each curve's frequency and gain arrays, with columns aligned across all of them.
-inline void AppendCurveArrays(std::ostringstream& stream, std::initializer_list<NamedCurvePoints> curves) {
+inline void AppendCurveArrays(std::ostringstream& stream, std::initializer_list<NamedCurvePoints> curves, bool roundValues) {
   std::vector<std::string> keys;
   std::vector<std::vector<std::string>> rows;
   for (const auto& [name, points] : curves) {
     for (const auto& [suffix, value] : {std::pair{"_freq_hz", &EqPoint::frequencyHz}, std::pair{"_db", &EqPoint::gainDb}}) {
       keys.push_back(std::string{name} + suffix);
       auto& row = rows.emplace_back();
-      for (const auto& point : points) row.push_back(FormatDouble(point.*value));
+      for (const auto& point : points) row.push_back(FormatDouble(point.*value, roundValues));
     }
   }
 
@@ -374,12 +385,15 @@ inline void AppendCurveArrays(std::ostringstream& stream, std::initializer_list<
   for (std::size_t i = 0; i < rows.size(); ++i) AppendAlignedStringArray(stream, keys[i], keyWidth + 3, rows[i], columnWidths); // 3 for " = "
 }
 
-inline void AppendFormantsArrays(std::ostringstream& stream, const EqCurve& curve) { AppendCurveArrays(stream, {{kFormantsKey, curve.GetPoints()}}); }
+inline void AppendFormantsArrays(std::ostringstream& stream, const EqCurve& curve, bool roundValues) {
+  AppendCurveArrays(stream, {{kFormantsKey, curve.GetPoints()}}, roundValues);
+}
 
-inline void AppendResonance(std::ostringstream& stream, const ResonanceSettings& resonance) {
+inline void AppendResonance(std::ostringstream& stream, const ResonanceSettings& resonance, bool roundValues) {
   AppendCurveArrays(stream, {{kResonanceZeroBreathKey, resonance.curves.GetPoints(ResonanceCurves::Breath::zero)},
-                             {kResonanceFullBreathKey, resonance.curves.GetPoints(ResonanceCurves::Breath::full)}});
-  for (const auto& descriptor : kResonanceValueDescriptors) stream << descriptor.key << " = " << FormatDouble(resonance.*(descriptor.member)) << '\n';
+                             {kResonanceFullBreathKey, resonance.curves.GetPoints(ResonanceCurves::Breath::full)}}, roundValues);
+  for (const auto& descriptor : kResonanceValueDescriptors)
+    stream << descriptor.key << " = " << FormatDouble(resonance.*(descriptor.member), roundValues) << '\n';
 }
 
 inline std::string JoinPath(std::string_view lhs, std::string_view rhs) {
@@ -864,20 +878,22 @@ private:
 };
 } // namespace detail
 
-inline std::string SerializePatchToToml(const PatchDocument& document, bool includeName = true) {
+// Internal state and dirty snapshots retain their existing precision; file saves opt into rounding.
+inline std::string SerializePatchToToml(const PatchDocument& document, bool includeName = true, bool roundValues = false) {
   std::ostringstream stream;
+  stream.imbue(std::locale::classic());
   stream << "format_version = " << kFormatVersion << '\n';
   if (includeName) stream << "name = \"" << detail::EscapeTomlString(document.name.empty() ? "Patch" : document.name) << "\"\n";
   stream << '\n';
 
   stream << "[voice_settings]\n";
   for (const auto& descriptor : detail::kGlobalVoiceSettingDescriptors) {
-    stream << descriptor.key << " = " << detail::FormatDouble(document.voiceSettings.*(descriptor.member)) << '\n';
+    stream << descriptor.key << " = " << detail::FormatDouble(document.voiceSettings.*(descriptor.member), roundValues) << '\n';
   }
 
   stream << "\n[effects_settings]\n";
   for (const auto& descriptor : detail::kEffectsSettingDescriptors) {
-    stream << descriptor.key << " = " << detail::FormatDouble(document.effectsSettings.*(descriptor.member)) << '\n';
+    stream << descriptor.key << " = " << detail::FormatDouble(document.effectsSettings.*(descriptor.member), roundValues) << '\n';
   }
 
   const CompoundPatch& compoundPatch = document.compoundPatch;
@@ -895,23 +911,24 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     stream << descriptor.key << " = [";
     const auto& values = compoundPatch.GetAllKeyNotesValues(descriptor.parameter);
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)]);
+      stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)], roundValues);
       if (oscillatorIndex != (SimplePatch::kNumOscillators - 1)) stream << ", ";
     }
 
     stream << "]\n";
     const auto& notes = compoundPatch.GetKeyNotePatches();
-    if (!notes.empty()) detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(notes.begin()->first, descriptor.parameter));
+    if (!notes.empty())
+      detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(notes.begin()->first, descriptor.parameter), roundValues);
   }
 
   if (compoundPatch.IsAllKeyNotesEqEnabled()) {
     beginAllKeyNotes();
-    detail::AppendFormantsArrays(stream, compoundPatch.GetAllKeyNotesEqCurve());
+    detail::AppendFormantsArrays(stream, compoundPatch.GetAllKeyNotesEqCurve(), roundValues);
   }
 
   if (compoundPatch.IsAllKeyNotesResonanceEnabled()) {
     beginAllKeyNotes();
-    detail::AppendResonance(stream, compoundPatch.GetAllKeyNotesResonance());
+    detail::AppendResonance(stream, compoundPatch.GetAllKeyNotesResonance(), roundValues);
   }
 
   for (const auto& [midiNote, patch] : compoundPatch.GetKeyNotePatches()) {
@@ -921,14 +938,14 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
       if (compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
-      detail::AppendOscillatorParameterArray(stream, patch, descriptor);
-      detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(midiNote, descriptor.parameter));
+      detail::AppendOscillatorParameterArray(stream, patch, descriptor, roundValues);
+      detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(midiNote, descriptor.parameter), roundValues);
     }
 
     if (const auto* curve = compoundPatch.GetKeyNoteEqCurve(midiNote); curve && !compoundPatch.IsAllKeyNotesEqEnabled())
-      detail::AppendFormantsArrays(stream, *curve);
+      detail::AppendFormantsArrays(stream, *curve, roundValues);
     if (const auto* resonance = compoundPatch.GetKeyNoteResonance(midiNote); resonance && !compoundPatch.IsAllKeyNotesResonanceEnabled())
-      detail::AppendResonance(stream, *resonance);
+      detail::AppendResonance(stream, *resonance, roundValues);
   }
 
   return stream.str();
@@ -953,7 +970,7 @@ inline bool LoadPatchFromFile(std::string_view path, PatchDocument& document, st
 }
 
 inline bool SavePatchToFile(std::string_view path, const PatchDocument& document, std::string* errorMessage = nullptr) {
-  if (!detail::WriteTextFile(path, SerializePatchToToml(document, false))) {
+  if (!detail::WriteTextFile(path, SerializePatchToToml(document, false, true))) {
     if (errorMessage) *errorMessage = "Could not write patch file";
     return false;
   }
