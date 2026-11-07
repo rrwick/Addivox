@@ -14,7 +14,7 @@
         <link rel="prev" href="../main_ui/">
       
       
-        <link rel="next" href="../eq/">
+        <link rel="next" href="../formants/">
       
       
         
@@ -547,14 +547,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../eq/" class="md-nav__link">
+      <a href="../formants/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    EQ
+    Formants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resonance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resonance
   
 
     
@@ -1064,13 +1092,13 @@
 
 <h1 id="patches">Patches</h1>
 <h3 id="factory-patches">Factory patches</h3>
-<p>Addivox ships with 19 factory patches:</p>
+<p>Addivox ships with 23 factory patches:</p>
 <ul>
 <li>
-<p><strong>Init Patch</strong> — This is a plain one-key-note patch which uses default values for all edit-tab macros. A good starting point for building your own patch.</p>
+<p><strong>Init Patch</strong> — A simple one-key-note patch with default values for all edit-tab macros. A good starting point for building your own patch.</p>
 </li>
 <li>
-<p><strong>Bright Brass</strong> — A clean bright brassy sound, ranging from tuba-like to trombone-like to trumpet-like. Has a smoothly tapering Level curve, and for lower notes, the peak is at a higher harmonic number. No formants.</p>
+<p><strong>Bright Brass</strong> — A clean bright brassy sound, ranging from tuba-like to trombone-like to trumpet-like. Has a smoothly tapering Level curve, and for lower notes, the peak is at a higher harmonic number.</p>
 </li>
 <li>
 <p><strong>Warm Brass</strong> — Similar to Bright Brass, except the Level curve peaks sooner and tapers faster, giving fewer high harmonics.</p>
@@ -1091,19 +1119,19 @@
 <p><strong>Hollow Reed</strong> — Similar to Warm Reed, but with an odd-harmonic bias for a clarinet-like sound and with different formant peaks.</p>
 </li>
 <li>
-<p><strong>Tonewheel Organ 888</strong> — Inspired by a Hammond organ with drawbars set to 888000000. Contains a generous amount of level, pan and pitch variation to make the notes sound more lively.</p>
+<p><strong>Tonewheel Organ 888</strong> — Inspired by a Hammond organ with drawbars set to 888000000. Contains a generous amount of level, pan and pitch variation for a dynamic sound.</p>
 </li>
 <li>
-<p><strong>Tonewheel Organ Full</strong> — Inspired by a Hammond organ with drawbars set to 888888888. Contains a generous amount of level, pan and pitch variation to make the notes sound more lively.</p>
+<p><strong>Tonewheel Organ Full</strong> — Inspired by a Hammond organ with drawbars set to 888888888. Contains a generous amount of level, pan and pitch variation for a dynamic sound.</p>
 </li>
 <li>
 <p><strong>Full Pipe Organ</strong> — Has harmonics at equal levels across the octaves for a big full-spectrum sound. Contains a bit of level, pan and pitch variation.</p>
 </li>
 <li>
-<p><strong>Simple Saw</strong> — Level curve follows a 1/<em>h</em> shape, approximating a sawtooth wave. The top harmonics taper to zero to prevent a high-pitched whine sound at full breath for low notes.</p>
+<p><strong>Simple Saw</strong> — Level curve follows a 1/<em>h</em> shape, approximating a sawtooth wave. The top harmonics taper to zero to prevent a high-pitched whine sound at full breath.</p>
 </li>
 <li>
-<p><strong>Simple Square</strong> — Level curve follows a 1/<em>h</em> shape, odd harmonics only, approximating a square wave. The top harmonics taper to zero to prevent a high-pitched whine sound at full breath for low notes.</p>
+<p><strong>Simple Square</strong> — Level curve follows a 1/<em>h</em> shape, odd harmonics only, approximating a square wave. The top harmonics taper to zero to prevent a high-pitched whine sound at full breath.</p>
 </li>
 <li>
 <p><strong>Simple Sine</strong> — Just a single oscillator at the fundamental. As simple as it gets!</p>
@@ -1112,7 +1140,7 @@
 <p><strong>Warm Fuzz</strong> — A warm dynamic sound with an even harmonic bias to create an octave-doubling effect.</p>
 </li>
 <li>
-<p><strong>Power Chord</strong> — Harmonics which correspond to a root and fifth played together, with lots of drive added.</p>
+<p><strong>Power Chord</strong> — Harmonics which correspond to a root and fifth played together, with lots of drive.</p>
 </li>
 <li>
 <p><strong>Choir Ah</strong> — Strong formants to create an "Ah" vowel sound.</p>
@@ -1121,11 +1149,24 @@
 <p><strong>Choir Oh</strong> — Strong formants to create an "Oh" vowel sound.</p>
 </li>
 <li>
+<p><strong>Choir Wow</strong> — A vowel sound that changes with breath.</p>
+</li>
+<li>
 <p><strong>Church Bell</strong> — A bell sound with many inharmonic partials and a slow release time.</p>
 </li>
+<li>
+<p><strong>Low Pass Resonance</strong> — A resonant low-pass sweep controlled by breath.</p>
+</li>
+<li>
+<p><strong>Band Pass Resonance</strong> — A band-pass sweep controlled by breath.</p>
+</li>
+<li>
+<p><strong>Double Peak Resonance</strong> — Two resonant peaks that move with breath.</p>
+</li>
 </ul>
+<p>Some patches include Formants or Resonance curves that are off by default. Turn up the <a href="../global_settings/">global knobs</a> to try them.</p>
 <h3 id="custom-patches">Custom patches</h3>
-<p>You can create and save your own patches from within Addivox. Custom patches are stored as TOML text files in Addivox's patches folder:</p>
+<p>You can create and save your own patches from within Addivox. Custom patches are stored in Addivox's patches folder:</p>
 <ul>
 <li><strong>macOS:</strong> <code>~/Library/Application Support/Addivox/Patches/</code></li>
 <li><strong>Windows:</strong> <code>%LOCALAPPDATA%\Addivox\Patches\</code></li>
@@ -1137,11 +1178,13 @@
 <p>Patches placed in subdirectories of this folder appear in their own named group in the patch menu, which you can use to organise larger collections.</p>
 <h3 id="patch-file-format">Patch file format</h3>
 <p>Patches are plain-text <a href="https://toml.io">TOML</a> files. Here is an abbreviated example of a single-key-note patch:</p>
-<pre><code class="language-toml">format_version = 1
+<pre><code class="language-toml">format_version = 2
 name = &quot;My Patch&quot;
 
 [voice_settings]
 levelScale = 1.0
+formantsScale = 1.0
+resonanceScale = 0.0
 attackScale = 1.0
 releaseScale = 1.0
 levelVariationAmplitudeScale = 0.0
@@ -1173,11 +1216,17 @@ pan_variation_amplitude   = [0.25, ...]
 pan_variation_rate        = [1.0, ...]
 pitch_variation_amplitude = [5.0, ...]
 pitch_variation_rate      = [1.0, ...]
-eq_freq_hz = []
-eq_db      = []
+formants_freq_hz = []
+formants_db      = []
+resonance_zero_freq_hz = []
+resonance_zero_db      = []
+resonance_full_freq_hz = []
+resonance_full_db      = []
+resonance_breath_response = 0.0
+resonance_tracking = 0.0
 </code></pre>
 <p>Each per-harmonic array contains exactly 100 values (one per harmonic). A patch with multiple key notes has one <code>[[key_notes]]</code> section for each. An optional <code>[all_key_notes]</code> section stores parameters that are locked in sync across all key notes (see <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>).</p>
-<p>Because patches are plain text, you are welcome to open and edit them in any text editor. As long as the file follows the format above and has a <code>.toml</code> extension, Addivox will load it correctly.</p>
+<p>Because patches are plain text, you can open and edit them in any text editor. As long as the file is correctly formatted and has a <code>.toml</code> extension, Addivox will load it correctly.</p>
 
 
 

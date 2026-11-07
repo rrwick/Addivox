@@ -26,6 +26,11 @@
   margin: 0 0 0.75rem 1.25rem;
 }
 
+/* Keep filenames in the installation tables on one line. */
+.md-typeset table td:first-child code {
+  white-space: nowrap;
+}
+
 .addivox-purchase-button {
   display: inline-block;
   padding: 0.7rem 1rem;

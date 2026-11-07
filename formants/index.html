@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://rrwick.github.io/Addivox/eq/">
+        <link rel="canonical" href="https://rrwick.github.io/Addivox/formants/">
       
       
         <link rel="prev" href="../patches/">
       
       
-        <link rel="next" href="../per-harmonic_settings/">
+        <link rel="next" href="../resonance/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>EQ - Addivox</title>
+        <title>Formants - Addivox</title>
       
     
     
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              EQ
+              Formants
             
           </span>
         </div>
@@ -553,7 +553,7 @@
   <span class="md-ellipsis">
     
   
-    EQ
+    Formants
   
 
     
@@ -563,6 +563,34 @@
 
       </a>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resonance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resonance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1062,18 +1090,23 @@
 
 
 
-<h1 id="eq">EQ</h1>
-<p>The EQ tab in the editor lets you draw a frequency-response curve that is applied to the synthesised sound. The curve is defined by a set of control points — you can drag existing points to reshape it, and add/remove points by double-clicking. The curve is smoothly interpolated between points using a monotone spline, and it is flat outside the leftmost and rightmost points.</p>
-<p>Unlike the per-harmonic settings, the EQ curve is anchored to absolute frequencies rather than to the pitch of the note. This means a peak at 800 Hz stays at 800 Hz regardless of whether you are playing a low note or a high note.</p>
+<h1 id="formants">Formants</h1>
+<p>The Formants tab in the editor lets you draw a frequency-response curve that is applied to the synthesised sound. The curve is defined by a set of control points — you can drag existing points to reshape it, and add/remove points by double-clicking. The curve is smoothly interpolated between points, and it is flat outside the leftmost and rightmost points.</p>
+<p>Unlike the per-harmonic settings, the formants curve is anchored to absolute frequencies rather than to the pitch of the note. This means a peak at 800 Hz stays at 800 Hz regardless of whether you are playing a low note or a high note.</p>
 <div style="display: flex; justify-content: center; gap: 10px; width: 100%;">
-  <img src="../assets/eq_edit.png" alt="Addivox EQ editor" style="width: calc(50% - 5px);">
-  <img src="../assets/eq_vis.png" alt="Addivox EQ visualised" style="width: calc(50% - 5px);">
+  <img src="../assets/formants_edit.png" alt="Addivox Formants editor" style="width: calc(50% - 5px);">
+  <img src="../assets/formants_vis.png" alt="Addivox Formants visualised" style="width: calc(50% - 5px);">
 </div>
 
-<h3 id="formants">Formants</h3>
+<h3 id="formants-knob">Formants knob</h3>
+<p>The <strong>Formants</strong> knob in the EQ section of the main UI scales the strength of the whole curve. At 0× the curve is turned off, at 1× (the middle position) it is applied exactly as drawn, and at higher values (up to 3×) its boosts and cuts are exaggerated. The editor always shows the curve at full strength (1×), regardless of the knob setting.</p>
+<p>Turning the knob above 1× with a curve that has strong boosts can push the output above 0 dBFS, so keep an eye on the output meter (see <a href="../faq_and_miscellaneous_tips/#clipping-audio-on-macos-and-windows">Clipping audio</a>).</p>
+<h3 id="what-are-formants">What are formants?</h3>
 <p>A <strong>formant</strong> is a resonant peak in the frequency spectrum — a band of frequencies that the sound emphasises. Formants are what give acoustic instruments and the human voice their characteristic timbre. For example, the difference between a saxophone and an oboe comes in part from where their formants sit in the frequency spectrum.</p>
-<p>In real instruments, formants arise from the physical resonances of the instrument. Because these shapes are fixed, the formants stay at roughly the same frequencies even as you play higher or lower notes. Addivox's EQ works the same way: keeping the curve fixed in frequency lets you shape formants that behave like those of a real instrument.</p>
-<p>Adding one or more EQ peaks can dramatically change the timbre of a patch. The <strong>All notes</strong> toggle (see <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>) is particularly useful here — it lets you set a single EQ curve that applies across all key notes at once, which is usually what you want for formants.</p>
+<p>In real instruments, formants arise from the physical resonances of the instrument. Because these shapes are fixed, the formants stay at roughly the same frequencies even as you play higher or lower notes. Addivox's Formants curve works the same way: keeping the curve fixed in frequency lets you shape formants that behave like those of a real instrument.</p>
+<h3 id="formants-with-key-notes">Formants with key notes</h3>
+<p>The <strong>All notes</strong> toggle (see <a href="../key_notes_and_interpolation/">Key Notes and Interpolation</a>) lets you set a single curve that applies across all key notes at once, which is usually what you want for formants.</p>
+<p>If different key notes have different curves, notes between them blend the two, either by gliding each point from one key note to the other or by fading one curve into the other (see <a href="../key_notes_and_interpolation/#formants-and-resonance-curves">Key Notes and Interpolation</a>).</p>
 
 
 
