@@ -3,7 +3,7 @@
 Addivox for Windows is delivered as a zip file with a name like `Addivox_v1.1.0_Windows.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
 `Addivox.exe`, `Addivox.clap` and `Addivox.vst3`.
 
-You do not need to install every file. `Addivox.exe` is the standalone version, which runs by itself. The other files are plugin formats, which are loaded inside a DAW such as Ableton Live, Cubase or REAPER.
+You do not need to install every file. `Addivox.exe` is the standalone version, which runs by itself. The other files are plugin formats, which can be loaded inside a DAW such as Ableton Live, Cubase or REAPER.
 
 These instructions also apply to the [Demo version](demo.md) of Addivox. For the Demo version, the filenames use `AddivoxDemo` instead of `Addivox`, for example `AddivoxDemo.exe` and `AddivoxDemo.vst3`.
 
@@ -12,7 +12,7 @@ These instructions also apply to the [Demo version](demo.md) of Addivox. For the
 
 `Addivox.exe` is self-contained. Move it anywhere convenient and optionally create a shortcut to it. You can then open Addivox by double-clicking the executable or shortcut. Addivox for Windows is not code-signed, so Windows SmartScreen or antivirus software may warn you the first time you open it.
 
-For live playing, the standalone application may need a low-latency Windows audio driver. ASIO is usually recommended when available. See [Which Windows audio driver type should I use?](faq_and_miscellaneous_tips.md#which-windows-audio-driver-type-should-i-use) for more details.
+For live playing, the standalone application may need a low-latency Windows audio driver. [ASIO](https://en.wikipedia.org/wiki/Audio_Stream_Input/Output) is usually recommended when available. See [Which Windows audio driver type should I use?](faq_and_miscellaneous_tips.md#which-windows-audio-driver-type-should-i-use) for more details.
 
 
 ### Plugins

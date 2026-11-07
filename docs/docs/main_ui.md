@@ -25,15 +25,15 @@ The large panel in the middle of the UI has two modes, switched with the **VIS /
 
 <p align="center"><img src="../assets/vis_mode.png" alt="Addivox VIS mode" style="max-width: 100%; width: 600px;"></p>
 
-**VIS mode** shows a live bar chart of all 100 harmonics as you play. Bar heights update in real time to reflect the current output level of each harmonic, giving you a visual picture of the sound's harmonic content.
+**VIS mode** shows a real-time visualization of harmonics as you play.
 
 <p align="center"><img src="../assets/edit_mode.png" alt="Addivox EDIT mode" style="max-width: 100%; width: 600px;"></p>
 
-**EDIT mode** is where you shape the sound. It contains a set of tabs for editing per-harmonic parameters and the EQ curves:
+**EDIT mode** shows a set of tabs for editing the patch:
 
-- **Formants** — draws a frequency-response curve that scales each harmonic by its frequency. See [Formants](formants.md).
-- **Resonance** — draws a frequency-response curve that morphs with breath. See [Resonance](resonance.md).
-- **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators. See [Per-harmonic settings](per-harmonic_settings.md).
+- **Formants** — draws a frequency-response curve that scales each harmonic by its frequency (see [Formants](formants.md)).
+- **Resonance** — draws a frequency-response curve that morphs with breath (see [Resonance](resonance.md)).
+- **Level**, **Breath**, **Attack**, **Release**, **Pitch**, **Pan**, and six variation tabs — control the individual behaviour of each of the 100 harmonic oscillators (see [Per-harmonic settings](per-harmonic_settings.md)).
 
 The keyboard at the bottom of the panel selects which key note you are editing in EDIT mode, and plays the corresponding note in VIS mode (see below).
 
@@ -54,7 +54,7 @@ Below the main panel are six groups of knobs and controls:
 
 <p align="center"><img src="../assets/meters.png" alt="Addivox meters" class="float-right" style="max-width: 50%; width: 224px;"></p>
 
-The **breath meter** on the top shows the current incoming breath/CC signal level. The **output meter** on the bottom shows the stereo output level; red indicators at the top warn that the signal is above 0 dB and may clip when rendered or passed to later processing.
+The **breath meter** on the top shows the current breath signal level. The **output meter** on the bottom shows the stereo output level. Red bars at the top warn that the signal is above 0 dB and may clip when rendered or passed to later processing.
 
 
 ### Keyboard

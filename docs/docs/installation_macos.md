@@ -3,7 +3,7 @@
 Addivox for macOS is delivered as a zip file with a name like `Addivox_v1.1.0_macOS.zip`. After downloading it, double-click to unzip it. You should see several Addivox files:
 `Addivox.app`, `Addivox.component`, `Addivox.clap` and `Addivox.vst3`.
 
-You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which are loaded inside a DAW such as Logic Pro, GarageBand or Ableton Live.
+You do not need to install every file. `Addivox.app` is the standalone version, which runs by itself and also contains the Audio Unit v3 plugin. The other files are additional plugin formats, which can be loaded inside a DAW such as Logic Pro, GarageBand or Ableton Live.
 
 These instructions also apply to the [Demo version](demo.md) of Addivox. For the Demo version, the filenames use `AddivoxDemo` instead of `Addivox`, for example `AddivoxDemo.app` and `AddivoxDemo.vst3`.
 
@@ -17,16 +17,16 @@ If macOS shows a warning the first time you open Addivox, try right-clicking `Ad
 
 ### Audio Unit v3
 
-The Audio Unit v3 version of Addivox is inside `Addivox.app`. This is normal for AUv3 plugins on macOS: the app acts as a container for a small app extension, and macOS makes that extension available to compatible DAWs.
+The Audio Unit v3 (AUv3) version of Addivox is inside `Addivox.app` – there is no separate plugin file. This is normal for AUv3 plugins on macOS: the app acts as a container for a small app extension, and macOS makes that extension available to compatible DAWs.
 
-To install the AUv3 version, copy `Addivox.app` to the main `/Applications` folder. This is the system-wide Applications folder, not a folder named `Applications` inside your home folder. There is no separate AUv3 file to copy into `Library/Audio/Plug-Ins`. After installing the app, quit and reopen your DAW. If Addivox does not appear, open `Addivox.app` once, then quit and reopen your DAW again.
+To install the AUv3 version, copy `Addivox.app` to the main `/Applications` folder. This is the system-wide Applications folder, not a folder named `Applications` inside your home folder. After copying `Addivox.app` to `/Applications`, open it once to register its AUv3 plugin with macOS. You can then quit Addivox. If your DAW is already running, quit and reopen it.
 
 Do not remove `Addivox.app` after the AUv3 plugin appears in your DAW. If you move the app to a different location or delete it, macOS may no longer be able to find the AUv3 plugin.
 
 
 ### Plugins
 
-Copy the plugin files you need to the matching folder below. The `~` symbol means your home folder.
+The table below lists the install location for each plugin format. The `~` symbol means your home folder.
 
 | File                  | Format        | Install location                                    | Example DAWs                                |
 | --------------------- | ------------- | --------------------------------------------------- | ------------------------------------------- |
@@ -37,28 +37,13 @@ Copy the plugin files you need to the matching folder below. The `~` symbol mean
 
 If you are not sure which plugin format to install, start with `Addivox.app` for Logic Pro, GarageBand or MainStage, and `Addivox.vst3` for most other modern DAWs. `Addivox.component` is mainly useful for older DAWs.
 
-The `Library` folder inside your home folder is hidden by default. To open one of these folders in Finder:
-
-1. Open Finder.
-2. Choose **Go** > **Go to Folder...** from the menu bar.
-3. Paste the install location from the table above.
-4. Press Return.
-5. Create the folder if it does not already exist, then copy the Addivox plugin file into it.
+The `Library` folder inside your home folder is hidden by default. To access the plugin folders, you can open Finder, choose **Go** > **Go to Folder...** from the menu bar, then paste in `~/Library/Audio/Plug-Ins/` and press Return.
 
 After copying plugins, quit and reopen your DAW. Some DAWs scan new plugins automatically. Others have a plugin manager or preferences page where you can rescan plugins. If you installed more than one format, your DAW may show Addivox more than once, for example as both an Audio Unit and a VST3.
 
 
-### Intel and Apple Silicon Macs
+### macOS compatibility
 
-Addivox is built as a 64-bit macOS app/plugin and is intended to work on both older Intel Macs and newer Apple Silicon Macs. There is no separate Intel download or Apple Silicon download; use the same files from `Addivox_v1.1.0_macOS.zip`.
+Addivox is built as a 64-bit macOS app/plugin and should work on both older Intel Macs and newer Apple Silicon Macs. Addivox requires macOS 10.14 Mojave or newer. Please try the [Demo version](demo.md) before buying Addivox to ensure that it runs on your system.
 
-All of the included formats can be used on Intel or Apple Silicon Macs, provided your DAW supports that plugin format:
-
-- `Addivox.app`
-- `Addivox.component`
-- `Addivox.vst3`
-- `Addivox.clap`
-
-On an Intel Mac, use Addivox normally. On an Apple Silicon Mac, Addivox can run natively in Apple Silicon DAWs. It can also be used from Intel-only DAWs running under Rosetta, provided the DAW supports the plugin format you installed.
-
-Addivox requires macOS 10.14 Mojave or newer. Very old 32-bit DAWs and 32-bit plugin formats are not supported.
+Very old 32-bit DAWs and 32-bit plugin formats are not supported.

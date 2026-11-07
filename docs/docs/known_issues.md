@@ -7,7 +7,7 @@ The Windows standalone application supports DirectSound, ASIO and WASAPI shared 
 
 ### Non-ASCII audio device names display as mangled text
 
-Audio device names containing non-ASCII characters (e.g. curly apostrophes, accented letters) can be corrupted in the Audio and MIDI settings dialog. Example: `Ryan’s iPhone Microphone` → `RyanÕs iPhone Microphone`. This bug is cosmetic only – a device with a mangled name still works correctly for audio I/O.
+Audio device names containing non-ASCII characters (e.g. curly apostrophes, accented letters) can be corrupted in the Audio and MIDI settings dialog. Example: `Ryan’s headphones` → `RyanÕs headphones`. This is cosmetic only – a device with a mangled name still works correctly for audio I/O.
 
 
 ### AirPods audio support
