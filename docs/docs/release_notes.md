@@ -8,6 +8,31 @@ New versions of Addivox are of course intended to improve stability and function
 
 
 
+### [Addivox v1.2.0 – 7 November 2026](https://github.com/rrwick/Addivox/releases/tag/v1.2.0)
+
+Updates in this release:
+
+- New Resonance edit tab, allows for breath-controlled EQ.
+- Added four new factory patches that use the new resonance feature.
+- Renamed the EQ edit tab to Formants.
+- Added global scaling knobs for Formants and Resonance in the main UI.
+- Improved EQ interpolation between key notes: curves with matching point counts now morph by moving their control points.
+- For the standalone app, added a new Output Device option: Same as system. Allows for easier switching between speakers and headphones.
+- For the standalone app, added a new MIDI Input Device option: all. Will read MIDI input from any available source.
+- Miscellaneous fixes and refinements.
+
+Full version:
+
+- `Addivox_v1.2.0_macOS.zip`<br>SHA-256 = `2ea048043b15ffc0448e8e2c410fd9839a5f22f8f9a67a4b578cf50bd6f80e11`
+- `Addivox_v1.2.0_Windows.zip`<br>SHA-256 = `8efb1fd98485f057dd99c8a494d8ce9a08f02a5c89f0e0ec7a8f589c85101d25`
+
+Demo version:
+
+- [`AddivoxDemo_v1.2.0_macOS.zip`](https://github.com/rrwick/Addivox/releases/download/v1.2.0/AddivoxDemo_v1.2.0_macOS.zip)<br>SHA-256 = `7d9b5bf750e5dfb5d14fc9f468de03655817aaf01d39527b1b1ee6a8dcd2f1ee`
+- [`AddivoxDemo_v1.2.0_Windows.zip`](https://github.com/rrwick/Addivox/releases/download/v1.2.0/AddivoxDemo_v1.2.0_Windows.zip)<br>SHA-256 = `7f0f1d26b66b2ccd35ab81d14ec7661512de59a733d20be143a862f365240f69`
+
+
+
 ### [Addivox v1.1.0 – 25 September 2026](https://github.com/rrwick/Addivox/releases/tag/v1.1.0)
 
 Updates in this release:
