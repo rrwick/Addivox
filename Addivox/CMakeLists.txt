@@ -5,7 +5,7 @@ if(CMAKE_HOST_APPLE AND (NOT CMAKE_SYSTEM_NAME OR CMAKE_SYSTEM_NAME STREQUAL "Da
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum macOS version")
 endif()
 
-project(Addivox VERSION 1.1.0)
+project(Addivox VERSION 1.2.0)
 
 option(ADDIVOX_DEMO "Build the Addivox demo version" OFF)
 
