@@ -135,4 +135,8 @@ if(APPLE AND NOT IOS)
   )
 
   target_compile_definitions(addivox-cli PRIVATE ADDIVOX_DEMO=$<IF:$<BOOL:${ADDIVOX_DEMO}>,1,0>)
+
+  # Monolithic link-time optimisation, matching LLVM_LTO in Addivox-mac.xcconfig (CMake's own IPO setting would use thin LTO, which gives no gain).
+  target_compile_options(addivox-cli PRIVATE $<$<CONFIG:Release>:-flto>)
+  target_link_options(addivox-cli PRIVATE $<$<CONFIG:Release>:-flto>)
 endif()

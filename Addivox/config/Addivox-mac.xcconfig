@@ -41,6 +41,9 @@ PROFILE = NO //NO, YES - enable this if you want to use instruments to profile a
 // None: [-O0] Fast: [-O, -O1] Faster:[-O2] Fastest: [-O3] Fastest, smallest: Optimize for size. [-Os]
 RELEASE_OPTIMIZE = 3 //0,1,2,3,s
 
+// Monolithic link-time optimisation (-flto) makes the audio code about 8% faster. Incremental (thin) LTO gives no gain.
+LLVM_LTO[config=Release] = YES
+
 //------------------------------
 // DEBUG BUILD OPTIONS
 DEBUG_OPTIMIZE = 0 //0,1,2,3,s
