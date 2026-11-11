@@ -34,6 +34,7 @@ public:
   }
   void Reset();
   bool IsActive() const;
+  bool IsSilent() const { return mBaseLevel == 0.0 && mLevel == 0.0; } // no level now and none on the way
   HarmonicVisualizerOscillator GetVisualizerState() const;
   double GetFrequencyHz() const { return mFrequencyHz; }
 
@@ -65,7 +66,6 @@ private:
   static constexpr double kMinAttackTimeSec = 0.001;
   static constexpr double kMinReleaseTimeSec = 0.001;
   void UpdateLevelRates();
-  bool IsSilent() const { return mBaseLevel == 0.0 && mLevel == 0.0; } // no level now and none on the way
 
   static constexpr double kEqSmoothingTimeSec = 0.002;
   static constexpr double kEqGainEpsilon = 1.0e-9;

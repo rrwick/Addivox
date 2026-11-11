@@ -210,12 +210,13 @@ void SynthVoice::UpdatePitch() {
 
 void SynthVoice::UpdateLevels() {
   const auto noteSpan = mCompoundPatch.ResolveNoteSpan(mRenderedMidiPitch);
-  UpdateEqGains(noteSpan);
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) UpdateLevel(harmonic, mCompoundPatch.InterpolateOscillatorSettings(noteSpan, harmonic));
+  UpdateEqGains(noteSpan);
 }
 
 // The Formants and Resonance gains only depend on each harmonic's frequency (plus breath and pitch for Resonance), so they're computed for all harmonics in
-// one go. Empty or turned-off curves are skipped, since their gain is exactly 1.
+// one go. Empty or turned-off curves are skipped, since their gain is exactly 1. Silent oscillators are skipped too, so this must run after any level
+// changes: an oscillator that is about to sound then gets its gain before its level leaves zero.
 void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) {
   mEqSamplesUntilUpdate = kNoteControlIntervalSamples;
   if (mBreath > 0.0) mResonanceBreath = mBreath;
@@ -230,7 +231,8 @@ void SynthVoice::UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan) 
 
   if (mFormantsActive) mFormants.Prepare(noteSpan.lowerEqCurve->Spline(), noteSpan.upperEqCurve->Spline(), noteSpan.t);
   if (mResonanceActive) mResonance.Prepare(lowerResonance, upperResonance, noteSpan.t, mResonanceBreath, mRenderedMidiPitch);
-  for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) UpdateEqGain(harmonic);
+  for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
+    if (!mOscs[harmonic].IsSilent()) UpdateEqGain(harmonic);
 }
 
 void SynthVoice::UpdateEqGain(int harmonic) {
@@ -248,11 +250,12 @@ void SynthVoice::RefreshEqForChangedFrequencies() {
   // Oscillator pitch edits, tuning and pitch variation can move frequencies while the played note and breath remain steady.
   // Reuse the prepared curves and only reevaluate oscillators whose frequencies have changed.
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic)
-    if (mOscs[harmonic].GetFrequencyHz() != mEqFrequencies[harmonic]) UpdateEqGain(harmonic);
+    if (mOscs[harmonic].GetFrequencyHz() != mEqFrequencies[harmonic] && !mOscs[harmonic].IsSilent()) UpdateEqGain(harmonic);
 }
 
 void SynthVoice::UpdateLevel(int harmonic, const OscillatorSettings& settings) {
-  const double breathLevel = (mBreath <= 0.0) ? 0.0 : EvaluateBreathLevel(std::pow(mBreath, settings.breath_power));
+  const bool hasNoLevel = (mBreath <= 0.0 || settings.level == 0.0);
+  const double breathLevel = hasNoLevel ? 0.0 : EvaluateBreathLevel(std::pow(mBreath, settings.breath_power));
   mOscs[harmonic].SetLevel(settings.level * breathLevel * mGlobalVoiceSettings.levelScale);
 }
 
@@ -261,7 +264,6 @@ void SynthVoice::RefreshNoteDependentState() {
   const double futureMidiPitch = PredictRenderedMidiPitch(kNoteControlIntervalSamples);
   const double futureFundamentalPitchSemitones = futureMidiPitch - 69.0;
   const CompoundPatch::ResolvedNoteSpan futureSpan = mCompoundPatch.ResolveNoteSpan(futureMidiPitch);
-  UpdateEqGains(currentSpan);
 
   for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
     const OscillatorSettings currentSettings = mCompoundPatch.InterpolateOscillatorSettings(currentSpan, harmonic);
@@ -271,6 +273,7 @@ void SynthVoice::RefreshNoteDependentState() {
     ApplyOscillatorSettings(harmonic, currentSettings, futurePitch, futureFundamentalPitchSemitones);
     UpdateLevel(harmonic, currentSettings);
   }
+  UpdateEqGains(currentSpan);
 
   mNoteControlSamplesUntilUpdate = kNoteControlIntervalSamples;
 }
