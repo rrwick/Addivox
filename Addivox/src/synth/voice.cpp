@@ -36,6 +36,8 @@ SynthVoice::SynthVoice() {
     mOscs[harmonic].SetVariationSeed(harmonicSeed);
   }
 
+  UpdateLiveOscs();
+
   UpdatePitchRate();
 }
 
@@ -140,7 +142,24 @@ void SynthVoice::SetGlobalVoiceSettings(const GlobalVoiceSettings& settings) {
 
 void SynthVoice::SwapCompoundPatch(CompoundPatch& patch) {
   std::swap(mCompoundPatch, patch);
+  UpdateLiveOscs();
   UpdatePitch();
+}
+
+// An oscillator is live if the patch gives it a level at any key note, or if it is still fading out from the previous patch.
+// One that becomes live has been standing still, so it restarts as it would for a new note.
+void SynthVoice::UpdateLiveOscs() {
+  std::array<bool, kNumHarmonics> wasLive{};
+  for (int live = 0; live < mNumLiveOscs; ++live) wasLive[mLiveOscs[live] - mOscs.data()] = true;
+
+  mNumLiveOscs = 0;
+  for (int harmonic = 0; harmonic < kNumHarmonics; ++harmonic) {
+    Oscillator& osc = mOscs[harmonic];
+    if (!mCompoundPatch.CanOscillatorSound(harmonic) && osc.IsSilent()) continue;
+
+    if (!wasLive[harmonic]) osc.Reset();
+    mLiveOscs[mNumLiveOscs++] = &osc;
+  }
 }
 
 double SynthVoice::ShapeBreath(double breath) {
@@ -296,8 +315,8 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
 
     iplug::sample leftSample = 0.0;
     iplug::sample rightSample = 0.0;
-    for (auto& osc : mOscs) {
-      const auto sample = osc.Process();
+    for (int live = 0; live < mNumLiveOscs; ++live) {
+      const auto sample = mLiveOscs[live]->Process();
       leftSample += sample[0];
       rightSample += sample[1];
     }

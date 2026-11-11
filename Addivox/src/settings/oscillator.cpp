@@ -298,6 +298,14 @@ OscillatorSettings CompoundPatch::InterpolateOscillatorSettings(const ResolvedNo
   return span.lowerPatch->InterpolateOscillatorSettings(*span.upperPatch, oscillatorIndex, span.t);
 }
 
+bool CompoundPatch::CanOscillatorSound(int oscillatorIndex) const {
+  if (mKeyNotePatches.empty()) return GetDefaultPatch().GetOscillatorSettings(oscillatorIndex).level != 0.0;
+
+  for (const auto& [_, patch] : mKeyNotePatches)
+    if (patch.GetOscillatorSettings(oscillatorIndex).level != 0.0) return true;
+  return false;
+}
+
 bool CompoundPatch::HasKeyNotePatch(double midiNote) const { return GetKeyNotePatch(midiNote) != nullptr; }
 
 int CompoundPatch::GetNumKeyNotePatches() const { return static_cast<int>(mKeyNotePatches.size()); }

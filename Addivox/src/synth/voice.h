@@ -33,6 +33,7 @@ private:
   void UpdateLevels();
   void UpdateEqGains(const CompoundPatch::ResolvedNoteSpan& noteSpan);
   void UpdateEqGain(int harmonic);
+  void UpdateLiveOscs();
   void RefreshEqForChangedFrequencies();
   void UpdateLevel(int harmonic, const OscillatorSettings& settings);
   void UpdatePitchRate();
@@ -82,6 +83,10 @@ private:
   int mEqSamplesUntilUpdate{0};
 
   std::array<Oscillator, kNumHarmonics> mOscs;
+
+  // The oscillators that are processed. The rest cannot sound on the current patch, so they stand still.
+  std::array<Oscillator*, kNumHarmonics> mLiveOscs{};
+  int mNumLiveOscs{0};
   CompoundPatch mCompoundPatch;
   GlobalVoiceSettings mGlobalVoiceSettings;
 };

@@ -152,6 +152,8 @@ public:
   const ResonanceSettings& GetAllKeyNotesResonance() const;
   ResolvedNoteSpan ResolveNoteSpan(double midiNote) const;
   OscillatorSettings InterpolateOscillatorSettings(const ResolvedNoteSpan& span, int oscillatorIndex) const;
+  // False when the oscillator's level is zero at every key note, so that no played note can give it a level.
+  bool CanOscillatorSound(int oscillatorIndex) const;
 
   bool AddKeyNotePatch(double midiNote);
   void SetKeyNotePatch(int midiNote, const SimplePatch& patch);
