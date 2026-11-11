@@ -77,6 +77,9 @@ private:
   double mPhase = 0.0;
   double mFrequencyHz = kA4FrequencyHz;
   double mPhaseIncrement = 440.0 / 44100.0;
+  double mAnchorPitch = 0.0; // pitch and frequency at the last full frequency calculation
+  double mAnchorFrequencyHz = kA4FrequencyHz;
+  static constexpr double kMaxAnchorOffsetSemitones = 0.125;
   void UpdateFrequency();
 
   // Constant-power pan with sample-accurate variation and slew-limited gain changes.

@@ -164,8 +164,24 @@ HarmonicVisualizerOscillator Oscillator::GetVisualizerState() const {
                                       static_cast<float>(mPanRightGain)};
 }
 
+// exp2(offsetSemitones / 12) as the Taylor series of exp(offsetSemitones * ln(2) / 12), which is accurate to double precision within kMaxAnchorOffsetSemitones.
+static double SmallPitchRatio(double offsetSemitones) {
+  constexpr double kLn2 = 0.6931471805599453;
+  const double x = offsetSemitones * (kLn2 / 12.0);
+  return 1.0 + x * (1.0 + x * (1.0 / 2.0 + x * (1.0 / 6.0 + x * (1.0 / 24.0 + x * (1.0 / 120.0 + x * (1.0 / 720.0))))));
+}
+
+// Pitch variation moves the pitch a little on every sample. Calling exp2 each time is slow, so the frequency is only calculated in full when the pitch
+// has moved away from the anchor, the last pitch where that was done. Near the anchor, the frequency is the anchor's frequency times a small ratio.
 void Oscillator::UpdateFrequency() {
-  mFrequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
+  const double anchorOffsetSemitones = mPitch - mAnchorPitch;
+  if (std::abs(anchorOffsetSemitones) > kMaxAnchorOffsetSemitones) {
+    mAnchorPitch = mPitch;
+    mAnchorFrequencyHz = kA4FrequencyHz * std::exp2(mPitch / kSemitonesPerOctave);
+    mFrequencyHz = mAnchorFrequencyHz;
+  } else {
+    mFrequencyHz = mAnchorFrequencyHz * SmallPitchRatio(anchorOffsetSemitones);
+  }
   mPhaseIncrement = mFrequencyHz * mInverseSampleRate;
 }
 
