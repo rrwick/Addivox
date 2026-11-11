@@ -161,7 +161,7 @@ public:
       return update;
     }
 
-    ChannelState& state = mChannels[static_cast<std::size_t>(channel)];
+    ChannelState& state = mChannels[channel];
     const int lsbController = GetBreathCCSourceLSBController(source);
 
     if (controller == msbController) {

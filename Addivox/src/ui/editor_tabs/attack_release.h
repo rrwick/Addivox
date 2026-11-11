@@ -13,17 +13,17 @@ inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter, const c
   const double harmonicNumber = static_cast<double>(oscillatorIndex + 1);
 
   if (parameter == OscillatorParameter::attack) {
-    if (std::strcmp(shapeName, "linear ramp up") == 0 || std::strcmp(shapeName, "linear ramp up (slow)") == 0) {
+    if (std::strcmp(shapeName, "linear ramp up (slow)") == 0) {
       value = harmonicNumber / 100.0;
     } else if (std::strcmp(shapeName, "linear ramp up (fast)") == 0) {
       value = harmonicNumber / 1000.0;
-    } else if (std::strcmp(shapeName, "square root ramp up") == 0 || std::strcmp(shapeName, "sqrt ramp up (slow)") == 0) {
+    } else if (std::strcmp(shapeName, "sqrt ramp up (slow)") == 0) {
       value = (0.11 * std::sqrt(harmonicNumber)) - 0.1;
     } else if (std::strcmp(shapeName, "sqrt ramp up (fast)") == 0) {
       value = ((0.11 * std::sqrt(harmonicNumber)) - 0.1) / 10.0;
-    } else if (std::strcmp(shapeName, "logarithmic ramp up (slow)") == 0 || std::strcmp(shapeName, "exponential ramp up (slow)") == 0) {
+    } else if (std::strcmp(shapeName, "logarithmic ramp up (slow)") == 0) {
       value = 0.01 + (0.99 * std::log(harmonicNumber) / std::log(100.0));
-    } else if (std::strcmp(shapeName, "logarithmic ramp up (fast)") == 0 || std::strcmp(shapeName, "exponential ramp up (fast)") == 0) {
+    } else if (std::strcmp(shapeName, "logarithmic ramp up (fast)") == 0) {
       value = 0.001 + (0.099 * std::log(harmonicNumber) / std::log(100.0));
     } else if (std::strcmp(shapeName, "flat") == 0) {
       value = 0.1;
@@ -31,7 +31,7 @@ inline bool TryGetAttackReleaseShapeValue(OscillatorParameter parameter, const c
       return false;
     }
   } else if (parameter == OscillatorParameter::release) {
-    if (std::strcmp(shapeName, "linear ramp down") == 0 || std::strcmp(shapeName, "linear ramp down (slow)") == 0) {
+    if (std::strcmp(shapeName, "linear ramp down (slow)") == 0) {
       value = 0.1 - (static_cast<double>(oscillatorIndex) / 1000.0);
     } else if (std::strcmp(shapeName, "linear ramp down (fast)") == 0) {
       value = 0.01 - (static_cast<double>(oscillatorIndex) / 10000.0);

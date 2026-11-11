@@ -211,7 +211,7 @@ inline OscillatorParameterValues GenerateLevelMacroCurve(const LevelMacroKnobs& 
   FillLevelMacroBasis(display, values);
 
   for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    double& value = values[static_cast<std::size_t>(oscillatorIndex)];
+    double& value = values[oscillatorIndex];
     value = std::max(0.0, value * (1.0 + (model.oddEvenWeight * GetLevelOddEvenSign(oscillatorIndex))));
   }
 

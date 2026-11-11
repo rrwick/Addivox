@@ -49,6 +49,8 @@ const auto kLevelTable = [] {
   return table;
 }();
 
+double LevelCoordinate(double level) { return std::log1p(kLevelCurveScale * level) / kLevelCurveShape; }
+
 double Lerp(double lo, double hi, double t) { return lo + (hi - lo) * t; }
 
 using OscillatorParameterValues = CompoundPatch::OscillatorParameterValues;
@@ -61,9 +63,8 @@ OscillatorParameterValues SanitizeParameterValues(Parameter parameter, const Osc
 }
 
 void SetParameterValues(SimplePatch& patch, OscillatorSettings::Parameter parameter, const OscillatorParameterValues& values) {
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
-  }
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[oscillatorIndex]);
 }
 
 constexpr double kLevelWaveformRmsEpsilon = 1.0e-12;
@@ -159,15 +160,12 @@ OscillatorSettings SimplePatch::InterpolateOscillatorSettings(const SimplePatch&
 SimplePatch::SimplePatch(const OscillatorArray& oscillatorSettings) : mOscillatorSettings(oscillatorSettings) { UpdateLevelCoordinates(); }
 
 void SimplePatch::UpdateLevelCoordinates() {
-  for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic)
-    mLevelCoordinates[harmonic] = std::log1p(kLevelCurveScale * mOscillatorSettings[harmonic].level) / kLevelCurveShape;
+  for (int harmonic = 0; harmonic < kNumOscillators; ++harmonic) mLevelCoordinates[harmonic] = LevelCoordinate(mOscillatorSettings[harmonic].level);
 }
 
 int SimplePatch::ClampOscillatorIndex(int oscillatorIndex) { return std::clamp(oscillatorIndex, 0, kNumOscillators - 1); }
 
 const OscillatorSettings& SimplePatch::GetOscillatorSettings(int oscillatorIndex) const { return mOscillatorSettings[ClampOscillatorIndex(oscillatorIndex)]; }
-
-const SimplePatch::OscillatorArray& SimplePatch::GetOscillatorSettingsArray() const { return mOscillatorSettings; }
 
 SimplePatch::OscillatorParameterValues SimplePatch::GetParameterValues(OscillatorSettings::Parameter parameter) const {
   OscillatorParameterValues values{};
@@ -178,8 +176,7 @@ SimplePatch::OscillatorParameterValues SimplePatch::GetParameterValues(Oscillato
 void SimplePatch::SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value) {
   const int index = ClampOscillatorIndex(oscillatorIndex);
   mOscillatorSettings[index].SetParameter(parameter, value);
-  if (parameter == Parameter::level)
-    mLevelCoordinates[index] = std::log1p(kLevelCurveScale * mOscillatorSettings[index].level) / kLevelCurveShape;
+  if (parameter == Parameter::level) mLevelCoordinates[index] = LevelCoordinate(mOscillatorSettings[index].level);
 }
 
 bool SimplePatch::NormalizeLevels(LevelArray& levels) {
@@ -210,9 +207,7 @@ bool SimplePatch::NormalizeLevelWaveformRms() {
 
 SimplePatch SimplePatch::Interpolate(const SimplePatch& lo, const SimplePatch& hi, double t) {
   OscillatorArray out{};
-  for (int oscillator = 0; oscillator < kNumOscillators; ++oscillator) {
-    out[oscillator] = lo.InterpolateOscillatorSettings(hi, oscillator, t);
-  }
+  for (int oscillator = 0; oscillator < kNumOscillators; ++oscillator) out[oscillator] = lo.InterpolateOscillatorSettings(hi, oscillator, t);
   return SimplePatch{out};
 }
 

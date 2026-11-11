@@ -215,6 +215,12 @@ inline bool ParseMacroSettings(std::string_view text, MacroSettings& macros) {
   return macros.IsValid();
 }
 
+// Returns the key without its suffix, or an empty view if the key does not end with the suffix (or is nothing but the suffix).
+inline std::string_view WithoutSuffix(std::string_view key, std::string_view suffix) {
+  const bool hasSuffix = key.size() > suffix.size() && key.substr(key.size() - suffix.size()) == suffix;
+  return hasSuffix ? key.substr(0, key.size() - suffix.size()) : std::string_view{};
+}
+
 template <typename Descriptor, std::size_t N>
 inline const Descriptor* FindDescriptor(const std::array<Descriptor, N>& descriptors, std::string_view key) {
   for (const auto& descriptor : descriptors)
@@ -230,7 +236,7 @@ inline SimplePatch MakeDefaultKeyNotePatch() {
 
 inline void SetOscillatorParameterValues(SimplePatch& patch, OscillatorParameter parameter, const std::vector<double>& values) {
   for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[static_cast<std::size_t>(oscillatorIndex)]);
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, values[oscillatorIndex]);
   }
 }
 
@@ -298,17 +304,10 @@ inline std::string EscapeTomlString(std::string_view text) {
   return escaped;
 }
 
-inline void AppendOscillatorParameterArray(std::ostringstream& stream, const SimplePatch& patch, const OscillatorParameterDescriptor& descriptor,
-                                          bool roundValues) {
-  stream << descriptor.key << " = [";
-  const auto& oscillatorSettings = patch.GetOscillatorSettingsArray();
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    stream << FormatDouble(oscillatorSettings[static_cast<std::size_t>(oscillatorIndex)].GetParameter(descriptor.parameter), roundValues);
-
-    const bool lastValue = oscillatorIndex == (SimplePatch::kNumOscillators - 1);
-    if (!lastValue) stream << ", ";
-  }
-
+inline void AppendOscillatorParameterArray(std::ostringstream& stream, std::string_view key, const CompoundPatch::OscillatorParameterValues& values,
+                                           bool roundValues) {
+  stream << key << " = [";
+  for (std::size_t i = 0; i < values.size(); ++i) stream << (i > 0 ? ", " : "") << FormatDouble(values[i], roundValues);
   stream << "]\n";
 }
 
@@ -583,8 +582,7 @@ inline constexpr std::array<CurveDescriptor, 4> kCurveDescriptors{{
 // Finds the array named by a key such as "formants_freq_hz", marking its curve as present.
 inline std::vector<double>* FindCurveArray(ParsedCurves& curves, std::string_view key) {
   for (const auto& [suffix, values] : {std::pair{std::string_view{"_freq_hz"}, &ParsedCurve::freqHz}, std::pair{std::string_view{"_db"}, &ParsedCurve::db}}) {
-    if (key.size() <= suffix.size() || key.substr(key.size() - suffix.size()) != suffix) continue;
-    const auto* descriptor = FindDescriptor(kCurveDescriptors, key.substr(0, key.size() - suffix.size()));
+    const auto* descriptor = FindDescriptor(kCurveDescriptors, WithoutSuffix(key, suffix));
     if (!descriptor) continue;
 
     ParsedCurve& curve = curves.*(descriptor->curve);
@@ -691,6 +689,8 @@ private:
     return false;
   }
 
+  bool FailOnLine(const std::string& message) const { return Fail(message + " on line " + std::to_string(mLineNumber)); }
+
   bool ReadAssignments(const std::string& toml) {
     std::istringstream input{toml};
     std::string rawLine;
@@ -713,27 +713,16 @@ private:
       }
 
       if (line.front() == '[' && line.back() == ']') {
-        mCurrentKeyNote = nullptr;
-        if (line == "[voice_settings]") mSection = Section::VoiceSettings;
-        else if (line == "[effects_settings]")
-          mSection = Section::EffectsSettings;
-        else if (line == "[all_key_notes]")
-          mSection = Section::AllKeyNotes;
-        else if (line == "[[key_notes]]") {
-          mKeyNotes.emplace_back();
-          mCurrentKeyNote = &mKeyNotes.back();
-          mSection = Section::KeyNote;
-        } else
-          mSection = Section::Ignored;
+        BeginSection(line);
         continue;
       }
 
       const std::size_t equalsPos = line.find('=');
-      if (equalsPos == std::string_view::npos) return Fail("Invalid TOML assignment on line " + std::to_string(mLineNumber));
+      if (equalsPos == std::string_view::npos) return FailOnLine("Invalid TOML assignment");
 
       const std::string_view key = Trim(line.substr(0, equalsPos));
       const std::string_view value = Trim(line.substr(equalsPos + 1));
-      if (key.empty() || value.empty()) return Fail("Invalid TOML assignment on line " + std::to_string(mLineNumber));
+      if (key.empty() || value.empty()) return FailOnLine("Invalid TOML assignment");
 
       if (value.front() == '[' && value.find(']') == std::string::npos) {
         pendingKey = key;
@@ -745,6 +734,18 @@ private:
     }
     if (!pendingKey.empty()) return Fail("Unterminated array at end of file");
     return true;
+  }
+
+  void BeginSection(std::string_view header) {
+    static constexpr std::pair<std::string_view, Section> kSections[]{{"[voice_settings]", Section::VoiceSettings},
+                                                                      {"[effects_settings]", Section::EffectsSettings},
+                                                                      {"[all_key_notes]", Section::AllKeyNotes},
+                                                                      {"[[key_notes]]", Section::KeyNote}};
+    mSection = Section::Ignored;
+    for (const auto& [name, section] : kSections)
+      if (header == name) mSection = section;
+
+    mCurrentKeyNote = mSection == Section::KeyNote ? &mKeyNotes.emplace_back() : nullptr;
   }
 
   bool ParseAssignment(std::string_view key, std::string_view value) {
@@ -762,11 +763,11 @@ private:
   bool ParseRootAssignment(std::string_view key, std::string_view value) {
     if (key == "format_version") {
       int formatVersion = 0;
-      if (!ParseInteger(value, formatVersion)) return Fail("Invalid format_version on line " + std::to_string(mLineNumber));
-      if (formatVersion > kFormatVersion) return Fail("Unsupported format_version on line " + std::to_string(mLineNumber));
+      if (!ParseInteger(value, formatVersion)) return FailOnLine("Invalid format_version");
+      if (formatVersion > kFormatVersion) return FailOnLine("Unsupported format_version");
       mSawFormatVersion = true;
     } else if (key == "name") {
-      if (!ParseQuotedString(value, mDocument.name)) return Fail("Invalid patch name on line " + std::to_string(mLineNumber));
+      if (!ParseQuotedString(value, mDocument.name)) return FailOnLine("Invalid patch name");
     }
 
     return true;
@@ -777,7 +778,7 @@ private:
     if (!descriptor) return true;
 
     double parsedValue = 0.0;
-    if (!ParseDouble(value, parsedValue)) return Fail("Invalid voice setting on line " + std::to_string(mLineNumber));
+    if (!ParseDouble(value, parsedValue)) return FailOnLine("Invalid voice setting");
 
     mDocument.voiceSettings.*(descriptor->member) = parsedValue;
     return true;
@@ -788,7 +789,7 @@ private:
     if (!descriptor) return true;
 
     double parsedValue = 0.0;
-    if (!ParseDouble(value, parsedValue)) return Fail("Invalid effects setting on line " + std::to_string(mLineNumber));
+    if (!ParseDouble(value, parsedValue)) return FailOnLine("Invalid effects setting");
 
     if (descriptor->member == &EffectsSettings::tone && std::abs(parsedValue) > 1.0) parsedValue *= 0.01;
 
@@ -797,9 +798,8 @@ private:
   }
 
   bool ParseNoteAssignment(std::string_view key, std::string_view value) {
-    constexpr std::string_view macroSuffix = "_macros";
-    if (key.size() > macroSuffix.size() && key.substr(key.size() - macroSuffix.size()) == macroSuffix) {
-      const auto* descriptor = FindDescriptor(kOscillatorParameterDescriptors, key.substr(0, key.size() - macroSuffix.size()));
+    if (const std::string_view macroParameterKey = WithoutSuffix(key, "_macros"); !macroParameterKey.empty()) {
+      const auto* descriptor = FindDescriptor(kOscillatorParameterDescriptors, macroParameterKey);
       if (!descriptor) return true;
       MacroSettings macros;
       if (!ParseMacroSettings(value, macros)) return true;
@@ -811,11 +811,11 @@ private:
     }
 
     if (mSection == Section::KeyNote) {
-      if (!mCurrentKeyNote) return Fail("Key-note data found before [[key_notes]] on line " + std::to_string(mLineNumber));
+      if (!mCurrentKeyNote) return FailOnLine("Key-note data found before [[key_notes]]");
 
       if (key == "midi_note") {
         int midiNote = 0;
-        if (!ParseInteger(value, midiNote)) return Fail("Invalid midi_note on line " + std::to_string(mLineNumber));
+        if (!ParseInteger(value, midiNote)) return FailOnLine("Invalid midi_note");
         mCurrentKeyNote->midiNote = std::clamp(midiNote, CompoundPatch::kMinMidiNote, CompoundPatch::kMaxMidiNote);
         mCurrentKeyNote->hasMidiNote = true;
         return true;
@@ -823,21 +823,20 @@ private:
 
       if (key == "note_name") {
         std::string ignored;
-        if (!ParseQuotedString(value, ignored)) return Fail("Invalid note_name on line " + std::to_string(mLineNumber));
+        if (!ParseQuotedString(value, ignored)) return FailOnLine("Invalid note_name");
         return true;
       }
     }
 
     ParsedCurves& curves = mSection == Section::AllKeyNotes ? mAllKeyNotesCurves : mCurrentKeyNote->curves;
     if (const auto* descriptor = FindDescriptor(kResonanceValueDescriptors, key)) {
-      if (!ParseDouble(value, curves.resonanceValues.*(descriptor->member)))
-        return Fail("Invalid " + std::string{key} + " on line " + std::to_string(mLineNumber));
+      if (!ParseDouble(value, curves.resonanceValues.*(descriptor->member))) return FailOnLine("Invalid " + std::string{key});
       curves.resonanceValuesPresent = true;
       return true;
     }
 
     if (auto* curveArray = FindCurveArray(curves, key)) {
-      if (!ParseDoubleArray(value, *curveArray)) return Fail("Invalid " + std::string{key} + " array on line " + std::to_string(mLineNumber));
+      if (!ParseDoubleArray(value, *curveArray)) return FailOnLine("Invalid " + std::string{key} + " array");
       return true;
     }
 
@@ -850,11 +849,10 @@ private:
 
     const bool allKeyNotes = mSection == Section::AllKeyNotes;
     std::vector<double> values;
-    if (!ParseDoubleArray(value, values))
-      return Fail(std::string{allKeyNotes ? "Invalid all_key_notes array on line " : "Invalid oscillator array on line "} + std::to_string(mLineNumber));
+    if (!ParseDoubleArray(value, values)) return FailOnLine(allKeyNotes ? "Invalid all_key_notes array" : "Invalid oscillator array");
     if (static_cast<int>(values.size()) != SimplePatch::kNumOscillators)
-      return Fail(std::string{allKeyNotes ? "All-key-notes array must contain " : "Oscillator array must contain "} +
-                  std::to_string(SimplePatch::kNumOscillators) + " values on line " + std::to_string(mLineNumber));
+      return FailOnLine(std::string{allKeyNotes ? "All-key-notes array" : "Oscillator array"} + " must contain " +
+                        std::to_string(SimplePatch::kNumOscillators) + " values");
 
     if (allKeyNotes) {
       auto& parsedParameter = mAllKeyNotesParameters[static_cast<std::size_t>(descriptor->parameter)];
@@ -907,15 +905,7 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     if (!compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
     beginAllKeyNotes();
-
-    stream << descriptor.key << " = [";
-    const auto& values = compoundPatch.GetAllKeyNotesValues(descriptor.parameter);
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      stream << detail::FormatDouble(values[static_cast<std::size_t>(oscillatorIndex)], roundValues);
-      if (oscillatorIndex != (SimplePatch::kNumOscillators - 1)) stream << ", ";
-    }
-
-    stream << "]\n";
+    detail::AppendOscillatorParameterArray(stream, descriptor.key, compoundPatch.GetAllKeyNotesValues(descriptor.parameter), roundValues);
     const auto& notes = compoundPatch.GetKeyNotePatches();
     if (!notes.empty())
       detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(notes.begin()->first, descriptor.parameter), roundValues);
@@ -938,7 +928,7 @@ inline std::string SerializePatchToToml(const PatchDocument& document, bool incl
     for (const auto& descriptor : detail::kOscillatorParameterDescriptors) {
       if (compoundPatch.IsAllKeyNotesEnabled(descriptor.parameter)) continue;
 
-      detail::AppendOscillatorParameterArray(stream, patch, descriptor, roundValues);
+      detail::AppendOscillatorParameterArray(stream, descriptor.key, patch.GetParameterValues(descriptor.parameter), roundValues);
       detail::AppendMacroSettings(stream, descriptor.key, compoundPatch.GetMacroSettings(midiNote, descriptor.parameter), roundValues);
     }
 

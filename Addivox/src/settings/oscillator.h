@@ -54,7 +54,7 @@ public:
 
   static constexpr std::array<Parameter, kNumParameters> AllParameters() {
     std::array<Parameter, kNumParameters> parameters{};
-    for (int i = 0; i < kNumParameters; ++i) parameters[static_cast<std::size_t>(i)] = static_cast<Parameter>(i);
+    for (int i = 0; i < kNumParameters; ++i) parameters[i] = static_cast<Parameter>(i);
 
     return parameters;
   }
@@ -83,7 +83,6 @@ public:
   explicit SimplePatch(const OscillatorArray& oscillatorSettings);
 
   const OscillatorSettings& GetOscillatorSettings(int oscillatorIndex) const;
-  const OscillatorArray& GetOscillatorSettingsArray() const;
   OscillatorParameterValues GetParameterValues(OscillatorSettings::Parameter parameter) const;
   void SetOscillatorParameter(int oscillatorIndex, OscillatorSettings::Parameter parameter, double value);
   bool NormalizeLevelWaveformRms();

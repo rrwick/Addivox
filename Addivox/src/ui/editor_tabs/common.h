@@ -337,7 +337,7 @@ public:
       const bool isSelected = i == selected;
       const bool isMouseOver = mMouseOverButton == i;
 
-      const auto& layout = optionLayouts[static_cast<std::size_t>(i)];
+      const auto& layout = optionLayouts[i];
       IRECT buttonBounds = layout.buttonBounds;
 
       if (isMouseOver) g.FillRect(GetColor(kHL), buttonBounds, &mBlend);
@@ -359,7 +359,7 @@ protected:
   int GetButtonForPoint(float x, float y) const override {
     const auto optionLayouts = GetOptionLayouts(GetUI());
     for (int i = 0; i < mNumStates && i < kScopeOptionCount; ++i) {
-      if (optionLayouts[static_cast<std::size_t>(i)].hitBounds.Contains(x, y)) return i;
+      if (optionLayouts[i].hitBounds.Contains(x, y)) return i;
     }
 
     return -1;
@@ -387,7 +387,7 @@ private:
 
       IRECT measuredTextBounds;
       graphics->MeasureText(mStyle.valueText, mTabLabels.Get(i)->Get(), measuredTextBounds);
-      textWidths[static_cast<std::size_t>(i)] = measuredTextBounds.W();
+      textWidths[i] = measuredTextBounds.W();
       totalTextWidth += measuredTextBounds.W();
     }
 
@@ -401,11 +401,11 @@ private:
     const float boxTop = mWidgetBounds.MH() - (mButtonSize * 0.5f);
 
     for (int i = 0; i < kScopeOptionCount; ++i) {
-      auto& layout = layouts[static_cast<std::size_t>(i)];
+      auto& layout = layouts[i];
       layout.buttonBounds = IRECT(x, boxTop, x + mButtonSize, boxTop + mButtonSize);
 
       const float textLeft = layout.buttonBounds.R + kBoxLabelGap;
-      const float textRight = textLeft + textWidths[static_cast<std::size_t>(i)];
+      const float textRight = textLeft + textWidths[i];
       layout.textBounds = IRECT(textLeft, mWidgetBounds.T, textRight, mWidgetBounds.B);
       layout.hitBounds = IRECT(layout.buttonBounds.L, mWidgetBounds.T, layout.textBounds.R, mWidgetBounds.B);
 
@@ -425,7 +425,7 @@ CreateEditModeScopeControl(const std::shared_ptr<std::array<EditorOscillatorEdit
 
 inline ITextControl* CreateUtilityLabelControl(const char* text, const EditorStyles& styles, const char* tooltip = nullptr) {
   auto* control = MakePassiveControl(new ITextControl(IRECT(), text, styles.utilityLabelText, COLOR_TRANSPARENT));
-  if (tooltip && tooltip[0] != '\0') control->SetTooltip(tooltip);
+  SetTooltipIfPresent(control, tooltip);
   return control;
 }
 
@@ -445,15 +445,16 @@ inline bool MatchesActionLabel(const char* selectedText, const char* actionName)
 }
 
 inline const char* GetEditorActionShortcutActionName(OscillatorParameter parameter, int keyVK) {
+  const bool isBipolar = parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan;
   switch (keyVK) {
   case kVK_Q: return kActionScaleUp;
   case kVK_A: return kActionScaleDown;
-  case kVK_W: return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan) ? kActionShiftUp : kActionTowardMax;
-  case kVK_S: return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan) ? kActionShiftDown : kActionAwayFromMax;
-  case kVK_E: return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan) ? nullptr : kActionBendUp;
-  case kVK_D: return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan) ? nullptr : kActionBendDown;
+  case kVK_W: return isBipolar ? kActionShiftUp : kActionTowardMax;
+  case kVK_S: return isBipolar ? kActionShiftDown : kActionAwayFromMax;
+  case kVK_E: return isBipolar ? nullptr : kActionBendUp;
+  case kVK_D: return isBipolar ? nullptr : kActionBendDown;
   case kVK_N: return parameter == OscillatorParameter::level ? kActionNormalize : nullptr;
-  case kVK_I: return (parameter == OscillatorParameter::pitch || parameter == OscillatorParameter::pan) ? kActionInvert : nullptr;
+  case kVK_I: return isBipolar ? kActionInvert : nullptr;
   default:    return nullptr;
   }
 }
@@ -533,25 +534,18 @@ inline bool ApplyStandardHarmonicAction(SimplePatch& patch, OscillatorParameter 
     }
   }
 
+  const auto applyAction = [&](double value) {
+    if (isScaleUp) return ApplyLinearScale(value, kScaleUp, minValue, maxValue);
+    if (isScaleDown) return ApplyLinearScale(value, kScaleDown, minValue, maxValue);
+    if (isTowardMax) return ApplyTowardMaxScale(value, kTowardMaxFactor, minValue, maxValue);
+    if (isAwayFromMax) return ApplyTowardMaxScale(value, kAwayFromMaxFactor, minValue, maxValue);
+    return ApplyCurveWarp(value, isBendUp ? 1.0 / kBendExponent : kBendExponent, currentMinValue, currentMaxValue);
+  };
+
   for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
     if (!MatchesOscillatorEditScope(editScope, oscillatorIndex)) continue;
 
-    const double value = patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter);
-    double updatedValue = value;
-
-    if (isScaleUp) updatedValue = ApplyLinearScale(value, kScaleUp, minValue, maxValue);
-    else if (isScaleDown)
-      updatedValue = ApplyLinearScale(value, kScaleDown, minValue, maxValue);
-    else if (isTowardMax)
-      updatedValue = ApplyTowardMaxScale(value, kTowardMaxFactor, minValue, maxValue);
-    else if (isAwayFromMax)
-      updatedValue = ApplyTowardMaxScale(value, kAwayFromMaxFactor, minValue, maxValue);
-    else if (isBendUp)
-      updatedValue = ApplyCurveWarp(value, 1.0 / kBendExponent, currentMinValue, currentMaxValue);
-    else if (isBendDown)
-      updatedValue = ApplyCurveWarp(value, kBendExponent, currentMinValue, currentMaxValue);
-
-    patch.SetOscillatorParameter(oscillatorIndex, parameter, updatedValue);
+    patch.SetOscillatorParameter(oscillatorIndex, parameter, applyAction(patch.GetOscillatorSettings(oscillatorIndex).GetParameter(parameter)));
   }
 
   return true;
@@ -705,11 +699,8 @@ struct EditorContext {
 
   void ApplyOscillatorEditScopeToValues(OscillatorParameter parameter, const OscillatorParameterValues& sourceValues,
                                         OscillatorParameterValues& targetValues) const {
-    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-      if (!IsOscillatorEditable(parameter, oscillatorIndex)) {
-        targetValues[static_cast<std::size_t>(oscillatorIndex)] = sourceValues[static_cast<std::size_t>(oscillatorIndex)];
-      }
-    }
+    for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
+      if (!IsOscillatorEditable(parameter, oscillatorIndex)) targetValues[oscillatorIndex] = sourceValues[oscillatorIndex];
   }
 
   int XRangeMin() const { return *oscillatorView.xRangeMin; }
@@ -873,7 +864,7 @@ struct EditorContext {
     if (!sliderControl) return;
 
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      sliderControl->SetOscillatorValue(oscillatorIndex, values[static_cast<std::size_t>(oscillatorIndex)]);
+      sliderControl->SetOscillatorValue(oscillatorIndex, values[oscillatorIndex]);
 
     sliderControl->SetMacroCurve(values);
     sliderControl->SetDirty(false);
@@ -990,17 +981,13 @@ struct EditorContext {
   }
 
   bool CanAddSelectedKeyNote() const {
-    const int midiNote = SelectedMidiNote();
-    const bool midiNoteValid = midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
     const auto patchLock = LockPatch();
-    return IsEditMode() && midiNoteValid && !Patch().HasKeyNotePatch(midiNote);
+    return IsEditMode() && HasValidSelectedMidiNote() && !Patch().HasKeyNotePatch(SelectedMidiNote());
   }
 
   bool CanDeleteSelectedKeyNote() const {
-    const int midiNote = SelectedMidiNote();
-    const bool midiNoteValid = midiNote >= CompoundPatch::kMinMidiNote && midiNote <= CompoundPatch::kMaxMidiNote;
     const auto patchLock = LockPatch();
-    return IsEditMode() && midiNoteValid && Patch().HasKeyNotePatch(midiNote) && Patch().GetNumKeyNotePatches() > 1;
+    return IsEditMode() && HasValidSelectedMidiNote() && Patch().HasKeyNotePatch(SelectedMidiNote()) && Patch().GetNumKeyNotePatches() > 1;
   }
 
   void AddSelectedKeyNote(IControl* caller) {
@@ -1603,10 +1590,8 @@ inline void RestoreOscillatorTabValues(const std::shared_ptr<EditorContext>& con
 
   const auto& restoreState = control->GetRestoreState();
   OscillatorParameterValues values{};
-  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex) {
-    values[static_cast<std::size_t>(oscillatorIndex)] =
-        std::clamp(restoreState[static_cast<std::size_t>(oscillatorIndex)], descriptor.range.min, descriptor.range.max);
-  }
+  for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
+    values[oscillatorIndex] = std::clamp(restoreState[oscillatorIndex], descriptor.range.min, descriptor.range.max);
 
   bool updated = false;
   {

@@ -99,31 +99,23 @@ private:
   std::size_t mPosition{0};
 };
 
-void SetErrorMessage(std::string* errorMessage, std::string message) {
+bool Fail(std::string* errorMessage, std::string message) {
   if (errorMessage) *errorMessage = std::move(message);
+  return false;
 }
 
 bool ReadBinaryFile(std::string_view path, std::vector<uint8_t>& bytes, std::string* errorMessage) {
   std::ifstream stream{std::string{path}, std::ios::binary | std::ios::ate};
-  if (!stream.is_open()) {
-    SetErrorMessage(errorMessage, "Could not open MIDI file");
-    return false;
-  }
+  if (!stream.is_open()) return Fail(errorMessage, "Could not open MIDI file");
 
   const std::ifstream::pos_type endPosition = stream.tellg();
-  if (endPosition < 0) {
-    SetErrorMessage(errorMessage, "Could not determine MIDI file size");
-    return false;
-  }
+  if (endPosition < 0) return Fail(errorMessage, "Could not determine MIDI file size");
 
   bytes.resize(static_cast<std::size_t>(endPosition));
   stream.seekg(0, std::ios::beg);
   if (!bytes.empty()) stream.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
 
-  if (!stream.good() && !stream.eof()) {
-    SetErrorMessage(errorMessage, "Could not read MIDI file");
-    return false;
-  }
+  if (!stream.good() && !stream.eof()) return Fail(errorMessage, "Could not read MIDI file");
 
   return true;
 }
@@ -138,9 +130,7 @@ bool IsNoteOffMessage(const iplug::IMidiMsg& message) {
 
 int EventPriority(const iplug::IMidiMsg& message) {
   if (IsNoteOffMessage(message)) return 1;
-
   if (IsNoteOnMessage(message)) return 2;
-
   return 0;
 }
 
@@ -160,27 +150,18 @@ bool ParseTrack(ByteReader& reader, std::size_t trackEndPosition, std::vector<Ra
 
   while (reader.Position() < trackEndPosition) {
     uint32_t deltaTicks = 0;
-    if (!reader.ReadVariableLengthQuantity(deltaTicks)) {
-      SetErrorMessage(errorMessage, "Malformed MIDI track: invalid delta time");
-      return false;
-    }
+    if (!reader.ReadVariableLengthQuantity(deltaTicks)) return Fail(errorMessage, "Malformed MIDI track: invalid delta time");
 
     absoluteTick += static_cast<uint64_t>(deltaTicks);
 
     uint8_t statusOrData = 0;
-    if (!reader.ReadByte(statusOrData)) {
-      SetErrorMessage(errorMessage, "Malformed MIDI track: unexpected end of track");
-      return false;
-    }
+    if (!reader.ReadByte(statusOrData)) return Fail(errorMessage, "Malformed MIDI track: unexpected end of track");
 
     uint8_t statusByte = statusOrData;
     uint8_t firstDataByte = 0;
     bool usedRunningStatus = false;
     if ((statusOrData & 0x80u) == 0u) {
-      if (runningStatus == 0) {
-        SetErrorMessage(errorMessage, "Malformed MIDI track: running status used before a status byte");
-        return false;
-      }
+      if (runningStatus == 0) return Fail(errorMessage, "Malformed MIDI track: running status used before a status byte");
 
       usedRunningStatus = true;
       statusByte = runningStatus;
@@ -190,22 +171,14 @@ bool ParseTrack(ByteReader& reader, std::size_t trackEndPosition, std::vector<Ra
 
     if (statusByte == 0xFFu) {
       uint8_t metaType = 0;
-      if (!reader.ReadByte(metaType)) {
-        SetErrorMessage(errorMessage, "Malformed MIDI track: truncated meta event");
-        return false;
-      }
+      if (!reader.ReadByte(metaType)) return Fail(errorMessage, "Malformed MIDI track: truncated meta event");
 
       uint32_t metaLength = 0;
-      if (!reader.ReadVariableLengthQuantity(metaLength) || !reader.CanRead(metaLength)) {
-        SetErrorMessage(errorMessage, "Malformed MIDI track: truncated meta event payload");
-        return false;
-      }
+      if (!reader.ReadVariableLengthQuantity(metaLength) || !reader.CanRead(metaLength))
+        return Fail(errorMessage, "Malformed MIDI track: truncated meta event payload");
 
       if (metaType == 0x2Fu) {
-        if (!reader.Skip(metaLength)) {
-          SetErrorMessage(errorMessage, "Malformed MIDI track: truncated end-of-track event");
-          return false;
-        }
+        if (!reader.Skip(metaLength)) return Fail(errorMessage, "Malformed MIDI track: truncated end-of-track event");
         break;
       }
 
@@ -213,40 +186,27 @@ bool ParseTrack(ByteReader& reader, std::size_t trackEndPosition, std::vector<Ra
         uint8_t b0 = 0;
         uint8_t b1 = 0;
         uint8_t b2 = 0;
-        if (!reader.ReadByte(b0) || !reader.ReadByte(b1) || !reader.ReadByte(b2)) {
-          SetErrorMessage(errorMessage, "Malformed MIDI track: truncated tempo event");
-          return false;
-        }
+        if (!reader.ReadByte(b0) || !reader.ReadByte(b1) || !reader.ReadByte(b2)) return Fail(errorMessage, "Malformed MIDI track: truncated tempo event");
 
         const uint32_t microsecondsPerQuarterNote = (static_cast<uint32_t>(b0) << 16) | (static_cast<uint32_t>(b1) << 8) | static_cast<uint32_t>(b2);
-        if (microsecondsPerQuarterNote == 0) {
-          SetErrorMessage(errorMessage, "Malformed MIDI file: tempo event has zero tempo");
-          return false;
-        }
+        if (microsecondsPerQuarterNote == 0) return Fail(errorMessage, "Malformed MIDI file: tempo event has zero tempo");
 
         tempoEvents.push_back({absoluteTick, nextSequence++, microsecondsPerQuarterNote});
-      } else if (!reader.Skip(metaLength)) {
-        SetErrorMessage(errorMessage, "Malformed MIDI track: truncated meta event payload");
-        return false;
-      }
+      } else if (!reader.Skip(metaLength))
+        return Fail(errorMessage, "Malformed MIDI track: truncated meta event payload");
 
       continue;
     }
 
     if (statusByte == 0xF0u || statusByte == 0xF7u) {
       uint32_t sysexLength = 0;
-      if (!reader.ReadVariableLengthQuantity(sysexLength) || !reader.Skip(sysexLength)) {
-        SetErrorMessage(errorMessage, "Malformed MIDI track: truncated sysex event");
-        return false;
-      }
+      if (!reader.ReadVariableLengthQuantity(sysexLength) || !reader.Skip(sysexLength))
+        return Fail(errorMessage, "Malformed MIDI track: truncated sysex event");
 
       continue;
     }
 
-    if (statusByte > 0xEFu) {
-      SetErrorMessage(errorMessage, "Malformed MIDI track: unsupported status byte");
-      return false;
-    }
+    if (statusByte > 0xEFu) return Fail(errorMessage, "Malformed MIDI track: unsupported status byte");
 
     const uint8_t statusType = static_cast<uint8_t>(statusByte >> 4);
     const bool hasTwoDataBytes = (statusType == 0x8u) || (statusType == 0x9u) || (statusType == 0xAu) || (statusType == 0xBu) || (statusType == 0xEu);
@@ -255,31 +215,15 @@ bool ParseTrack(ByteReader& reader, std::size_t trackEndPosition, std::vector<Ra
     uint8_t data2 = 0;
 
     if (usedRunningStatus) data1 = firstDataByte;
-    else if (!reader.ReadByte(data1)) {
-      SetErrorMessage(errorMessage, "Malformed MIDI track: missing MIDI event data");
-      return false;
-    }
+    else if (!reader.ReadByte(data1))
+      return Fail(errorMessage, "Malformed MIDI track: missing MIDI event data");
 
-    if (hasTwoDataBytes && !reader.ReadByte(data2)) {
-      SetErrorMessage(errorMessage, "Malformed MIDI track: truncated MIDI event");
-      return false;
-    }
+    if (hasTwoDataBytes && !reader.ReadByte(data2)) return Fail(errorMessage, "Malformed MIDI track: truncated MIDI event");
 
-    switch (statusType) {
-    case 0x8u:
-    case 0x9u:
-    case 0xBu:
-    case 0xEu: {
-      const iplug::IMidiMsg message{0, statusByte, data1, data2};
-      if (statusType == 0x8u || statusType == 0x9u) trackContainsNoteEvents = true;
-      rawEvents.push_back({absoluteTick, nextSequence++, message});
-      break;
-    }
-    case 0xAu:
-    case 0xCu:
-    case 0xDu:
-    default:   break;
-    }
+    const bool isNoteEvent = statusType == 0x8u || statusType == 0x9u;
+    const bool isControlChangeOrPitchBend = statusType == 0xBu || statusType == 0xEu;
+    if (isNoteEvent) trackContainsNoteEvents = true;
+    if (isNoteEvent || isControlChangeOrPitchBend) rawEvents.push_back({absoluteTick, nextSequence++, iplug::IMidiMsg{0, statusByte, data1, data2}});
   }
 
   trackEndTick = absoluteTick;
@@ -309,18 +253,13 @@ bool NormalizeMonophonic(std::vector<RawEvent>& events, uint64_t trackEndTick, s
 
     sawNoteOn = true;
 
-    if (activeNote) {
-      normalizedEvents.push_back({event.tick, nextSequence++, MakeNoteOffMessage(activeNote->channel, activeNote->note)});
-    }
+    if (activeNote) normalizedEvents.push_back({event.tick, nextSequence++, MakeNoteOffMessage(activeNote->channel, activeNote->note)});
 
     normalizedEvents.push_back(event);
     activeNote = ActiveNote{event.message.Channel(), event.message.NoteNumber()};
   }
 
-  if (!sawNoteOn) {
-    SetErrorMessage(errorMessage, "MIDI file contains no note-on events");
-    return false;
-  }
+  if (!sawNoteOn) return Fail(errorMessage, "MIDI file contains no note-on events");
 
   if (activeNote) normalizedEvents.push_back({trackEndTick, nextSequence++, MakeNoteOffMessage(activeNote->channel, activeNote->note)});
 
@@ -328,6 +267,64 @@ bool NormalizeMonophonic(std::vector<RawEvent>& events, uint64_t trackEndTick, s
   return true;
 }
 
+// Simultaneous events are ordered so that note-offs come before note-ons, with all other messages before both.
+void SortForPlayback(std::vector<RawEvent>& events) {
+  std::sort(events.begin(), events.end(), [](const RawEvent& lhs, const RawEvent& rhs) {
+    if (lhs.tick != rhs.tick) return lhs.tick < rhs.tick;
+
+    const int lhsPriority = EventPriority(lhs.message);
+    const int rhsPriority = EventPriority(rhs.message);
+    if (lhsPriority != rhsPriority) return lhsPriority < rhsPriority;
+
+    return lhs.sequence < rhs.sequence;
+  });
+}
+
+std::vector<TimedEvent> ConvertTicksToSeconds(const std::vector<RawEvent>& events, std::vector<TempoEvent> tempoEvents, uint16_t ticksPerQuarterNote) {
+  std::sort(tempoEvents.begin(), tempoEvents.end(),
+            [](const TempoEvent& lhs, const TempoEvent& rhs) { return lhs.tick != rhs.tick ? lhs.tick < rhs.tick : lhs.sequence < rhs.sequence; });
+
+  std::vector<TimedEvent> timedEvents;
+  timedEvents.reserve(events.size());
+
+  uint64_t currentTick = 0;
+  double currentTimeSeconds = 0.0;
+  uint32_t currentTempo = kDefaultTempoMicrosecondsPerQuarterNote;
+  std::size_t tempoIndex = 0;
+
+  for (const RawEvent& event : events) {
+    for (; tempoIndex < tempoEvents.size() && tempoEvents[tempoIndex].tick <= event.tick; ++tempoIndex) {
+      const TempoEvent& tempoEvent = tempoEvents[tempoIndex];
+      currentTimeSeconds += TicksToSeconds(tempoEvent.tick - currentTick, currentTempo, ticksPerQuarterNote);
+      currentTick = tempoEvent.tick;
+      currentTempo = tempoEvent.microsecondsPerQuarterNote;
+    }
+
+    timedEvents.push_back({currentTimeSeconds + TicksToSeconds(event.tick - currentTick, currentTempo, ticksPerQuarterNote), event.message});
+  }
+
+  return timedEvents;
+}
+
+bool ParseHeader(ByteReader& reader, uint16_t& trackCount, uint16_t& ticksPerQuarterNote, std::string* errorMessage) {
+  char chunkId[5] = {};
+  if (!reader.ReadChunkId(chunkId) || std::string_view{chunkId} != "MThd") return Fail(errorMessage, "MIDI file is missing the MThd header chunk");
+
+  uint32_t headerLength = 0;
+  uint16_t format = 0;
+  uint16_t division = 0;
+  if (!reader.ReadUint32BE(headerLength) || !reader.ReadUint16BE(format) || !reader.ReadUint16BE(trackCount) || !reader.ReadUint16BE(division))
+    return Fail(errorMessage, "MIDI file header is truncated");
+
+  if (headerLength < 6) return Fail(errorMessage, "MIDI file header chunk is malformed");
+  if (!reader.Skip(static_cast<std::size_t>(headerLength - 6))) return Fail(errorMessage, "MIDI file header is truncated");
+  if (format > 1) return Fail(errorMessage, "Only MIDI format 0 and format 1 files are supported");
+  if ((division & 0x8000u) != 0u) return Fail(errorMessage, "SMPTE-timed MIDI files are not supported");
+  if (division == 0) return Fail(errorMessage, "MIDI file has zero ticks per quarter note");
+
+  ticksPerQuarterNote = division;
+  return true;
+}
 } // namespace
 
 bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* errorMessage) {
@@ -337,46 +334,9 @@ bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* error
   if (!ReadBinaryFile(path, bytes, errorMessage)) return false;
 
   ByteReader reader{bytes};
-
-  char chunkId[5] = {};
-  if (!reader.ReadChunkId(chunkId) || std::string_view{chunkId} != "MThd") {
-    SetErrorMessage(errorMessage, "MIDI file is missing the MThd header chunk");
-    return false;
-  }
-
-  uint32_t headerLength = 0;
-  uint16_t format = 0;
   uint16_t trackCount = 0;
-  uint16_t division = 0;
-  if (!reader.ReadUint32BE(headerLength) || !reader.ReadUint16BE(format) || !reader.ReadUint16BE(trackCount) || !reader.ReadUint16BE(division)) {
-    SetErrorMessage(errorMessage, "MIDI file header is truncated");
-    return false;
-  }
-
-  if (headerLength < 6) {
-    SetErrorMessage(errorMessage, "MIDI file header chunk is malformed");
-    return false;
-  }
-
-  if (!reader.Skip(static_cast<std::size_t>(headerLength - 6))) {
-    SetErrorMessage(errorMessage, "MIDI file header is truncated");
-    return false;
-  }
-
-  if (format > 1) {
-    SetErrorMessage(errorMessage, "Only MIDI format 0 and format 1 files are supported");
-    return false;
-  }
-
-  if ((division & 0x8000u) != 0u) {
-    SetErrorMessage(errorMessage, "SMPTE-timed MIDI files are not supported");
-    return false;
-  }
-
-  if (division == 0) {
-    SetErrorMessage(errorMessage, "MIDI file has zero ticks per quarter note");
-    return false;
-  }
+  uint16_t ticksPerQuarterNote = 0;
+  if (!ParseHeader(reader, trackCount, ticksPerQuarterNote, errorMessage)) return false;
 
   std::vector<RawEvent> rawEvents;
   std::vector<TempoEvent> tempoEvents;
@@ -385,88 +345,32 @@ bool ParseFile(std::string_view path, ParsedFile& parsedFile, std::string* error
   int noteTrackCount = 0;
 
   for (uint16_t trackIndex = 0; trackIndex < trackCount; ++trackIndex) {
-    if (!reader.ReadChunkId(chunkId)) {
-      SetErrorMessage(errorMessage, "MIDI file ended before all track chunks were read");
-      return false;
-    }
-
+    char chunkId[5] = {};
     uint32_t trackLength = 0;
-    if (!reader.ReadUint32BE(trackLength)) {
-      SetErrorMessage(errorMessage, "MIDI track chunk length is truncated");
-      return false;
-    }
-
-    if (std::string_view{chunkId} != "MTrk") {
-      SetErrorMessage(errorMessage, "MIDI file contains a non-track chunk where MTrk was expected");
-      return false;
-    }
-
-    if (!reader.CanRead(trackLength)) {
-      SetErrorMessage(errorMessage, "MIDI track chunk is truncated");
-      return false;
-    }
+    if (!reader.ReadChunkId(chunkId)) return Fail(errorMessage, "MIDI file ended before all track chunks were read");
+    if (!reader.ReadUint32BE(trackLength)) return Fail(errorMessage, "MIDI track chunk length is truncated");
+    if (std::string_view{chunkId} != "MTrk") return Fail(errorMessage, "MIDI file contains a non-track chunk where MTrk was expected");
+    if (!reader.CanRead(trackLength)) return Fail(errorMessage, "MIDI track chunk is truncated");
 
     const std::size_t trackEndPosition = reader.Position() + static_cast<std::size_t>(trackLength);
     bool trackContainsNoteEvents = false;
     uint64_t trackEndTick = 0;
-    if (!ParseTrack(reader, trackEndPosition, rawEvents, tempoEvents, nextSequence, trackContainsNoteEvents, trackEndTick, errorMessage)) {
-      return false;
-    }
+    if (!ParseTrack(reader, trackEndPosition, rawEvents, tempoEvents, nextSequence, trackContainsNoteEvents, trackEndTick, errorMessage)) return false;
 
     if (trackContainsNoteEvents) {
       ++noteTrackCount;
       noteTrackEndTick = trackEndTick;
     }
 
-    if (!reader.Skip(trackEndPosition - reader.Position())) {
-      SetErrorMessage(errorMessage, "MIDI track chunk is truncated");
-      return false;
-    }
+    if (!reader.Skip(trackEndPosition - reader.Position())) return Fail(errorMessage, "MIDI track chunk is truncated");
   }
 
-  if (noteTrackCount != 1) {
-    SetErrorMessage(errorMessage, "MIDI file must contain exactly one track with note events");
-    return false;
-  }
+  if (noteTrackCount != 1) return Fail(errorMessage, "MIDI file must contain exactly one track with note events");
 
-  std::sort(rawEvents.begin(), rawEvents.end(), [](const RawEvent& lhs, const RawEvent& rhs) {
-    if (lhs.tick != rhs.tick) return lhs.tick < rhs.tick;
-
-    const int lhsPriority = EventPriority(lhs.message);
-    const int rhsPriority = EventPriority(rhs.message);
-    if (lhsPriority != rhsPriority) return lhsPriority < rhsPriority;
-
-    return lhs.sequence < rhs.sequence;
-  });
-
+  SortForPlayback(rawEvents);
   if (!NormalizeMonophonic(rawEvents, noteTrackEndTick, errorMessage)) return false;
 
-  std::sort(tempoEvents.begin(), tempoEvents.end(), [](const TempoEvent& lhs, const TempoEvent& rhs) {
-    if (lhs.tick != rhs.tick) return lhs.tick < rhs.tick;
-
-    return lhs.sequence < rhs.sequence;
-  });
-
-  parsedFile.events.reserve(rawEvents.size());
-
-  uint64_t currentTick = 0;
-  double currentTimeSeconds = 0.0;
-  uint32_t currentTempo = kDefaultTempoMicrosecondsPerQuarterNote;
-  std::size_t tempoIndex = 0;
-
-  for (const RawEvent& event : rawEvents) {
-    while (tempoIndex < tempoEvents.size() && tempoEvents[tempoIndex].tick <= event.tick) {
-      const TempoEvent& tempoEvent = tempoEvents[tempoIndex];
-      currentTimeSeconds += TicksToSeconds(tempoEvent.tick - currentTick, currentTempo, division);
-      currentTick = tempoEvent.tick;
-      currentTempo = tempoEvent.microsecondsPerQuarterNote;
-      ++tempoIndex;
-    }
-
-    const double eventTimeSeconds = currentTimeSeconds + TicksToSeconds(event.tick - currentTick, currentTempo, division);
-    parsedFile.events.push_back({eventTimeSeconds, event.message});
-  }
-
+  parsedFile.events = ConvertTicksToSeconds(rawEvents, std::move(tempoEvents), ticksPerQuarterNote);
   return true;
 }
 } // namespace midi_file

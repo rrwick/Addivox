@@ -287,6 +287,19 @@ inline void ApplyKeyboardActionToSelectedTab(const std::shared_ptr<EditorContext
       applyEditScope);
 }
 
+// Each kind of tab adds its own Set shape and Actions menus, and its macro knobs if it has them.
+inline auto GetTabChildrenAttacher(OscillatorParameter parameter) {
+  switch (parameter) {
+  case OscillatorParameter::level:        return &AttachLevelTabChildren;
+  case OscillatorParameter::breath_power: return &AttachBreathTabChildren;
+  case OscillatorParameter::attack:
+  case OscillatorParameter::release:      return &AttachAttackReleaseTabChildren;
+  case OscillatorParameter::pitch:        return &AttachPitchTabChildren;
+  case OscillatorParameter::pan:          return &AttachPanTabChildren;
+  default:                                return &AttachVariationTabChildren;
+  }
+}
+
 inline void AttachOscillatorTabChildren(IVTabPage* page, const std::shared_ptr<EditorContext>& context, const EditorStyles& styles,
                                         const OscillatorTabDescriptor& descriptor) {
   auto* restoreButton = CreateRestoreButton(styles, [context, descriptor](IControl* caller) { RestoreOscillatorTabValues(context, caller, descriptor); });
@@ -299,20 +312,8 @@ inline void AttachOscillatorTabChildren(IVTabPage* page, const std::shared_ptr<E
   context->oscillatorTabControls.addButtons[parameterIndex] = keyNoteActionButtons.addButton;
   context->oscillatorTabControls.deleteButtons[parameterIndex] = keyNoteActionButtons.deleteButton;
 
-  if (descriptor.parameter == OscillatorParameter::level)
-    AttachLevelTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
-  else if (descriptor.parameter == OscillatorParameter::breath_power)
-    AttachBreathTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
-  else if (descriptor.parameter == OscillatorParameter::attack || descriptor.parameter == OscillatorParameter::release)
-    AttachAttackReleaseTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton,
-                                   sliderControl);
-  else if (descriptor.parameter == OscillatorParameter::pitch)
-    AttachPitchTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
-  else if (descriptor.parameter == OscillatorParameter::pan)
-    AttachPanTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton, sliderControl);
-  else
-    AttachVariationTabChildren(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton, keyNoteActionButtons.deleteButton,
-                               sliderControl);
+  GetTabChildrenAttacher(descriptor.parameter)(page, context, styles, descriptor, restoreButton, keyNoteActionButtons.addButton,
+                                               keyNoteActionButtons.deleteButton, sliderControl);
 
   context->RefreshOscillatorTabs();
 }

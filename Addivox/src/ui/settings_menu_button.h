@@ -44,62 +44,56 @@ public:
   }
 
   void OnPopupMenuSelection(IPopupMenu* selectedMenu, int valIdx) override {
-    if (selectedMenu && selectedMenu->GetChosenItem()) {
-      const char* selectedText = selectedMenu->GetChosenItem()->GetText();
-      if (selectedText && std::strcmp(selectedText, kVisualizerEnabledMenuLabel) == 0) {
-        const bool enabled = !(mHarmonicVisualizerEnabled && *mHarmonicVisualizerEnabled);
-        if (mHarmonicVisualizerEnabled) *mHarmonicVisualizerEnabled = enabled;
-
-        if (auto* delegate = GetDelegate()) {
-          const editor_messages::SetHarmonicVisualizerEnabledPayload payload{enabled ? 1 : 0};
-          delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetHarmonicVisualizerEnabled, GetTag(), sizeof(payload), &payload);
-        }
-      } else if (selectedText && (std::strcmp(selectedText, kPortamentoTimeMenuLabel) == 0 || std::strcmp(selectedText, kPortamentoSwitchMenuLabel) == 0)) {
-        const int controller = std::strcmp(selectedText, kPortamentoSwitchMenuLabel) == 0 ? 65 : 5;
-        if (mPortamentoCC) *mPortamentoCC = controller;
-        if (auto* delegate = GetDelegate()) {
-          const editor_messages::SetPortamentoCCPayload payload{controller};
-          delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetPortamentoCC, GetTag(), sizeof(payload), &payload);
-        }
-      } else if (selectedText && std::strcmp(selectedText, kResetToDefaultsMenuLabel) == 0) {
-        if (auto* delegate = GetDelegate()) {
-          delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagResetStandaloneStateToDefaults, GetTag());
-        }
-      }
-#if defined APP_API && !defined OS_IOS
-      else if (selectedText && std::strcmp(selectedText, kMacAudioMidiSettingsMenuLabel) == 0) {
-        if (auto* delegate = GetDelegate()) {
-          delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagOpenAudioMidiSettings, GetTag());
-        }
-      }
-#endif
-      else {
-        BreathCCSource selectedSource = kDefaultBreathCCSource;
-        if (TryParseBreathCCSourceMenuLabel(selectedText, selectedSource)) {
-          if (mBreathCCSource) *mBreathCCSource = selectedSource;
-
-          if (auto* delegate = GetDelegate()) {
-            const editor_messages::SetBreathCCSourcePayload payload{static_cast<int>(selectedSource)};
-            delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetBreathCCSource, GetTag(), sizeof(payload), &payload);
-          }
-        } else {
-          int selectedPitchBendRange = kFallbackPitchBendRange;
-          if (TryGetPitchBendRangeFromMenu(selectedMenu, selectedPitchBendRange)) {
-            if (mPitchBendRange) *mPitchBendRange = selectedPitchBendRange;
-
-            if (auto* delegate = GetDelegate()) {
-              const editor_messages::SetPitchBendRangePayload payload{selectedPitchBendRange};
-              delegate->SendArbitraryMsgFromUI(editor_messages::kMsgTagSetPitchBendRange, GetTag(), sizeof(payload), &payload);
-            }
-          }
-        }
-      }
-    }
+    if (selectedMenu && selectedMenu->GetChosenItem()) HandleSelection(selectedMenu, selectedMenu->GetChosenItem()->GetText());
 
     IControl::OnPopupMenuSelection(selectedMenu, valIdx);
   }
 
 private:
+  void SendToPlugin(int msgTag) {
+    if (auto* delegate = GetDelegate()) delegate->SendArbitraryMsgFromUI(msgTag, GetTag());
+  }
+
+  template <typename Payload> void SendToPlugin(int msgTag, const Payload& payload) {
+    if (auto* delegate = GetDelegate()) delegate->SendArbitraryMsgFromUI(msgTag, GetTag(), sizeof(payload), &payload);
+  }
+
+  void HandleSelection(IPopupMenu* selectedMenu, const char* selectedText) {
+    const auto isLabel = [selectedText](const char* label) { return selectedText && std::strcmp(selectedText, label) == 0; };
+
+    if (isLabel(kVisualizerEnabledMenuLabel)) {
+      const bool enabled = !(mHarmonicVisualizerEnabled && *mHarmonicVisualizerEnabled);
+      if (mHarmonicVisualizerEnabled) *mHarmonicVisualizerEnabled = enabled;
+      SendToPlugin(editor_messages::kMsgTagSetHarmonicVisualizerEnabled, editor_messages::SetHarmonicVisualizerEnabledPayload{enabled ? 1 : 0});
+      return;
+    }
+
+    if (isLabel(kPortamentoTimeMenuLabel) || isLabel(kPortamentoSwitchMenuLabel)) {
+      const int controller = isLabel(kPortamentoSwitchMenuLabel) ? 65 : 5;
+      if (mPortamentoCC) *mPortamentoCC = controller;
+      SendToPlugin(editor_messages::kMsgTagSetPortamentoCC, editor_messages::SetPortamentoCCPayload{controller});
+      return;
+    }
+
+    if (isLabel(kResetToDefaultsMenuLabel)) return SendToPlugin(editor_messages::kMsgTagResetStandaloneStateToDefaults);
+#if defined APP_API && !defined OS_IOS
+    if (isLabel(kMacAudioMidiSettingsMenuLabel)) return SendToPlugin(editor_messages::kMsgTagOpenAudioMidiSettings);
+#endif
+
+    BreathCCSource selectedSource = kDefaultBreathCCSource;
+    if (TryParseBreathCCSourceMenuLabel(selectedText, selectedSource)) {
+      if (mBreathCCSource) *mBreathCCSource = selectedSource;
+      SendToPlugin(editor_messages::kMsgTagSetBreathCCSource, editor_messages::SetBreathCCSourcePayload{static_cast<int>(selectedSource)});
+      return;
+    }
+
+    int selectedPitchBendRange = kFallbackPitchBendRange;
+    if (TryGetPitchBendRangeFromMenu(selectedMenu, selectedPitchBendRange)) {
+      if (mPitchBendRange) *mPitchBendRange = selectedPitchBendRange;
+      SendToPlugin(editor_messages::kMsgTagSetPitchBendRange, editor_messages::SetPitchBendRangePayload{selectedPitchBendRange});
+    }
+  }
+
   void OpenMenu() {
     auto* ui = GetUI();
     if (!ui) return;

@@ -37,16 +37,11 @@ public:
     const std::lock_guard<std::mutex> lock(mSettingsMutex);
     mSynth.SetSampleRateAndBlockSize(sampleRate, blockSize);
     mSynth.Reset();
-    mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
-    mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
     mDrive.Reset(sampleRate);
-    mDrive.SetAmount(mEffectsSettings.drive);
     mTone.Reset(sampleRate);
-    mTone.SetAmount(mEffectsSettings.tone);
     mChorus.Reset(sampleRate);
-    mChorus.SetAmount(mEffectsSettings.chorus);
     mReverb.Reset(sampleRate);
-    mReverb.SetAmount(mEffectsSettings.reverb);
+    ApplySettingsToVoiceAndEffects();
   }
 
   void ProcessMidiMsg(const IMidiMsg& msg) { mSynth.AddMidiMsgToQueue(msg); }
@@ -92,6 +87,15 @@ public:
   void GetVisualizerFrame(VisualizerFrame& frame) const { mSynth.GetVoice().GetVisualizerFrame(frame); }
 
 private:
+  void ApplySettingsToVoiceAndEffects() {
+    mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
+    mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
+    mDrive.SetAmount(mEffectsSettings.drive);
+    mTone.SetAmount(mEffectsSettings.tone);
+    mChorus.SetAmount(mEffectsSettings.chorus);
+    mReverb.SetAmount(mEffectsSettings.reverb);
+  }
+
   void ApplyPendingSettings() {
     // Parameter callbacks can run on the audio thread too, so publishing them must not wait for patch preparation.
     const unsigned int params = mPendingParams.exchange(0, std::memory_order_acquire);
@@ -102,12 +106,7 @@ private:
         if (i == kParamTranspose) mTransposeSemitones = ADDIVOX_DEMO ? 0.0 : value;
         else if (!global_settings::ApplyParam(i, value, mGlobalVoiceSettings)) effects_settings::ApplyParam(i, value, mEffectsSettings);
       }
-      mSynth.GetVoice().SetGlobalVoiceSettings(mGlobalVoiceSettings);
-      mSynth.GetVoice().SetTransposeSemitones(mTransposeSemitones);
-      mDrive.SetAmount(mEffectsSettings.drive);
-      mTone.SetAmount(mEffectsSettings.tone);
-      mChorus.SetAmount(mEffectsSettings.chorus);
-      mReverb.SetAmount(mEffectsSettings.reverb);
+      ApplySettingsToVoiceAndEffects();
     }
 
     // Never wait for the editor. Swapping leaves the retired patch here for the next producer update to reclaim.

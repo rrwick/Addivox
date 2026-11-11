@@ -15,8 +15,7 @@ void PrintUsage(std::ostream& stream) {
          << "Addivox CLI tool\n"
          << "\n"
          << "Usage examples:\n"
-         << "  addivox --patch brass.toml --note 60 --seconds 5 --breath 104 "
-            "-o brass_C4_ff.wav\n"
+         << "  addivox --patch brass.toml --note 60 --seconds 5 --breath 104 -o brass_C4_ff.wav\n"
          << "  addivox --patch brass.toml --midi song.mid -o song.wav\n"
          << "\n"
          << "Required:\n"
@@ -26,23 +25,19 @@ void PrintUsage(std::ostream& stream) {
          << "Single-note playback:\n"
          << "      --note N             MIDI note number to render\n"
          << "      --seconds N          Note duration in seconds\n"
-         << "      --breath N           Breath CC value 0-127 sent before "
-            "note-on\n"
+         << "      --breath N           Breath CC value 0-127 sent before note-on\n"
          << "\n"
          << "MIDI playback:\n"
          << "      --midi PATH          MIDI file to render\n"
-         << "                           Breath source is auto-detected from "
-            "CC2/34, CC2, CC11/43, CC11, CC7/39, CC7, or CC1\n"
+         << "                           Breath source is auto-detected from CC2/34, CC2, CC11/43, CC11, CC7/39, CC7, or CC1\n"
          << "\n"
          << "Envelope:\n"
          << "      --attack N           Attack scaling, 0-100\n"
          << "      --release N          Release scaling, 0-100\n"
          << "\n"
          << "Tuning:\n"
-         << "      --transpose N        Transpose in semitones, -36 to 36 "
-            "(default: 0)\n"
-         << "      --tuning N           Tuning offset in cents, -50 to 50 "
-            "(default: 0)\n"
+         << "      --transpose N        Transpose in semitones, -36 to 36 (default: 0)\n"
+         << "      --tuning N           Tuning offset in cents, -50 to 50 (default: 0)\n"
          << "      --port_min N         Portamento minimum in seconds\n"
          << "      --port_max N         Portamento maximum in seconds\n"
          << "\n"
@@ -69,10 +64,8 @@ void PrintUsage(std::ostream& stream) {
          << "      --reverb N           Reverb amount, 0-100 (default: 0)\n"
          << "\n"
          << "Audio:\n"
-         << "      --sample_rate N      Output sample rate in Hz (default: "
-            "48000)\n"
-         << "      --wav_format FORMAT  WAV sample format: pcm16, pcm24, "
-            "pcm32, f32, f64 (default: pcm24)\n"
+         << "      --sample_rate N      Output sample rate in Hz (default: 48000)\n"
+         << "      --wav_format FORMAT  WAV sample format: pcm16, pcm24, pcm32, f32, f64 (default: pcm24)\n"
          << "      --mono               Write a mono WAV file\n"
          << "      --stereo             Write a stereo WAV file (default)\n"
          << "\n"
@@ -88,10 +81,7 @@ bool ParseIntArgument(std::string_view text, int& value) {
   errno = 0;
   char* end = nullptr;
   const long parsed = std::strtol(numericText.c_str(), &end, 10);
-  if (errno != 0 || !end || *end != '\0' || parsed < static_cast<long>(std::numeric_limits<int>::min()) ||
-      parsed > static_cast<long>(std::numeric_limits<int>::max())) {
-    return false;
-  }
+  if (errno != 0 || !end || *end != '\0' || parsed < std::numeric_limits<int>::min() || parsed > std::numeric_limits<int>::max()) return false;
 
   value = static_cast<int>(parsed);
   return true;
@@ -111,23 +101,20 @@ bool ParseDoubleArgument(std::string_view text, double& value) {
 }
 
 bool ParseWaveFormatArgument(std::string_view text, WaveFileFormat& value) {
-  std::string normalized;
-  normalized.reserve(text.size());
-  for (const char ch : text) normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+  static constexpr std::pair<std::string_view, WaveFileFormat> kFormats[]{
+      {"pcm16", WaveFileFormat::Pcm16}, {"pcm24", WaveFileFormat::Pcm24}, {"pcm32", WaveFileFormat::Pcm32},
+      {"f32", WaveFileFormat::Float32}, {"f64", WaveFileFormat::Float64},
+  };
 
-  if (normalized == "pcm16") value = WaveFileFormat::Pcm16;
-  else if (normalized == "pcm24")
-    value = WaveFileFormat::Pcm24;
-  else if (normalized == "pcm32")
-    value = WaveFileFormat::Pcm32;
-  else if (normalized == "f32")
-    value = WaveFileFormat::Float32;
-  else if (normalized == "f64")
-    value = WaveFileFormat::Float64;
-  else
-    return false;
+  std::string lowerCaseText;
+  for (const char ch : text) lowerCaseText.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
 
-  return true;
+  for (const auto& [name, format] : kFormats) {
+    if (lowerCaseText != name) continue;
+    value = format;
+    return true;
+  }
+  return false;
 }
 
 bool ReadStringValue(int argc, char** argv, int& index, std::string& value, std::string& errorMessage) {
@@ -210,136 +197,72 @@ struct PlaybackArguments {
   bool showHelp{false};
 };
 
+// Reads the option at argv[index], along with its value if it takes one.
+bool ParseOption(int argc, char** argv, int& index, HeadlessRenderOptions& options, PlaybackArguments& playback, std::string& errorMessage) {
+  const std::string_view option = CanonicalOption(argv[index]);
+  const auto readString = [&](std::string& value) { return ReadStringValue(argc, argv, index, value, errorMessage); };
+  const auto read = [&](auto& value, auto&& parse) { return ReadParsedValue(argc, argv, index, value, parse, option, errorMessage); };
+
+  if (option == "-p" || option == "--patch") return readString(options.patchPath);
+  if (option == "-o" || option == "--output") return readString(options.outputPath);
+  if (option == "--midi") return readString(playback.midiPath);
+  if (option == "--note") return read(playback.note, ParseIntArgument);
+  if (option == "--seconds") return read(playback.seconds, ParseDoubleArgument);
+  if (option == "--breath") return read(playback.breath, ParseIntArgument);
+  if (option == "--sample_rate") return read(options.sampleRate, ParseIntArgument);
+  if (option == "--wav_format") return read(options.waveFileFormat, ParseWaveFormatArgument);
+  if (option == "--transpose") return read(options.transposeSemitones, ParseIntArgument);
+  if (auto* value = FindDoubleOption(options, option)) return read(*value, ParseDoubleArgument);
+
+  const bool isHelp = option == "-h" || option == "--help";
+  const bool isChannelCount = option == "--mono" || option == "--stereo";
+  if (isHelp) playback.showHelp = true;
+  if (isChannelCount) options.numOutputChannels = option == "--mono" ? 1 : 2;
+  if (!isHelp && !isChannelCount) errorMessage = "Unknown option: " + std::string{option};
+  return isHelp || isChannelCount;
+}
+
+// Anything after a help option is ignored.
 bool ParseArguments(int argc, char** argv, HeadlessRenderOptions& options, PlaybackArguments& playback, std::string& errorMessage) {
-  for (int index = 1; index < argc; ++index) {
-    const std::string_view argument = CanonicalOption(argv[index]);
-
-    if (argument == "-h" || argument == "--help") {
-      playback.showHelp = true;
-      return true;
-    }
-    if (argument == "-p" || argument == "--patch") {
-      if (!ReadStringValue(argc, argv, index, options.patchPath, errorMessage)) break;
-      continue;
-    }
-    if (argument == "-o" || argument == "--output") {
-      if (!ReadStringValue(argc, argv, index, options.outputPath, errorMessage)) break;
-      continue;
-    }
-    if (argument == "--midi") {
-      if (!ReadStringValue(argc, argv, index, playback.midiPath, errorMessage)) break;
-      continue;
-    }
-    if (argument == "--note") {
-      if (!ReadParsedValue(argc, argv, index, playback.note, ParseIntArgument, argument, errorMessage)) break;
-      continue;
-    }
-    if (argument == "--seconds") {
-      if (!ReadParsedValue(argc, argv, index, playback.seconds, ParseDoubleArgument, argument, errorMessage)) break;
-      continue;
-    }
-    if (argument == "--breath") {
-      if (!ReadParsedValue(argc, argv, index, playback.breath, ParseIntArgument, argument, errorMessage)) break;
-      continue;
-    }
-    if (argument == "--sample_rate") {
-      if (!ReadParsedValue(argc, argv, index, options.sampleRate, ParseIntArgument, "--sample_rate", errorMessage)) break;
-      continue;
-    }
-    if (argument == "--wav_format") {
-      if (!ReadParsedValue(argc, argv, index, options.waveFileFormat, ParseWaveFormatArgument, "--wav_format", errorMessage)) {
-        break;
-      }
-      continue;
-    }
-    if (argument == "--mono") {
-      options.numOutputChannels = 1;
-      continue;
-    }
-    if (argument == "--stereo") {
-      options.numOutputChannels = 2;
-      continue;
-    }
-    if (argument == "--transpose") {
-      if (!ReadParsedValue(argc, argv, index, options.transposeSemitones, ParseIntArgument, argument, errorMessage)) break;
-      continue;
-    }
-    if (auto* value = FindDoubleOption(options, argument)) {
-      if (!ReadParsedValue(argc, argv, index, *value, ParseDoubleArgument, argument, errorMessage)) break;
-      continue;
-    }
-
-    errorMessage = "Unknown option: " + std::string{argument};
-    break;
-  }
-
-  return errorMessage.empty();
+  for (int index = 1; index < argc && !playback.showHelp; ++index)
+    if (!ParseOption(argc, argv, index, options, playback, errorMessage)) return false;
+  return true;
 }
 } // namespace
 
 int main(int argc, char** argv) {
+  const auto failWithUsage = [](std::string_view message) {
+    std::cerr << message << "\n\n";
+    PrintUsage(std::cerr);
+    return 1;
+  };
+  const auto fail = [](std::string_view message) {
+    std::cerr << message << '\n';
+    return 1;
+  };
+
   HeadlessRenderOptions options;
   PlaybackArguments playback;
   std::string errorMessage;
-  if (!ParseArguments(argc, argv, options, playback, errorMessage)) {
-    std::cerr << errorMessage << "\n\n";
-    PrintUsage(std::cerr);
-    return 1;
-  }
+  if (!ParseArguments(argc, argv, options, playback, errorMessage)) return failWithUsage(errorMessage);
   if (playback.showHelp) {
     PrintUsage(std::cout);
     return 0;
   }
 
-  if (options.patchPath.empty()) {
-    std::cerr << "Missing required option --patch\n\n";
-    PrintUsage(std::cerr);
-    return 1;
-  }
+  if (options.patchPath.empty()) return failWithUsage("Missing required option --patch");
+  if (options.outputPath.empty()) return failWithUsage("Missing required option --output");
 
-  if (options.outputPath.empty()) {
-    std::cerr << "Missing required option --output\n\n";
-    PrintUsage(std::cerr);
-    return 1;
-  }
-
-  const int singleNoteOptionCount =
-      static_cast<int>(playback.note.has_value()) + static_cast<int>(playback.seconds.has_value()) + static_cast<int>(playback.breath.has_value());
+  const int singleNoteOptionCount = playback.note.has_value() + playback.seconds.has_value() + playback.breath.has_value();
   const bool hasMidi = !playback.midiPath.empty();
+  if (hasMidi && singleNoteOptionCount > 0) return fail("Cannot combine --midi with --note, --seconds, or --breath");
+  if (!hasMidi && singleNoteOptionCount == 0) return fail("Must provide either --midi or all of --note, --seconds, and --breath");
+  if (!hasMidi && singleNoteOptionCount != 3) return fail("Single-note playback requires --note, --seconds, and --breath");
 
-  if (hasMidi && singleNoteOptionCount > 0) {
-    std::cerr << "Cannot combine --midi with --note, --seconds, or --breath\n";
-    return 1;
-  }
-
-  if (!hasMidi && singleNoteOptionCount == 0) {
-    std::cerr << "Must provide either --midi or all of --note, --seconds, and "
-                 "--breath\n";
-    return 1;
-  }
-
-  if (!hasMidi && singleNoteOptionCount != 3) {
-    std::cerr << "Single-note playback requires --note, --seconds, and --breath\n";
-    return 1;
-  }
-
-  if (hasMidi) {
-    if (!RenderMidiFileToWav(options, playback.midiPath, &errorMessage)) {
-      std::cerr << errorMessage << '\n';
-      return 1;
-    }
-
-    return 0;
-  }
+  if (hasMidi) return RenderMidiFileToWav(options, playback.midiPath, &errorMessage) ? 0 : fail(errorMessage);
 
   options.note = *playback.note;
   options.durationSeconds = *playback.seconds;
   options.breathMidiValue = *playback.breath;
-
-  if (!RenderPatchNoteToWav(options, &errorMessage)) {
-    std::cerr << errorMessage << '\n';
-    return 1;
-  }
-
-  return 0;
+  return RenderPatchNoteToWav(options, &errorMessage) ? 0 : fail(errorMessage);
 }

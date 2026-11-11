@@ -3,83 +3,57 @@
 #include "common.h"
 
 #include <array>
+#include <initializer_list>
 #include <optional>
 #include <string_view>
 #include <utility>
 
 namespace editor {
-template <std::size_t N> inline EqCurve MakeEqCurveFromPointArrays(const std::array<double, N>& frequenciesHz, const std::array<double, N>& gainsDb) {
+// Alternates between +6 dB and -14 dB at the given frequencies.
+inline EqCurve MakeWavesCurve(std::initializer_list<double> frequenciesHz) {
   EqCurve::PointList points;
-  points.reserve(N);
-  for (std::size_t i = 0; i < N; ++i) points.push_back({frequenciesHz[i], gainsDb[i]});
-
+  for (const double frequencyHz : frequenciesHz) points.push_back({frequencyHz, points.size() % 2 == 0 ? 6.0 : -14.0});
   return EqCurve{std::move(points)};
 }
 
+// Every three frequencies make one peak: -12 dB, +8 dB, -12 dB.
+inline EqCurve MakePeaksCurve(std::initializer_list<double> frequenciesHz) {
+  EqCurve::PointList points;
+  for (const double frequencyHz : frequenciesHz) points.push_back({frequencyHz, points.size() % 3 == 1 ? 8.0 : -12.0});
+  return EqCurve{std::move(points)};
+}
+
+// Points are {frequency Hz, gain dB}. Any other shape name, including "flat", gives an empty curve.
 inline EqCurve MakeEqShapeCurve(const char* shapeName) {
   const std::string_view shape = shapeName ? shapeName : "";
 
-  if (shape.empty() || shape == "flat") return {};
-
-  if (shape == "low-pass") {
-    static constexpr std::array<double, 2> kFrequenciesHz{{1000.0, 2000.0}};
-    static constexpr std::array<double, 2>       kGainsDb{{   0.0, -160.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "high-pass") {
-    static constexpr std::array<double, 2> kFrequenciesHz{{ 500.0, 1000.0}};
-    static constexpr std::array<double, 2>       kGainsDb{{-160.0,    0.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "5 waves") {
-    static constexpr std::array<double, 11> kFrequenciesHz{{20.0000, 40.2874, 81.1537, 163.474, 329.296, 663.325, 1336.18, 2691.57, 5421.81, 10921.5, 22000.0}};
-    static constexpr std::array<double, 11>       kGainsDb{{6.0,   -14.0,    6.0,    -14.0,    6.0,   -14.0,     6.0,   -14.0,    6.0,    -14.0,    6.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "10 waves") {
-    static constexpr std::array<double, 21> kFrequenciesHz{{20.0000, 28.3857, 40.2874, 57.1793, 81.1537, 115.180, 163.474, 232.016, 329.296, 467.366, 663.325, 941.447, 1336.18, 1896.42, 2691.57, 3820.10, 5421.81, 7695.09, 10921.5, 15500.8, 22000.0}};
-    static constexpr std::array<double, 21>       kGainsDb{{6.0,   -14.0,    6.0,   -14.0,    6.0,    -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,     6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,     6.0,   -14.0,    6.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "15 waves") {
-    static constexpr std::array<double, 31> kFrequenciesHz{{20.0000, 25.2586, 31.8999, 40.2874, 50.8802, 64.2582, 81.1537, 102.492, 129.440, 163.474, 206.456, 260.740, 329.296, 415.879, 525.226, 663.325, 837.734, 1058.00, 1336.18, 1687.51, 2131.20, 2691.57, 3399.26, 4293.03, 5421.81, 6847.37, 8647.76, 10921.5, 13793.1, 17419.8, 22000.0}};
-    static constexpr std::array<double, 31>       kGainsDb{{6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,    -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,    -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,    -14.0,    6.0,   -14.0,    6.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "20 waves") {
-    static constexpr std::array<double, 41> kFrequenciesHz{{20.0000, 23.8268, 28.3857, 33.8170, 40.2874, 47.9959, 57.1793, 68.1199, 81.1537, 96.6815, 115.180, 137.219, 163.474, 194.752, 232.016, 276.409, 329.296, 392.303, 467.366, 556.790, 663.325, 790.244, 941.447, 1121.58, 1336.18, 1591.84, 1896.42, 2259.28, 2691.57, 3206.56, 3820.10, 4551.03, 5421.81, 6459.20, 7695.09, 9167.45, 10921.5, 13011.2, 15500.8, 18466.6, 22000.0}};
-    static constexpr std::array<double, 41>       kGainsDb{{6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,     6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,    -14.0 ,   6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,    6.0,   -14.0,     6.0,   -14.0,    6.0,   -14.0,    6.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "5 peaks") {
-    static constexpr std::array<double, 15> kFrequenciesHz{{31.8999, 40.2874, 50.8802, 129.440, 163.474, 206.456, 525.226, 663.325, 837.734, 2131.20, 2691.57, 3399.26, 8647.76, 10921.5, 13793.1}};
-    static constexpr std::array<double, 15>       kGainsDb{{  -12.0, 8.0,   -12.0,    -12.0,    8.0,   -12.0,   -12.0,    8.0,   -12.0,    -12.0,    8.0,   -12.0,   -12.0,     8.0,   -12.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "10 peaks") {
-    static constexpr std::array<double, 30> kFrequenciesHz{{25.0691, 31.4231, 39.3875, 49.3705, 61.8838, 77.5687, 97.2291, 121.872, 152.762, 191.480, 240.012, 300.845, 377.097, 472.675, 592.477, 742.645, 930.873, 1166.81, 1462.55, 1833.24, 2297.88, 2880.30, 3610.33, 4525.40, 5672.39, 7110.10, 8912.20, 11171.1, 14002.4, 17551.5}};
-    static constexpr std::array<double, 30>       kGainsDb{{-12.0,   8.0,   -12.0,   -12.0,    8.0,   -12.0,   -12.0,     8.0,   -12.0,   -12.0,    8.0,   -12.0,   -12.0,    8.0,   -12.0,   -12.0,    8.0,    -12.0,   -12.0,    8.0,   -12.0 ,  -12.0,    8.0,   -12.0,   -12.0,    8.0,   -12.0,    -12.0,    8.0,   -12.0}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "ä vowel") {
-    static constexpr std::array<double, 9> kFrequenciesHz{{20.0,  526.609, 730.0,   901.797, 1090.0,    1650.0, 2440.0,  3566.55, 22000.0}};
-    static constexpr std::array<double, 9>       kGainsDb{{-16.9622, -11.9864, 7.3574, -1.4741,   9.4773, -28.2594, -6.8424, -15.4377,  -18.8346}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
-
-  if (shape == "o vowel") {
-    static constexpr std::array<double, 11> kFrequenciesHz{{20.0,  206.310, 353.625, 485.099, 611.1795, 866.428, 1450.0,  1986.17, 2400.0,  3151.32, 22000.0}};
-    static constexpr std::array<double, 11>       kGainsDb{{-13.2985, -10.1968, 10.125,  -1.7386, 6.7636,  -13.4418, -31.1917, -21.1713,  -8.0419, -18.1733,  -20.1533}};
-    return MakeEqCurveFromPointArrays(kFrequenciesHz, kGainsDb);
-  }
+  if (shape == "low-pass") return EqCurve{{1000.0, 0.0}, {2000.0, -160.0}};
+  if (shape == "high-pass") return EqCurve{{500.0, -160.0}, {1000.0, 0.0}};
+  if (shape == "5 waves") return MakeWavesCurve({20.0000, 40.2874, 81.1537, 163.474, 329.296, 663.325, 1336.18, 2691.57, 5421.81, 10921.5, 22000.0});
+  if (shape == "10 waves")
+    return MakeWavesCurve({20.0000, 28.3857, 40.2874, 57.1793, 81.1537, 115.180, 163.474, 232.016, 329.296, 467.366, 663.325,
+                           941.447, 1336.18, 1896.42, 2691.57, 3820.10, 5421.81, 7695.09, 10921.5, 15500.8, 22000.0});
+  if (shape == "15 waves")
+    return MakeWavesCurve({20.0000, 25.2586, 31.8999, 40.2874, 50.8802, 64.2582, 81.1537, 102.492, 129.440, 163.474, 206.456,
+                           260.740, 329.296, 415.879, 525.226, 663.325, 837.734, 1058.00, 1336.18, 1687.51, 2131.20, 2691.57,
+                           3399.26, 4293.03, 5421.81, 6847.37, 8647.76, 10921.5, 13793.1, 17419.8, 22000.0});
+  if (shape == "20 waves")
+    return MakeWavesCurve({20.0000, 23.8268, 28.3857, 33.8170, 40.2874, 47.9959, 57.1793, 68.1199, 81.1537, 96.6815, 115.180, 137.219, 163.474, 194.752,
+                           232.016, 276.409, 329.296, 392.303, 467.366, 556.790, 663.325, 790.244, 941.447, 1121.58, 1336.18, 1591.84, 1896.42, 2259.28,
+                           2691.57, 3206.56, 3820.10, 4551.03, 5421.81, 6459.20, 7695.09, 9167.45, 10921.5, 13011.2, 15500.8, 18466.6, 22000.0});
+  if (shape == "5 peaks")
+    return MakePeaksCurve(
+        {31.8999, 40.2874, 50.8802, 129.440, 163.474, 206.456, 525.226, 663.325, 837.734, 2131.20, 2691.57, 3399.26, 8647.76, 10921.5, 13793.1});
+  if (shape == "10 peaks")
+    return MakePeaksCurve({25.0691, 31.4231, 39.3875, 49.3705, 61.8838, 77.5687, 97.2291, 121.872, 152.762, 191.480,
+                           240.012, 300.845, 377.097, 472.675, 592.477, 742.645, 930.873, 1166.81, 1462.55, 1833.24,
+                           2297.88, 2880.30, 3610.33, 4525.40, 5672.39, 7110.10, 8912.20, 11171.1, 14002.4, 17551.5});
+  if (shape == "ä vowel")
+    return EqCurve{{20.0, -16.9622},   {526.609, -11.9864}, {730.0, 7.3574},     {901.797, -1.4741}, {1090.0, 9.4773},
+                   {1650.0, -28.2594}, {2440.0, -6.8424},   {3566.55, -15.4377}, {22000.0, -18.8346}};
+  if (shape == "o vowel")
+    return EqCurve{{20.0, -13.2985},   {206.310, -10.1968}, {353.625, 10.125}, {485.099, -1.7386},  {611.1795, 6.7636}, {866.428, -13.4418},
+                   {1450.0, -31.1917}, {1986.17, -21.1713}, {2400.0, -8.0419}, {3151.32, -18.1733}, {22000.0, -20.1533}};
 
   return {};
 }

@@ -69,7 +69,7 @@ inline std::vector<OutMeterLEDRange> MakeOutputMeterLEDRanges() {
   ranges.reserve(kNumBars);
   for (int i = 0; i < kNumBars; ++i) {
     const float lowDB = kLowDB + (kStepDB * static_cast<float>(i));
-    ranges.emplace_back(lowDB, lowDB + kStepDB, 1, colour::visualizer::kOutputMeterLEDColors[static_cast<std::size_t>(i)]);
+    ranges.emplace_back(lowDB, lowDB + kStepDB, 1, colour::visualizer::kOutputMeterLEDColors[i]);
   }
   return ranges;
 }
@@ -141,22 +141,20 @@ inline void AttachAboutBoxControl(IGraphics* pGraphics, const PanelResources& re
                 IRECT urlTextBounds;
                 pParent->GetUI()->MeasureText(theme::AboutLinkText(), PLUG_URL_DISPLAY_STR, urlTextBounds);
 
-                pParent->GetChild(0)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutLogo.L, content.T + positions::kAboutLogo.T,
-                                                                            positions::kAboutLogo.W(), positions::kAboutLogo.H()));
-                pParent->GetChild(1)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutSubtitle.L, content.T + positions::kAboutSubtitle.T,
-                                                                            positions::kAboutSubtitle.W(), positions::kAboutSubtitle.H()));
+                const auto placeChild = [pParent, &content](int childIndex, const IRECT& position) {
+                  pParent->GetChild(childIndex)
+                      ->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + position.L, content.T + position.T, position.W(), position.H()));
+                };
+                placeChild(0, positions::kAboutLogo);
+                placeChild(1, positions::kAboutSubtitle);
                 pParent->GetChild(2)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutUrlRow.MW() - (urlTextBounds.W() * 0.5f),
                                                                             content.T + positions::kAboutUrlRow.T, urlTextBounds.W(),
                                                                             positions::kAboutUrlRow.H()));
-                pParent->GetChild(3)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutVersion.L, content.T + positions::kAboutVersion.T,
-                                                                            positions::kAboutVersion.W(), positions::kAboutVersion.H()));
-                pParent->GetChild(4)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutCopyright.L, content.T + positions::kAboutCopyright.T,
-                                                                            positions::kAboutCopyright.W(), positions::kAboutCopyright.H()));
-                pParent->GetChild(5)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutBuiltWith.L, content.T + positions::kAboutBuiltWith.T,
-                                                                            positions::kAboutBuiltWith.W(), positions::kAboutBuiltWith.H()));
+                placeChild(3, positions::kAboutVersion);
+                placeChild(4, positions::kAboutCopyright);
+                placeChild(5, positions::kAboutBuiltWith);
 #if ADDIVOX_DEMO
-                pParent->GetChild(6)->SetTargetAndDrawRECTs(IRECT::MakeXYWH(content.L + positions::kAboutDemoText.L, content.T + positions::kAboutDemoText.T,
-                                                                            positions::kAboutDemoText.W(), positions::kAboutDemoText.H()));
+                placeChild(6, positions::kAboutDemoText);
 #endif
               },
               180),

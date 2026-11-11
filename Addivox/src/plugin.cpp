@@ -1316,9 +1316,7 @@ void Addivox::ApplyPendingRestoredState() {
     mActivePatchGroupKey = std::move(mPendingRestoredPatchGroupKey);
 
     if (mActivePatchSource == PatchSource::Factory) {
-      mActivePatchPath = (mActiveFactoryPatchIdx >= 0 && mActiveFactoryPatchIdx < static_cast<int>(mFactoryPatchPaths.size()))
-                             ? mFactoryPatchPaths[static_cast<std::size_t>(mActiveFactoryPatchIdx)]
-                             : std::string{};
+      mActivePatchPath = FactoryPatchPath(mActiveFactoryPatchIdx);
       mActivePatchGroupKey = "Factory";
     } else if (mActivePatchSource == PatchSource::User) {
       const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
@@ -1330,9 +1328,7 @@ void Addivox::ApplyPendingRestoredState() {
   } else if (mRestoringFactoryPatchIdx >= 0) {
     mActivePatchSource = PatchSource::Factory;
     mActiveFactoryPatchIdx = mRestoringFactoryPatchIdx;
-    mActivePatchPath = (mRestoringFactoryPatchIdx < static_cast<int>(mFactoryPatchPaths.size()))
-                           ? mFactoryPatchPaths[static_cast<std::size_t>(mRestoringFactoryPatchIdx)]
-                           : std::string{};
+    mActivePatchPath = FactoryPatchPath(mRestoringFactoryPatchIdx);
     mActivePatchGroupKey = "Factory";
     mRestoringFactoryPatchIdx = -1;
     mPendingRestoredPatchCleanSnapshot.clear();
@@ -1392,6 +1388,10 @@ void Addivox::OnUIOpen() {
 void Addivox::OnUIClose() {
   SaveStandaloneStateIfNeeded(true);
   mEditorContext.reset();
+  ResetQwertyKeyboard();
+}
+
+void Addivox::ResetQwertyKeyboard() {
   mQwertyMidiKeysDown.fill(false);
   mQwertyMidiBaseNote = 48;
   mWasQwertyKeyboardInEditMode = false;
@@ -1461,10 +1461,7 @@ void Addivox::OnReset() {
 
   mHarmonicVisualizerSender.Reset(GetSampleRate(), PLUG_FPS);
   mHarmonicVisualizerBlankPending.store(!mHarmonicVisualizerEnabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
-  mQwertyMidiKeysDown.fill(false);
-  mQwertyMidiBaseNote = 48;
-  mWasQwertyKeyboardInEditMode = false;
-  mLastQwertyMIDINote = -1;
+  ResetQwertyKeyboard();
   mBreathLevel.store(0.0, std::memory_order_relaxed);
   mLastSentBreathLevel = -1.;
 }
@@ -1640,7 +1637,7 @@ void Addivox::RebuildPatchCatalog() {
     entry.factoryIndex = patchIdx;
     entry.name = GetPresetName(patchIdx);
     if (entry.name.empty()) entry.name = "Patch " + std::to_string(patchIdx + 1);
-    if (patchIdx < static_cast<int>(mFactoryPatchPaths.size())) entry.path = mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)];
+    entry.path = FactoryPatchPath(patchIdx);
     entry.menuPath = {"Factory"};
     entry.groupKey = "Factory";
     mPatchCatalog.push_back(std::move(entry));
@@ -1687,9 +1684,7 @@ void Addivox::ReconcileActivePatchIdentity() {
     }
     if (mActiveFactoryPatchIdx >= 0 && mActiveFactoryPatchIdx < NPresets()) {
       SetCurrentPresetIdx(mActiveFactoryPatchIdx);
-      mActivePatchPath = (mActiveFactoryPatchIdx < static_cast<int>(mFactoryPatchPaths.size()))
-                             ? mFactoryPatchPaths[static_cast<std::size_t>(mActiveFactoryPatchIdx)]
-                             : std::string{};
+      mActivePatchPath = FactoryPatchPath(mActiveFactoryPatchIdx);
       mActivePatchGroupKey = "Factory";
       return;
     }
@@ -1739,7 +1734,7 @@ void Addivox::RestoreFactoryPatch(int patchIdx) {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
     mActivePatchSource = PatchSource::Factory;
     mActiveFactoryPatchIdx = patchIdx;
-    mActivePatchPath = (patchIdx < static_cast<int>(mFactoryPatchPaths.size())) ? mFactoryPatchPaths[static_cast<std::size_t>(patchIdx)] : std::string{};
+    mActivePatchPath = FactoryPatchPath(patchIdx);
     mActivePatchGroupKey = "Factory";
     mActivePatchDisplayName = GetPresetName(patchIdx);
     SetActivePatchCleanSnapshotFromCurrentState();
@@ -1840,6 +1835,11 @@ void Addivox::LoadPatchById(int patchId) {
     LoadUserPatchByPath(path);
 }
 
+std::string Addivox::FactoryPatchPath(int patchIdx) const {
+  const bool hasPath = patchIdx >= 0 && patchIdx < static_cast<int>(mFactoryPatchPaths.size());
+  return hasPath ? mFactoryPatchPaths[patchIdx] : std::string{};
+}
+
 bool Addivox::IsActivePatch(const PatchCatalogEntry& entry) const {
   return (entry.source == PatchSource::Factory && mActivePatchSource == PatchSource::Factory && entry.factoryIndex == mActiveFactoryPatchIdx) ||
          (entry.source == PatchSource::User && mActivePatchSource == PatchSource::User && entry.path == mActivePatchPath);
@@ -1868,7 +1868,7 @@ void Addivox::CyclePatchInCurrentGroup(int direction) {
 
     int currentIndex = -1;
     for (int i = 0; i < static_cast<int>(groupEntries.size()); ++i) {
-      if (IsActivePatch(*groupEntries[static_cast<std::size_t>(i)])) {
+      if (IsActivePatch(*groupEntries[i])) {
         currentIndex = i;
         break;
       }

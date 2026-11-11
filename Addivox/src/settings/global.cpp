@@ -3,6 +3,7 @@
 #include "params.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace {
@@ -17,47 +18,44 @@ double SanitizeTuningCents(double value) {
   const double clampedValue = std::clamp(roundedValue, -50.0, 50.0);
   return (clampedValue == 0.0) ? 0.0 : clampedValue;
 }
+struct SettingDescriptor {
+  int paramIdx;
+  double GlobalVoiceSettings::* member;
+  double (*sanitize)(double);
+};
+
+constexpr std::array<SettingDescriptor, 15> kSettingDescriptors{{
+    {kParamGlobalLevel,                        &GlobalVoiceSettings::levelScale,                   SanitizeNonNegative},
+    {kParamGlobalAttackScale,                  &GlobalVoiceSettings::attackScale,                  SanitizeNonNegative},
+    {kParamGlobalReleaseScale,                 &GlobalVoiceSettings::releaseScale,                 SanitizeNonNegative},
+    {kParamGlobalTuning,                       &GlobalVoiceSettings::tuningCents,                  SanitizeTuningCents},
+    {kParamGlobalPanShift,                     &GlobalVoiceSettings::panOffset,                    SanitizePanOffset},
+    {kParamGlobalLevelVariationAmplitudeScale, &GlobalVoiceSettings::levelVariationAmplitudeScale, SanitizeNonNegative},
+    {kParamGlobalLevelVariationRateScale,      &GlobalVoiceSettings::levelVariationRateScale,      SanitizeNonNegative},
+    {kParamGlobalPitchVariationAmplitudeScale, &GlobalVoiceSettings::pitchVariationAmplitudeScale, SanitizeNonNegative},
+    {kParamGlobalPitchVariationRateScale,      &GlobalVoiceSettings::pitchVariationRateScale,      SanitizeNonNegative},
+    {kParamGlobalPanVariationAmplitudeScale,   &GlobalVoiceSettings::panVariationAmplitudeScale,   SanitizeNonNegative},
+    {kParamGlobalPanVariationRateScale,        &GlobalVoiceSettings::panVariationRateScale,        SanitizeNonNegative},
+    {kParamPortamentoAtCC5Min,                 &GlobalVoiceSettings::portamentoTimeAtCC5MinSec,    SanitizeNonNegative},
+    {kParamPortamentoAtCC5Max,                 &GlobalVoiceSettings::portamentoTimeAtCC5MaxSec,    SanitizeNonNegative},
+    {kParamFormantsScale,                      &GlobalVoiceSettings::formantsScale,                SanitizeNonNegative},
+    {kParamResonanceScale,                     &GlobalVoiceSettings::resonanceScale,               SanitizeNonNegative},
+}};
 } // namespace
 
 namespace global_settings {
 GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings) {
   GlobalVoiceSettings sanitized = settings;
-  sanitized.levelScale = SanitizeNonNegative(sanitized.levelScale);
-  sanitized.attackScale = SanitizeNonNegative(sanitized.attackScale);
-  sanitized.releaseScale = SanitizeNonNegative(sanitized.releaseScale);
-  sanitized.tuningCents = SanitizeTuningCents(sanitized.tuningCents);
-  sanitized.panOffset = SanitizePanOffset(sanitized.panOffset);
-  sanitized.levelVariationAmplitudeScale = SanitizeNonNegative(sanitized.levelVariationAmplitudeScale);
-  sanitized.levelVariationRateScale = SanitizeNonNegative(sanitized.levelVariationRateScale);
-  sanitized.pitchVariationAmplitudeScale = SanitizeNonNegative(sanitized.pitchVariationAmplitudeScale);
-  sanitized.pitchVariationRateScale = SanitizeNonNegative(sanitized.pitchVariationRateScale);
-  sanitized.panVariationAmplitudeScale = SanitizeNonNegative(sanitized.panVariationAmplitudeScale);
-  sanitized.panVariationRateScale = SanitizeNonNegative(sanitized.panVariationRateScale);
-  sanitized.portamentoTimeAtCC5MinSec = SanitizeNonNegative(sanitized.portamentoTimeAtCC5MinSec);
-  sanitized.portamentoTimeAtCC5MaxSec = SanitizeNonNegative(sanitized.portamentoTimeAtCC5MaxSec);
-  sanitized.formantsScale = SanitizeNonNegative(sanitized.formantsScale);
-  sanitized.resonanceScale = SanitizeNonNegative(sanitized.resonanceScale);
+  for (const auto& setting : kSettingDescriptors) sanitized.*(setting.member) = setting.sanitize(sanitized.*(setting.member));
   return sanitized;
 }
 
 bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings) {
-  switch (paramIdx) {
-  case kParamGlobalLevel:                        settings.levelScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalAttackScale:                  settings.attackScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalReleaseScale:                 settings.releaseScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalTuning:                       settings.tuningCents = SanitizeTuningCents(value); return true;
-  case kParamGlobalPanShift:                     settings.panOffset = SanitizePanOffset(value); return true;
-  case kParamGlobalLevelVariationAmplitudeScale: settings.levelVariationAmplitudeScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalLevelVariationRateScale:      settings.levelVariationRateScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalPitchVariationAmplitudeScale: settings.pitchVariationAmplitudeScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalPitchVariationRateScale:      settings.pitchVariationRateScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalPanVariationAmplitudeScale:   settings.panVariationAmplitudeScale = SanitizeNonNegative(value); return true;
-  case kParamGlobalPanVariationRateScale:        settings.panVariationRateScale = SanitizeNonNegative(value); return true;
-  case kParamPortamentoAtCC5Min:                 settings.portamentoTimeAtCC5MinSec = SanitizeNonNegative(value); return true;
-  case kParamPortamentoAtCC5Max:                 settings.portamentoTimeAtCC5MaxSec = SanitizeNonNegative(value); return true;
-  case kParamFormantsScale:                      settings.formantsScale = SanitizeNonNegative(value); return true;
-  case kParamResonanceScale:                     settings.resonanceScale = SanitizeNonNegative(value); return true;
-  default:                                       return false;
+  for (const auto& setting : kSettingDescriptors) {
+    if (setting.paramIdx != paramIdx) continue;
+    settings.*(setting.member) = setting.sanitize(value);
+    return true;
   }
+  return false;
 }
 } // namespace global_settings

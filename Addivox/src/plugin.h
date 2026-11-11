@@ -87,6 +87,7 @@ private:
   bool HandleKeyPress(IGraphics* graphics, const IKeyPress& key, bool isUp);
 #endif
   bool IsActivePatch(const PatchCatalogEntry& entry) const;
+  std::string FactoryPatchPath(int patchIdx) const; // Empty if that patch has no path
   void ApplyPatchDocumentToState(const patch_io::PatchDocument& document);
   void FinalizePatchRecall(bool syncControlValues);
   void EnsureStandaloneStateInitialized();
@@ -122,6 +123,7 @@ private:
   void LoadBuiltInPatches();
   void RefreshEditorUI(bool resetOscillatorRestoreStates = false);
   void SyncPitchBendRangeUI();
+  void ResetQwertyKeyboard();
 
   std::array<bool, 128> mActiveUIMIDINotes{};
   int mNumActiveUIMIDINotes{0};

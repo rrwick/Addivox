@@ -48,14 +48,14 @@ public:
   void SetConfig(const Config& config) {
     RestoreState oscillatorValues{};
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      oscillatorValues[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
+      oscillatorValues[oscillatorIndex] = GetOscillatorValue(oscillatorIndex);
 
     mConfig = config;
     if (!std::isfinite(mConfig.range.min) || !std::isfinite(mConfig.range.max) || mConfig.range.max <= mConfig.range.min) mConfig.range = ValueRange{};
 
     ApplyBaseValue();
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      SetOscillatorValue(oscillatorIndex, oscillatorValues[static_cast<std::size_t>(oscillatorIndex)]);
+      SetOscillatorValue(oscillatorIndex, oscillatorValues[oscillatorIndex]);
 
     SetDirty(false);
   }
@@ -108,7 +108,7 @@ public:
 
   void CaptureRestoreState(int midiNote) {
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      mRestoreState[static_cast<std::size_t>(oscillatorIndex)] = GetOscillatorValue(oscillatorIndex);
+      mRestoreState[oscillatorIndex] = GetOscillatorValue(oscillatorIndex);
 
     mHasRestoreState = true;
     mRestoreMidiNote = midiNote;
@@ -543,7 +543,7 @@ private:
     if (startPoint.sliderHit < 0) return;
 
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      mDrawLineSourceValues[static_cast<std::size_t>(oscillatorIndex)] = GetValue(oscillatorIndex);
+      mDrawLineSourceValues[oscillatorIndex] = GetValue(oscillatorIndex);
 
     mDrawLineStartPoint = startPoint;
   }
@@ -694,7 +694,7 @@ private:
         if (!IsOscillatorEditable(oscillatorIndex)) continue;
 
         const double frac = static_cast<double>(std::abs(oscillatorIndex - startOscillatorIndex)) / static_cast<double>(span);
-        desiredValues[static_cast<std::size_t>(oscillatorIndex)] = Clamp01(iplug::Lerp(startControlValue, endControlValue, frac));
+        desiredValues[oscillatorIndex] = Clamp01(iplug::Lerp(startControlValue, endControlValue, frac));
       }
     }
 
@@ -712,7 +712,7 @@ private:
   bool ApplyControlState(const ControlState& desiredValues) {
     bool changedValue = false;
     for (int oscillatorIndex = 0; oscillatorIndex < SimplePatch::kNumOscillators; ++oscillatorIndex)
-      changedValue = ApplyControlValue(oscillatorIndex, Clamp01(desiredValues[static_cast<std::size_t>(oscillatorIndex)])) || changedValue;
+      changedValue = ApplyControlValue(oscillatorIndex, Clamp01(desiredValues[oscillatorIndex])) || changedValue;
 
     return changedValue;
   }
@@ -858,7 +858,7 @@ private:
       const IRECT& trackBounds = mTrackBounds.Get()[oscillatorIndex];
       if (trackBounds.Empty()) continue;
 
-      const double controlValue = Clamp01(ToControlValueFromRangeValue(mMacroCurve[static_cast<std::size_t>(oscillatorIndex)]));
+      const double controlValue = Clamp01(ToControlValueFromRangeValue(mMacroCurve[oscillatorIndex]));
       const float x = trackBounds.MW();
       const float y = mWidgetBounds.B - (mWidgetBounds.H() * static_cast<float>(controlValue));
 
