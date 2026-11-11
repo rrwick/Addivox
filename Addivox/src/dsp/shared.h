@@ -30,6 +30,28 @@ inline double CutoffHzToCoefficient(double sampleRate, double cutoffHz, double m
 }
 
 namespace detail {
+// Taylor series coefficients of sin(2*pi*x) for the odd powers of x up to x^21.
+constexpr std::array<double, 11> kSinCyclesCoefficients = [] {
+  std::array<double, 11> coefficients{};
+  coefficients[0] = 2.0 * kPi;
+  for (int k = 1; k < 11; ++k) coefficients[k] = -coefficients[k - 1] * (2.0 * kPi) * (2.0 * kPi) / ((2.0 * k) * (2.0 * k + 1.0));
+  return coefficients;
+}();
+} // namespace detail
+
+// sin(2*pi*phase) for a non-negative phase in cycles, accurate to double precision. It is faster than std::sin because the phase folds straight into
+// the quarter cycle around zero, where the Taylor series converges quickly, with no general-purpose range reduction.
+inline double SinCycles(double phase) {
+  const double wrapped = phase - static_cast<double>(static_cast<long long>(phase));
+  const double centred = wrapped - 0.5; // sin(2*pi*wrapped) = -sin(2*pi*centred)
+  const double x = (std::abs(centred) > 0.25) ? std::copysign(0.5, centred) - centred : centred;
+  const double xSquared = x * x;
+  double series = detail::kSinCyclesCoefficients.back();
+  for (int k = 9; k >= 0; --k) series = detail::kSinCyclesCoefficients[k] + xSquared * series;
+  return -(x * series);
+}
+
+namespace detail {
 constexpr int kPanGainLookupTableSize = 2049;
 constexpr double kPanGainLookupScale = 0.5 * static_cast<double>(kPanGainLookupTableSize - 1);
 

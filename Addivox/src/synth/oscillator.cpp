@@ -147,7 +147,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   // Deactivate oscillator if frequency is out of range - prevents aliasing
   if (mFrequencyHz > mSampleRate * 0.5) return {0.0, 0.0};
 
-  const iplug::sample out = static_cast<iplug::sample>(std::sin((2.0 * dsp::kPi) * phase) * outputLevel);
+  const iplug::sample out = static_cast<iplug::sample>(dsp::SinCycles(phase) * outputLevel);
 
   return {out * static_cast<iplug::sample>(mPanLeftGain), out * static_cast<iplug::sample>(mPanRightGain)};
 }
