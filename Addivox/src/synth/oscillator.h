@@ -65,6 +65,7 @@ private:
   static constexpr double kMinAttackTimeSec = 0.001;
   static constexpr double kMinReleaseTimeSec = 0.001;
   void UpdateLevelRates();
+  bool IsSilent() const { return mBaseLevel == 0.0 && mLevel == 0.0; } // no level now and none on the way
 
   static constexpr double kEqSmoothingTimeSec = 0.002;
   static constexpr double kEqGainEpsilon = 1.0e-9;
@@ -140,7 +141,7 @@ private:
   void UpdatePitchTarget(double pitchNoise = 0.0);
   void UpdateLevelTarget(double levelNoise = 0.0);
   void UpdatePanTargetGains(double panNoise = 0.0);
-  double ProcessVariation(VariationState& variation, uint32_t seed);
+  double ProcessVariation(VariationState& variation, uint32_t seed, bool noiseIsNeeded = true); // always advances the variation by one sample
   void SmoothVariationParameters(VariationState& variation);
   static bool IsVariationActiveNow(const VariationState& variation);
   static double CurrentVariationNoise(VariationState& variation, uint32_t seed);

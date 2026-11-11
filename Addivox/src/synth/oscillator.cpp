@@ -114,7 +114,8 @@ std::array<iplug::sample, 2> Oscillator::Process() {
   }
   --mVariationTargetRefreshCountdown;
 
-  if (mHasLevelVariation) UpdateLevelTarget(ProcessVariation(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
+  // A silent oscillator's level target stays at zero whatever the noise, so its level variation only needs to keep moving.
+  if (mHasLevelVariation) UpdateLevelTarget(ProcessVariation(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor, !IsSilent()));
   if (mHasPanVariation) UpdatePanTargetGains(ProcessVariation(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
   if (mHasPitchVariation) UpdatePitchTarget(ProcessVariation(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
 
@@ -250,12 +251,12 @@ __forceinline
 #elif defined(__clang__) || defined(__GNUC__)
 __attribute__((always_inline)) inline
 #endif
-double Oscillator::ProcessVariation(VariationState& variation, uint32_t seed) {
+double Oscillator::ProcessVariation(VariationState& variation, uint32_t seed, bool noiseIsNeeded) {
   SmoothVariationParameters(variation);
   const double positionIncrement = variation.rateHz * mInverseSampleRate;
   if (!IsVariationActiveNow(variation)) return 0.0;
 
-  const double noise = variation.noiseCache.evaluate(variation.position, seed);
+  const double noise = noiseIsNeeded ? variation.noiseCache.evaluate(variation.position, seed) : 0.0;
   variation.position += positionIncrement;
   return noise;
 }
