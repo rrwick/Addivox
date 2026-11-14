@@ -45,6 +45,9 @@ static bool isInstrument()
 - (BOOL)saveStandaloneState;
 - (void)syncParameterTreeToRestoredState;
 - (void)onAudioSettingsChanged:(NSNotification*)notification;
+- (void)onSessionInterruption:(NSNotification*)notification;
+- (void)onAppDidBecomeActive:(NSNotification*)notification;
+- (void)resumeAudioAfterInterruption;
 - (void)onAppStateShouldSave:(NSNotification*)notification;
 @end
 
@@ -468,6 +471,19 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   }
 }
 
+// iOS deactivates the session and stops the engine when another sound (alarm, Siri, call, another app) interrupts us, so both need bringing back.
+- (void)resumeAudioAfterInterruption
+{
+  NSError* error = nil;
+  if (![[AVAudioSession sharedInstance] setActive:YES error:&error])
+  {
+    NSLog(@"Error re-activating session: %@", error);
+    return;
+  }
+
+  [self restartAudioEngine];
+}
+
 - (void)setupSession
 {
   AVAudioSession* session = [AVAudioSession sharedInstance];
@@ -582,6 +598,8 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
   NSNotificationCenter* notifCtr = [NSNotificationCenter defaultCenter];
 
   [notifCtr addObserver:self selector:@selector(onEngineConfigurationChange:) name:AVAudioEngineConfigurationChangeNotification object:engine];
+  [notifCtr addObserver:self selector:@selector(onSessionInterruption:) name:AVAudioSessionInterruptionNotification object:[AVAudioSession sharedInstance]];
+  [notifCtr addObserver:self selector:@selector(onAppDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
   [notifCtr addObserver:self selector:@selector(onAudioSettingsChanged:) name:kAudioSettingsChangedNotification object:nil];
   [notifCtr addObserver:self selector:@selector(onAppStateShouldSave:) name:UIApplicationWillResignActiveNotification object:nil];
   [notifCtr addObserver:self selector:@selector(onAppStateShouldSave:) name:UIApplicationDidEnterBackgroundNotification object:nil];
@@ -592,6 +610,24 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 - (void)onEngineConfigurationChange:(NSNotification*)notification
 {
   [self restartAudioEngine];
+}
+
+- (void)onSessionInterruption:(NSNotification*)notification
+{
+  const NSUInteger interruptionType = [notification.userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue];
+  if (interruptionType != AVAudioSessionInterruptionTypeEnded)
+    return;
+
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self resumeAudioAfterInterruption];
+  });
+}
+
+// iOS does not always report the end of an interruption (e.g. when another app took over audio), so also recover when the user returns to Addivox.
+- (void)onAppDidBecomeActive:(NSNotification*)notification
+{
+  if (!engine.isRunning)
+    [self resumeAudioAfterInterruption];
 }
 
 - (void)onAudioSettingsChanged:(NSNotification*)notification
