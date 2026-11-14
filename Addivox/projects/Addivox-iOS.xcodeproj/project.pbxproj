@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AD10000000000000000000A2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD10000000000000000000A1 /* PrivacyInfo.xcprivacy */; };
+		AD10000000000000000000A3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD10000000000000000000A1 /* PrivacyInfo.xcprivacy */; };
+		AD10000000000000000000A4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD10000000000000000000A1 /* PrivacyInfo.xcprivacy */; };
 		4F0D965B23099F5A00BFDED0 /* IPlugProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4FFF103420A0E55900D3092F /* IPlugProcessor.cpp */; };
 		4F10E7C020B17EDB00F5B09B /* Addivox-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* Addivox-iOS-MainInterface.storyboard */; };
 		4F1115CF2296DA95000CFCBF /* Addivox-iOS-MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F10E7BF20B17EDB00F5B09B /* Addivox-iOS-MainInterface.storyboard */; };
@@ -103,6 +106,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AD10000000000000000000A1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = ../resources/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4F10E7BF20B17EDB00F5B09B /* Addivox-iOS-MainInterface.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = "Addivox-iOS-MainInterface.storyboard"; path = "../resources/Addivox-iOS-MainInterface.storyboard"; sourceTree = "<group>"; };
 		4F10E7C520B189DD00F5B09B /* Addivox-iOS.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = "Addivox-iOS.entitlements"; sourceTree = "<group>"; };
 		4F2020F620A1B2B500F22200 /* scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = scripts; path = ../scripts; sourceTree = "<group>"; };
@@ -431,6 +435,7 @@
 				4FC46E58231440C8000045E7 /* web */,
 				4F10E7C520B189DD00F5B09B /* Addivox-iOS.entitlements */,
 				4F3E0F6820A0BCAF00A9C2BE /* Images.xcassets */,
+				AD10000000000000000000A1 /* PrivacyInfo.xcprivacy */,
 				4F3E0F6720A0BC5B00A9C2BE /* Addivox-iOS.storyboard */,
 				4FB2269620A0D3A800614769 /* Addivox-iOS-LaunchScreen.storyboard */,
 				4F10E7BF20B17EDB00F5B09B /* Addivox-iOS-MainInterface.storyboard */,
@@ -724,6 +729,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD10000000000000000000A2 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -731,6 +737,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD10000000000000000000A3 /* PrivacyInfo.xcprivacy in Resources */,
 				4F1115CF2296DA95000CFCBF /* Addivox-iOS-MainInterface.storyboard in Resources */,
 				4F3E0F6B20A0BCE300A9C2BE /* Images.xcassets in Resources */,
 				4FB2269720A0D3A800614769 /* Addivox-iOS-LaunchScreen.storyboard in Resources */,
@@ -742,6 +749,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD10000000000000000000A4 /* PrivacyInfo.xcprivacy in Resources */,
 				4F10E7C020B17EDB00F5B09B /* Addivox-iOS-MainInterface.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
