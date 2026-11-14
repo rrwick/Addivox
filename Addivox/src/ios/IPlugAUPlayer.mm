@@ -490,7 +490,8 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 
   NSError* error = nil;
   const AVAudioSessionCategory category = isInstrument() ? AVAudioSessionCategoryPlayback : AVAudioSessionCategoryPlayAndRecord;
-  const AVAudioSessionCategoryOptions options = isInstrument() ? 0 : (AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothHFP);
+  // Mixing lets users play Addivox along with audio from other apps (e.g. a backing track).
+  const AVAudioSessionCategoryOptions options = isInstrument() ? AVAudioSessionCategoryOptionMixWithOthers : (AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothHFP);
   if (![session setCategory:category withOptions:options error:&error])
   {
     NSLog(@"Error setting category: %@", error);
@@ -498,7 +499,8 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
 
   const int preferredSampleRate = addivox_standalone::GetPreferredSampleRate();
   error = nil;
-  if (![session setPreferredSampleRate:preferredSampleRate error:&error])
+  // Changing the hardware sample rate can stop another app's playback, so leave the rate alone while one is playing (the engine resamples our output).
+  if (!session.isOtherAudioPlaying && ![session setPreferredSampleRate:preferredSampleRate error:&error])
   {
     NSLog(@"Error setting samplerate: %@", error);
   }
