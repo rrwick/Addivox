@@ -56,7 +56,7 @@
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
-	<string>Addivox-iOS-launchScreen</string>
+	<string>Addivox-iOS-LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Addivox-iOS</string>
 	<key>UIMainStoryboardFile~ipad</key>
