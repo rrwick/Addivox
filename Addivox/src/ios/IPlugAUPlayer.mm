@@ -421,7 +421,12 @@ static void MIDIStateChangedCallback(const MIDINotification* message, void* refC
     {
       ++position;
       if (status >= 0xF0)
+      {
+        // System common messages (SysEx etc.) cancel running status, so their data bytes get skipped. Real-time messages (0xF8+) leave it intact.
+        if (status < 0xF8)
+          runningStatus = 0;
         continue;
+      }
       runningStatus = status;
     }
     else
