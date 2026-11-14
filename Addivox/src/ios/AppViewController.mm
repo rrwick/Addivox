@@ -169,21 +169,9 @@
   if (!view.superview)
     return;
 
+  // The plug-in rescales its own graphics to fit this frame (see Addivox::OnParentWindowResize).
   view.transform = CGAffineTransformIdentity;
   view.frame = auView.bounds;
-
-  UIView* graphicsView = pluginVC.view.subviews.firstObject;
-  if (!graphicsView)
-    return;
-
-  CGSize naturalSize = graphicsView.bounds.size;
-  if (naturalSize.width <= 0. || naturalSize.height <= 0.)
-    return;
-
-  const CGFloat scale = MIN(CGRectGetWidth(auView.bounds) / naturalSize.width, CGRectGetHeight(auView.bounds) / naturalSize.height);
-  graphicsView.transform = CGAffineTransformIdentity;
-  graphicsView.center = CGPointMake(CGRectGetMidX(auView.bounds), CGRectGetMidY(auView.bounds));
-  graphicsView.transform = CGAffineTransformMakeScale(scale, scale);
 #endif
 }
 

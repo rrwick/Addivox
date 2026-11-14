@@ -55,6 +55,9 @@ public:
   void OnHostIdentified() override;
   void OnUIOpen() override;
   void OnUIClose() override;
+#if defined OS_IOS
+  void OnParentWindowResize(int width, int height) override;
+#endif
   bool OnHostRequestingAboutBox() override;
   bool OnHostRequestingProductHelp() override;
   void OnParamChangeUI(int paramIdx, EParamSource source) override;

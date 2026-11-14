@@ -11,6 +11,9 @@
 #if defined APP_API
 #include "standalone/audio_midi_settings.h"
 #endif
+#if defined OS_IOS
+#include "ios/host_view_ios.h"
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -35,6 +38,7 @@ constexpr const char* kFactoryPatchResourcePrefix = "FACTORY_PATCH_";
 #endif
 #if defined(OS_IOS)
 constexpr double kIOSStandaloneDefaultReverb = 50.0;
+constexpr float kIOSMinDrawScale = 0.2f;
 #endif
 
 int SanitizePitchBendRange(int pitchBendRange) { return std::clamp(pitchBendRange, 0, kMaxPitchBendRange); }
@@ -674,6 +678,9 @@ Addivox::Addivox(const InstanceInfo& info)
     pGraphics->EnableMouseOver(true);
     pGraphics->EnableTooltips(true);
     pGraphics->EnableMultiTouch(true);
+#if defined OS_IOS
+    pGraphics->SetScaleConstraints(kIOSMinDrawScale, DEFAULT_MAX_DRAW_SCALE); // Hosts such as GarageBand offer less than half the UI's natural height.
+#endif
 
 #ifdef OS_WEB
     pGraphics->AttachPopupMenuControl();
@@ -1384,6 +1391,18 @@ void Addivox::OnUIOpen() {
     RefreshEditorUI();
   }
 }
+
+#if defined OS_IOS
+// iOS hosts decide how much space the UI gets (e.g. GarageBand's strip above its keyboard), so scale the whole UI to fit that space and centre it.
+void Addivox::OnParentWindowResize(int width, int height) {
+  IGraphics* ui = GetUI();
+  if (!ui || width <= 0 || height <= 0) return;
+
+  const float scale = std::min(static_cast<float>(width) / PLUG_WIDTH, static_cast<float>(height) / PLUG_HEIGHT);
+  ui->Resize(PLUG_WIDTH, PLUG_HEIGHT, scale);
+  addivox_ios::CenterViewInSuperview(ui->GetWindow());
+}
+#endif
 
 void Addivox::OnUIClose() {
   SaveStandaloneStateIfNeeded(true);

@@ -25,6 +25,7 @@
 		C0D300000000000000000110 /* tone.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0D300000000000000000010 /* tone.cpp */; };
 		C0D400000000000000000102 /* audio_midi_settings_ios.mm in Sources */ = {isa = PBXBuildFile; fileRef = C0D400000000000000000002 /* audio_midi_settings_ios.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		C0D400000000000000000103 /* audio_midi_settings_ios.mm in Sources */ = {isa = PBXBuildFile; fileRef = C0D400000000000000000002 /* audio_midi_settings_ios.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
+		C0D400000000000000000105 /* host_view_ios.mm in Sources */ = {isa = PBXBuildFile; fileRef = C0D400000000000000000006 /* host_view_ios.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		4F32AE7D231431BD00710734 /* AUv3Framework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA61F6E22E899B500A92C58 /* AUv3Framework.framework */; };
 		4F32AE7E231431BD00710734 /* CoreMIDI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F32AE7F231431BD00710734 /* CoreMIDI.framework */; };
 		4F3E0F6A20A0BCD900A9C2BE /* Addivox-iOS.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4F3E0F6720A0BC5B00A9C2BE /* Addivox-iOS.storyboard */; };
@@ -209,6 +210,8 @@
 		4FC82B4820BD524700722133 /* fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fonts; path = ../resources/fonts; sourceTree = "<group>"; };
 		C0D400000000000000000001 /* audio_midi_settings_ios.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio_midi_settings_ios.h; path = ../src/ios/audio_midi_settings_ios.h; sourceTree = SOURCE_ROOT; };
 		C0D400000000000000000002 /* audio_midi_settings_ios.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = audio_midi_settings_ios.mm; path = ../src/ios/audio_midi_settings_ios.mm; sourceTree = SOURCE_ROOT; };
+		C0D400000000000000000005 /* host_view_ios.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = host_view_ios.h; path = ../src/ios/host_view_ios.h; sourceTree = SOURCE_ROOT; };
+		C0D400000000000000000006 /* host_view_ios.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = host_view_ios.mm; path = ../src/ios/host_view_ios.mm; sourceTree = SOURCE_ROOT; };
 		4FCE29DE21D6ED81004BCBA1 /* ITextEntryControl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ITextEntryControl.h; sourceTree = "<group>"; };
 		4FCE29DF21D6ED81004BCBA1 /* ITextEntryControl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ITextEntryControl.cpp; sourceTree = "<group>"; };
 		4FDA600520B5868D00C49ABA /* Addivox-ios.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Addivox-ios.xcconfig"; path = "../config/Addivox-ios.xcconfig"; sourceTree = "<group>"; };
@@ -504,6 +507,8 @@
 				4FDF6D7D2267CEBA0007B686 /* IPlugAUPlayer.mm */,
 				C0D400000000000000000001 /* audio_midi_settings_ios.h */,
 				C0D400000000000000000002 /* audio_midi_settings_ios.mm */,
+				C0D400000000000000000005 /* host_view_ios.h */,
+				C0D400000000000000000006 /* host_view_ios.mm */,
 			);
 			name = iOSApp;
 			path = ../../iPlug2/IPlug/AUv3/iOSApp;
@@ -811,6 +816,7 @@
 				4F0D965B23099F5A00BFDED0 /* IPlugProcessor.cpp in Sources */,
 				4FA61F7F22E89AFF00A92C58 /* IPlugAPIBase.cpp in Sources */,
 				C0D400000000000000000102 /* audio_midi_settings_ios.mm in Sources */,
+				C0D400000000000000000105 /* host_view_ios.mm in Sources */,
 				4FA61F9222E8A2B500A92C58 /* plugin.cpp in Sources */,
 				4FA61F8A22E89B3700A92C58 /* IPopupMenuControl.cpp in Sources */,
 			);

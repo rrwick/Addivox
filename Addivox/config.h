@@ -57,7 +57,13 @@
 #define PLUG_HEIGHT 750
 #define PLUG_FPS 60
 #define PLUG_SHARED_RESOURCES 0
+// On iOS the host decides how much space the UI gets, so the UI rescales to fit (see Addivox::OnParentWindowResize). Elsewhere the UI has a fixed size.
+// The iOS value is spelled "true" because the web build scripts search this file for the text "PLUG_HOST_RESIZE 1".
+#if defined(OS_IOS)
+#define PLUG_HOST_RESIZE true
+#else
 #define PLUG_HOST_RESIZE 0
+#endif
 
 #define AUV2_ENTRY Addivox_Entry
 #define AUV2_ENTRY_STR "Addivox_Entry"
