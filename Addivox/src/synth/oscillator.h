@@ -82,17 +82,18 @@ private:
   static constexpr double kMaxAnchorOffsetSemitones = 0.125;
   void UpdateFrequency();
 
-  // Constant-power pan with sample-accurate variation and slew-limited gain changes.
-  double mBasePan = 0.0; // ranges from -1 (left) to +1 (right)
-  double mBasePanLeftGain = 0.70710678;
-  double mBasePanRightGain = 0.70710678;
+  // Constant-power pan with sample-accurate variation. The pan position follows its target through two one-pole lowpass stages, which keeps its movement
+  // free of corners: a corner in a gain puts broadband noise around the harmonic.
+  double mBasePan = 0.0;        // ranges from -1 (left) to +1 (right)
+  double mTargetPan = 0.0;      // base pan plus pan variation
+  double mPanFirstStage = 0.0;  // target pan after the first lowpass stage
+  double mPan = 0.0;            // target pan after both lowpass stages, which sets the gains
   double mPanLeftGain = 0.70710678;
   double mPanRightGain = 0.70710678;
-  double mTargetPanLeftGain = 0.70710678;
-  double mTargetPanRightGain = 0.70710678;
-  static constexpr double kPanSlewTimeSec = 0.02; // time (seconds) for a pan to move by 1.0
-  double mPanSlewPerSample = 1.0;                 // pan change rate in pan units per sample
-  void UpdatePanSlewRate();
+  static constexpr double kPanSmoothingTimeSec = 0.005; // time constant of each lowpass stage
+  static constexpr double kPanEpsilon = 1.0e-6;         // a pan this close to its target has arrived
+  double mPanSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kPanSmoothingTimeSec);
+  void SmoothPan();
 
   static constexpr double kVariationParameterSmoothingTimeSec = 0.01;
   static constexpr double kVariationParameterEpsilon = 1.0e-6;
@@ -143,7 +144,7 @@ private:
   void UpdateModulatedTargets();
   void UpdatePitchTarget(double pitchNoise = 0.0);
   void UpdateLevelTarget(double levelNoise = 0.0);
-  void UpdatePanTargetGains(double panNoise = 0.0);
+  void UpdatePanTarget(double panNoise = 0.0);
   double ProcessVariation(VariationState& variation, uint32_t seed, bool noiseIsNeeded = true); // always advances the variation by one sample
   void SmoothVariationParameters(VariationState& variation);
   static bool IsVariationActiveNow(const VariationState& variation);

@@ -14,7 +14,7 @@ void Oscillator::SetSampleRate(double sampleRate) {
   UpdateFrequency();
   UpdatePitchRate();
   UpdateLevelRates();
-  UpdatePanSlewRate();
+  mPanSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kPanSmoothingTimeSec);
   UpdateVariationParameterSmoothingRate();
   RefreshVariationTargets();
   UpdateModulatedTargets();
@@ -75,8 +75,7 @@ void Oscillator::SetPan(double pan) {
   if (clampedPan == mBasePan) return;
 
   mBasePan = clampedPan;
-  dsp::PanToGains(mBasePan, mBasePanLeftGain, mBasePanRightGain);
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
+  UpdatePanTarget(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
 }
 
 void Oscillator::SetPanVariation(double amplitude, double rateHz) { mPanVariation.SetTargets(amplitude, rateHz); }
@@ -101,9 +100,9 @@ void Oscillator::Reset() {
   mPitch = mTargetPitch;
   UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
   // On full retrigger, start from the current pan target.
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
-  mPanLeftGain = mTargetPanLeftGain;
-  mPanRightGain = mTargetPanRightGain;
+  UpdatePanTarget(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
+  mPanFirstStage = mPan = mTargetPan;
+  dsp::PanToGains(mPan, mPanLeftGain, mPanRightGain);
   UpdateFrequency();
 }
 
@@ -116,7 +115,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
 
   // A silent oscillator's level target stays at zero whatever the noise, so its level variation only needs to keep moving.
   if (mHasLevelVariation) UpdateLevelTarget(ProcessVariation(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor, !IsSilent()));
-  if (mHasPanVariation) UpdatePanTargetGains(ProcessVariation(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
+  if (mHasPanVariation) UpdatePanTarget(ProcessVariation(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
   if (mHasPitchVariation) UpdatePitchTarget(ProcessVariation(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
 
   const double rate = (mTargetLevel > mLevel) ? mAttackRate : mReleaseRate;
@@ -127,8 +126,7 @@ std::array<iplug::sample, 2> Oscillator::Process() {
     mEqGain = std::abs(delta) < kEqGainEpsilon ? mTargetEqGain : mEqGain + mEqSmoothingCoefficient * delta;
   }
 
-  mPanLeftGain += std::clamp(mTargetPanLeftGain - mPanLeftGain, -mPanSlewPerSample, mPanSlewPerSample);
-  mPanRightGain += std::clamp(mTargetPanRightGain - mPanRightGain, -mPanSlewPerSample, mPanSlewPerSample);
+  if (mPan != mTargetPan) SmoothPan();
   if (mPitch != mTargetPitch) {
     const double previousPitch = mPitch;
     mPitch += std::clamp(mTargetPitch - mPitch, -mPitchRatePerSample, mPitchRatePerSample);
@@ -200,14 +198,12 @@ void Oscillator::UpdateLevelRates() {
   mReleaseRate = dsp::ExponentialSmoothingCoefficient(mSampleRate, mReleaseTimeSec);
 }
 
-void Oscillator::UpdatePanSlewRate() {
-  if (kPanSlewTimeSec <= 0.0 || mSampleRate <= 0.0) {
-    mPanSlewPerSample = std::numeric_limits<double>::infinity();
-    return;
-  }
-
-  // Linear pan slew: fixed max gain step per sample.
-  mPanSlewPerSample = mInverseSampleRate / kPanSlewTimeSec;
+// Moves the pan one sample closer to its target and sets the gains to match.
+void Oscillator::SmoothPan() {
+  mPanFirstStage += mPanSmoothingCoefficient * (mTargetPan - mPanFirstStage);
+  mPan += mPanSmoothingCoefficient * (mPanFirstStage - mPan);
+  if (std::abs(mTargetPan - mPanFirstStage) < kPanEpsilon && std::abs(mTargetPan - mPan) < kPanEpsilon) mPanFirstStage = mPan = mTargetPan;
+  dsp::PanToGains(mPan, mPanLeftGain, mPanRightGain);
 }
 
 void Oscillator::UpdateVariationParameterSmoothingRate() {
@@ -230,15 +226,7 @@ void Oscillator::UpdatePitchTarget(double pitchNoise) { mTargetPitch = std::max(
 
 void Oscillator::UpdateLevelTarget(double levelNoise) { mTargetLevel = mBaseLevel * std::max(0.0, 1.0 + (mLevelVariation.amplitude * levelNoise)); }
 
-inline void Oscillator::UpdatePanTargetGains(double panNoise) {
-  if (panNoise == 0.0) {
-    mTargetPanLeftGain = mBasePanLeftGain;
-    mTargetPanRightGain = mBasePanRightGain;
-    return;
-  }
-
-  dsp::PanToGains(mBasePan + (mPanVariation.amplitude * panNoise), mTargetPanLeftGain, mTargetPanRightGain);
-}
+inline void Oscillator::UpdatePanTarget(double panNoise) { mTargetPan = std::clamp(mBasePan + (mPanVariation.amplitude * panNoise), -1.0, 1.0); }
 
 void Oscillator::SmoothVariationParameters(VariationState& variation) {
   if (variation.amplitude == variation.targetAmplitude && variation.rateHz == variation.targetRateHz) return;
@@ -280,5 +268,5 @@ double Oscillator::ProcessVariation(VariationState& variation, uint32_t seed, bo
 void Oscillator::UpdateModulatedTargets() {
   UpdatePitchTarget(CurrentVariationNoise(mPitchVariation, mVariationSeed ^ kPitchVariationSeedXor));
   UpdateLevelTarget(CurrentVariationNoise(mLevelVariation, mVariationSeed ^ kLevelVariationSeedXor));
-  UpdatePanTargetGains(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
+  UpdatePanTarget(CurrentVariationNoise(mPanVariation, mVariationSeed ^ kPanVariationSeedXor));
 }
