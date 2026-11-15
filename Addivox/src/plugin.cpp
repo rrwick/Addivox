@@ -14,6 +14,9 @@
 #if defined OS_IOS
 #include "ios/host_view_ios.h"
 #endif
+#if defined OS_MAC
+#include <CoreGraphics/CoreGraphics.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -773,25 +776,39 @@ void Addivox::InitializeParams() {
 }
 
 #if IPLUG_EDITOR
+void Addivox::SendQwertyMidi(IGraphics* pGraphics, const IMidiMsg& msg) {
+  SendMidiMsgFromUI(msg);
+  plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
+}
+
+void Addivox::ReleaseHeldQwertyNotes(IGraphics* pGraphics) {
+  IMidiMsg msg;
+  for (int pitch = 0; pitch < static_cast<int>(mQwertyMidiKeysDown.size()); ++pitch) {
+    if (!mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)]) continue;
+
+    msg.MakeNoteOffMsg(pitch, 0);
+    mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)] = false;
+    SendQwertyMidi(pGraphics, msg);
+  }
+}
+
+// macOS doesn't deliver key-up events while the window is being dragged, which would leave a QWERTY note stuck on.
+void Addivox::ReleaseQwertyNotesIfKeysReleased() {
+#if defined OS_MAC
+  IGraphics* pGraphics = GetUI();
+  if (mLastQwertyMIDINote < 0 || !pGraphics) return;
+
+  constexpr CGKeyCode kNumKeyCodes = 128;
+  for (CGKeyCode keyCode = 0; keyCode < kNumKeyCodes; ++keyCode) {
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, keyCode)) return;
+  }
+  ReleaseHeldQwertyNotes(pGraphics);
+#endif
+}
+
 bool Addivox::HandleKeyPress(IGraphics* pGraphics, const IKeyPress& key, bool isUp) {
-  const auto sendQwertyMidi = [this, pGraphics](const IMidiMsg& msg) {
-    SendMidiMsgFromUI(msg);
-    plugin_ui::HandleQwertyMidi(pGraphics, kCtrlTagKeyboard, mLastQwertyMIDINote, msg);
-  };
-
-  const auto releaseHeldQwertyMidiNotes = [&]() {
-    IMidiMsg msg;
-    for (int pitch = 0; pitch < static_cast<int>(mQwertyMidiKeysDown.size()); ++pitch) {
-      if (!mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)]) continue;
-
-      msg.MakeNoteOffMsg(pitch, 0);
-      mQwertyMidiKeysDown[static_cast<std::size_t>(pitch)] = false;
-      sendQwertyMidi(msg);
-    }
-  };
-
   const bool editMode = mEditorState && mEditorState->editMode;
-  if (editMode && !mWasQwertyKeyboardInEditMode) releaseHeldQwertyMidiNotes();
+  if (editMode && !mWasQwertyKeyboardInEditMode) ReleaseHeldQwertyNotes(pGraphics);
   mWasQwertyKeyboardInEditMode = editMode;
 
   const bool popupExpanded = pGraphics->GetPopupMenuControl() && pGraphics->GetPopupMenuControl()->GetExpanded();
@@ -826,12 +843,12 @@ bool Addivox::HandleKeyPress(IGraphics* pGraphics, const IKeyPress& key, bool is
       if (!mQwertyMidiKeysDown[pitchIndex]) {
         msg.MakeNoteOnMsg(pitch, 127, 0);
         mQwertyMidiKeysDown[pitchIndex] = true;
-        sendQwertyMidi(msg);
+        SendQwertyMidi(pGraphics, msg);
       }
     } else if (mQwertyMidiKeysDown[pitchIndex]) {
       msg.MakeNoteOffMsg(pitch, 0);
       mQwertyMidiKeysDown[pitchIndex] = false;
-      sendQwertyMidi(msg);
+      SendQwertyMidi(pGraphics, msg);
     }
 
     return true;
@@ -840,7 +857,7 @@ bool Addivox::HandleKeyPress(IGraphics* pGraphics, const IKeyPress& key, bool is
   if (!isUp && (key.VK == kVK_Z || key.VK == kVK_X)) {
     const int octaveShift = key.VK == kVK_Z ? -12 : 12;
     mQwertyMidiBaseNote = std::clamp(mQwertyMidiBaseNote + octaveShift, 24, 96);
-    releaseHeldQwertyMidiNotes();
+    ReleaseHeldQwertyNotes(pGraphics);
   }
 
   return true;
@@ -1465,6 +1482,9 @@ void Addivox::OnIdle() {
     mLastSentBreathLevel = breathLevel;
   }
 
+#if IPLUG_EDITOR
+  ReleaseQwertyNotesIfKeysReleased();
+#endif
   SaveStandaloneStateIfNeeded();
 }
 

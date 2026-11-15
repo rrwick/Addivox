@@ -88,6 +88,9 @@ private:
   void InitializeParams();
 #if IPLUG_EDITOR
   bool HandleKeyPress(IGraphics* graphics, const IKeyPress& key, bool isUp);
+  void SendQwertyMidi(IGraphics* graphics, const IMidiMsg& msg);
+  void ReleaseHeldQwertyNotes(IGraphics* graphics);
+  void ReleaseQwertyNotesIfKeysReleased();
 #endif
   bool IsActivePatch(const PatchCatalogEntry& entry) const;
   std::string FactoryPatchPath(int patchIdx) const; // Empty if that patch has no path
