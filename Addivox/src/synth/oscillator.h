@@ -21,6 +21,7 @@ public:
   // Pitch is in semitones relative to A4 (440 Hz); portamento is seconds per semitone (0 = immediate).
   void SetPitch(double pitchSemitones);
   void SetPitchTime(double pitchTimeSec);
+  void ShiftPitch(double semitones); // Immediate, bypassing portamento.
   void SetPitchVariation(double amplitudeSemitones, double rateHz);
   void SetAttackTime(double attackTimeSec);
   void SetReleaseTime(double releaseTimeSec);

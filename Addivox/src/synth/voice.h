@@ -65,6 +65,7 @@ private:
   double mSampleRate{44100.0};
   double mPitchRatePerSample{std::numeric_limits<double>::infinity()};
   int mNoteControlSamplesUntilUpdate{0};
+  int mSamplesSinceStop{0};
 
   // Breath is a linear value from 0 to 1. mBreath is the currently rendered
   // value, ramping towards mTargetBreath by mBreathRampPerTick per control tick.

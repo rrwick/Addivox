@@ -53,7 +53,12 @@ void SynthVoice::Start(double pitch, double pitchBend, double breath) {
   mNotePitch = pitch;
   mPitchBend = pitchBend;
   mTargetMidiPitch = GetTargetMidiPitch();
-  if (freshStart) mRenderedMidiPitch = mTargetMidiPitch;
+  // The glide runs from when the previous note stopped, so a gap between the notes shortens or skips it.
+  const double startMidiPitch = freshStart ? mTargetMidiPitch : PredictRenderedMidiPitch(mSamplesSinceStop);
+  if (!freshStart)
+    for (auto& osc : mOscs) osc.ShiftPitch(startMidiPitch - mRenderedMidiPitch);
+  mRenderedMidiPitch = startMidiPitch;
+  mSamplesSinceStop = 0;
   mBreath = mTargetBreath = ShapeBreath(breath);
   UpdatePitch();
 
@@ -298,6 +303,7 @@ void SynthVoice::RefreshNoteDependentState() {
 }
 
 void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startIdx, int nFrames) {
+  if (mBreath == 0.0) mSamplesSinceStop += nFrames;
   const int endIdx = startIdx + nFrames;
   for (int i = startIdx; i < endIdx; i++) {
     const bool pitchIsMoving = (mRenderedMidiPitch != mTargetMidiPitch);

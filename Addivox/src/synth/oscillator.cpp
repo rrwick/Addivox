@@ -50,6 +50,11 @@ void Oscillator::SetPitchTime(double pitchTimeSec) {
   UpdatePitchRate();
 }
 
+void Oscillator::ShiftPitch(double semitones) {
+  mPitch += semitones;
+  UpdateFrequency();
+}
+
 void Oscillator::SetPitchVariation(double amplitudeSemitones, double rateHz) { mPitchVariation.SetTargets(amplitudeSemitones, rateHz); }
 
 void Oscillator::SetAttackTime(double attackTimeSec) {
