@@ -20,4 +20,5 @@ public:
 namespace effects_settings {
 EffectsSettings Sanitize(const EffectsSettings& settings);
 bool ApplyParam(int paramIdx, double value, EffectsSettings& settings);
+bool GetParamValue(int paramIdx, const EffectsSettings& settings, double& value);
 } // namespace effects_settings

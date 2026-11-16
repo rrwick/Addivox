@@ -43,8 +43,6 @@ private:
   static double ShapeBreath(double breath);
   void SnapBreath(double breath);
   static double AdvanceTowards(double current, double target, double maxDelta);
-  static double GetOscillatorBasePitchSemitones(int harmonic, double pitchOffsetCents, double fundamentalPitchSemitones,
-                                                const GlobalVoiceSettings& globalSettings);
   void ApplyOscillatorSettings(int harmonic, const OscillatorSettings& currentSettings, double futurePitchOffsetCents,
                                double futureFundamentalPitchSemitones);
 
@@ -62,7 +60,7 @@ private:
   double mTransposeSemitones{0.0};
   double mRenderedMidiPitch{0.0};
   double mTargetMidiPitch{0.0};
-  double mSampleRate{44100.0};
+  double mSampleRate{dsp::kDefaultSampleRate};
   double mPitchRatePerSample{std::numeric_limits<double>::infinity()};
   int mNoteControlSamplesUntilUpdate{0};
   int mSamplesSinceStop{0};

@@ -83,30 +83,6 @@ EffectsSettings GetEffectsSettingsFromParams(const Addivox& plugin) {
   return effects_settings::Sanitize(settings);
 }
 
-void SetPatchVoiceSettingsParams(Addivox& plugin, const GlobalVoiceSettings& voiceSettings) {
-  const GlobalVoiceSettings sanitizedVoiceSettings = global_settings::Sanitize(voiceSettings);
-  plugin.GetParam(kParamGlobalLevel)->Set(sanitizedVoiceSettings.levelScale);
-  plugin.GetParam(kParamGlobalAttackScale)->Set(sanitizedVoiceSettings.attackScale);
-  plugin.GetParam(kParamGlobalReleaseScale)->Set(sanitizedVoiceSettings.releaseScale);
-  plugin.GetParam(kParamGlobalLevelVariationAmplitudeScale)->Set(sanitizedVoiceSettings.levelVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalLevelVariationRateScale)->Set(sanitizedVoiceSettings.levelVariationRateScale);
-  plugin.GetParam(kParamGlobalPitchVariationAmplitudeScale)->Set(sanitizedVoiceSettings.pitchVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalPitchVariationRateScale)->Set(sanitizedVoiceSettings.pitchVariationRateScale);
-  plugin.GetParam(kParamGlobalPanVariationAmplitudeScale)->Set(sanitizedVoiceSettings.panVariationAmplitudeScale);
-  plugin.GetParam(kParamGlobalPanVariationRateScale)->Set(sanitizedVoiceSettings.panVariationRateScale);
-  plugin.GetParam(kParamPortamentoAtCC5Min)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MinSec);
-  plugin.GetParam(kParamPortamentoAtCC5Max)->Set(sanitizedVoiceSettings.portamentoTimeAtCC5MaxSec);
-  plugin.GetParam(kParamFormantsScale)->Set(sanitizedVoiceSettings.formantsScale);
-  plugin.GetParam(kParamResonanceScale)->Set(sanitizedVoiceSettings.resonanceScale);
-}
-
-void SetPatchEffectsSettingsParams(Addivox& plugin, const EffectsSettings& effectsSettings) {
-  const EffectsSettings sanitizedEffectsSettings = effects_settings::Sanitize(effectsSettings);
-  plugin.GetParam(kParamEffectsDrive)->Set(sanitizedEffectsSettings.drive);
-  plugin.GetParam(kParamEffectsTone)->Set(sanitizedEffectsSettings.tone);
-  plugin.GetParam(kParamEffectsChorus)->Set(sanitizedEffectsSettings.chorus);
-}
-
 bool IsPatchOwnedParam(int paramIdx) {
   // These controls persist across patch changes and retain their constructor defaults.
   switch (paramIdx) {
@@ -115,6 +91,20 @@ bool IsPatchOwnedParam(int paramIdx) {
   case kParamEffectsReverb:
   case kParamTranspose:      return false;
   default:                   return paramIdx >= 0 && paramIdx < kNumParams;
+  }
+}
+
+// Looks a parameter's value up in the sanitized settings. False for a parameter that neither settings struct holds (transpose).
+bool GetSettingsParamValue(int paramIdx, const GlobalVoiceSettings& voiceSettings, const EffectsSettings& effectsSettings, double& value) {
+  return global_settings::GetParamValue(paramIdx, voiceSettings, value) || effects_settings::GetParamValue(paramIdx, effectsSettings, value);
+}
+
+void SetPatchOwnedParams(Addivox& plugin, const patch_io::PatchDocument& document) {
+  const GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
+  const EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
+  for (int paramIdx = 0; paramIdx < kNumParams; ++paramIdx) {
+    double value = 0.0;
+    if (IsPatchOwnedParam(paramIdx) && GetSettingsParamValue(paramIdx, voiceSettings, effectsSettings, value)) plugin.GetParam(paramIdx)->Set(value);
   }
 }
 
@@ -142,39 +132,51 @@ void ResetNonPatchOwnedParamsToDefaults(Addivox& plugin) {
   }
 }
 
+// A factory preset chunk holds the patch TOML, then the values of the parameters up to kParamEffectsTone in index order. Later parameters are not stored:
+// restoring the preset takes them from the TOML (see RestoreStateParamsFromChunk).
 bool BuildPatchChunk(const patch_io::PatchDocument& document, IByteChunk& chunk) {
-  const std::string toml = patch_io::SerializePatchToToml(document);
   const GlobalVoiceSettings voiceSettings = global_settings::Sanitize(document.voiceSettings);
   const EffectsSettings effectsSettings = effects_settings::Sanitize(document.effectsSettings);
-  return chunk.PutStr(toml.c_str()) > 0 && chunk.Put(&voiceSettings.levelScale) > 0 && chunk.Put(&voiceSettings.attackScale) > 0 &&
-         chunk.Put(&voiceSettings.releaseScale) > 0 && chunk.Put(&voiceSettings.tuningCents) > 0 && chunk.Put(&voiceSettings.panOffset) > 0 &&
-         chunk.Put(&voiceSettings.levelVariationAmplitudeScale) > 0 && chunk.Put(&voiceSettings.levelVariationRateScale) > 0 &&
-         chunk.Put(&voiceSettings.pitchVariationAmplitudeScale) > 0 && chunk.Put(&voiceSettings.pitchVariationRateScale) > 0 &&
-         chunk.Put(&voiceSettings.panVariationAmplitudeScale) > 0 && chunk.Put(&voiceSettings.panVariationRateScale) > 0 &&
-         chunk.Put(&voiceSettings.portamentoTimeAtCC5MinSec) > 0 && chunk.Put(&voiceSettings.portamentoTimeAtCC5MaxSec) > 0 &&
-         chunk.Put(&effectsSettings.reverb) > 0 && chunk.Put(&effectsSettings.drive) > 0 && chunk.Put(&effectsSettings.chorus) > 0 &&
-         chunk.Put(&effectsSettings.tone) > 0;
+  if (chunk.PutStr(patch_io::SerializePatchToToml(document).c_str()) <= 0) return false;
+
+  for (int paramIdx = 0; paramIdx <= kParamEffectsTone; ++paramIdx) {
+    double value = 0.0;
+    if (!GetSettingsParamValue(paramIdx, voiceSettings, effectsSettings, value) || chunk.Put(&value) <= 0) return false;
+  }
+  return true;
 }
 
-bool AppendPluginStateSettingsChunk(IByteChunk& chunk, BreathCCSource breathCCSource, bool harmonicVisualizerEnabled, int pitchBendRange, bool patchDirty,
-                                    const std::string& patchCleanSnapshot, int activePatchSource, int activeFactoryPatchIdx, const std::string& activePatchPath,
-                                    const std::string& activePatchGroupKey, int portamentoCC) {
+// The settings block that follows the parameter values in a saved state.
+struct PluginStateSettings {
+  BreathCCSource breathCCSource{kDefaultBreathCCSource};
+  bool harmonicVisualizerEnabled{kDefaultHarmonicVisualizerEnabled};
+  int pitchBendRange{kDefaultPitchBendRange};
+  bool patchDirty{false};
+  std::string patchCleanSnapshot;
+  int patchSource{0};
+  int factoryPatchIdx{-1};
+  std::string patchPath;
+  std::string patchGroupKey;
+  int portamentoCC{5};
+};
+
+bool AppendPluginStateSettingsChunk(IByteChunk& chunk, const PluginStateSettings& settings) {
   const uint32_t magic = kPluginStateSettingsMagic;
-  const int32_t rawBreathCCSource = static_cast<int32_t>(breathCCSource);
-  const int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
-  const int32_t rawPitchBendRange = static_cast<int32_t>(SanitizePitchBendRange(pitchBendRange));
-  const int32_t rawPatchDirty = patchDirty ? 1 : 0;
-  const int32_t rawPatchSource = static_cast<int32_t>(activePatchSource);
-  const int32_t rawFactoryPatchIdx = static_cast<int32_t>(activeFactoryPatchIdx);
-  const int32_t rawPortamentoCC = portamentoCC;
+  const int32_t rawBreathCCSource = static_cast<int32_t>(settings.breathCCSource);
+  const int32_t rawHarmonicVisualizerEnabled = settings.harmonicVisualizerEnabled ? 1 : 0;
+  const int32_t rawPitchBendRange = static_cast<int32_t>(SanitizePitchBendRange(settings.pitchBendRange));
+  const int32_t rawPatchDirty = settings.patchDirty ? 1 : 0;
+  const int32_t rawPatchSource = static_cast<int32_t>(settings.patchSource);
+  const int32_t rawFactoryPatchIdx = static_cast<int32_t>(settings.factoryPatchIdx);
+  const int32_t rawPortamentoCC = settings.portamentoCC;
   return chunk.Put(&magic) > 0 && chunk.Put(&rawBreathCCSource) > 0 && chunk.Put(&rawHarmonicVisualizerEnabled) > 0 && chunk.Put(&rawPitchBendRange) > 0 &&
-         chunk.Put(&rawPatchDirty) > 0 && chunk.PutStr(patchCleanSnapshot.c_str()) > 0 && chunk.Put(&rawPatchSource) > 0 &&
-         chunk.Put(&rawFactoryPatchIdx) > 0 && chunk.PutStr(activePatchPath.c_str()) > 0 && chunk.PutStr(activePatchGroupKey.c_str()) > 0 && chunk.Put(&rawPortamentoCC) > 0;
+         chunk.Put(&rawPatchDirty) > 0 && chunk.PutStr(settings.patchCleanSnapshot.c_str()) > 0 && chunk.Put(&rawPatchSource) > 0 &&
+         chunk.Put(&rawFactoryPatchIdx) > 0 && chunk.PutStr(settings.patchPath.c_str()) > 0 && chunk.PutStr(settings.patchGroupKey.c_str()) > 0 &&
+         chunk.Put(&rawPortamentoCC) > 0;
 }
 
-bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathCCSource& breathCCSource, bool& harmonicVisualizerEnabled, int& pitchBendRange,
-                                  bool& patchDirty, std::string& patchCleanSnapshot, int& activePatchSource, int& activeFactoryPatchIdx,
-                                  std::string& activePatchPath, std::string& activePatchGroupKey, int& portamentoCC) {
+// Fields that are absent (older states) keep the values that settings came in with.
+bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, PluginStateSettings& settings) {
   uint32_t magic = 0;
   int position = chunk.Get(&magic, startPos);
   if (position < 0 || magic != kPluginStateSettingsMagic) return false;
@@ -183,11 +185,7 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathC
   position = chunk.Get(&rawBreathCCSource, position);
   if (position < 0) return false;
 
-  breathCCSource = SanitizeBreathCCSource(rawBreathCCSource);
-
-  int32_t rawHarmonicVisualizerEnabled = harmonicVisualizerEnabled ? 1 : 0;
-  position = chunk.Get(&rawHarmonicVisualizerEnabled, position);
-  if (position >= 0) harmonicVisualizerEnabled = (rawHarmonicVisualizerEnabled != 0);
+  settings.breathCCSource = SanitizeBreathCCSource(rawBreathCCSource);
 
   // Optional fields leave the cursor unchanged when absent, preserving older state chunks.
   const auto readInt = [&](int32_t& value) {
@@ -207,25 +205,17 @@ bool ReadPluginStateSettingsChunk(const IByteChunk& chunk, int startPos, BreathC
     return true;
   };
 
-  int32_t rawPitchBendRange = static_cast<int32_t>(pitchBendRange);
-  if (readInt(rawPitchBendRange)) pitchBendRange = SanitizePitchBendRange(rawPitchBendRange);
+  int32_t rawValue = 0;
+  position = chunk.Get(&rawValue, position);
+  if (position >= 0) settings.harmonicVisualizerEnabled = (rawValue != 0);
 
-  int32_t rawPatchDirty = patchDirty ? 1 : 0;
-  if (readInt(rawPatchDirty)) patchDirty = (rawPatchDirty != 0);
-
-  readString(patchCleanSnapshot);
-
-  int32_t rawPatchSource = activePatchSource;
-  if (readInt(rawPatchSource)) activePatchSource = rawPatchSource;
-
-  int32_t rawFactoryPatchIdx = activeFactoryPatchIdx;
-  if (readInt(rawFactoryPatchIdx)) activeFactoryPatchIdx = rawFactoryPatchIdx;
-
-  readString(activePatchPath);
-  if (readString(activePatchGroupKey)) {
-    int32_t rawPortamentoCC = 5;
-    if (readInt(rawPortamentoCC)) portamentoCC = rawPortamentoCC == 65 ? 65 : 5;
-  }
+  if (readInt(rawValue)) settings.pitchBendRange = SanitizePitchBendRange(rawValue);
+  if (readInt(rawValue)) settings.patchDirty = (rawValue != 0);
+  readString(settings.patchCleanSnapshot);
+  if (readInt(rawValue)) settings.patchSource = rawValue;
+  if (readInt(rawValue)) settings.factoryPatchIdx = rawValue;
+  readString(settings.patchPath);
+  if (readString(settings.patchGroupKey) && readInt(rawValue)) settings.portamentoCC = rawValue == 65 ? 65 : 5;
 
   return true;
 }
@@ -289,15 +279,22 @@ std::string SanitizePatchFileName(std::string_view patchName) {
   return EnsureTomlExtension(sanitized);
 }
 
+// The app-group folder that the iOS app mirrors its user patches into, for the AUv3 extension to read. Empty on other platforms.
+std::string GetSharedUserPatchMirrorDirectory() {
+#if defined(OS_IOS)
+  WDL_String appGroupPath;
+  AppGroupContainerPath(appGroupPath, APP_GROUP_ID);
+  if (appGroupPath.GetLength() == 0) return {};
+
+  return patch_io::detail::JoinPath(patch_io::detail::JoinPath(appGroupPath.Get(), BUNDLE_NAME), "Patches");
+#else
+  return {};
+#endif
+}
+
 std::string GetDefaultUserPatchDirectory() {
 #if defined(OS_IOS)
-  if (IsOOPAuv3AppExtension()) {
-    WDL_String appGroupPath;
-    AppGroupContainerPath(appGroupPath, APP_GROUP_ID);
-    if (appGroupPath.GetLength() == 0) return {};
-
-    return patch_io::detail::JoinPath(patch_io::detail::JoinPath(appGroupPath.Get(), BUNDLE_NAME), "Patches");
-  }
+  if (IsOOPAuv3AppExtension()) return GetSharedUserPatchMirrorDirectory();
 
   const char* home = std::getenv("HOME");
   if (!home || home[0] == '\0') return {};
@@ -312,18 +309,6 @@ std::string GetDefaultUserPatchDirectory() {
 #endif
 }
 
-std::string GetSharedUserPatchMirrorDirectory() {
-#if defined(OS_IOS)
-  WDL_String appGroupPath;
-  AppGroupContainerPath(appGroupPath, APP_GROUP_ID);
-  if (appGroupPath.GetLength() == 0) return {};
-
-  return patch_io::detail::JoinPath(patch_io::detail::JoinPath(appGroupPath.Get(), BUNDLE_NAME), "Patches");
-#else
-  return {};
-#endif
-}
-
 bool IsReadOnlyUserPatchLibrary() {
 #if defined(OS_IOS)
   return IsOOPAuv3AppExtension();
@@ -334,11 +319,12 @@ bool IsReadOnlyUserPatchLibrary() {
 
 std::string EnsureDefaultUserPatchDirectory() {
   const std::string directory = GetDefaultUserPatchDirectory();
-  if (directory.empty()) return {};
+  return (!directory.empty() && patch_io::detail::EnsureDirectoryExists(directory)) ? directory : std::string{};
+}
 
-  if (!patch_io::detail::EnsureDirectoryExists(directory)) return {};
-
-  return directory;
+// Where a patch file dialog opens: the last folder the user chose, or the user patch folder.
+std::string GetPatchDialogDirectory(const std::string& lastUsedDirectory) {
+  return lastUsedDirectory.empty() ? EnsureDefaultUserPatchDirectory() : lastUsedDirectory;
 }
 
 std::string GetStandaloneSettingsDirectory() {
@@ -398,11 +384,7 @@ bool SaveStandaloneStateChunk(const IByteChunk& chunk) {
 }
 
 void DeleteStandaloneSettingsFile(const std::string& path) {
-  if (path.empty()) return;
-
-  if (!patch_io::detail::PathExists(path)) return;
-
-  patch_io::detail::DeleteFile(path);
+  if (!path.empty() && patch_io::detail::PathExists(path)) patch_io::detail::DeleteFile(path);
 }
 
 void DeleteStandaloneStateFile() { DeleteStandaloneSettingsFile(GetStandaloneSettingsPath("standalone_state.chunk")); }
@@ -436,10 +418,7 @@ void ShowPatchFileError(IGraphics* ui, const char* title, const std::string& mes
   if (ui) ui->ShowMessageBox(message.c_str(), title, kMB_OK);
 }
 
-std::string TrimTrailingSeparators(std::string path) {
-  const std::string_view trimmed = patch_io::detail::TrimTrailingPathSeparators(path);
-  return std::string{trimmed};
-}
+std::string TrimTrailingSeparators(std::string_view path) { return std::string{patch_io::detail::TrimTrailingPathSeparators(path)}; }
 
 std::string NormalizeMenuPath(std::string path) {
   for (char& c : path) {
@@ -481,7 +460,7 @@ bool PathPrefixMatches(const std::string& full, const std::string& base) {
 }
 
 std::string RelativePathFromDirectory(std::string_view directory, std::string_view path) {
-  const std::string base = TrimTrailingSeparators(std::string{directory});
+  const std::string base = TrimTrailingSeparators(directory);
   const std::string full{path};
   if (base.empty() || full.size() <= base.size()) return full;
 
@@ -497,17 +476,16 @@ bool IsAbsolutePath(std::string_view path) {
   return path.size() > 0 && (path[0] == '/' || path[0] == '\\' || (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':'));
 }
 
-std::string DirectoryRelativeToRoot(std::string_view rootDirectory, std::string_view filePath) {
-  const std::string relativePath = RelativePathFromDirectory(rootDirectory, filePath);
-  return patch_io::detail::ParentPath(relativePath);
+// "User", followed by the patch's subfolders within the user patch directory.
+std::vector<std::string> UserPatchMenuPath(std::string_view userPatchDirectory, std::string_view patchPath) {
+  std::vector<std::string> menuPath{"User"};
+  const std::vector<std::string> subfolders = SplitMenuPath(patch_io::detail::ParentPath(RelativePathFromDirectory(userPatchDirectory, patchPath)));
+  menuPath.insert(menuPath.end(), subfolders.begin(), subfolders.end());
+  return menuPath;
 }
 
 std::string UserPatchGroupKeyForPath(std::string_view userPatchDirectory, std::string_view patchPath) {
-  std::vector<std::string> menuPath{"User"};
-  const std::string relativeDirectory = DirectoryRelativeToRoot(userPatchDirectory, patchPath);
-  const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
-  menuPath.insert(menuPath.end(), relativeParts.begin(), relativeParts.end());
-  return MakeGroupKey(menuPath);
+  return MakeGroupKey(UserPatchMenuPath(userPatchDirectory, patchPath));
 }
 
 std::string GetUniqueChildDirectory(std::string_view parentDirectory, std::string_view preferredName) {
@@ -558,43 +536,20 @@ bool RemoveDirectoryTree(std::string_view path) {
   if (!patch_io::detail::PathExists(path)) return true;
   if (!patch_io::detail::IsDirectory(path)) return patch_io::detail::DeleteFile(path);
 
-  WDL_DirScan scan;
-  if (scan.First(std::string{path}.c_str()) == 0) {
-    do {
-      const char* entryName = scan.GetCurrentFN();
-      if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
-
-      WDL_FastString childPath;
-      scan.GetCurrentFullFN(&childPath);
-      const int directoryState = scan.GetCurrentIsDirectory();
-      const bool removed = (directoryState != 0 && directoryState != 4) ? RemoveDirectoryTree(childPath.Get()) : patch_io::detail::DeleteFile(childPath.Get());
-      if (!removed) return false;
-    } while (scan.Next() == 0);
-  }
-
-  return std::remove(std::string{path}.c_str()) == 0;
+  const bool removedContents = patch_io::detail::ForEachDirectoryEntry(path, [](const char* childPath, bool isDirectory) {
+    return isDirectory ? RemoveDirectoryTree(childPath) : patch_io::detail::DeleteFile(childPath);
+  });
+  return removedContents && std::remove(std::string{path}.c_str()) == 0;
 }
 
 bool CopyDirectoryTree(std::string_view sourceDirectory, std::string_view destinationDirectory) {
   if (!patch_io::detail::IsDirectory(sourceDirectory)) return false;
   if (!patch_io::detail::EnsureDirectoryExists(destinationDirectory)) return false;
 
-  WDL_DirScan scan;
-  if (scan.First(std::string{sourceDirectory}.c_str()) != 0) return true;
-
-  do {
-    const char* entryName = scan.GetCurrentFN();
-    if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
-
-    WDL_FastString childPath;
-    scan.GetCurrentFullFN(&childPath);
-    const std::string destinationPath = patch_io::detail::JoinPath(destinationDirectory, RelativePathFromDirectory(sourceDirectory, childPath.Get()));
-    const int directoryState = scan.GetCurrentIsDirectory();
-    const bool copied = (directoryState != 0 && directoryState != 4) ? CopyDirectoryTree(childPath.Get(), destinationPath) : CopyFileBytes(childPath.Get(), destinationPath);
-    if (!copied) return false;
-  } while (scan.Next() == 0);
-
-  return true;
+  return patch_io::detail::ForEachDirectoryEntry(sourceDirectory, [&](const char* childPath, bool isDirectory) {
+    const std::string destinationPath = patch_io::detail::JoinPath(destinationDirectory, RelativePathFromDirectory(sourceDirectory, childPath));
+    return isDirectory ? CopyDirectoryTree(childPath, destinationPath) : CopyFileBytes(childPath, destinationPath);
+  });
 }
 
 bool SyncUserPatchDirectoryToSharedMirror() {
@@ -632,11 +587,16 @@ bool CopyPatchCollection(std::string_view sourceDirectory, std::string_view dest
 }
 
 bool IsPathInDirectory(std::string_view directory, std::string_view path) {
-  const std::string base = TrimTrailingSeparators(std::string{directory});
+  const std::string base = TrimTrailingSeparators(directory);
   const std::string full{path};
   if (base.empty() || full.size() < base.size()) return false;
   if (!PathPrefixMatches(full, base)) return false;
   return full.size() == base.size() || full[base.size()] == '/' || full[base.size()] == '\\';
+}
+
+// A message's payload, or nullptr if the message is not the expected one or its data is not that payload's size.
+template <typename Payload> const Payload* GetPayload(bool isExpectedMessage, int dataSize, const void* pData) {
+  return (isExpectedMessage && pData && dataSize == sizeof(Payload)) ? static_cast<const Payload*>(pData) : nullptr;
 }
 
 bool ShouldTrackPatchDirtyForParamSource(EParamSource source) {
@@ -1044,14 +1004,15 @@ void Addivox::SetHarmonicVisualizerEnabled(bool enabled) {
 }
 
 void Addivox::SendBreathControlFromUI(double value, int channel, int offset) {
-  if (IsHighResolutionBreathCCSource(mBreathCCSource)) {
+  const BreathCCSourceInfo& info = GetBreathCCSourceInfo(mBreathCCSource);
+  if (info.IsHighResolution()) {
     const int rawValue = GetHighResolutionControllerValue(value);
-    IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), rawValue / 128, channel, offset));
-    IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceLSBController(mBreathCCSource), rawValue % 128, channel, offset));
+    IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(info.msbController, rawValue / 128, channel, offset));
+    IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(info.lsbController, rawValue % 128, channel, offset));
     return;
   }
 
-  IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(GetBreathCCSourceMSBController(mBreathCCSource), GetSevenBitControllerValue(value), channel, offset));
+  IPlugAPIBase::SendMidiMsgFromUI(MakeControlChangeMsg(info.msbController, GetSevenBitControllerValue(value), channel, offset));
 }
 
 void Addivox::ApplyPatchDocumentToState(const patch_io::PatchDocument& document) {
@@ -1065,8 +1026,7 @@ void Addivox::ApplyPatchDocumentToState(const patch_io::PatchDocument& document)
   mDSP.SetCompoundPatch(document.compoundPatch);
 #endif
 
-  SetPatchVoiceSettingsParams(*this, document.voiceSettings);
-  SetPatchEffectsSettingsParams(*this, document.effectsSettings);
+  SetPatchOwnedParams(*this, document);
 }
 
 void Addivox::FinalizePatchRecall(bool syncControlValues) {
@@ -1081,9 +1041,7 @@ void Addivox::PromptLoadPatchFromFile() {
   if (!ui) return;
 
   WDL_String fileName;
-  WDL_String directory;
-  const std::string initialDirectory = mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory;
-  if (!initialDirectory.empty()) directory.Set(initialDirectory.c_str());
+  WDL_String directory{GetPatchDialogDirectory(mUserPatchDirectory).c_str()};
 
   ui->PromptForFile(fileName, directory, EFileAction::Open, "toml", [this](const WDL_String& selectedFileName, const WDL_String&) {
     const std::string fullPath = GetFullFileDialogPath(selectedFileName);
@@ -1113,7 +1071,7 @@ void Addivox::PromptSavePatchToFile() {
                                                                                              : SanitizePatchFileName(document.name);
     initialDirectory = (mActivePatchSource == PatchSource::User && !mActivePatchPath.empty())
                            ? patch_io::detail::ParentPath(mActivePatchPath)
-                           : (mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory);
+                           : GetPatchDialogDirectory(mUserPatchDirectory);
   }
 
   WDL_String fileName;
@@ -1142,11 +1100,8 @@ void Addivox::PromptSavePatchToFile() {
     const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
     if (IsPathInDirectory(userPatchDirectory, destinationPath)) {
       const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
-      mActivePatchSource = PatchSource::User;
-      mActiveFactoryPatchIdx = -1;
-      mActivePatchPath = destinationPath;
+      SetActiveUserPatch(destinationPath);
       mActivePatchDisplayName = patch_io::detail::FileStem(destinationPath);
-      mActivePatchGroupKey = UserPatchGroupKeyForPath(userPatchDirectory, destinationPath);
       SetActivePatchCleanSnapshotFromCurrentState();
     }
 
@@ -1172,11 +1127,8 @@ void Addivox::PromptSavePatchToFile() {
     mUserPatchDirectory = patch_io::detail::ParentPath(fullPath);
     {
       const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
-      mActivePatchSource = PatchSource::User;
-      mActiveFactoryPatchIdx = -1;
-      mActivePatchPath = fullPath;
+      SetActiveUserPatch(fullPath);
       mActivePatchDisplayName = patch_io::detail::FileStem(fullPath);
-      mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), fullPath);
       SetActivePatchCleanSnapshotFromCurrentState();
     }
     RebuildPatchCatalog();
@@ -1232,12 +1184,11 @@ bool Addivox::SerializeState(IByteChunk& chunk) const {
   // Hosts may call this from any thread (AUv3 XPC, VST3), so snapshot the patch state under the lock, then
   // serialize from the locals. SerializeParams can take iPlug2's params mutex and must stay outside the lock.
   patch_io::PatchDocument document;
-  std::string statePatchPath;
-  bool activePatchDirty = false;
-  std::string activePatchCleanSnapshot;
-  int activePatchSource = static_cast<int>(PatchSource::Unknown);
-  int activeFactoryPatchIdx = -1;
-  std::string activePatchGroupKey;
+  PluginStateSettings settings;
+  settings.breathCCSource = mBreathCCSource;
+  settings.harmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
+  settings.pitchBendRange = mPitchBendRange;
+  settings.portamentoCC = mPortamentoCC;
   {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
     document.name =
@@ -1246,22 +1197,20 @@ bool Addivox::SerializeState(IByteChunk& chunk) const {
     document.effectsSettings = GetEffectsSettingsFromParams(*this);
     document.compoundPatch = mEditorState->compoundPatch;
 
-    statePatchPath = mActivePatchPath;
+    settings.patchPath = mActivePatchPath;
     if (mActivePatchSource == PatchSource::User) {
       const std::string userPatchDirectory = GetDefaultUserPatchDirectory();
-      if (!userPatchDirectory.empty()) statePatchPath = RelativePathFromDirectory(userPatchDirectory, mActivePatchPath);
+      if (!userPatchDirectory.empty()) settings.patchPath = RelativePathFromDirectory(userPatchDirectory, mActivePatchPath);
     }
 
-    activePatchDirty = mActivePatchDirty;
-    activePatchCleanSnapshot = mActivePatchCleanSnapshot;
-    activePatchSource = static_cast<int>(mActivePatchSource);
-    activeFactoryPatchIdx = mActiveFactoryPatchIdx;
-    activePatchGroupKey = mActivePatchGroupKey;
+    settings.patchDirty = mActivePatchDirty;
+    settings.patchCleanSnapshot = mActivePatchCleanSnapshot;
+    settings.patchSource = static_cast<int>(mActivePatchSource);
+    settings.factoryPatchIdx = mActiveFactoryPatchIdx;
+    settings.patchGroupKey = mActivePatchGroupKey;
   }
 
-  return chunk.PutStr(patch_io::SerializePatchToToml(document).c_str()) > 0 && SerializeParams(chunk) &&
-         AppendPluginStateSettingsChunk(chunk, mBreathCCSource, mHarmonicVisualizerEnabled.load(std::memory_order_relaxed), mPitchBendRange, activePatchDirty,
-                                        activePatchCleanSnapshot, activePatchSource, activeFactoryPatchIdx, statePatchPath, activePatchGroupKey, mPortamentoCC);
+  return chunk.PutStr(patch_io::SerializePatchToToml(document).c_str()) > 0 && SerializeParams(chunk) && AppendPluginStateSettingsChunk(chunk, settings);
 }
 
 int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
@@ -1283,35 +1232,27 @@ int Addivox::UnserializeState(const IByteChunk& chunk, int startPos) {
   LEAVE_PARAMS_MUTEX
   mSuppressPatchDirtyTracking = false;
 
-  int restoredPitchBendRange = mPitchBendRange;
-  BreathCCSource restoredBreathCCSource = kDefaultBreathCCSource;
-  int restoredPortamentoCC = 5;
-  bool restoredHarmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
-  bool restoredPatchDirty = false;
-  std::string restoredPatchCleanSnapshot;
-  int restoredPatchSource = static_cast<int>(PatchSource::Unknown);
-  int restoredFactoryPatchIdx = -1;
-  std::string restoredPatchPath;
-  std::string restoredPatchGroupKey;
-  if (ReadPluginStateSettingsChunk(chunk, pos, restoredBreathCCSource, restoredHarmonicVisualizerEnabled, restoredPitchBendRange, restoredPatchDirty,
-                                   restoredPatchCleanSnapshot, restoredPatchSource, restoredFactoryPatchIdx, restoredPatchPath, restoredPatchGroupKey, restoredPortamentoCC)) {
-    SetPitchBendRange(restoredPitchBendRange);
-    SetBreathCCSource(restoredBreathCCSource);
-    SetHarmonicVisualizerEnabled(restoredHarmonicVisualizerEnabled);
+  PluginStateSettings restored;
+  restored.pitchBendRange = mPitchBendRange;
+  restored.harmonicVisualizerEnabled = mHarmonicVisualizerEnabled.load(std::memory_order_relaxed);
+  if (ReadPluginStateSettingsChunk(chunk, pos, restored)) {
+    SetPitchBendRange(restored.pitchBendRange);
+    SetBreathCCSource(restored.breathCCSource);
+    SetHarmonicVisualizerEnabled(restored.harmonicVisualizerEnabled);
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
-    mPendingRestoredPatchDirty = restoredPatchDirty;
+    mPendingRestoredPatchDirty = restored.patchDirty;
     mPendingRestoredPatchHasDirtyState = true;
     mPendingRestoredPatchSource =
-        static_cast<PatchSource>(std::clamp(restoredPatchSource, static_cast<int>(PatchSource::Unknown), static_cast<int>(PatchSource::User)));
-    mPendingRestoredFactoryPatchIdx = restoredFactoryPatchIdx;
-    mPendingRestoredPatchPath = std::move(restoredPatchPath);
-    mPendingRestoredPatchGroupKey = std::move(restoredPatchGroupKey);
+        static_cast<PatchSource>(std::clamp(restored.patchSource, static_cast<int>(PatchSource::Unknown), static_cast<int>(PatchSource::User)));
+    mPendingRestoredFactoryPatchIdx = restored.factoryPatchIdx;
+    mPendingRestoredPatchPath = std::move(restored.patchPath);
+    mPendingRestoredPatchGroupKey = std::move(restored.patchGroupKey);
     mPendingRestoredPatchHasIdentity = mPendingRestoredPatchSource != PatchSource::Unknown;
   }
-  if (mRestoringFactoryPatchIdx < 0) SetPortamentoCC(restoredPortamentoCC);
+  if (mRestoringFactoryPatchIdx < 0) SetPortamentoCC(restored.portamentoCC);
   {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
-    mPendingRestoredPatchCleanSnapshot = std::move(restoredPatchCleanSnapshot);
+    mPendingRestoredPatchCleanSnapshot = std::move(restored.patchCleanSnapshot);
     mPendingRestoredPatchHasCleanSnapshot = !mPendingRestoredPatchCleanSnapshot.empty();
   }
 
@@ -1340,8 +1281,7 @@ void Addivox::ApplyPendingRestoredState() {
     mActivePatchGroupKey = std::move(mPendingRestoredPatchGroupKey);
 
     if (mActivePatchSource == PatchSource::Factory) {
-      mActivePatchPath = FactoryPatchPath(mActiveFactoryPatchIdx);
-      mActivePatchGroupKey = "Factory";
+      SetActiveFactoryPatch(mActiveFactoryPatchIdx);
     } else if (mActivePatchSource == PatchSource::User) {
       const std::string userPatchDirectory = EnsureDefaultUserPatchDirectory();
       if (!mActivePatchPath.empty() && !IsAbsolutePath(mActivePatchPath) && !userPatchDirectory.empty())
@@ -1350,10 +1290,7 @@ void Addivox::ApplyPendingRestoredState() {
         mActivePatchGroupKey = UserPatchGroupKeyForPath(userPatchDirectory, mActivePatchPath);
     }
   } else if (mRestoringFactoryPatchIdx >= 0) {
-    mActivePatchSource = PatchSource::Factory;
-    mActiveFactoryPatchIdx = mRestoringFactoryPatchIdx;
-    mActivePatchPath = FactoryPatchPath(mRestoringFactoryPatchIdx);
-    mActivePatchGroupKey = "Factory";
+    SetActiveFactoryPatch(mRestoringFactoryPatchIdx);
     mRestoringFactoryPatchIdx = -1;
     mPendingRestoredPatchCleanSnapshot.clear();
     mPendingRestoredPatchHasCleanSnapshot = false;
@@ -1516,51 +1453,49 @@ void Addivox::ProcessMidiMsg(const IMidiMsg& msg) {
 void Addivox::OnParamChange(int paramIdx) { mDSP.SetParam(paramIdx, GetParam(paramIdx)->Value()); }
 
 bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData) {
-  if (msgTag == editor_messages::kMsgTagPromptLoadPatchFromFile) {
+  using namespace editor_messages;
+
+  if (msgTag == kMsgTagPromptLoadPatchFromFile) {
     PromptLoadPatchFromFile();
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagPromptSavePatchToFile) {
+  if (msgTag == kMsgTagPromptSavePatchToFile) {
     PromptSavePatchToFile();
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagPatchManagerAction && dataSize == sizeof(editor_messages::PatchManagerActionPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::PatchManagerActionPayload*>(pData);
+  if (const auto* payload = GetPayload<PatchManagerActionPayload>(msgTag == kMsgTagPatchManagerAction, dataSize, pData)) {
     HandlePatchManagerAction(payload->action, payload->patchId);
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagSetPortamentoCC && dataSize == sizeof(editor_messages::SetPortamentoCCPayload) && pData) {
-    SetPortamentoCC(static_cast<const editor_messages::SetPortamentoCCPayload*>(pData)->controller);
+  if (const auto* payload = GetPayload<SetPortamentoCCPayload>(msgTag == kMsgTagSetPortamentoCC, dataSize, pData)) {
+    SetPortamentoCC(payload->controller);
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagSetBreathCCSource && dataSize == sizeof(editor_messages::SetBreathCCSourcePayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetBreathCCSourcePayload*>(pData);
+  if (const auto* payload = GetPayload<SetBreathCCSourcePayload>(msgTag == kMsgTagSetBreathCCSource, dataSize, pData)) {
     SetBreathCCSource(SanitizeBreathCCSource(payload->source));
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagSetPitchBendRange && dataSize == sizeof(editor_messages::SetPitchBendRangePayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetPitchBendRangePayload*>(pData);
+  if (const auto* payload = GetPayload<SetPitchBendRangePayload>(msgTag == kMsgTagSetPitchBendRange, dataSize, pData)) {
     SetPitchBendRange(payload->semitones);
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagSetHarmonicVisualizerEnabled && dataSize == sizeof(editor_messages::SetHarmonicVisualizerEnabledPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetHarmonicVisualizerEnabledPayload*>(pData);
+  if (const auto* payload = GetPayload<SetHarmonicVisualizerEnabledPayload>(msgTag == kMsgTagSetHarmonicVisualizerEnabled, dataSize, pData)) {
     SetHarmonicVisualizerEnabled(payload->enabled != 0);
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagResetStandaloneStateToDefaults) {
+  if (msgTag == kMsgTagResetStandaloneStateToDefaults) {
     ResetStandaloneStateToDefaults();
     return true;
   }
 
-  if (msgTag == editor_messages::kMsgTagOpenAudioMidiSettings) {
+  if (msgTag == kMsgTagOpenAudioMidiSettings) {
 #if defined APP_API
     return addivox_standalone::OpenAudioMidiSettingsDialog();
 #else
@@ -1576,11 +1511,12 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     }
     return updated;
   };
+  const auto isValidParameter = [](int parameter) { return parameter >= 0 && parameter < OscillatorSettings::kNumParameters; };
+  const bool fromEditorTabs = ctrlTag == kCtrlTagEditorTabs;
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameter &&
-      dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetKeyNoteOscillatorParameterPayload*>(pData);
-    if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
+  if (const auto* payload =
+          GetPayload<SetKeyNoteOscillatorParameterPayload>(fromEditorTabs && msgTag == kMsgTagSetKeyNoteOscillatorParameter, dataSize, pData)) {
+    if (!isValidParameter(payload->parameter)) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
     return applyPatchEdit([&](CompoundPatch& patch) {
@@ -1588,35 +1524,32 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteOscillatorParameterValues &&
-      dataSize == sizeof(editor_messages::SetKeyNoteOscillatorParameterValuesPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetKeyNoteOscillatorParameterValuesPayload*>(pData);
-    if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
+  if (const auto* payload =
+          GetPayload<SetKeyNoteOscillatorParameterValuesPayload>(fromEditorTabs && msgTag == kMsgTagSetKeyNoteOscillatorParameterValues, dataSize, pData)) {
+    if (!isValidParameter(payload->parameter)) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
     return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteOscillatorParameterValues(payload->midiNote, parameter, payload->values); });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteEqCurve && dataSize > 0 && pData) {
+  if (fromEditorTabs && msgTag == kMsgTagSetKeyNoteEqCurve && dataSize > 0 && pData) {
     int midiNote = 0;
     EqCurve curve;
-    if (!editor_messages::DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve)) return false;
+    if (!DeserializeKeyNoteEqCurvePayload(dataSize, pData, midiNote, curve)) return false;
 
     return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteEqCurve(midiNote, curve); });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetKeyNoteResonance && dataSize > 0 && pData) {
+  if (fromEditorTabs && msgTag == kMsgTagSetKeyNoteResonance && dataSize > 0 && pData) {
     int midiNote = 0;
     ResonanceSettings resonance;
-    if (!editor_messages::DeserializeKeyNoteResonancePayload(dataSize, pData, midiNote, resonance)) return false;
+    if (!DeserializeKeyNoteResonancePayload(dataSize, pData, midiNote, resonance)) return false;
 
     return applyPatchEdit([&](CompoundPatch& patch) { return patch.SetKeyNoteResonance(midiNote, resonance); });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEnabled &&
-      dataSize == sizeof(editor_messages::SetAllKeyNotesEnabledPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEnabledPayload*>(pData);
-    if (payload->parameter < 0 || payload->parameter >= OscillatorSettings::kNumParameters) return false;
+  if (const auto* payload = GetPayload<SetAllKeyNotesEnabledPayload>(fromEditorTabs && msgTag == kMsgTagSetAllKeyNotesEnabled, dataSize, pData)) {
+    if (!isValidParameter(payload->parameter)) return false;
 
     const auto parameter = static_cast<OscillatorSettings::Parameter>(payload->parameter);
     return applyPatchEdit([&](CompoundPatch& patch) {
@@ -1625,37 +1558,32 @@ bool Addivox::OnMessage(int msgTag, int ctrlTag, int dataSize, const void* pData
     });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesEqEnabled &&
-      dataSize == sizeof(editor_messages::SetAllKeyNotesEqEnabledPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesEqEnabledPayload*>(pData);
+  if (const auto* payload = GetPayload<SetAllKeyNotesEqEnabledPayload>(fromEditorTabs && msgTag == kMsgTagSetAllKeyNotesEqEnabled, dataSize, pData)) {
     return applyPatchEdit([&](CompoundPatch& patch) {
       patch.SetAllKeyNotesEqEnabled(payload->enabled != 0);
       return true;
     });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs && msgTag == editor_messages::kMsgTagSetAllKeyNotesResonanceEnabled &&
-      dataSize == sizeof(editor_messages::SetAllKeyNotesResonanceEnabledPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::SetAllKeyNotesResonanceEnabledPayload*>(pData);
+  if (const auto* payload =
+          GetPayload<SetAllKeyNotesResonanceEnabledPayload>(fromEditorTabs && msgTag == kMsgTagSetAllKeyNotesResonanceEnabled, dataSize, pData)) {
     return applyPatchEdit([&](CompoundPatch& patch) {
       patch.SetAllKeyNotesResonanceEnabled(payload->enabled != 0, payload->midiNote);
       return true;
     });
   }
 
-  if (ctrlTag == kCtrlTagEditorTabs &&
-      (msgTag == editor_messages::kMsgTagAddKeyNotePatch || msgTag == editor_messages::kMsgTagRemoveKeyNotePatch) &&
-      dataSize == sizeof(editor_messages::KeyNotePatchPayload) && pData) {
-    const auto* payload = static_cast<const editor_messages::KeyNotePatchPayload*>(pData);
+  const bool isKeyNotePatchMessage = fromEditorTabs && (msgTag == kMsgTagAddKeyNotePatch || msgTag == kMsgTagRemoveKeyNotePatch);
+  if (const auto* payload = GetPayload<KeyNotePatchPayload>(isKeyNotePatchMessage, dataSize, pData)) {
     return applyPatchEdit([&](CompoundPatch& patch) {
-      return msgTag == editor_messages::kMsgTagAddKeyNotePatch ? patch.AddKeyNotePatch(payload->midiNote)
-                                                             : patch.RemoveKeyNotePatch(static_cast<int>(std::lround(payload->midiNote)));
+      return msgTag == kMsgTagAddKeyNotePatch ? patch.AddKeyNotePatch(payload->midiNote)
+                                              : patch.RemoveKeyNotePatch(static_cast<int>(std::lround(payload->midiNote)));
     });
   }
 
-  if (ctrlTag == kCtrlTagBender && msgTag == plugin_ui::layout::PitchBendWheelControl::kMessageTagSetPitchBendRange) {
-    const int bendRange = *static_cast<const int*>(pData);
-    SetPitchBendRange(bendRange);
+  const bool isBenderRangeMessage = ctrlTag == kCtrlTagBender && msgTag == plugin_ui::layout::PitchBendWheelControl::kMessageTagSetPitchBendRange;
+  if (const auto* bendRange = GetPayload<int>(isBenderRangeMessage, dataSize, pData)) {
+    SetPitchBendRange(*bendRange);
     return true;
   }
 
@@ -1695,10 +1623,7 @@ void Addivox::RebuildPatchCatalog() {
     entry.path = patchPath;
     entry.name = document.name.empty() ? patch_io::detail::FileStem(patchPath) : document.name;
 
-    entry.menuPath = {"User"};
-    const std::string relativeDirectory = DirectoryRelativeToRoot(userPatchDirectory, patchPath);
-    const std::vector<std::string> relativeParts = SplitMenuPath(relativeDirectory);
-    entry.menuPath.insert(entry.menuPath.end(), relativeParts.begin(), relativeParts.end());
+    entry.menuPath = UserPatchMenuPath(userPatchDirectory, patchPath);
     entry.groupKey = MakeGroupKey(entry.menuPath);
     mPatchCatalog.push_back(std::move(entry));
   }
@@ -1723,8 +1648,7 @@ void Addivox::ReconcileActivePatchIdentity() {
     }
     if (mActiveFactoryPatchIdx >= 0 && mActiveFactoryPatchIdx < NPresets()) {
       SetCurrentPresetIdx(mActiveFactoryPatchIdx);
-      mActivePatchPath = FactoryPatchPath(mActiveFactoryPatchIdx);
-      mActivePatchGroupKey = "Factory";
+      SetActiveFactoryPatch(mActiveFactoryPatchIdx);
       return;
     }
     mActivePatchSource = PatchSource::Unknown;
@@ -1771,10 +1695,7 @@ void Addivox::RestoreFactoryPatch(int patchIdx) {
 
   {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
-    mActivePatchSource = PatchSource::Factory;
-    mActiveFactoryPatchIdx = patchIdx;
-    mActivePatchPath = FactoryPatchPath(patchIdx);
-    mActivePatchGroupKey = "Factory";
+    SetActiveFactoryPatch(patchIdx);
     mActivePatchDisplayName = GetPresetName(patchIdx);
     SetActivePatchCleanSnapshotFromCurrentState();
   }
@@ -1803,10 +1724,7 @@ void Addivox::LoadUserPatchByPath(const std::string& path) {
 
   {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
-    mActivePatchSource = PatchSource::User;
-    mActiveFactoryPatchIdx = -1;
-    mActivePatchPath = path;
-    mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), path);
+    SetActiveUserPatch(path);
     SetActivePatchCleanSnapshotFromCurrentState();
   }
   RebuildPatchCatalog();
@@ -1820,9 +1738,7 @@ void Addivox::PromptImportPatchFromFile() {
   if (!ui) return;
 
   WDL_String fileName;
-  WDL_String directory;
-  const std::string initialDirectory = mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory;
-  if (!initialDirectory.empty()) directory.Set(initialDirectory.c_str());
+  WDL_String directory{GetPatchDialogDirectory(mUserPatchDirectory).c_str()};
 
   ui->PromptForFile(fileName, directory, EFileAction::Open, "toml", [this](const WDL_String& selectedFileName, const WDL_String&) {
     const std::string sourcePath = GetFullFileDialogPath(selectedFileName);
@@ -1874,6 +1790,21 @@ void Addivox::LoadPatchById(int patchId) {
     LoadUserPatchByPath(path);
 }
 
+// These two set which catalog patch is active. Callers hold the patch mutex.
+void Addivox::SetActiveFactoryPatch(int patchIdx) {
+  mActivePatchSource = PatchSource::Factory;
+  mActiveFactoryPatchIdx = patchIdx;
+  mActivePatchPath = FactoryPatchPath(patchIdx);
+  mActivePatchGroupKey = "Factory";
+}
+
+void Addivox::SetActiveUserPatch(const std::string& path) {
+  mActivePatchSource = PatchSource::User;
+  mActiveFactoryPatchIdx = -1;
+  mActivePatchPath = path;
+  mActivePatchGroupKey = UserPatchGroupKeyForPath(EnsureDefaultUserPatchDirectory(), path);
+}
+
 std::string Addivox::FactoryPatchPath(int patchIdx) const {
   const bool hasPath = patchIdx >= 0 && patchIdx < static_cast<int>(mFactoryPatchPaths.size());
   return hasPath ? mFactoryPatchPaths[patchIdx] : std::string{};
@@ -1892,32 +1823,22 @@ void Addivox::CyclePatchInCurrentGroup(int direction) {
   {
     const std::lock_guard<std::recursive_mutex> patchLock(mEditorState->patchMutex);
 
-    std::vector<const PatchCatalogEntry*> groupEntries;
-    for (const auto& entry : mPatchCatalog) {
-      if (entry.groupKey == mActivePatchGroupKey) groupEntries.push_back(&entry);
-    }
+    const auto entriesInGroup = [this](const std::string& groupKey) {
+      std::vector<const PatchCatalogEntry*> entries;
+      for (const auto& entry : mPatchCatalog)
+        if (entry.groupKey == groupKey) entries.push_back(&entry);
+      return entries;
+    };
 
-    if (groupEntries.empty()) {
-      for (const auto& entry : mPatchCatalog) {
-        if (entry.groupKey == "Factory") groupEntries.push_back(&entry);
-      }
-    }
-
+    std::vector<const PatchCatalogEntry*> groupEntries = entriesInGroup(mActivePatchGroupKey);
+    if (groupEntries.empty()) groupEntries = entriesInGroup("Factory");
     if (groupEntries.empty()) return;
 
-    int currentIndex = -1;
-    for (int i = 0; i < static_cast<int>(groupEntries.size()); ++i) {
-      if (IsActivePatch(*groupEntries[i])) {
-        currentIndex = i;
-        break;
-      }
-    }
-
-    if (currentIndex < 0) currentIndex = direction >= 0 ? -1 : 0;
-
-    int nextIndex = currentIndex + (direction >= 0 ? 1 : -1);
-    if (nextIndex < 0) nextIndex = static_cast<int>(groupEntries.size()) - 1;
-    if (nextIndex >= static_cast<int>(groupEntries.size())) nextIndex = 0;
+    // With no active patch in the group, stepping forwards lands on the first patch and stepping backwards on the last.
+    const int numEntries = static_cast<int>(groupEntries.size());
+    const auto activeIt = std::find_if(groupEntries.begin(), groupEntries.end(), [this](const PatchCatalogEntry* entry) { return IsActivePatch(*entry); });
+    const int currentIndex = activeIt != groupEntries.end() ? static_cast<int>(activeIt - groupEntries.begin()) : (direction >= 0 ? -1 : 0);
+    const int nextIndex = (currentIndex + (direction >= 0 ? 1 : -1) + numEntries) % numEntries;
 
     nextPatchId = groupEntries[static_cast<std::size_t>(nextIndex)]->id;
   }
@@ -1930,9 +1851,7 @@ void Addivox::PromptImportPatchCollection() {
   IGraphics* ui = GetUI();
   if (!ui) return;
 
-  WDL_String directory;
-  const std::string initialDirectory = mUserPatchDirectory.empty() ? EnsureDefaultUserPatchDirectory() : mUserPatchDirectory;
-  if (!initialDirectory.empty()) directory.Set(initialDirectory.c_str());
+  WDL_String directory{GetPatchDialogDirectory(mUserPatchDirectory).c_str()};
 
   ui->PromptForDirectory(directory, [this](const WDL_String&, const WDL_String& selectedDirectory) {
     if (selectedDirectory.GetLength() == 0) return;
@@ -1986,22 +1905,22 @@ void Addivox::ShowActivePatchInFileBrowser() {
 }
 
 void Addivox::HandlePatchManagerAction(int action, int patchId) {
-  const auto patchAction = static_cast<editor_messages::PatchManagerAction>(action);
-  switch (patchAction) {
-  case editor_messages::PatchManagerAction::SelectPatch:            LoadPatchById(patchId); break;
-  case editor_messages::PatchManagerAction::PreviousPatch:          CyclePatchInCurrentGroup(-1); break;
-  case editor_messages::PatchManagerAction::NextPatch:              CyclePatchInCurrentGroup(1); break;
-  case editor_messages::PatchManagerAction::SavePatch:
+  using editor_messages::PatchManagerAction;
+  switch (static_cast<PatchManagerAction>(action)) {
+  case PatchManagerAction::SelectPatch:            LoadPatchById(patchId); break;
+  case PatchManagerAction::PreviousPatch:          CyclePatchInCurrentGroup(-1); break;
+  case PatchManagerAction::NextPatch:              CyclePatchInCurrentGroup(1); break;
+  case PatchManagerAction::SavePatch:
     if (!IsReadOnlyUserPatchLibrary()) PromptSavePatchToFile();
     break;
-  case editor_messages::PatchManagerAction::ImportPatch:
+  case PatchManagerAction::ImportPatch:
     if (!IsReadOnlyUserPatchLibrary()) PromptImportPatchFromFile();
     break;
-  case editor_messages::PatchManagerAction::ImportCollection:
+  case PatchManagerAction::ImportCollection:
     if (!IsReadOnlyUserPatchLibrary()) PromptImportPatchCollection();
     break;
-  case editor_messages::PatchManagerAction::ShowPatchInFileBrowser: ShowActivePatchInFileBrowser(); break;
-  case editor_messages::PatchManagerAction::RefreshPatches:
+  case PatchManagerAction::ShowPatchInFileBrowser: ShowActivePatchInFileBrowser(); break;
+  case PatchManagerAction::RefreshPatches:
     RebuildPatchCatalog();
     RefreshEditorUI();
     break;

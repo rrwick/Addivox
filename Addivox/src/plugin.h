@@ -93,6 +93,8 @@ private:
   void ReleaseQwertyNotesIfKeysReleased();
 #endif
   bool IsActivePatch(const PatchCatalogEntry& entry) const;
+  void SetActiveFactoryPatch(int patchIdx);
+  void SetActiveUserPatch(const std::string& path);
   std::string FactoryPatchPath(int patchIdx) const; // Empty if that patch has no path
   void ApplyPatchDocumentToState(const patch_io::PatchDocument& document);
   void FinalizePatchRecall(bool syncControlValues);

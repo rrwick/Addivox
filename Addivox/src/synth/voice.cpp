@@ -42,10 +42,7 @@ SynthVoice::SynthVoice() {
 }
 
 bool SynthVoice::IsActive() const {
-  for (const auto& osc : mOscs) {
-    if (osc.IsActive()) return true;
-  }
-  return false;
+  return std::any_of(mOscs.begin(), mOscs.end(), [](const Oscillator& osc) { return osc.IsActive(); });
 }
 
 void SynthVoice::Start(double pitch, double pitchBend, double breath) {
@@ -79,8 +76,8 @@ void SynthVoice::SetPitchBend(double pitchBend) {
 void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings& currentSettings, double futurePitchOffsetCents,
                                          double futureFundamentalPitchSemitones) {
   auto& osc = mOscs[harmonic];
-  const double totalPitchSemitones = GetOscillatorBasePitchSemitones(harmonic, futurePitchOffsetCents, futureFundamentalPitchSemitones, mGlobalVoiceSettings);
-  osc.SetPitch(totalPitchSemitones);
+  const double pitchOffsetSemitones = (futurePitchOffsetCents + mGlobalVoiceSettings.tuningCents) / 100.0;
+  osc.SetPitch(futureFundamentalPitchSemitones + kHarmonicPitchOffsets[harmonic] + pitchOffsetSemitones);
   osc.SetPitchTime(GetPortamentoTimeSec());
   osc.SetPitchVariation((currentSettings.pitch_variation_amplitude * mGlobalVoiceSettings.pitchVariationAmplitudeScale) / 100.0,
                         currentSettings.pitch_variation_rate * mGlobalVoiceSettings.pitchVariationRateScale);
@@ -96,7 +93,7 @@ void SynthVoice::ApplyOscillatorSettings(int harmonic, const OscillatorSettings&
 void SynthVoice::SetBreath(double breath) {
   // Snap while inactive: a silent voice is not processed, so a ramp would
   // never advance and a rising breath could not wake it.
-  if (kBreathRampTimeSec <= 0.0 || !IsActive()) {
+  if (!IsActive()) {
     SnapBreath(breath);
     return;
   }
@@ -196,12 +193,6 @@ double SynthVoice::GetPortamentoTimeSec() const {
 }
 
 double SynthVoice::GetTargetMidiPitch() const { return mNotePitch + mPitchBend + mTransposeSemitones; }
-
-double SynthVoice::GetOscillatorBasePitchSemitones(int harmonic, double pitchOffsetCents, double fundamentalPitchSemitones,
-                                                   const GlobalVoiceSettings& globalSettings) {
-  const double patchPitchOffsetSemitones = (pitchOffsetCents + globalSettings.tuningCents) / 100.0;
-  return fundamentalPitchSemitones + kHarmonicPitchOffsets[harmonic] + patchPitchOffsetSemitones;
-}
 
 double SynthVoice::AdvanceTowards(double current, double target, double maxDelta) {
   const double delta = target - current;
@@ -339,7 +330,7 @@ void SynthVoice::ProcessSamplesAccumulating(iplug::sample** outputs, int startId
 }
 
 void SynthVoice::SetSampleRate(double sampleRate) {
-  mSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
+  mSampleRate = (sampleRate > 0.0) ? sampleRate : dsp::kDefaultSampleRate;
   for (auto& osc : mOscs) osc.SetSampleRate(sampleRate);
 
   UpdatePitchRate();

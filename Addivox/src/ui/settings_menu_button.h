@@ -116,9 +116,9 @@ private:
 
     auto* breathMenu = new IPopupMenu("Breath CC");
     const BreathCCSource currentSource = mBreathCCSource ? *mBreathCCSource : kDefaultBreathCCSource;
-    for (const BreathCCSource source : kBreathCCSources) {
-      const int flags = (source == currentSource) ? IPopupMenu::Item::kChecked : 0;
-      breathMenu->AddItem(GetBreathCCSourceMenuLabel(source), -1, flags);
+    for (const BreathCCSourceInfo& info : kBreathCCSourceInfos) {
+      const int flags = (info.source == currentSource) ? IPopupMenu::Item::kChecked : 0;
+      breathMenu->AddItem(info.menuLabel, -1, flags);
     }
 
     mMenu.AddItem("Breath CC", breathMenu);

@@ -39,4 +39,13 @@ bool ApplyParam(int paramIdx, double value, EffectsSettings& settings) {
   }
   return false;
 }
+
+bool GetParamValue(int paramIdx, const EffectsSettings& settings, double& value) {
+  for (const auto& setting : kSettingDescriptors) {
+    if (setting.paramIdx != paramIdx) continue;
+    value = settings.*(setting.member);
+    return true;
+  }
+  return false;
+}
 } // namespace effects_settings

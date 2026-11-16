@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <initializer_list>
 #include <iomanip>
 #include <limits>
@@ -553,6 +554,24 @@ inline bool DeleteFile(std::string_view path) {
 #endif
 }
 
+// Calls visit(childPath, isDirectory) for each entry in a directory, stopping at the first visit that returns false. Returns whether every visit succeeded.
+template <typename Visit> inline bool ForEachDirectoryEntry(std::string_view directory, Visit&& visit) {
+  WDL_DirScan scan;
+  if (scan.First(std::string{directory}.c_str()) != 0) return true;
+
+  do {
+    const char* entryName = scan.GetCurrentFN();
+    if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
+
+    WDL_FastString childPath;
+    scan.GetCurrentFullFN(&childPath);
+    const int directoryState = scan.GetCurrentIsDirectory();
+    if (!visit(childPath.Get(), directoryState != 0 && directoryState != 4)) return false;
+  } while (scan.Next() == 0);
+
+  return true;
+}
+
 struct ParsedCurve {
   bool present = false; // Only matters in [all_key_notes], where it turns All notes on. Missing arrays count as empty.
   std::vector<double> freqHz;
@@ -969,23 +988,12 @@ inline bool SavePatchToFile(std::string_view path, const PatchDocument& document
 }
 
 inline void FindPatchFilesRecursive(std::string_view directory, std::vector<std::string>& paths) {
-  WDL_DirScan scan;
-  if (scan.First(std::string{directory}.c_str()) != 0) return;
-
-  do {
-    const char* entryName = scan.GetCurrentFN();
-    if (!entryName || std::strcmp(entryName, ".") == 0 || std::strcmp(entryName, "..") == 0) continue;
-
-    WDL_FastString childPath;
-    scan.GetCurrentFullFN(&childPath);
-    const int directoryState = scan.GetCurrentIsDirectory();
-    if (directoryState != 0 && directoryState != 4) {
-      FindPatchFilesRecursive(childPath.Get(), paths);
-      continue;
-    }
-
-    if (detail::HasExtension(childPath.Get(), ".toml")) paths.push_back(childPath.Get());
-  } while (scan.Next() == 0);
+  detail::ForEachDirectoryEntry(directory, [&paths](const char* childPath, bool isDirectory) {
+    if (isDirectory) FindPatchFilesRecursive(childPath, paths);
+    else if (detail::HasExtension(childPath, ".toml"))
+      paths.push_back(childPath);
+    return true;
+  });
 }
 
 inline std::vector<std::string> FindPatchFiles(std::string_view directory) {

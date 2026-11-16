@@ -21,4 +21,5 @@ struct GlobalVoiceSettings {
 namespace global_settings {
 GlobalVoiceSettings Sanitize(const GlobalVoiceSettings& settings);
 bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings);
+bool GetParamValue(int paramIdx, const GlobalVoiceSettings& settings, double& value);
 } // namespace global_settings

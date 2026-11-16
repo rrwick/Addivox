@@ -58,4 +58,13 @@ bool ApplyParam(int paramIdx, double value, GlobalVoiceSettings& settings) {
   }
   return false;
 }
+
+bool GetParamValue(int paramIdx, const GlobalVoiceSettings& settings, double& value) {
+  for (const auto& setting : kSettingDescriptors) {
+    if (setting.paramIdx != paramIdx) continue;
+    value = settings.*(setting.member);
+    return true;
+  }
+  return false;
+}
 } // namespace global_settings

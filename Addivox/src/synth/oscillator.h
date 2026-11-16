@@ -126,7 +126,12 @@ private:
     double position{0.0};
     dsp::CachedNoise1D noiseCache;
 
-    void InvalidateNoiseCache() { noiseCache.reset(); }
+    bool IsActiveNow() const { return amplitude > kVariationParameterEpsilon && rateHz > kVariationParameterEpsilon; }
+    bool IsActiveNowOrSoon() const {
+      return (amplitude > kVariationParameterEpsilon || targetAmplitude > kVariationParameterEpsilon) &&
+             (rateHz > kVariationParameterEpsilon || targetRateHz > kVariationParameterEpsilon);
+    }
+    double CurrentNoise(uint32_t seed) { return IsActiveNow() ? noiseCache.evaluate(position, seed) : 0.0; }
   };
 
   VariationState mLevelVariation{};
@@ -140,17 +145,14 @@ private:
   static constexpr uint32_t kLevelVariationSeedXor = 0xF1023A17u;
   static constexpr uint32_t kPanVariationSeedXor = 0xC29B3F4Bu;
   inline static const double kMinPitchSemitones = kSemitonesPerOctave * std::log2(kMinFrequencyHz / kA4FrequencyHz);
-  void UpdateVariationParameterSmoothingRate();
   void RefreshVariationTargets();
   void UpdateModulatedTargets();
-  void UpdatePitchTarget(double pitchNoise = 0.0);
-  void UpdateLevelTarget(double levelNoise = 0.0);
-  void UpdatePanTarget(double panNoise = 0.0);
+  void UpdatePitchTarget(double pitchNoise);
+  void UpdateLevelTarget(double levelNoise);
+  void UpdatePanTarget(double panNoise);
   double ProcessVariation(VariationState& variation, uint32_t seed, bool noiseIsNeeded = true); // always advances the variation by one sample
   void SmoothVariationParameters(VariationState& variation);
-  static bool IsVariationActiveNow(const VariationState& variation);
-  static double CurrentVariationNoise(VariationState& variation, uint32_t seed);
-  double mVariationParameterSmoothingCoefficient = 1.0;
+  double mVariationParameterSmoothingCoefficient = dsp::ExponentialSmoothingCoefficient(mSampleRate, kVariationParameterSmoothingTimeSec);
   int mVariationTargetRefreshCountdown = 0;
 
   // Independent deterministic gradient-noise streams drive level, pitch and pan variation.

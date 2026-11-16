@@ -12,71 +12,48 @@ enum class BreathCCSource : uint8_t { ModWheel = 0, Breath, BreathHighRes, Volum
 
 inline constexpr BreathCCSource kDefaultBreathCCSource = BreathCCSource::Breath;
 
-inline constexpr std::array<BreathCCSource, static_cast<std::size_t>(BreathCCSource::kCount)> kBreathCCSources{{
-    BreathCCSource::ModWheel,
-    BreathCCSource::Breath,
-    BreathCCSource::BreathHighRes,
-    BreathCCSource::Volume,
-    BreathCCSource::VolumeHighRes,
-    BreathCCSource::Expression,
-    BreathCCSource::ExpressionHighRes,
+inline constexpr int kNoBreathCCController = -1;
+
+struct BreathCCSourceInfo {
+  BreathCCSource source;
+  const char* menuLabel;
+  int msbController;
+  int lsbController; // kNoBreathCCController unless the source is high-resolution
+
+  bool IsHighResolution() const { return lsbController != kNoBreathCCController; }
+};
+
+inline constexpr std::array<BreathCCSourceInfo, static_cast<std::size_t>(BreathCCSource::kCount)> kBreathCCSourceInfos{{
+    {BreathCCSource::ModWheel,          "CC 1 (Mod Wheel)",                    1,  kNoBreathCCController},
+    {BreathCCSource::Breath,            "CC 2 (Breath)",                       2,  kNoBreathCCController},
+    {BreathCCSource::BreathHighRes,     "CC 2 + CC 34 (High-Res Breath)",      2,  34},
+    {BreathCCSource::Volume,            "CC 7 (Volume)",                       7,  kNoBreathCCController},
+    {BreathCCSource::VolumeHighRes,     "CC 7 + CC 39 (High-Res Volume)",      7,  39},
+    {BreathCCSource::Expression,        "CC 11 (Expression)",                  11, kNoBreathCCController},
+    {BreathCCSource::ExpressionHighRes, "CC 11 + CC 43 (High-Res Expression)", 11, 43},
 }};
 
-inline const char* GetBreathCCSourceMenuLabel(BreathCCSource source) {
-  switch (source) {
-  case BreathCCSource::ModWheel:          return "CC 1 (Mod Wheel)";
-  case BreathCCSource::Breath:            return "CC 2 (Breath)";
-  case BreathCCSource::BreathHighRes:     return "CC 2 + CC 34 (High-Res Breath)";
-  case BreathCCSource::Volume:            return "CC 7 (Volume)";
-  case BreathCCSource::VolumeHighRes:     return "CC 7 + CC 39 (High-Res Volume)";
-  case BreathCCSource::Expression:        return "CC 11 (Expression)";
-  case BreathCCSource::ExpressionHighRes: return "CC 11 + CC 43 (High-Res Expression)";
-  default:                                return GetBreathCCSourceMenuLabel(kDefaultBreathCCSource);
-  }
+inline BreathCCSource SanitizeBreathCCSource(int rawValue) {
+  if (rawValue < 0 || rawValue >= static_cast<int>(BreathCCSource::kCount)) return kDefaultBreathCCSource;
+
+  return static_cast<BreathCCSource>(rawValue);
+}
+
+inline const BreathCCSourceInfo& GetBreathCCSourceInfo(BreathCCSource source) {
+  return kBreathCCSourceInfos[static_cast<std::size_t>(SanitizeBreathCCSource(static_cast<int>(source)))];
 }
 
 inline bool TryParseBreathCCSourceMenuLabel(const char* text, BreathCCSource& source) {
   if (!text) return false;
 
-  for (const BreathCCSource candidate : kBreathCCSources) {
-    if (std::strcmp(text, GetBreathCCSourceMenuLabel(candidate)) == 0) {
-      source = candidate;
+  for (const BreathCCSourceInfo& info : kBreathCCSourceInfos) {
+    if (std::strcmp(text, info.menuLabel) == 0) {
+      source = info.source;
       return true;
     }
   }
 
   return false;
-}
-
-inline bool IsHighResolutionBreathCCSource(BreathCCSource source) {
-  switch (source) {
-  case BreathCCSource::BreathHighRes:
-  case BreathCCSource::VolumeHighRes:
-  case BreathCCSource::ExpressionHighRes: return true;
-  default:                                return false;
-  }
-}
-
-inline int GetBreathCCSourceMSBController(BreathCCSource source) {
-  switch (source) {
-  case BreathCCSource::ModWheel:          return 1;
-  case BreathCCSource::Breath:
-  case BreathCCSource::BreathHighRes:     return 2;
-  case BreathCCSource::Volume:
-  case BreathCCSource::VolumeHighRes:     return 7;
-  case BreathCCSource::Expression:
-  case BreathCCSource::ExpressionHighRes: return 11;
-  default:                                return GetBreathCCSourceMSBController(kDefaultBreathCCSource);
-  }
-}
-
-inline int GetBreathCCSourceLSBController(BreathCCSource source) {
-  switch (source) {
-  case BreathCCSource::BreathHighRes:     return 34;
-  case BreathCCSource::VolumeHighRes:     return 39;
-  case BreathCCSource::ExpressionHighRes: return 43;
-  default:                                return -1;
-  }
 }
 
 inline bool IsSupportedBreathCCController(int controller) {
@@ -90,12 +67,6 @@ inline bool IsSupportedBreathCCController(int controller) {
   case 43: return true;
   default: return false;
   }
-}
-
-inline BreathCCSource SanitizeBreathCCSource(int rawValue) {
-  if (rawValue < 0 || rawValue >= static_cast<int>(BreathCCSource::kCount)) return kDefaultBreathCCSource;
-
-  return static_cast<BreathCCSource>(rawValue);
 }
 
 inline double GetHighResolutionBreathValue(int msbValue, int lsbValue) {
@@ -149,37 +120,31 @@ public:
 
     update.consumed = true;
 
-    const int channel = std::clamp(msg.Channel(), 0, kNumMidiChannels - 1);
     const int value = std::clamp(static_cast<int>(msg.mData2), 0, 127);
-    const int msbController = GetBreathCCSourceMSBController(source);
+    const BreathCCSourceInfo& info = GetBreathCCSourceInfo(source);
 
-    if (!IsHighResolutionBreathCCSource(source)) {
-      if (controller == msbController) {
+    if (!info.IsHighResolution()) {
+      if (controller == info.msbController) {
         update.hasValue = true;
         update.value = static_cast<double>(value) / 127.0;
       }
       return update;
     }
 
-    ChannelState& state = mChannels[channel];
-    const int lsbController = GetBreathCCSourceLSBController(source);
+    ChannelState& state = mChannels[static_cast<std::size_t>(std::clamp(msg.Channel(), 0, kNumMidiChannels - 1))];
 
-    if (controller == msbController) {
+    if (controller == info.msbController) {
       state.msbValue = value;
       state.hasMSB = true;
       update.hasValue = true;
       update.value = GetHighResolutionBreathValue(value, state.hasLSB ? state.lsbValue : 0);
-      return update;
-    }
-
-    if (controller == lsbController) {
+    } else if (controller == info.lsbController) {
       state.lsbValue = value;
       state.hasLSB = true;
       if (state.hasMSB) {
         update.hasValue = true;
         update.value = GetHighResolutionBreathValue(state.msbValue, state.lsbValue);
       }
-      return update;
     }
 
     return update;
